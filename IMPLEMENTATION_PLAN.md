@@ -26,28 +26,28 @@ Before spawning Blender, we must strictly define what we are asking it to do.
 This code runs INSIDE the Blender process. It has access to `bpy` and `bproc` but NO access to the CLI state.
 
 ### 2.1. Driver Skeleton (`src/render_tag/scripts/blender_main.py`)
-- [ ] Implement `argparse` to receive the path to the serialized `config.json` (passed by the CLI).
-- [ ] Initialize `bproc.init()`.
-- [ ] Create the main loop: `setup_scene` -> `simulate_physics` -> `sample_cameras` -> `render` -> `write_data`.
+- [x] Implement `argparse` to receive the path to the serialized `config.json` (passed by the CLI).
+- [x] Initialize `bproc.init()`.
+- [x] Create the main loop: `setup_scene` -> `simulate_physics` -> `sample_cameras` -> `render` -> `write_data`.
 
 ### 2.2. Asset Loader
-- [ ] Implement `load_tag_asset()`:
+- [x] Implement `load_tag_asset()`:
     - Create a simple Plane primitive.
     - Map the specific AprilTag texture (from `assets/`) to the UVs strictly.
     - **Crucial**: Store the local 3D coordinates of the 4 corners (e.g., `[(-s, s, 0), (s, s, 0), ...]`) in a known order.
 
 ### 2.3. Scene Construction
-- [ ] **Lighting**: Implement randomized lighting sampling (HDRI environment + random Point lights).
-- [ ] **Backgrounds**: Use `bproc.world.set_world_background_hdr_img` for realistic reflections.
-- [ ] **Physics**:
+- [x] **Lighting**: Implement randomized lighting sampling (HDRI environment + random Point lights).
+- [x] **Backgrounds**: Use `bproc.world.set_world_background_hdr_img` for realistic reflections.
+- [x] **Physics**:
     - Create a passive floor plane.
     - Set the Tag object to active rigid body.
     - Implement a "Scatter" function: Randomize tag position/rotation above the floor.
     - Call `bproc.object.simulate_physics_and_fix_final_poses()`.
 
 ### 2.4. Camera Sampling
-- [ ] Use `bproc.sampler.part_sphere` to generate camera poses looking at the scene center.
-- [ ] Filter poses: Reject cameras that are "under the floor" or too close.
+- [x] Use `bproc.sampler.part_sphere` to generate camera poses looking at the scene center.
+- [x] Filter poses: Reject cameras that are "under the floor" or too close.
 
 ## Phase 3: The Orchestrator (The "Manager")
 This runs in the standard system Python environment.

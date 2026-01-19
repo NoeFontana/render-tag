@@ -1,0 +1,207 @@
+"""
+BlenderProc main driver script for render-tag synthetic data generation.
+
+This script runs INSIDE the Blender process and has access to bpy and bproc.
+It is invoked by the CLI via: blenderproc run blender_main.py --config <path>
+
+Usage:
+    blenderproc run blender_main.py --config job_config.json --output output/dataset_01
+"""
+
+import argparse
+import json
+import sys
+from pathlib import Path
+
+# BlenderProc imports (only available inside Blender)
+try:
+    import blenderproc as bproc
+    import bpy
+except ImportError:
+    # Allow importing for type checking outside Blender
+    bproc = None  # type: ignore
+    bpy = None  # type: ignore
+
+from .assets import create_tag_plane, get_tag_texture_path
+from .camera import sample_camera_poses, set_camera_intrinsics
+from .scene import create_floor, scatter_tags, setup_background, setup_lighting
+
+
+def parse_args() -> argparse.Namespace:
+    """Parse command line arguments passed by the CLI."""
+    parser = argparse.ArgumentParser(description="BlenderProc render-tag driver")
+    parser.add_argument(
+        "--config",
+        type=Path,
+        required=True,
+        help="Path to the serialized config JSON file",
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        required=True,
+        help="Output directory for rendered data",
+    )
+    return parser.parse_args()
+
+
+def load_config_json(config_path: Path) -> dict:
+    """Load the config from a JSON file serialized by the CLI."""
+    with open(config_path) as f:
+        return json.load(f)
+
+
+def setup_scene(config: dict) -> None:
+    """Initialize the scene with background and basic setup."""
+    # Set world background if HDRI is provided
+    hdri_path = config.get("scene", {}).get("background_hdri")
+    if hdri_path and Path(hdri_path).exists():
+        setup_background(Path(hdri_path))
+
+
+def render_scene(output_dir: Path, scene_idx: int, cam_idx: int) -> Path:
+    """Render the current scene and save the image."""
+    # Set output path
+    image_name = f"scene_{scene_idx:04d}_cam_{cam_idx:04d}"
+    
+    # Render using blenderproc
+    data = bproc.renderer.render()
+    
+    # Save the rendered image
+    image_path = output_dir / "images" / f"{image_name}.png"
+    image_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    # BlenderProc returns images as numpy arrays
+    if "colors" in data and len(data["colors"]) > 0:
+        import numpy as np
+        from PIL import Image
+        
+        img_array = data["colors"][0]
+        img = Image.fromarray(img_array.astype(np.uint8))
+        img.save(str(image_path))
+    
+    return image_path
+
+
+def write_annotations(
+    output_dir: Path,
+    image_name: str,
+    tag_objects: list,
+    camera_matrix: list,
+) -> None:
+    """Write corner annotations to CSV file."""
+    from .projection import project_corners_to_image
+    
+    csv_path = output_dir / "tags.csv"
+    
+    # Create header if file doesn't exist
+    if not csv_path.exists():
+        with open(csv_path, "w") as f:
+            f.write("image_id,tag_id,tag_family,x1,y1,x2,y2,x3,y3,x4,y4\n")
+    
+    # Project corners for each tag and append to CSV
+    with open(csv_path, "a") as f:
+        for tag_obj in tag_objects:
+            corners_2d = project_corners_to_image(tag_obj, camera_matrix)
+            if corners_2d is not None:
+                tag_id = tag_obj.get("tag_id", 0)
+                tag_family = tag_obj.get("tag_family", "tag36h11")
+                corner_str = ",".join(f"{c[0]:.2f},{c[1]:.2f}" for c in corners_2d)
+                f.write(f"{image_name},{tag_id},{tag_family},{corner_str}\n")
+
+
+def main() -> int:
+    """Main entry point for the BlenderProc driver."""
+    args = parse_args()
+    
+    # Load configuration
+    config = load_config_json(args.config)
+    output_dir = args.output
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Initialize BlenderProc
+    bproc.init()
+    
+    # Get config sections
+    camera_config = config.get("camera", {})
+    tag_config = config.get("tag", {})
+    scene_config = config.get("scene", {})
+    physics_config = config.get("physics", {})
+    
+    # Set camera intrinsics
+    set_camera_intrinsics(camera_config)
+    
+    # Number of scenes to generate
+    num_scenes = config.get("dataset", {}).get("num_scenes", 1)
+    samples_per_scene = camera_config.get("samples_per_scene", 10)
+    
+    for scene_idx in range(num_scenes):
+        # Clean scene for new iteration
+        bproc.clean_up()
+        bproc.init()
+        
+        # Setup scene background
+        setup_scene(config)
+        
+        # Create floor for physics
+        floor = create_floor()
+        
+        # Create tag asset
+        tag_size = tag_config.get("size_meters", 0.1)
+        tag_family = tag_config.get("family", "tag36h11")
+        texture_path = get_tag_texture_path(tag_family, tag_config.get("texture_path"))
+        
+        tag_obj = create_tag_plane(tag_size, texture_path, tag_family)
+        tag_objects = [tag_obj]
+        
+        # Setup lighting
+        lighting_config = scene_config.get("lighting", {})
+        setup_lighting(
+            intensity_min=lighting_config.get("intensity_min", 50),
+            intensity_max=lighting_config.get("intensity_max", 500),
+        )
+        
+        # Scatter tags and simulate physics
+        drop_height = physics_config.get("drop_height", 1.5)
+        scatter_radius = physics_config.get("scatter_radius", 0.5)
+        scatter_tags(tag_objects, drop_height, scatter_radius)
+        
+        # Simulate physics
+        bproc.object.simulate_physics_and_fix_final_poses(
+            min_simulation_time=1,
+            max_simulation_time=4,
+            check_object_interval=1,
+        )
+        
+        # Sample camera poses
+        camera_poses = sample_camera_poses(
+            num_samples=samples_per_scene,
+            look_at_point=[0, 0, 0],
+            min_distance=0.5,
+            max_distance=2.0,
+        )
+        
+        # Render from each camera pose
+        for cam_idx, pose in enumerate(camera_poses):
+            bproc.camera.add_camera_pose(pose)
+            
+            # Render
+            image_path = render_scene(output_dir, scene_idx, cam_idx)
+            
+            # Get camera matrix for projection
+            camera_matrix = bproc.camera.get_camera_pose()
+            
+            # Write annotations
+            write_annotations(
+                output_dir,
+                image_path.stem,
+                tag_objects,
+                camera_matrix,
+            )
+    
+    print(f"✓ Generated {num_scenes * samples_per_scene} images in {output_dir}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
