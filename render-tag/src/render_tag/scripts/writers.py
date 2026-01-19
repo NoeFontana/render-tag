@@ -18,6 +18,21 @@ if TYPE_CHECKING:
     pass
 
 
+
+# Import pure-Python geometry modules
+try:
+    import sys
+    from pathlib import Path
+    pkg_root = Path(__file__).parent.parent
+    if str(pkg_root) not in sys.path:
+        sys.path.insert(0, str(pkg_root))
+    from math_utils import compute_polygon_area
+    from annotation_utils import compute_bbox, normalize_corner_order
+    GEOMETRY_AVAILABLE = True
+except ImportError:
+    GEOMETRY_AVAILABLE = False
+
+
 @dataclass
 class DetectionRecord:
     """A single detection record for export."""
@@ -42,11 +57,7 @@ class CSVWriter:
     HEADER = ["image_id", "tag_id", "tag_family", "x1", "y1", "x2", "y2", "x3", "y3", "x4", "y4"]
     
     def __init__(self, output_path: Path) -> None:
-        """Initialize the CSV writer.
-        
-        Args:
-            output_path: Path to the CSV file
-        """
+        """Initialize the CSV writer."""
         self.output_path = output_path
         self._initialized = False
     
@@ -60,18 +71,16 @@ class CSVWriter:
             self._initialized = True
     
     def write_detection(self, detection: DetectionRecord) -> None:
-        """Write a single detection to the CSV file.
-        
-        Args:
-            detection: The detection record to write
-        """
+        """Write a single detection to the CSV file."""
         if not detection.validate():
             return
         
         self._ensure_initialized()
         
         row = [detection.image_id, detection.tag_id, detection.tag_family]
-        for corner in detection.corners:
+        # CSV format uses standard CCW order from BL
+        ordered_corners = normalize_corner_order(detection.corners, target_order="ccw_bl")
+        for corner in ordered_corners:
             row.extend([f"{corner[0]:.4f}", f"{corner[1]:.4f}"])
         
         with open(self.output_path, "a", newline="") as f:
@@ -79,28 +88,16 @@ class CSVWriter:
             writer.writerow(row)
     
     def write_detections(self, detections: list[DetectionRecord]) -> None:
-        """Write multiple detections to the CSV file.
-        
-        Args:
-            detections: List of detection records to write
-        """
+        """Write multiple detections to the CSV file."""
         for detection in detections:
             self.write_detection(detection)
 
 
 class COCOWriter:
-    """Writer for COCO format annotations.
-    
-    Generates instance segmentation annotations compatible with
-    standard COCO dataset format.
-    """
+    """Writer for COCO format annotations."""
     
     def __init__(self, output_dir: Path) -> None:
-        """Initialize the COCO writer.
-        
-        Args:
-            output_dir: Directory to write the annotations.json file
-        """
+        """Initialize the COCO writer."""
         self.output_dir = output_dir
         self.images: list[dict] = []
         self.annotations: list[dict] = []
@@ -110,15 +107,7 @@ class COCOWriter:
         self._next_annotation_id = 1
     
     def add_category(self, name: str, supercategory: str = "fiducial_marker") -> int:
-        """Add a category and return its ID.
-        
-        Args:
-            name: Category name (e.g., "tag36h11")
-            supercategory: Parent category
-            
-        Returns:
-            Category ID
-        """
+        """Add a category and return its ID."""
         if name in self._category_map:
             return self._category_map[name]
         
@@ -132,16 +121,7 @@ class COCOWriter:
         return cat_id
     
     def add_image(self, file_name: str, width: int, height: int) -> int:
-        """Add an image entry and return its ID.
-        
-        Args:
-            file_name: Image filename
-            width: Image width in pixels
-            height: Image height in pixels
-            
-        Returns:
-            Image ID
-        """
+        """Add an image entry and return its ID."""
         image_id = self._next_image_id
         self._next_image_id += 1
         
@@ -160,49 +140,30 @@ class COCOWriter:
         corners: list[tuple[float, float]],
         tag_id: int = 0,
     ) -> int:
-        """Add an annotation for a detected tag.
-        
-        Args:
-            image_id: ID of the image
-            category_id: ID of the category
-            corners: 4 corner coordinates (x, y)
-            tag_id: The specific tag ID within the family
-            
-        Returns:
-            Annotation ID
-        """
+        """Add an annotation for a detected tag."""
         if len(corners) != 4:
             raise ValueError("Annotation must have exactly 4 corners")
         
         annotation_id = self._next_annotation_id
         self._next_annotation_id += 1
         
-        # Compute bounding box [x, y, width, height]
-        xs = [c[0] for c in corners]
-        ys = [c[1] for c in corners]
-        x_min, x_max = min(xs), max(xs)
-        y_min, y_max = min(ys), max(ys)
-        bbox = [x_min, y_min, x_max - x_min, y_max - y_min]
+        # 1. Use pure-Python utility for bbox
+        bbox = compute_bbox(np.array(corners))
         
-        # Compute area using shoelace formula
-        area = 0.0
-        n = len(corners)
-        for i in range(n):
-            j = (i + 1) % n
-            area += corners[i][0] * corners[j][1]
-            area -= corners[j][0] * corners[i][1]
-        area = abs(area) / 2.0
+        # 2. Use pure-Python utility for area
+        area = compute_polygon_area(np.array(corners))
         
-        # Segmentation: flatten corners to [x1, y1, x2, y2, x3, y3, x4, y4]
+        # 3. Use pure-Python utility for corner reordering (COCO prefers CW from TL)
+        ordered_corners = normalize_corner_order(corners, target_order="cw_tl")
         segmentation = []
-        for corner in corners:
+        for corner in ordered_corners:
             segmentation.extend([corner[0], corner[1]])
         
         self.annotations.append({
             "id": annotation_id,
             "image_id": image_id,
             "category_id": category_id,
-            "segmentation": [segmentation],  # List of polygons
+            "segmentation": [segmentation],
             "bbox": bbox,
             "area": area,
             "iscrowd": 0,
@@ -212,14 +173,7 @@ class COCOWriter:
         return annotation_id
     
     def save(self, filename: str = "annotations.json") -> Path:
-        """Save the COCO annotations to a JSON file.
-        
-        Args:
-            filename: Name of the output file
-            
-        Returns:
-            Path to the saved file
-        """
+        """Save the COCO annotations to a JSON file."""
         self.output_dir.mkdir(parents=True, exist_ok=True)
         output_path = self.output_dir / filename
         
@@ -238,52 +192,22 @@ class COCOWriter:
 def corners_to_clockwise_order(
     corners: list[tuple[float, float]],
 ) -> list[tuple[float, float]]:
-    """Ensure corners are in clockwise order starting from top-left.
-    
-    Input order (CCW from BL): BL(0), BR(1), TR(2), TL(3)
-    Output order (CW from TL): TL(0), TR(1), BR(2), BL(3)
-    
-    Args:
-        corners: List of 4 (x, y) corner coordinates in CCW order from BL
-        
-    Returns:
-        Corners reordered to CW from TL: TL, TR, BR, BL
-    """
-    if len(corners) != 4:
-        return corners
-    
-    # Input: BL(0), BR(1), TR(2), TL(3) [CCW from bottom-left]
-    # Output: TL(0), TR(1), BR(2), BL(3) [CW from top-left]
-    bl, br, tr, tl = corners[0], corners[1], corners[2], corners[3]
-    return [tl, tr, br, bl]
+    """Legacy helper maintained for backward compatibility."""
+    return normalize_corner_order(corners, target_order="cw_tl")
 
 
 def verify_corner_order(
     corners: list[tuple[float, float]],
     expected_order: str = "ccw",
 ) -> bool:
-    """Verify that corners are in the expected winding order.
-    
-    Args:
-        corners: List of 4 (x, y) corner coordinates
-        expected_order: "cw" for clockwise, "ccw" for counter-clockwise
-        
-    Returns:
-        True if corners are in the expected order
-    """
-    if len(corners) != 4:
-        return False
-    
-    # Compute signed area using shoelace formula
-    # Positive = CCW, Negative = CW
-    area = 0.0
-    n = len(corners)
-    for i in range(n):
-        j = (i + 1) % n
-        area += corners[i][0] * corners[j][1]
-        area -= corners[j][0] * corners[i][1]
+    """Verify that corners are in the expected winding order."""
+    area = compute_polygon_area(np.array(corners))
+    # We need signed area for winding order
+    x = np.array([c[0] for c in corners])
+    y = np.array([c[1] for c in corners])
+    signed_area = 0.5 * (np.dot(x, np.roll(y, -1)) - np.dot(y, np.roll(x, -1)))
     
     if expected_order == "ccw":
-        return area > 0
+        return signed_area > 0
     else:  # cw
-        return area < 0
+        return signed_area < 0

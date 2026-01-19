@@ -21,6 +21,20 @@ except ImportError:
     np = None  # type: ignore
 
 
+
+# Import pure-Python geometry modules
+try:
+    import sys
+    from pathlib import Path
+    pkg_root = Path(__file__).parent.parent
+    if str(pkg_root) not in sys.path:
+        sys.path.insert(0, str(pkg_root))
+    from camera_geometry import sample_camera_pose, validate_camera_pose, CameraPose
+    GEOMETRY_AVAILABLE = True
+except ImportError:
+    GEOMETRY_AVAILABLE = False
+
+
 def set_camera_intrinsics(camera_config: dict) -> None:
     """Set camera intrinsics from configuration.
     
@@ -90,7 +104,7 @@ def sample_camera_poses(
     sampling_mode: str = "random",
     sample_idx: int = 0,
     total_samples: int = 1,
-) -> list[Any]:
+) -> list[np.ndarray]:
     """Sample camera poses from a partial sphere looking at a point.
     
     Args:
@@ -109,103 +123,49 @@ def sample_camera_poses(
     """
     poses = []
     attempts = 0
-    max_attempts = num_samples * 50 # Increase attempts
+    max_attempts = num_samples * 50
     
     # Pre-calculate steps for structured sampling if num_samples > 1
-    # If num_samples is 1 (called in a loop), use sample_idx/total_samples
     if num_samples > 1:
         dist_steps = np.linspace(min_distance, max_distance, num_samples)
         elev_steps = np.linspace(min_elevation, max_elevation, num_samples)
     else:
-        # Avoid division by zero if total_samples is 1
         t = sample_idx / (total_samples - 1) if total_samples > 1 else 0.5
         dist_steps = [min_distance + t * (max_distance - min_distance)]
         elev_steps = [min_elevation + t * (max_elevation - min_elevation)]
     
     while len(poses) < num_samples and attempts < max_attempts:
         i = len(poses)
-        
-        # Determine sampling parameters based on mode
-        if sampling_mode == "distance":
-            curr_dist = dist_steps[i]
-            curr_elevation = np.random.uniform(min_elevation, max_elevation)
-        elif sampling_mode == "angle":
-            curr_dist = np.random.uniform(min_distance, max_distance)
-            curr_elevation = elev_steps[i]
-        else: # random
-            curr_dist = np.random.uniform(min_distance, max_distance)
-            curr_elevation = np.random.uniform(min_elevation, max_elevation)
-            
         attempts += 1
         
-        # Sample position
-        azimuth = np.random.uniform(0, 2 * np.pi)
+        # Determine sampling parameters based on mode
+        curr_dist = None
+        curr_elev = None
         
-        # curr_elevation is normalized elevation [0, 1] where 1 is vertical.
-        # Angle from vertical (phi) is acos(curr_elevation).
-        phi = np.arccos(curr_elevation) 
-        
-        x = curr_dist * np.sin(phi) * np.cos(azimuth) + look_at_point[0]
-        y = curr_dist * np.sin(phi) * np.sin(azimuth) + look_at_point[1]
-        z = curr_dist * np.cos(phi) + look_at_point[2]
-        
-        location = np.array([x, y, z])
-        
-        # Check if location is valid
-        if location[2] < 0.02: # Extremely low floor check
-            continue
-        
-        # Compute rotation to look at the target
-        rotation_matrix = bproc.camera.rotation_from_forward_vec(
-            np.array(look_at_point) - location,
-            inplane_rot=np.random.uniform(-0.1, 0.1),  # Small random roll
+        if sampling_mode == "distance":
+            curr_dist = dist_steps[i]
+        elif sampling_mode == "angle":
+            curr_elev = elev_steps[i]
+            
+        # 1. Use pure-Python geometry for sampling
+        pose = sample_camera_pose(
+            look_at_point=look_at_point,
+            min_distance=min_distance,
+            max_distance=max_distance,
+            min_elevation=min_elevation,
+            max_elevation=max_elevation,
+            distance=curr_dist,
+            elevation=curr_elev,
         )
         
-        # Build the camera-to-world matrix
-        cam2world = bproc.math.build_transformation_mat(location, rotation_matrix)
-        
-        # Validate the pose
-        if is_valid_camera_pose(cam2world, look_at_point, min_distance):
-            poses.append(cam2world)
-    
-    if len(poses) < num_samples:
-        # Silent failure if called in loop, blender_main handles with its own attempts
-        pass
+        # 2. Use pure-Python geometry for validation
+        if validate_camera_pose(pose, look_at_point, min_distance):
+            poses.append(pose.transform_matrix)
     
     return poses
 
 
-def is_valid_camera_pose(
-    cam2world: Any,
-    look_at_point: list[float],
-    min_distance: float,
-) -> bool:
-    """Validate a camera pose.
-    
-    Args:
-        cam2world: 4x4 camera-to-world transformation matrix
-        look_at_point: The point the camera should be looking at
-        min_distance: Minimum allowed distance to the target
-        
-    Returns:
-        True if the pose is valid
-    """
-    # Extract camera position
-    cam_pos = cam2world[:3, 3]
-    
-    # Check distance to target
-    distance = np.linalg.norm(cam_pos - np.array(look_at_point))
-    if distance < min_distance:
-        return False
-    
-    # Check if camera is above the floor
-    if cam_pos[2] < 0.05:
-        return False
-    
-    return True
-
-
-def add_camera_poses_to_scene(poses: list[Any]) -> None:
+def add_camera_poses_to_scene(poses: list[np.ndarray]) -> None:
     """Add multiple camera poses to the BlenderProc scene.
     
     Args:
@@ -215,7 +175,7 @@ def add_camera_poses_to_scene(poses: list[Any]) -> None:
         bproc.camera.add_camera_pose(pose)
 
 
-def get_camera_k_matrix() -> Any:
+def get_camera_k_matrix() -> np.ndarray:
     """Get the current camera's intrinsic matrix.
     
     Returns:
