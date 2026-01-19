@@ -9,14 +9,10 @@ These tests verify physical plausibility of calibration boards:
 All tests run WITHOUT Blender.
 """
 
-import pytest
 
 from render_tag.board_geometry import (
-    BoardLayout,
-    BoardPosition,
     BoardSpec,
     BoardType,
-    SquareInfo,
     compute_aprilgrid_layout,
     compute_charuco_layout,
     validate_aprilgrid_filling,
