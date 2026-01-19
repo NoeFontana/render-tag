@@ -1,0 +1,28 @@
+dataset:
+  output_dir: output/aruco_checkerboard
+  seed: 101
+  num_scenes: 1
+
+camera:
+  resolution: [1280, 720]
+  samples_per_scene: 5
+  fov: 60
+
+tag:
+  size_meters: 0.06
+  texture_path: assets/tags/DICT_4X4_50
+
+scenario:
+  layout: cb
+  tag_families: [DICT_4X4_50]
+  tags_per_scene: [9, 9] # 3x3 grid
+  grid_size: [3, 3]
+  corner_size: 0.015
+
+scene:
+  lighting:
+    intensity_min: 100
+    intensity_max: 800
+
+physics:
+  drop_height: 0.05

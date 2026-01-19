@@ -60,6 +60,63 @@ class TagFamily(str, Enum):
         return self.value.startswith("DICT_")
 
 
+class LayoutMode(str, Enum):
+    """Layout mode for tag placement in scenes."""
+    
+    PLAIN = "plain"  # Tags equidistant, no connecting pattern
+    CHECKERBOARD = "cb"  # Tags connected by black corner squares
+
+
+# Bit counts for each tag family (used for minimum pixel area calculation)
+TAG_BIT_COUNTS: dict[str, int] = {
+    # AprilTag families
+    "tag36h11": 36,
+    "tag36h10": 36,
+    "tag25h9": 25,
+    "tag16h5": 16,
+    "tagCircle21h7": 21,
+    "tagCircle49h12": 49,
+    "tagCustom48h12": 48,
+    "tagStandard41h12": 41,
+    "tagStandard52h13": 52,
+    # ArUco dictionaries
+    "DICT_4X4_50": 16,
+    "DICT_4X4_100": 16,
+    "DICT_4X4_250": 16,
+    "DICT_4X4_1000": 16,
+    "DICT_5X5_50": 25,
+    "DICT_5X5_100": 25,
+    "DICT_5X5_250": 25,
+    "DICT_5X5_1000": 25,
+    "DICT_6X6_50": 36,
+    "DICT_6X6_100": 36,
+    "DICT_6X6_250": 36,
+    "DICT_6X6_1000": 36,
+    "DICT_7X7_50": 49,
+    "DICT_7X7_100": 49,
+    "DICT_7X7_250": 49,
+    "DICT_7X7_1000": 49,
+    "DICT_ARUCO_ORIGINAL": 25,
+}
+
+
+def get_min_pixel_area(tag_family: str | TagFamily) -> int:
+    """Get the minimum pixel area for a tag to be considered valid.
+    
+    The minimum area equals the number of data bits in the tag.
+    
+    Args:
+        tag_family: Tag family name or enum value
+        
+    Returns:
+        Minimum pixel area (= bit count)
+    """
+    if isinstance(tag_family, TagFamily):
+        tag_family = tag_family.value
+    return TAG_BIT_COUNTS.get(tag_family, 36)  # Default to 36 if unknown
+
+
+
 class DatasetConfig(BaseModel):
     """Dataset output configuration."""
 
@@ -220,6 +277,47 @@ class PhysicsConfig(BaseModel):
     scatter_radius: float = Field(default=0.5, gt=0, description="Scatter radius in meters")
 
 
+class ScenarioConfig(BaseModel):
+    """Configuration for a generation scenario.
+    
+    Defines the layout mode and tag configuration for scene generation.
+    """
+    
+    layout: LayoutMode = Field(default=LayoutMode.PLAIN, description="Layout mode for tag placement")
+    tag_families: list[TagFamily] = Field(
+        default=[TagFamily.TAG36H11],
+        description="Tag families to use in this scenario",
+    )
+    tags_per_scene: tuple[int, int] = Field(
+        default=(1, 5),
+        description="Range of tags per scene (min, max)",
+    )
+    # Checkerboard-specific settings
+    grid_size: tuple[int, int] = Field(
+        default=(3, 3),
+        description="Grid of tags for checkerboard layout (cols, rows)",
+    )
+    corner_size: float = Field(
+        default=0.01,
+        gt=0,
+        description="Size of black corner squares in meters (checkerboard only)",
+    )
+    tag_spacing: float = Field(
+        default=0.05,
+        gt=0,
+        description="Spacing between tags in meters (plain layout only)",
+    )
+
+    @field_validator("tags_per_scene")
+    @classmethod
+    def validate_tags_per_scene(cls, v: tuple[int, int]) -> tuple[int, int]:
+        if v[0] < 1:
+            raise ValueError("Minimum tags per scene must be >= 1")
+        if v[0] > v[1]:
+            raise ValueError("Min tags must be <= max tags")
+        return v
+
+
 class GenConfig(BaseModel):
     """Root configuration for synthetic data generation.
 
@@ -231,6 +329,7 @@ class GenConfig(BaseModel):
     tag: TagConfig = Field(default_factory=TagConfig)
     scene: SceneConfig = Field(default_factory=SceneConfig)
     physics: PhysicsConfig = Field(default_factory=PhysicsConfig)
+    scenario: ScenarioConfig = Field(default_factory=ScenarioConfig)
 
 
 def load_config(path: Path | str) -> GenConfig:

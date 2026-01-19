@@ -1,0 +1,28 @@
+dataset:
+  output_dir: output/aruco_plain
+  seed: 101
+  num_scenes: 1
+
+camera:
+  resolution: [1280, 720]
+  samples_per_scene: 5
+  fov: 60
+
+tag:
+  size_meters: 0.1
+  # Assuming texture path for ArUco is organized similarly or generated
+  texture_path: assets/tags/DICT_4X4_50 
+
+scenario:
+  layout: plain
+  tag_families: [DICT_4X4_50]
+  tags_per_scene: [3, 8]
+  tag_spacing: 0.12
+
+scene:
+  lighting:
+    intensity_min: 100
+    intensity_max: 800
+
+physics:
+  drop_height: 0.1

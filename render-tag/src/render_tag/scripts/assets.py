@@ -35,12 +35,17 @@ CORNER_ORDER = [
 ]
 
 
-def get_tag_texture_path(tag_family: str, custom_path: Optional[Path] = None) -> Optional[Path]:
+def get_tag_texture_path(
+    tag_family: str, 
+    custom_path: Optional[Path] = None,
+    tag_id: Optional[int] = None,
+) -> Optional[Path]:
     """Get the path to a tag texture file.
     
     Args:
         tag_family: The tag family identifier (e.g., "tag36h11", "DICT_4X4_50")
         custom_path: Optional custom texture path
+        tag_id: Optional marker ID for indexed textures (e.g., "tag36h11_0.png")
         
     Returns:
         Path to the texture file, or None if not found
@@ -48,6 +53,16 @@ def get_tag_texture_path(tag_family: str, custom_path: Optional[Path] = None) ->
     if custom_path and Path(custom_path).exists():
         return Path(custom_path)
     
+    # Check for specific indexed tag first
+    if tag_id is not None:
+        indexed_paths = [
+            Path("assets/tags") / f"{tag_family}_{tag_id}.png",
+            Path("assets/textures") / f"{tag_family}_{tag_id}.png",
+        ]
+        for path in indexed_paths:
+            if path.exists():
+                return path
+
     # Default texture locations
     default_paths = [
         Path("assets/textures") / f"{tag_family}.png",

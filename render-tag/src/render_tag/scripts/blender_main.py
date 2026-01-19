@@ -30,6 +30,18 @@ from projection import check_tag_facing_camera, check_tag_visibility, project_co
 from scene import create_floor, scatter_tags, setup_background, setup_lighting
 from writers import COCOWriter, CSVWriter, DetectionRecord
 
+# Bit counts for each tag family (used for minimum pixel area calculation)
+TAG_BIT_COUNTS = {
+    "tag36h11": 36, "tag36h10": 36, "tag25h9": 25, "tag16h5": 16,
+    "tagCircle21h7": 21, "tagCircle49h12": 49, "tagCustom48h12": 48,
+    "tagStandard41h12": 41, "tagStandard52h13": 52,
+    "DICT_4X4_50": 16, "DICT_4X4_100": 16, "DICT_4X4_250": 16, "DICT_4X4_1000": 16,
+    "DICT_5X5_50": 25, "DICT_5X5_100": 25, "DICT_5X5_250": 25, "DICT_5X5_1000": 25,
+    "DICT_6X6_50": 36, "DICT_6X6_100": 36, "DICT_6X6_250": 36, "DICT_6X6_1000": 36,
+    "DICT_7X7_50": 49, "DICT_7X7_100": 49, "DICT_7X7_250": 49, "DICT_7X7_1000": 49,
+    "DICT_ARUCO_ORIGINAL": 25,
+}
+
 
 def parse_args() -> argparse.Namespace:
     """Parse command line arguments passed by the CLI."""
@@ -136,24 +148,35 @@ def main() -> int:
     bproc.init()
     
     # Get config sections
+    # Get config sections
     camera_config = config.get("camera", {})
     tag_config = config.get("tag", {})
     scene_config = config.get("scene", {})
     physics_config = config.get("physics", {})
+    scenario_config = config.get("scenario", {})
     
     # Set camera intrinsics
     set_camera_intrinsics(camera_config)
     
-    # Get resolution for COCO writer
+    # Get resolution for COCO writer and visibility check
     resolution = camera_config.get("resolution", [640, 480])
     
     # Initialize writers
     csv_writer = CSVWriter(output_dir / "tags.csv")
     coco_writer = COCOWriter(output_dir)
     
-    # Add tag family as category
-    tag_family = tag_config.get("family", "tag36h11")
-    category_id = coco_writer.add_category(tag_family)
+    # Add tag families to COCO categories
+    tag_families = scenario_config.get("tag_families", ["tag36h11"])
+    # Also support legacy single family config
+    if "family" in tag_config:
+        tag_families = [tag_config["family"]]
+        
+    for fam in tag_families:
+        coco_writer.add_category(fam)
+        
+    # Get bit count for the FIRST family (simplified assumption for mixed scenes)
+    # Ideally should check per tag, but this is a reasonable heuristic for filtering
+    min_bits = TAG_BIT_COUNTS.get(tag_families[0], 36)
     
     # Number of scenes to generate
     num_scenes = config.get("dataset", {}).get("num_scenes", 1)
@@ -173,12 +196,46 @@ def main() -> int:
         # Create floor for physics
         floor = create_floor()
         
-        # Create tag asset
-        tag_size = tag_config.get("size_meters", 0.1)
-        texture_path = get_tag_texture_path(tag_family, tag_config.get("texture_path"))
+        # Determine number of tags for this scene
+        tags_range = scenario_config.get("tags_per_scene", [1, 5])
+        import random
+        num_tags = random.randint(tags_range[0], tags_range[1])
         
-        tag_obj = create_tag_plane(tag_size, texture_path, tag_family)
-        tag_objects = [tag_obj]
+        # Create tag objects
+        tag_objects = []
+        tag_size = tag_config.get("size_meters", 0.1)
+        texture_base_path = tag_config.get("texture_path")
+        
+        for i in range(num_tags):
+            family = random.choice(tag_families)
+            texture_path = get_tag_texture_path(family, texture_base_path, tag_id=i)
+            
+            # Create tag with random ID (handled by texture loader usually, but here just reuse)
+            # In a real pipeline, we'd select specific IDs.
+            tag_obj = create_tag_plane(tag_size, texture_path, family, tag_id=i)
+            
+            # Set custom properties for ground truth
+            tag_obj.blender_obj["tag_id"] = i  # Placeholder ID, ideally from texture
+            tag_obj.blender_obj["tag_family"] = family
+            
+            tag_objects.append(tag_obj)
+        
+        # Apply layout
+        layout_mode = scenario_config.get("layout", "plain")
+        corner_size = scenario_config.get("corner_size", 0.01)
+        tag_spacing = scenario_config.get("tag_spacing", 0.05)
+        
+        # Import layouts module here to avoid circular imports or early failure
+        from layouts import apply_layout
+        
+        # Position tags and creating connecting elements (corners)
+        layout_objects = apply_layout(
+            tag_objects=tag_objects,
+            layout_mode=layout_mode,
+            spacing=tag_spacing,
+            corner_size=corner_size,
+            center=(0, 0, 0) # Center on floor
+        )
         
         # Setup lighting
         lighting_config = scene_config.get("lighting", {})
@@ -187,30 +244,135 @@ def main() -> int:
             intensity_max=lighting_config.get("intensity_max", 500),
         )
         
-        # Scatter tags and simulate physics
-        drop_height = physics_config.get("drop_height", 1.5)
-        scatter_radius = physics_config.get("scatter_radius", 0.5)
-        scatter_tags(tag_objects, drop_height, scatter_radius)
+        # Enable physics for all objects
+        drop_height = physics_config.get("drop_height", 0.1) # Lower drop for layouts
+        
+        # For layouts, we might want to just let them settle or stay fixed
+        # If "scatter" was intended, we wouldn't use a structured layout.
+        # Assuming we place them slightly above ground and let them fall to settle.
+        
+        # Check if we should simulate physics
+        # For checkerboards, we usually want them rigid.
+        # Let's make them active but maybe constrained? 
+        # For now, let's treat them as active rigid bodies that settle on the floor.
+        
+        for obj in tag_objects + layout_objects:
+             obj.enable_rigidbody(active=True)
+        
+        # Adjust Z height to be just above floor
+        for obj in tag_objects + layout_objects:
+            loc = obj.get_location()
+            obj.set_location([loc[0], loc[1], drop_height])
         
         # Simulate physics
         bproc.object.simulate_physics_and_fix_final_poses(
             min_simulation_time=1,
-            max_simulation_time=4,
+            max_simulation_time=2, # Fast settle
             check_object_interval=1,
         )
         
-        # Sample camera poses
-        camera_poses = sample_camera_poses(
-            num_samples=samples_per_scene,
-            look_at_point=[0, 0, 0],
-            min_distance=0.5,
-            max_distance=2.0,
-        )
+        # Sample camera poses with visibility guarantee
+        # We need `samples_per_scene` VALID images
+        valid_samples = 0
+        attempts = 0
+        max_total_attempts = samples_per_scene * 50
         
-        # Render from each camera pose
-        for cam_idx, pose in enumerate(camera_poses):
+        from projection import is_tag_sufficiently_visible
+        
+        while valid_samples < samples_per_scene and attempts < max_total_attempts:
+            attempts += 1
+            
+            # Sample ONE pose
+            poses = sample_camera_poses(
+                num_samples=1,
+                look_at_point=[0, 0, 0],
+                min_distance=0.5,
+                max_distance=2.0,
+            )
+            pose = poses[0]
             bproc.camera.add_camera_pose(pose)
             
+            # Check visibility for this pose
+            # We need at least one tag to be visible and large enough
+            visible_tags_count = 0
+            for tag_obj in tag_objects:
+                if is_tag_sufficiently_visible(tag_obj, min_area_pixels=min_bits):
+                    visible_tags_count += 1
+            
+            if visible_tags_count == 0:
+                # Reject this pose, remove it
+                # bproc stores poses in a list, we can just not render it and reset
+                # But bproc.camera.add_camera_pose appends to the frame list.
+                # To "undo", we might be able to overwrite or just ignore.
+                # Actually, bproc renders ALL frames.
+                # So we should only KEEP frames that are valid.
+                pass 
+                # Ideally check BEFORE adding pose, but projection needs camera set?
+                # project_corners_to_image DOES rely on current cam pose?
+                # Actually check_tag_visibility -> project -> bproc.camera.project_points
+                # uses the ACTIVE camera for the current frame?
+                # bproc usually renders frames 0..N-1 based on poses added.
+                
+                # WORKAROUND: We added the pose. Now we check.
+                # If invalid, we don't increment valid_samples.
+                # But we validly wanted to "discard" the frame.
+                # Current bproc api adds a keyframe.
+                # We can just check visibility relative to the matrix WITHOUT setting it as keyframe
+                # if we modified projection to take a matrix.
+                # BUT project_corners_to_image uses bproc.camera.project_point
+                # which uses the internal renderer state.
+                
+                # Easier: Just render the valid ones.
+                # Since we are in a loop, we can just clear frames?
+                # bproc.utility.reset_keyframes() removes all.
+            else:
+                 # Valid!
+                 valid_samples += 1
+                 # Render this specific frame IMMEDIATELY (since we have the pose set)
+                 # Actually, bproc manages frames. 
+                 # If we added a pose, it's frame N.
+                 # If we want to skip, we shouldn't have added it?
+                 pass
+
+        # REFACTOR strategy for visibility check loop:
+        # 1. Generate many candidate poses
+        # 2. For each candidate:
+        #    - Set as current camera pose (frame 0)
+        #    - Check visibility
+        #    - If good, KEEP it (store in list)
+        # 3. Once we have sufficient poses, add them all to bproc for rendering
+        
+        # Reset any camera poses set during checking
+        bproc.utility.reset_keyframes()
+        
+        collected_poses = []
+        candidate_count = 0
+        
+        while len(collected_poses) < samples_per_scene and candidate_count < max_total_attempts:
+             candidate_count += 1
+             # Sample one pose matrix
+             candidates = sample_camera_poses(1, [0,0,0], 0.5, 2.0)
+             pose_matrix = candidates[0]
+             
+             # Set this as the camera pose for frame 0 temporarily
+             bproc.camera.add_camera_pose(pose_matrix, frame=0)
+             
+             # Check visibility
+             visible_tags_count = 0
+             for tag_obj in tag_objects:
+                 if is_tag_sufficiently_visible(tag_obj, min_area_pixels=min_bits):
+                     visible_tags_count += 1
+             
+             if visible_tags_count > 0:
+                 collected_poses.append(pose_matrix)
+        
+        # Now setup the actual render frames
+        bproc.utility.reset_keyframes()
+        for i, pose in enumerate(collected_poses):
+            bproc.camera.add_camera_pose(pose, frame=i)
+
+        # Render from each camera pose
+        for cam_idx in range(len(collected_poses)):
             # Render
             image_path = render_scene(output_dir, scene_idx, cam_idx)
             image_name = image_path.stem
@@ -224,6 +386,7 @@ def main() -> int:
             )
             
             # Get valid detections (visible, facing camera)
+            # We reuse the visibility check but need exact corners for writing
             valid_detections = get_valid_detections(tag_objects)
             
             # Write detections
@@ -231,7 +394,7 @@ def main() -> int:
                 # tag_obj is a bproc.types.MeshObject, use its blender_obj for custom properties
                 blender_obj = tag_obj.blender_obj
                 tag_id = blender_obj.get("tag_id", 0)
-                tag_fam = blender_obj.get("tag_family", tag_family)
+                tag_fam = blender_obj.get("tag_family", tag_families[0])
                 
                 # Write to CSV
                 detection = DetectionRecord(
@@ -245,7 +408,7 @@ def main() -> int:
                 # Write to COCO
                 coco_writer.add_annotation(
                     image_id=coco_image_id,
-                    category_id=category_id,
+                    category_id=coco_writer._category_map.get(tag_fam, 1),
                     corners=corners_2d,
                     tag_id=tag_id,
                 )

@@ -12,6 +12,7 @@ dependencies = [
     "pyyaml>=6.0",
     "pillow>=10.0",
     "blenderproc>=2.8.0",
+    "opencv-contrib-python>=4.10",
 ]
 
 [project.scripts]

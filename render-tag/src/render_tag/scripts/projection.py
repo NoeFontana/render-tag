@@ -148,3 +148,48 @@ def compute_tag_area_in_image(corners_2d: list[tuple[float, float]]) -> float:
         area -= corners_2d[j][0] * corners_2d[i][1]
     
     return abs(area) / 2.0
+
+
+def is_tag_sufficiently_visible(
+    tag_obj,
+    min_area_pixels: int = 36,
+    min_visible_corners: int = 4,
+) -> bool:
+    """Check if a tag is visible with sufficient pixel area.
+    
+    This combines visibility and size checks to ensure tags are
+    detectable. The minimum area should be set to the tag's bit count.
+    
+    Args:
+        tag_obj: The tag mesh object
+        min_area_pixels: Minimum area in pixels (usually = bit count)
+        min_visible_corners: Minimum corners within image bounds
+        
+    Returns:
+        True if tag is visible and large enough
+    """
+    corners_2d = project_corners_to_image(tag_obj)
+    
+    if corners_2d is None:
+        return False
+    
+    # Check if facing camera
+    if not check_tag_facing_camera(tag_obj):
+        return False
+    
+    # Check minimum corners in bounds
+    res_x = bpy.context.scene.render.resolution_x
+    res_y = bpy.context.scene.render.resolution_y
+    
+    visible_count = 0
+    for x, y in corners_2d:
+        if 0 <= x < res_x and 0 <= y < res_y:
+            visible_count += 1
+    
+    if visible_count < min_visible_corners:
+        return False
+    
+    # Check minimum area
+    area = compute_tag_area_in_image(corners_2d)
+    return area >= min_area_pixels
+

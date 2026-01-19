@@ -1,0 +1,28 @@
+dataset:
+  output_dir: output/apriltag_plain
+  seed: 42
+  num_scenes: 1
+
+camera:
+  resolution: [1280, 720]
+  samples_per_scene: 5
+  fov: 60
+
+tag:
+  size_meters: 0.1
+  texture_path: assets/tags/tag36h11
+
+scenario:
+  layout: plain
+  tag_families: [tag36h11]
+  tags_per_scene: [2, 5]
+  tag_spacing: 0.15
+
+scene:
+  lighting:
+    intensity_min: 100
+    intensity_max: 800
+  background_hdri: assets/backgrounds/urban.exr
+
+physics:
+  drop_height: 0.1

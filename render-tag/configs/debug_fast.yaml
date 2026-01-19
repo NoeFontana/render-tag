@@ -1,0 +1,28 @@
+dataset:
+  output_dir: output/debug_fast
+  seed: 42
+  num_scenes: 1
+
+camera:
+  resolution: [640, 480]
+  samples_per_scene: 1
+  fov: 60
+
+tag:
+  size_meters: 0.1
+  texture_path: assets/tags/tag36h11
+
+scenario:
+  layout: cb
+  tag_families: [tag36h11]
+  tags_per_scene: [2, 2]
+  grid_size: [2, 1]
+  corner_size: 0.01
+
+scene:
+  lighting:
+    intensity_min: 100
+    intensity_max: 800
+
+physics:
+  drop_height: 0.05

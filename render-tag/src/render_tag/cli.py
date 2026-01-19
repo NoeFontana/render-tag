@@ -126,6 +126,29 @@ def generate(
     serialize_config_to_json(gen_config, job_config_path)
     console.print(f"[dim]Job config:[/dim] {job_config_path}")
     
+    # Pre-generate tag assets if they don't exist
+    from .tag_gen import ensure_tag_asset
+    from .config import TAG_BIT_COUNTS
+    
+    assets_dir = Path("assets/tags")
+    assets_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Get families from scenario if present
+    scenario = gen_config.scenario
+    families = scenario.tag_families if scenario else [gen_config.tag.family]
+    
+    tags_per_scene = scenario.tags_per_scene[1] if scenario else 1
+    
+    console.print(f"\n[bold]Ensuring tag assets...[/bold]")
+    for family_enum in families:
+        family = family_enum.value
+        # For simplicity, we ensure a few tags for each family
+        # In a more advanced version, we'd use the specific IDs requested
+        for i in range(max(tags_per_scene, 10)):
+            asset_path = ensure_tag_asset(family, i, assets_dir)
+            if verbose:
+                console.print(f"  [dim]Checked asset:[/dim] {asset_path.name}")
+    
     # Build the blenderproc command
     script_path = Path(__file__).parent / "scripts" / "blender_main.py"
     
