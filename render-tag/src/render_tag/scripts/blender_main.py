@@ -24,7 +24,9 @@ except ImportError:
 
 from .assets import create_tag_plane, get_tag_texture_path
 from .camera import sample_camera_poses, set_camera_intrinsics
+from .projection import check_tag_facing_camera, check_tag_visibility, project_corners_to_image
 from .scene import create_floor, scatter_tags, setup_background, setup_lighting
+from .writers import COCOWriter, CSVWriter, DetectionRecord
 
 
 def parse_args() -> argparse.Namespace:
@@ -83,31 +85,40 @@ def render_scene(output_dir: Path, scene_idx: int, cam_idx: int) -> Path:
     return image_path
 
 
-def write_annotations(
-    output_dir: Path,
-    image_name: str,
+def get_valid_detections(
     tag_objects: list,
-    camera_matrix: list,
-) -> None:
-    """Write corner annotations to CSV file."""
-    from .projection import project_corners_to_image
+    min_visible_corners: int = 3,
+    require_facing: bool = True,
+) -> list[tuple]:
+    """Get detections for visible, properly-facing tags.
     
-    csv_path = output_dir / "tags.csv"
+    Args:
+        tag_objects: List of tag mesh objects
+        min_visible_corners: Minimum corners visible in frame
+        require_facing: Whether to require tag facing camera
+        
+    Returns:
+        List of (tag_obj, corners_2d) tuples for valid detections
+    """
+    valid_detections = []
     
-    # Create header if file doesn't exist
-    if not csv_path.exists():
-        with open(csv_path, "w") as f:
-            f.write("image_id,tag_id,tag_family,x1,y1,x2,y2,x3,y3,x4,y4\n")
+    for tag_obj in tag_objects:
+        # Check visibility
+        if not check_tag_visibility(tag_obj, min_visible_corners):
+            continue
+        
+        # Check if facing camera (not flipped away)
+        if require_facing and not check_tag_facing_camera(tag_obj):
+            continue
+        
+        # Get projected corners
+        corners_2d = project_corners_to_image(tag_obj)
+        if corners_2d is None:
+            continue
+        
+        valid_detections.append((tag_obj, corners_2d))
     
-    # Project corners for each tag and append to CSV
-    with open(csv_path, "a") as f:
-        for tag_obj in tag_objects:
-            corners_2d = project_corners_to_image(tag_obj, camera_matrix)
-            if corners_2d is not None:
-                tag_id = tag_obj.get("tag_id", 0)
-                tag_family = tag_obj.get("tag_family", "tag36h11")
-                corner_str = ",".join(f"{c[0]:.2f},{c[1]:.2f}" for c in corners_2d)
-                f.write(f"{image_name},{tag_id},{tag_family},{corner_str}\n")
+    return valid_detections
 
 
 def main() -> int:
@@ -131,14 +142,29 @@ def main() -> int:
     # Set camera intrinsics
     set_camera_intrinsics(camera_config)
     
+    # Get resolution for COCO writer
+    resolution = camera_config.get("resolution", [640, 480])
+    
+    # Initialize writers
+    csv_writer = CSVWriter(output_dir / "tags.csv")
+    coco_writer = COCOWriter(output_dir)
+    
+    # Add tag family as category
+    tag_family = tag_config.get("family", "tag36h11")
+    category_id = coco_writer.add_category(tag_family)
+    
     # Number of scenes to generate
     num_scenes = config.get("dataset", {}).get("num_scenes", 1)
     samples_per_scene = camera_config.get("samples_per_scene", 10)
+    
+    total_images = 0
+    total_detections = 0
     
     for scene_idx in range(num_scenes):
         # Clean scene for new iteration
         bproc.clean_up()
         bproc.init()
+        set_camera_intrinsics(camera_config)
         
         # Setup scene background
         setup_scene(config)
@@ -148,7 +174,6 @@ def main() -> int:
         
         # Create tag asset
         tag_size = tag_config.get("size_meters", 0.1)
-        tag_family = tag_config.get("family", "tag36h11")
         texture_path = get_tag_texture_path(tag_family, tag_config.get("texture_path"))
         
         tag_obj = create_tag_plane(tag_size, texture_path, tag_family)
@@ -187,21 +212,53 @@ def main() -> int:
             
             # Render
             image_path = render_scene(output_dir, scene_idx, cam_idx)
+            image_name = image_path.stem
+            total_images += 1
             
-            # Get camera matrix for projection
-            camera_matrix = bproc.camera.get_camera_pose()
-            
-            # Write annotations
-            write_annotations(
-                output_dir,
-                image_path.stem,
-                tag_objects,
-                camera_matrix,
+            # Add image to COCO dataset
+            coco_image_id = coco_writer.add_image(
+                file_name=f"images/{image_path.name}",
+                width=resolution[0],
+                height=resolution[1],
             )
+            
+            # Get valid detections (visible, facing camera)
+            valid_detections = get_valid_detections(tag_objects)
+            
+            # Write detections
+            for tag_obj, corners_2d in valid_detections:
+                tag_id = tag_obj.blender_obj.get("tag_id", 0)
+                tag_fam = tag_obj.blender_obj.get("tag_family", tag_family)
+                
+                # Write to CSV
+                detection = DetectionRecord(
+                    image_id=image_name,
+                    tag_id=tag_id,
+                    tag_family=tag_fam,
+                    corners=corners_2d,
+                )
+                csv_writer.write_detection(detection)
+                
+                # Write to COCO
+                coco_writer.add_annotation(
+                    image_id=coco_image_id,
+                    category_id=category_id,
+                    corners=corners_2d,
+                    tag_id=tag_id,
+                )
+                
+                total_detections += 1
     
-    print(f"✓ Generated {num_scenes * samples_per_scene} images in {output_dir}")
+    # Save COCO annotations
+    coco_writer.save()
+    
+    print(f"✓ Generated {total_images} images with {total_detections} detections")
+    print(f"  Output: {output_dir}")
+    print(f"  CSV: {output_dir / 'tags.csv'}")
+    print(f"  COCO: {output_dir / 'annotations.json'}")
     return 0
 
 
 if __name__ == "__main__":
     sys.exit(main())
+

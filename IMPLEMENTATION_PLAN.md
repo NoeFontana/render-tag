@@ -68,22 +68,22 @@ This runs in the standard system Python environment.
 This is the most fragile part. It requires precise Coordinate System conversions.
 
 ### 4.1. Corner Projection Logic (Inside Driver)
-- [ ] Do NOT use Bounding Boxes. They are axis-aligned and useless for corner regression.
-- [ ] Implement `get_projected_corners(tag_obj, camera_matrix)`:
+- [x] Do NOT use Bounding Boxes. They are axis-aligned and useless for corner regression.
+- [x] Implement `get_projected_corners(tag_obj, camera_matrix)`:
     - Retrieve the 4 local vertices of the Tag plane.
     - Transform them to World Space (using `tag_obj.get_local2world_mat()`).
     - Project them to Image Space (using `bproc.camera.project_to_image()`).
-- [ ] Visibility Check:
+- [x] Visibility Check:
     - Implement a raycast or depth-check to ensure the corners are not occluded by other objects (or the tag isn't flipped upside down facing away).
 
 ### 4.2. Sorting & Formatting
-- [ ] The "Clockwise Rule":
+- [x] The "Clockwise Rule":
     - Ensure the corners are strictly ordered: Top-Left, Top-Right, Bottom-Right, Bottom-Left.
     - Note: Since we know the local vertex order of the plane, this should be preserved by the projection. Verify this assumption explicitly in code.
 
 ### 4.3. Writers
-- [ ] **CSV Writer**: Append row: `filename, id, x1, y1, x2, y2, x3, y3, x4, y4`.
-- [ ] **COCO Writer**: Use `bproc.writer.write_coco_annotations` for the segmentation masks, mapping the Tag object ID to the COCO category.
+- [x] **CSV Writer**: Append row: `filename, id, x1, y1, x2, y2, x3, y3, x4, y4`.
+- [x] **COCO Writer**: Use `bproc.writer.write_coco_annotations` for the segmentation masks, mapping the Tag object ID to the COCO category.
 
 ## Phase 5: Verification & Quality Assurance
 Ensure the data is actually usable for ML.
