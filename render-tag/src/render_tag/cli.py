@@ -73,6 +73,11 @@ def generate(
         "--verbose", "-v",
         help="Enable verbose output from BlenderProc",
     ),
+    renderer_mode: str = typer.Option(
+        "cycles",
+        "--renderer-mode", "-r",
+        help="Rendering engine: cycles (quality), workbench (instant wireframe), eevee (fast preview)",
+    ),
 ) -> None:
     """
     Generate synthetic fiducial marker training data.
@@ -157,6 +162,7 @@ def generate(
         str(script_path),
         "--config", str(job_config_path),
         "--output", str(output),
+        "--renderer-mode", renderer_mode,
     ]
     
     console.print(f"\n[bold]Launching BlenderProc...[/bold]")

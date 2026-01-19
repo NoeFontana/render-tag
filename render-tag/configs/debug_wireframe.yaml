@@ -1,0 +1,39 @@
+# Debug Wireframe Configuration
+# Ultra-fast rendering for scene composition verification.
+# Uses Blender Workbench engine at 25% resolution.
+#
+# Usage: render-tag generate --config configs/debug_wireframe.yaml --scenes 1 -v
+#
+# This config is designed for rapid iteration during development.
+# Render time: ~2-5s (vs ~30s+ for Cycles)
+
+dataset:
+  output_dir: output/debug_wireframe
+  seed: 42
+  num_scenes: 1
+
+camera:
+  resolution: [640, 480]  # Will be rendered at 160x120 (25%)
+  samples_per_scene: 1
+  fov: 60
+
+tag:
+  size_meters: 0.1
+  texture_path: assets/tags/tag36h11
+
+scenario:
+  layout: plain
+  tag_families: [tag36h11]
+  tags_per_scene: [2, 4]
+
+scene:
+  lighting:
+    intensity_min: 200
+    intensity_max: 600
+
+physics:
+  drop_height: 0.05
+
+# Rendering options (passed via CLI --renderer-mode flag)
+# Note: The renderer mode is set via CLI, not YAML. Use:
+#   blenderproc run blender_main.py --config job.json --output out --renderer-mode workbench

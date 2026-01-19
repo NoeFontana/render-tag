@@ -60,6 +60,12 @@ def parse_args() -> argparse.Namespace:
         required=True,
         help="Output directory for rendered data",
     )
+    parser.add_argument(
+        "--renderer-mode",
+        choices=["cycles", "workbench", "eevee"],
+        default="cycles",
+        help="Rendering engine: cycles (quality), workbench (instant wireframe), eevee (fast preview)",
+    )
     return parser.parse_args()
 
 
@@ -148,6 +154,24 @@ def main() -> int:
     
     # Initialize BlenderProc
     bproc.init()
+    
+    # Configure renderer mode for fast dev iteration
+    renderer_mode = getattr(args, 'renderer_mode', 'cycles')
+    if renderer_mode == "workbench":
+        # Ultra-fast wireframe/flat shading for scene composition checks
+        bpy.context.scene.render.engine = 'BLENDER_WORKBENCH'
+        bpy.data.scenes["Scene"].display.shading.light = 'FLAT'
+        bpy.context.scene.render.resolution_percentage = 25
+        print(f"[FAST] Using Workbench renderer at 25% resolution")
+    elif renderer_mode == "eevee":
+        # Fast rasterized preview (Blender 4.2+ uses BLENDER_EEVEE_NEXT)
+        try:
+            bpy.context.scene.render.engine = 'BLENDER_EEVEE_NEXT'
+        except Exception:
+            bpy.context.scene.render.engine = 'BLENDER_EEVEE'
+        bpy.context.scene.render.resolution_percentage = 50
+        print(f"[FAST] Using Eevee renderer at 50% resolution")
+    # else: use default Cycles for quality rendering
     
     # Get config sections
     # Get config sections
