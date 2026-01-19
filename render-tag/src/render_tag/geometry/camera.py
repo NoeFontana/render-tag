@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import numpy as np
 
-from .math_utils import look_at_rotation, make_transformation_matrix
+from render_tag.geometry.math import look_at_rotation, make_transformation_matrix
 
 
 @dataclass

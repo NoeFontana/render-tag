@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-from render_tag.annotation_utils import compute_bbox, normalize_corner_order
+from render_tag.data_io.annotations import compute_bbox, normalize_corner_order
 
 
 def test_compute_bbox():

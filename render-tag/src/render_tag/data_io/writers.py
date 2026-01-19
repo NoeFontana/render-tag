@@ -12,6 +12,7 @@ import csv
 import json
 from dataclasses import dataclass
 from pathlib import Path
+import numpy as np
 from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
@@ -26,8 +27,8 @@ try:
     pkg_root = Path(__file__).parent.parent
     if str(pkg_root) not in sys.path:
         sys.path.insert(0, str(pkg_root))
-    from math_utils import compute_polygon_area
-    from annotation_utils import compute_bbox, normalize_corner_order
+    from render_tag.geometry.math import compute_polygon_area
+    from render_tag.data_io.annotations import compute_bbox, normalize_corner_order
     GEOMETRY_AVAILABLE = True
 except ImportError:
     GEOMETRY_AVAILABLE = False
@@ -201,13 +202,15 @@ def verify_corner_order(
     expected_order: str = "ccw",
 ) -> bool:
     """Verify that corners are in the expected winding order."""
-    area = compute_polygon_area(np.array(corners))
+    if len(corners) != 4:
+        return False
+        
     # We need signed area for winding order
     x = np.array([c[0] for c in corners])
     y = np.array([c[1] for c in corners])
     signed_area = 0.5 * (np.dot(x, np.roll(y, -1)) - np.dot(y, np.roll(x, -1)))
     
     if expected_order == "ccw":
-        return signed_area > 0
+        return bool(signed_area > 0)
     else:  # cw
-        return signed_area < 0
+        return bool(signed_area < 0)

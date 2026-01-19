@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from render_tag.scripts.writers import (
+from render_tag.data_io.writers import (
     COCOWriter,
     CSVWriter,
     DetectionRecord,

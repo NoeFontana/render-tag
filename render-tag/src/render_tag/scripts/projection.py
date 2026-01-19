@@ -22,15 +22,17 @@ except ImportError:
     np = None  # type: ignore
 
 
-
 # Import pure-Python geometry modules
 try:
+    import os
     import sys
     from pathlib import Path
-    pkg_root = Path(__file__).parent.parent
-    if str(pkg_root) not in sys.path:
-        sys.path.insert(0, str(pkg_root))
-    from visibility_geometry import (
+    scripts_dir = os.path.dirname(os.path.abspath(__file__))
+    src_dir = os.path.dirname(os.path.dirname(scripts_dir))
+    if src_dir not in sys.path:
+        sys.path.insert(0, src_dir)
+        
+    from render_tag.geometry.visibility import (
         is_facing_camera,
         project_points,
         validate_visibility_metrics,
@@ -53,7 +55,7 @@ def project_corners_to_image(
     Returns:
         List of 4 (x, y) tuples in image coordinates, or None if tag not visible
     """
-    from assets import get_corner_world_coords
+    from render_tag.scripts.assets import get_corner_world_coords
     
     # Get world coordinates of corners
     corners_world = get_corner_world_coords(tag_obj)

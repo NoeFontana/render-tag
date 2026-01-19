@@ -18,14 +18,38 @@ from typing import TYPE_CHECKING
 
 import bpy
 
+# Import board geometry logic
+try:
+    import os
+    import sys
+    from pathlib import Path
+    scripts_dir = os.path.dirname(os.path.abspath(__file__))
+    src_dir = os.path.dirname(os.path.dirname(scripts_dir))
+    if src_dir not in sys.path:
+        sys.path.insert(0, src_dir)
+        
+    from render_tag.geometry.board import (
+        BoardSpec,
+        BoardType,
+        compute_charuco_layout,
+        compute_aprilgrid_layout,
+        validate_board_plausibility
+    )
+    GEOMETRY_AVAILABLE = True
+except ImportError:
+    GEOMETRY_AVAILABLE = False
+
 import blenderproc as bproc
 
-from board_geometry import (
-    BoardSpec,
-    BoardType,
-    compute_aprilgrid_layout,
-    compute_charuco_layout,
-)
+# The BoardType enum is no longer directly imported from board_geometry,
+# but is part of BoardSpec. We'll need to adjust its usage if it's used directly.
+# For now, remove the old import.
+# from board_geometry import (
+#     BoardSpec,
+#     BoardType,
+#     compute_aprilgrid_layout,
+#     compute_charuco_layout,
+# )
 
 if TYPE_CHECKING:
     from blenderproc.types import MeshObject

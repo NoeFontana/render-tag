@@ -150,7 +150,7 @@ class TestTagConfig:
 class TestPhysicsConfig:
     def test_defaults(self) -> None:
         config = PhysicsConfig()
-        assert config.drop_height == 1.5
+        assert config.drop_height == 0.2
         assert config.scatter_radius == 0.5
 
 

@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-from render_tag.visibility_geometry import (
+from render_tag.geometry.visibility import (
     is_facing_camera,
     project_points,
     validate_visibility_metrics,
@@ -42,7 +42,7 @@ def test_project_points_basic():
     cam_pos = np.array([0, 0, 1])
     cam_rot = np.eye(3) # This is a bit simplified, but let's test a point on axis
     # In my look_at_rotation, forward (0,0,-1) with up (0,0,1) handled:
-    from render_tag.math_utils import look_at_rotation, make_transformation_matrix
+    from render_tag.geometry.math import look_at_rotation, make_transformation_matrix
     R = look_at_rotation(np.array([0, 0, -1]))
     cam2world = make_transformation_matrix(cam_pos, R)
     

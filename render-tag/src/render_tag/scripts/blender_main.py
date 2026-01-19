@@ -17,8 +17,14 @@ import random
 import numpy as np
 from pathlib import Path
 
-# Add the current directory to sys.path to allow imports from sibling files
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+# Add the src directory to sys.path to allow absolute imports from the render_tag package
+scripts_dir = os.path.dirname(os.path.abspath(__file__))
+# scripts_dir is src/render_tag/scripts
+# pkg_root is src/render_tag
+# src_dir is src/
+src_dir = os.path.dirname(os.path.dirname(scripts_dir))
+if src_dir not in sys.path:
+    sys.path.insert(0, src_dir)
 
 # Try to import bpy but don't fail if not in Blender
 try:
@@ -26,11 +32,12 @@ try:
 except ImportError:
     bpy = None  # type: ignore
 
-from assets import create_tag_plane, get_tag_texture_path
-from camera import sample_camera_poses, set_camera_intrinsics
-from projection import check_tag_facing_camera, check_tag_visibility, project_corners_to_image
-from scene import create_floor, scatter_tags, setup_background, setup_lighting
-from writers import COCOWriter, CSVWriter, DetectionRecord
+# Now we can import using the full package path
+from render_tag.scripts.assets import create_tag_plane, get_tag_texture_path
+from render_tag.scripts.camera import sample_camera_poses, set_camera_intrinsics
+from render_tag.scripts.projection import check_tag_facing_camera, check_tag_visibility, project_corners_to_image
+from render_tag.scripts.scene import create_floor, scatter_tags, setup_background, setup_lighting
+from render_tag.data_io.writers import COCOWriter, CSVWriter, DetectionRecord
 
 # Bit counts for each tag family (used for minimum pixel area calculation)
 TAG_BIT_COUNTS = {
@@ -273,13 +280,12 @@ def main() -> int:
         tag_spacing = scenario_config.get("tag_spacing", 0.05)
         
         # Import layouts module here to avoid circular imports or early failure
-        from layouts import apply_layout
+        from render_tag.scripts.layouts import apply_layout
         
         if is_flying:
             # Flying mode: ignore layout and scatter in volume
-            from scene import create_flying_layout
-            create_flying_layout(tag_objects, volume_size=2.0)
-            layout_objects = []
+            from render_tag.scripts.scene import create_flying_layout
+            create_flying_layout(tag_objects, volume_size=gen_config.tag.scatter_radius * 2)
         else:
             # Standard mode: apply layout and settle with physics
             layout_objects = apply_layout(
@@ -343,7 +349,7 @@ def main() -> int:
         attempts = 0
         max_total_attempts = samples_per_scene * 50
         
-        from projection import is_tag_sufficiently_visible
+        from render_tag.scripts.projection import is_tag_sufficiently_visible
         
         while valid_samples < samples_per_scene and attempts < max_total_attempts:
             attempts += 1

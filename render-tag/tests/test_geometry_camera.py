@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-from render_tag.camera_geometry import sample_camera_pose, validate_camera_pose
+from render_tag.geometry.camera import sample_camera_pose, validate_camera_pose
 
 
 def test_sample_camera_pose_bounds():

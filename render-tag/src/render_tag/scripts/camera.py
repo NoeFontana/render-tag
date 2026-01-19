@@ -21,15 +21,17 @@ except ImportError:
     np = None  # type: ignore
 
 
-
 # Import pure-Python geometry modules
 try:
+    import os
     import sys
     from pathlib import Path
-    pkg_root = Path(__file__).parent.parent
-    if str(pkg_root) not in sys.path:
-        sys.path.insert(0, str(pkg_root))
-    from camera_geometry import sample_camera_pose, validate_camera_pose, CameraPose
+    scripts_dir = os.path.dirname(os.path.abspath(__file__))
+    src_dir = os.path.dirname(os.path.dirname(scripts_dir))
+    if src_dir not in sys.path:
+        sys.path.insert(0, src_dir)
+        
+    from render_tag.geometry.camera import sample_camera_pose, validate_camera_pose, CameraPose
     GEOMETRY_AVAILABLE = True
 except ImportError:
     GEOMETRY_AVAILABLE = False

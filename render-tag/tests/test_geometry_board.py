@@ -10,7 +10,7 @@ All tests run WITHOUT Blender.
 """
 
 
-from render_tag.board_geometry import (
+from render_tag.geometry.board import (
     BoardSpec,
     BoardType,
     compute_aprilgrid_layout,

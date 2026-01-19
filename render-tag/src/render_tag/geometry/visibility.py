@@ -7,7 +7,7 @@ Handles facing checks and occupancy metrics without Blender dependencies.
 from __future__ import annotations
 
 import numpy as np
-from .math_utils import compute_polygon_area
+from render_tag.geometry.math import compute_polygon_area
 
 
 def is_facing_camera(
