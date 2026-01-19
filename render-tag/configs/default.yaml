@@ -1,0 +1,11 @@
+resolution: [640, 480]
+samples: 10
+tag_family: "tag36h11"
+lighting:
+  intensity_min: 50
+  intensity_max: 500
+backgrounds:
+  texture_dir: "assets/textures"
+  hdri_path: "assets/hdri/studio.exr"
+physics:
+  drop_height: 1.5
