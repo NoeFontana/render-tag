@@ -1,0 +1,35 @@
+# Benchmarking Configuration for Distance
+# Generates 3 scenes (Plain, Checkerboard, AprilGrid)
+# Each scene has 10 distances (2m - 20m)
+# All images are perfectly aligned (top-down, azimuth 0)
+
+dataset:
+  num_scenes: 3
+
+scene:
+  physics:
+    drop_height: 0.0 # Disable physics for exact placement
+
+camera:
+  resolution: [1280, 720]
+  fov: 60.0
+  samples_per_scene: 10
+  # Aligned to board (top-down)
+  elevation: 1.0 
+  azimuth: 0.0
+  min_distance: 2.0
+  max_distance: 20.0
+
+tag:
+  family: tag36h11
+  size_meters: 0.16
+
+scenario:
+  # Layout configuration
+  layouts: ["plain", "cb", "aprilgrid"]
+  tags_per_scene: [36, 36]
+  grid_size: [6, 6]
+  tag_spacing: 0.25  # 0.2 square + 0.05 gap for plain layout
+  corner_size: 0.02
+  # Camera sampling
+  sampling_mode: distance

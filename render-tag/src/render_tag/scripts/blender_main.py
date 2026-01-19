@@ -105,7 +105,7 @@ def setup_scene(config: dict) -> None:
     """Initialize the scene with background and basic setup."""
     # Set world background if HDRI is provided
     hdri_path = config.get("scene", {}).get("background_hdri")
-    if hdri_path and Path(hdri_path).exists():
+    if hdri_path and Path(hdri_path).is_file():
         setup_background(Path(hdri_path))
 
 
@@ -185,9 +185,11 @@ def main() -> int:
     if renderer_mode == "workbench":
         # Ultra-fast wireframe/flat shading for scene composition checks
         bpy.context.scene.render.engine = "BLENDER_WORKBENCH"
-        bpy.data.scenes["Scene"].display.shading.light = "FLAT"
-        bpy.context.scene.render.resolution_percentage = 25
-        print("[FAST] Using Workbench renderer at 25% resolution")
+        # Enable textures in workbench
+        bpy.data.scenes["Scene"].display.shading.light = "STUDIO"
+        bpy.data.scenes["Scene"].display.shading.color_type = "TEXTURE"
+        bpy.context.scene.render.resolution_percentage = 100
+        print("[FAST] Using Workbench renderer with Textures (STUDIO light)")
     elif renderer_mode == "eevee":
         # Fast rasterized preview (Blender 4.2+ uses BLENDER_EEVEE_NEXT)
         try:
@@ -199,11 +201,11 @@ def main() -> int:
     # else: use default Cycles for quality rendering
 
     # Get config sections
-    # Get config sections
     camera_config = config.get("camera", {})
     tag_config = config.get("tag", {})
     scene_config = config.get("scene", {})
-    physics_config = config.get("physics", {})
+    physics_config = scene_config.get("physics", config.get("physics", {}))
+    board_config = config.get("board", {})
     scenario_config = config.get("scenario", {})
 
     # Set camera intrinsics
@@ -246,15 +248,21 @@ def main() -> int:
 
         # Get scenario flags
         is_flying = scenario_config.get("flying", False)
-        sampling_mode = scenario_config.get("sampling_mode", "random")
+        sampling_mode = camera_config.get("sampling_mode", scenario_config.get("sampling_mode", "random"))
 
-        # Create floor if NOT flying and NOT checkerboard
-        layout_mode = scenario_config.get("layout", "plain")
+        # Select layout for this scene
+        layout_list = scene_config.get("layouts", scenario_config.get("layouts"))
+        if layout_list:
+            layout_mode = layout_list[scene_idx % len(layout_list)]
+        else:
+            layout_mode = scene_config.get("layout", scenario_config.get("layout", "plain"))
+
+        # Create floor if NOT flying and NOT checkerboard/aprilgrid
         if not is_flying and layout_mode not in ("cb", "aprilgrid"):
             create_floor()
 
         # Determine number of tags for this scene
-        grid_size = scenario_config.get("grid_size", [6, 6])
+        grid_size = tag_config.get("grid_size", scenario_config.get("grid_size", [6, 6]))
 
         if layout_mode == "cb":
             # ChArUco board: tags go in alternating (white) squares
@@ -268,7 +276,7 @@ def main() -> int:
             num_tags = cols * rows
         else:
             import random
-            tags_range = scenario_config.get("tags_per_scene", [1, 5])
+            tags_range = tag_config.get("tags_per_scene", scenario_config.get("tags_per_scene", [1, 5]))
             num_tags = random.randint(tags_range[0], tags_range[1])
             cols, rows = None, None
 
@@ -293,10 +301,10 @@ def main() -> int:
             tag_objects.append(tag_obj)
 
         # Apply layout
-        square_size = scenario_config.get("square_size", 0.12)
-        marker_margin = scenario_config.get("marker_margin", 0.01)
-        corner_size = scenario_config.get("corner_size", 0.02)
-        tag_spacing = scenario_config.get("tag_spacing", 0.05)
+        square_size = board_config.get("square_size", scenario_config.get("square_size", 0.12))
+        marker_margin = board_config.get("marker_margin", scenario_config.get("marker_margin", 0.01))
+        corner_size = board_config.get("corner_size", scenario_config.get("corner_size", 0.02))
+        tag_spacing = tag_config.get("tag_spacing", scenario_config.get("tag_spacing", 0.05))
 
         # Import layouts module here to avoid circular imports or early failure
         from render_tag.scripts.layouts import apply_layout
@@ -327,6 +335,7 @@ def main() -> int:
 
                 # Create a simple plane for the board
                 board = bproc.object.create_primitive("PLANE")
+                board.blender_obj.name = "Board_Background"
                 board.set_location([0, 0, -0.001])  # Slightly below tags
                 board.set_scale([board_width / 2, board_height / 2, 1])
                 board.persist_transformation_into_mesh()
@@ -345,16 +354,41 @@ def main() -> int:
 
             # Setup Z height and simulate physics
             drop_height = physics_config.get("drop_height", 0.1)
-            for obj in tag_objects + layout_objects:
-                obj.enable_rigidbody(active=True)
-                loc = obj.get_location()
-                obj.set_location([loc[0], loc[1], drop_height])
+            # If drop_height is 0, we skip physics simulation and place directly on floor/board
+            simulate_physics = drop_height > 0
 
-            bproc.object.simulate_physics_and_fix_final_poses(
-                min_simulation_time=1,
-                max_simulation_time=2,
-                check_object_interval=1,
-            )
+            # Object visibility and physics setup
+            # Each layout function already sets basic X, Y. We just ensure Z stacking.
+            for obj in tag_objects:
+                loc = obj.get_location()
+                if simulate_physics:
+                    obj.set_location([loc[0], loc[1], drop_height + 0.002])
+                    obj.enable_rigidbody(active=True)
+                else:
+                    obj.set_location([loc[0], loc[1], 0.002]) # Tags on top
+                    obj.enable_rigidbody(active=False)
+
+            for obj in layout_objects:
+                loc = obj.get_location()
+                if "Board_Background" in obj.blender_obj.name:
+                    obj.set_location([loc[0], loc[1], 0.0]) # Board at Z=0
+                    obj.enable_rigidbody(active=False)
+                else:
+                    if simulate_physics:
+                        obj.set_location([loc[0], loc[1], drop_height + 0.001])
+                        obj.enable_rigidbody(active=True)
+                    else:
+                        obj.set_location([loc[0], loc[1], 0.001]) # Layout elements in middle
+                        obj.enable_rigidbody(active=False)
+
+            if simulate_physics:
+                bproc.object.simulate_physics_and_fix_final_poses(
+                    min_simulation_time=1,
+                    check_object_interval=1,
+                )
+
+            # CRITICAL: Update scene after all objects are placed to ensure matrix_world is correct for visibility checks
+            bpy.context.view_layer.update()
 
         # Setup lighting
         lighting_config = scene_config.get("lighting", {})
@@ -373,11 +407,15 @@ def main() -> int:
             attempts += 1
 
             # Sample ONE pose
+            # For board layouts, look exactly at the center of the board
+            look_target = [0, 0, 0] if layout_mode in ("cb", "aprilgrid", "plain") else ([0, 0, 0.5] if is_flying else [0, 0, 0.05])
             poses = sample_camera_poses(
                 num_samples=1,
-                look_at_point=[0, 0, 0.5] if is_flying else [0, 0, 0.05],
+                look_at_point=look_target,
                 min_distance=camera_config.get("min_distance", 0.5),
                 max_distance=camera_config.get("max_distance", 2.0),
+                elevation=camera_config.get("elevation"),
+                azimuth=camera_config.get("azimuth"),
                 min_elevation=camera_config.get("min_elevation", 0.3),
                 max_elevation=camera_config.get("max_elevation", 0.9),
                 sampling_mode=sampling_mode,
@@ -394,6 +432,7 @@ def main() -> int:
 
             bpy.context.scene.camera.matrix_world = mathutils.Matrix(pose)
             bpy.context.view_layer.update()  # CRITICAL: Update scene to reflect new pose
+
             # Check visibility
             visible_tags_count = 0
             for tag_obj in tag_objects:
@@ -414,12 +453,24 @@ def main() -> int:
                     print(
                         f"  [!] Attempt {attempts}/{max_total_attempts}: Still looking for visible pose..."
                     )
+        # Render ALL VALID camera poses at once (frames)
+        # BlenderProc renders all poses added via bproc.camera.add_camera_pose
+        if valid_samples > 0:
+            rendered_data = bproc.renderer.render()
+        else:
+            rendered_data = {}
 
-        # Render from each camera pose
+        # Process each rendered frame
         for cam_idx in range(valid_samples):
-            # Render
-            image_path = render_scene(output_dir, scene_idx, cam_idx)
-            image_name = image_path.stem
+            image_name = f"scene_{scene_idx:04d}_cam_{cam_idx:04d}"
+            image_path = output_dir / "images" / f"{image_name}.png"
+            image_path.parent.mkdir(parents=True, exist_ok=True)
+
+            # Save frame from rendered data
+            if "colors" in rendered_data and len(rendered_data["colors"]) > cam_idx:
+                from PIL import Image
+                img_array = rendered_data["colors"][cam_idx]
+                Image.fromarray(img_array.astype(np.uint8)).save(str(image_path))
 
             # Add image to COCO dataset
             coco_image_id = coco_writer.add_image(
@@ -428,8 +479,13 @@ def main() -> int:
                 height=resolution[1],
             )
 
+            # CRITICAL: Manually update camera matrix to match this frame for visibility writing
+            # bproc.camera.get_camera_pose(frame) returns the correct matrix
+            frame_pose = bproc.camera.get_camera_pose(cam_idx)
+            bpy.context.scene.camera.matrix_world = mathutils.Matrix(frame_pose)
+            bpy.context.view_layer.update()
+
             # Get valid detections (visible, facing camera)
-            # We reuse the visibility check but need exact corners for writing
             valid_detections = get_valid_detections(tag_objects)
 
             # Write detections

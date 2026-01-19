@@ -70,7 +70,19 @@ def project_corners_to_image(
         if camera_matrix is not None
         else bproc.camera.get_intrinsics_as_K_matrix()
     )
-    cam2world = bproc.camera.get_camera_pose(bpy.context.scene.frame_current)
+    # Use current camera matrix instead of bproc stored poses
+    # Blender matrix_world: right=X, up=Y, forward=-Z
+    cam2world_blender = np.array(bpy.context.scene.camera.matrix_world)
+    
+    # Convert to OpenCV convention: right=X, down=-Y, forward=Z
+    # We flip the Y and Z axes of the camera coordinate system
+    flip_mat = np.array([
+        [1, 0, 0, 0],
+        [0, -1, 0, 0],
+        [0, 0, -1, 0],
+        [0, 0, 0, 1]
+    ])
+    cam2world = cam2world_blender @ flip_mat
 
     points_2d = project_points(np.array(corners_world), k_matrix, cam2world)
 

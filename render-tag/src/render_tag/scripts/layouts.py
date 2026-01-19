@@ -149,7 +149,8 @@ def create_plain_layout(
         y = start_y + row * spacing
 
         tag.set_location([x, y, center[2]])
-        tag.set_rotation_euler([0, 0, random.uniform(0, 2 * math.pi)])
+        # Set rotation to 0 for exact placement
+        tag.set_rotation_euler([0, 0, 0])
 
 
 def create_charuco_layout(
@@ -305,6 +306,7 @@ def _create_black_squares(
             z = center[2] - 0.0001  # Slightly below tags
 
             square = bproc.object.create_primitive("PLANE")
+            square.blender_obj.name = f"Layout_Square_{row}_{col}"
             square.set_location([x, y, z])
             square.set_scale([spec.square_size / 2, spec.square_size / 2, 1])
             square.persist_transformation_into_mesh()
@@ -327,6 +329,7 @@ def _create_corner_squares(
     corners = []
     for i, (x, y, z) in enumerate(positions):
         corner = bproc.object.create_primitive("PLANE")
+        corner.blender_obj.name = f"Layout_Corner_{i}"
         corner.set_location([x, y, z])
         corner.set_scale([size / 2, size / 2, 1])
         corner.persist_transformation_into_mesh()

@@ -95,6 +95,7 @@ def create_tag_plane(
     """
     # Create a plane primitive
     plane = bproc.object.create_primitive("PLANE")
+    plane.blender_obj.name = f"Tag_{tag_family}_{tag_id}"
 
     # Scale to desired size
     plane.set_scale([size_meters, size_meters, 1])

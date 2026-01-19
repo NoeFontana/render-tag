@@ -229,6 +229,13 @@ class CameraConfig(BaseModel):
     intrinsics: CameraIntrinsics = Field(
         default_factory=CameraIntrinsics, description="Camera intrinsic parameters"
     )
+    # Sampling parameters
+    min_distance: float = Field(default=0.5, gt=0, description="Minimum camera distance")
+    max_distance: float = Field(default=2.0, gt=0, description="Maximum camera distance")
+    min_elevation: float = Field(default=0.3, ge=0, le=1, description="Min elevation")
+    max_elevation: float = Field(default=0.9, ge=0, le=1, description="Max elevation")
+    elevation: Optional[float] = Field(default=None, description="Fixed elevation")
+    azimuth: Optional[float] = Field(default=None, description="Fixed azimuth")
 
     @property
     def width(self) -> int:
@@ -335,7 +342,7 @@ class SceneConfig(BaseModel):
 class PhysicsConfig(BaseModel):
     """Physics simulation configuration."""
 
-    drop_height: float = Field(default=0.2, gt=0, description="Drop height in meters")
+    drop_height: float = Field(default=0.2, ge=0, description="Drop height in meters")
     scatter_radius: float = Field(
         default=0.5, gt=0, description="Scatter radius in meters"
     )
@@ -353,6 +360,10 @@ class ScenarioConfig(BaseModel):
     tag_families: list[TagFamily] = Field(
         default=[TagFamily.TAG36H11],
         description="Tag families to use in this scenario",
+    )
+    layouts: Optional[list[LayoutMode]] = Field(
+        default=None,
+        description="Optional list of layouts to iterate through across scenes",
     )
     tags_per_scene: tuple[int, int] = Field(
         default=(1, 5),
@@ -377,6 +388,10 @@ class ScenarioConfig(BaseModel):
     sampling_mode: SamplingMode = Field(
         default=SamplingMode.RANDOM,
         description="Sampling mode for camera poses (random, distance, angle)",
+    )
+    azimuth: Optional[float] = Field(
+        default=None,
+        description="Fixed azimuth in radians for deterministic alignment",
     )
     flying: bool = Field(
         default=False,

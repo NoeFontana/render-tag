@@ -110,6 +110,8 @@ def sample_camera_poses(
     sampling_mode: str = "random",
     sample_idx: int = 0,
     total_samples: int = 1,
+    elevation: float | None = None,
+    azimuth: float | None = None,
 ) -> list[np.ndarray]:
     """Sample camera poses from a partial sphere looking at a point.
 
@@ -161,7 +163,8 @@ def sample_camera_poses(
             min_elevation=min_elevation,
             max_elevation=max_elevation,
             distance=curr_dist,
-            elevation=curr_elev,
+            elevation=curr_elev if curr_elev is not None else elevation,
+            azimuth=azimuth,
         )
 
         # 2. Use pure-Python geometry for validation
