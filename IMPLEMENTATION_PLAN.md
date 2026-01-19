@@ -53,16 +53,16 @@ This code runs INSIDE the Blender process. It has access to `bpy` and `bproc` bu
 This runs in the standard system Python environment.
 
 ### 3.1. CLI Implementation (`src/render_tag/cli.py`)
-- [ ] Implement the `generate` command using `typer`.
-- [ ] Workflow:
+- [x] Implement the `generate` command using `typer`.
+- [x] Workflow:
     - Load and validate `config.yaml`.
     - Serialize the validated config to a temp `job_config.json`.
     - Construct the command: `blenderproc run src/.../blender_main.py --config job_config.json`.
     - Execute via `subprocess.run` (stream stdout to console for progress).
 
 ### 3.2. Error Handling
-- [ ] Check for `blenderproc` installation availability.
-- [ ] Handle subprocess exit codes (e.g., if Blender crashes, the CLI should report "Rendering Failed").
+- [x] Check for `blenderproc` installation availability.
+- [x] Handle subprocess exit codes (e.g., if Blender crashes, the CLI should report "Rendering Failed").
 
 ## Phase 4: Critical Math & Data Export (The "Truth")
 This is the most fragile part. It requires precise Coordinate System conversions.

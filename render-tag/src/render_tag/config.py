@@ -65,6 +65,7 @@ class DatasetConfig(BaseModel):
 
     output_dir: Path = Field(default=Path("output"), description="Output directory for generated data")
     seed: int = Field(default=42, description="Random seed for reproducibility")
+    num_scenes: int = Field(default=1, gt=0, description="Number of scenes to generate")
 
     @field_validator("seed")
     @classmethod
