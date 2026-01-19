@@ -193,14 +193,21 @@ def get_corner_world_coords(tag_obj: Any) -> list[list[float]]:
             [c[0] * size, c[1] * size, c[2]] for c in CORNER_ORDER
         ]
     
-    # Get the object's world transformation matrix
     world_matrix = tag_obj.get_local2world_mat()
-    
-    # Transform each corner to world space
     corners_world = []
     for corner in corners_local:
-        local_vec = mathutils.Vector((*corner, 1.0))
-        world_vec = world_matrix @ local_vec
-        corners_world.append([world_vec.x, world_vec.y, world_vec.z])
+        # Transform each corner to world space using the 4x4 matrix
+        local_pos = np.array(corner[:3])
+        # Homogeneous coordinates trick: add 1.0 and dot with 4x4 matrix
+        local_homo = np.append(local_pos, 1.0)
+        world_homo = np.dot(world_matrix, local_homo)
+        
+        # Project back to 3D by dividing by w (usually 1.0 for affine transforms)
+        if abs(world_homo[3]) > 1e-6:
+            world_pos = world_homo[:3] / world_homo[3]
+        else:
+            world_pos = world_homo[:3]
+            
+        corners_world.append(world_pos.tolist())
     
     return corners_world

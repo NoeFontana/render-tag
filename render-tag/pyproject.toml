@@ -10,10 +10,13 @@ dependencies = [
     "typer>=0.12",
     "rich>=13.7",
     "pyyaml>=6.0",
+    "pillow>=10.0",
+    "blenderproc>=2.8.0",
 ]
 
 [project.scripts]
 render-tag = "render_tag.cli:app"
+
 
 [build-system]
 requires = ["hatchling"]

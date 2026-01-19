@@ -14,9 +14,11 @@ if TYPE_CHECKING:
 # BlenderProc imports (only available inside Blender)
 try:
     import blenderproc as bproc
+    import bpy
     import numpy as np
 except ImportError:
     bproc = None  # type: ignore
+    bpy = None  # type: ignore
     np = None  # type: ignore
 
 
@@ -33,7 +35,7 @@ def project_corners_to_image(
     Returns:
         List of 4 (x, y) tuples in image coordinates, or None if tag not visible
     """
-    from .assets import get_corner_world_coords
+    from assets import get_corner_world_coords
     
     # Get world coordinates of corners
     corners_world = get_corner_world_coords(tag_obj)
@@ -41,20 +43,18 @@ def project_corners_to_image(
     if not corners_world or len(corners_world) != 4:
         return None
     
-    # Project each corner to image space
-    corners_2d = []
-    for corner_3d in corners_world:
-        # Use BlenderProc's projection function
-        point_2d = bproc.camera.project_point(corner_3d)
+    # Project all corners at once using BlenderProc's plural function
+    points_2d = bproc.camera.project_points(np.array(corners_world))
+    
+    if points_2d is None or len(points_2d) != 4:
+        return None
         
-        if point_2d is None:
-            return None  # Corner is behind camera
-        
-        corners_2d.append((float(point_2d[0]), float(point_2d[1])))
+    corners_2d = [(float(p[0]), float(p[1])) for p in points_2d]
     
     # Validate that corners are within image bounds
-    resolution = bproc.camera.get_resolution()
-    width, height = resolution[0], resolution[1]
+    res_x = bpy.context.scene.render.resolution_x
+    res_y = bpy.context.scene.render.resolution_y
+    width, height = res_x, res_y
     
     for x, y in corners_2d:
         if x < 0 or x >= width or y < 0 or y >= height:
@@ -83,8 +83,9 @@ def check_tag_visibility(
     if corners_2d is None:
         return False
     
-    resolution = bproc.camera.get_resolution()
-    width, height = resolution[0], resolution[1]
+    res_x = bpy.context.scene.render.resolution_x
+    res_y = bpy.context.scene.render.resolution_y
+    width, height = res_x, res_y
     
     visible_count = 0
     for x, y in corners_2d:

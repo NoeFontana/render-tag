@@ -122,7 +122,6 @@ def create_floor(
         active=False,  # Passive (doesn't move)
         collision_shape="BOX",
         friction=0.5,
-        restitution=0.3,
     )
     
     return floor
@@ -160,7 +159,6 @@ def scatter_tags(
             collision_shape="BOX",
             mass=0.01,  # Light like a printed tag
             friction=0.5,
-            restitution=0.1,  # Low bounce
         )
 
 

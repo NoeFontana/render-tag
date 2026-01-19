@@ -89,13 +89,13 @@ This is the most fragile part. It requires precise Coordinate System conversions
 Ensure the data is actually usable for ML.
 
 ### 5.1. Visual Debugging Tool
-- [ ] Create a small helper `tests/debug_viz.py`.
-- [ ] Logic: Read the generated image and the CSV. Draw lines connecting the 4 corners.
-- [ ] Success Metric: The drawn lines must perfectly align with the visual tag borders.
+- [x] Create a small helper `tests/debug_viz.py`.
+- [x] Logic: Read the generated image and the CSV. Draw lines connecting the 4 corners.
+- [x] Success Metric: The drawn lines must perfectly align with the visual tag borders.
 
 ### 5.2. Integration Test
-- [ ] Write a `pytest` case that runs the full pipeline with `samples=1` and `resolution=[100,100]`.
-- [ ] Assertions:
+- [x] Write a `pytest` case that runs the full pipeline with `samples=1` and `resolution=[100,100]`.
+- [x] Assertions:
     - Output directory exists.
     - `tags.csv` has exactly 1 row.
     - Values in CSV are within image bounds (0-100).

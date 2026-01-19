@@ -1,3 +1,4 @@
+import blenderproc as bproc
 """
 BlenderProc main driver script for render-tag synthetic data generation.
 
@@ -11,22 +12,23 @@ Usage:
 import argparse
 import json
 import sys
+import os
 from pathlib import Path
 
-# BlenderProc imports (only available inside Blender)
+# Add the current directory to sys.path to allow imports from sibling files
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+# Try to import bpy but don't fail if not in Blender
 try:
-    import blenderproc as bproc
     import bpy
 except ImportError:
-    # Allow importing for type checking outside Blender
-    bproc = None  # type: ignore
     bpy = None  # type: ignore
 
-from .assets import create_tag_plane, get_tag_texture_path
-from .camera import sample_camera_poses, set_camera_intrinsics
-from .projection import check_tag_facing_camera, check_tag_visibility, project_corners_to_image
-from .scene import create_floor, scatter_tags, setup_background, setup_lighting
-from .writers import COCOWriter, CSVWriter, DetectionRecord
+from assets import create_tag_plane, get_tag_texture_path
+from camera import sample_camera_poses, set_camera_intrinsics
+from projection import check_tag_facing_camera, check_tag_visibility, project_corners_to_image
+from scene import create_floor, scatter_tags, setup_background, setup_lighting
+from writers import COCOWriter, CSVWriter, DetectionRecord
 
 
 def parse_args() -> argparse.Namespace:
@@ -163,7 +165,6 @@ def main() -> int:
     for scene_idx in range(num_scenes):
         # Clean scene for new iteration
         bproc.clean_up()
-        bproc.init()
         set_camera_intrinsics(camera_config)
         
         # Setup scene background
@@ -227,8 +228,10 @@ def main() -> int:
             
             # Write detections
             for tag_obj, corners_2d in valid_detections:
-                tag_id = tag_obj.blender_obj.get("tag_id", 0)
-                tag_fam = tag_obj.blender_obj.get("tag_family", tag_family)
+                # tag_obj is a bproc.types.MeshObject, use its blender_obj for custom properties
+                blender_obj = tag_obj.blender_obj
+                tag_id = blender_obj.get("tag_id", 0)
+                tag_fam = blender_obj.get("tag_family", tag_family)
                 
                 # Write to CSV
                 detection = DetectionRecord(

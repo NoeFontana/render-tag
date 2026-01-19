@@ -245,6 +245,43 @@ def info() -> None:
     console.print(f"  ArUco: {len(arucos)} dictionaries")
 
 
+@app.command()
+def viz(
+    output: Path = typer.Option(
+        ...,
+        "--output", "-o",
+        help="Path to the dataset output directory",
+        exists=True,
+        dir_okay=True,
+        file_okay=False,
+        resolve_path=True,
+    ),
+    image: str = typer.Option(
+        None,
+        "--image", "-i",
+        help="Specific image ID to visualize (without extension)",
+    ),
+    no_save: bool = typer.Option(
+        False,
+        "--no-save",
+        help="Don't save visualization images",
+    ),
+) -> None:
+    """
+    Visualize detection annotations overlaid on rendered images.
+    
+    This tool draws corner markers and quadrilaterals on images
+    to verify that annotations align correctly with tag borders.
+    """
+    from .tools.viz import visualize_dataset
+    
+    visualize_dataset(
+        output,
+        specific_image=image,
+        save_viz=not no_save,
+    )
+
+
 def main() -> None:
     """Entry point for the CLI."""
     app()
@@ -252,3 +289,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

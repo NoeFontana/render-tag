@@ -40,7 +40,7 @@ def set_camera_intrinsics(camera_config: dict) -> None:
     if k_matrix:
         # Use explicit K matrix
         bproc.camera.set_intrinsics_from_K_matrix(
-            K=np.array(k_matrix),
+            K=k_matrix,
             image_width=resolution[0],
             image_height=resolution[1],
         )
@@ -58,17 +58,23 @@ def set_camera_intrinsics(camera_config: dict) -> None:
             # Compute from FOV
             fx = fy = resolution[0] / (2.0 * math.tan(math.radians(fov / 2.0)))
         
-        cx = intrinsics.get("principal_point_x", resolution[0] / 2.0)
-        cy = intrinsics.get("principal_point_y", resolution[1] / 2.0)
+        cx = intrinsics.get("principal_point_x")
+        if cx is None:
+            cx = resolution[0] / 2.0
+            
+        cy = intrinsics.get("principal_point_y")
+        if cy is None:
+            cy = resolution[1] / 2.0
         
-        K = np.array([
-            [fx, 0, cx],
-            [0, fy, cy],
-            [0, 0, 1],
-        ])
+        # For Blender 4.2+, ensure K is a list of lists of floats for mathutils compatibility
+        K_list = [
+            [float(fx), 0.0, float(cx)],
+            [0.0, float(fy), float(cy)],
+            [0.0, 0.0, 1.0],
+        ]
         
         bproc.camera.set_intrinsics_from_K_matrix(
-            K=K,
+            K=K_list,
             image_width=resolution[0],
             image_height=resolution[1],
         )
@@ -108,7 +114,6 @@ def sample_camera_poses(
             radius=np.random.uniform(min_distance, max_distance),
             mode="SURFACE",
             dist_above_center=min_elevation,
-            dist_below_center=0,  # Don't go below the look_at_point
         )
         
         # Check if location is valid (above ground plane)
