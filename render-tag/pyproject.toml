@@ -1,0 +1,23 @@
+[project]
+name = "render-tag"
+version = "0.1.0"
+description = "Procedural 3D data generation for AprilTag training (Offline)."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2.8",
+    "pydantic-settings>=2.3",
+    "typer>=0.12",
+    "rich>=13.7",
+    "blenderproc>=2.8.0" 
+]
+
+[project.scripts]
+render-tag = "render_tag.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+dev-dependencies = ["pytest", "ruff", "mypy"]
