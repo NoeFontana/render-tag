@@ -7,7 +7,7 @@ This module handles camera pose sampling and intrinsics configuration.
 from __future__ import annotations
 
 import math
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     import numpy as np
@@ -25,13 +25,17 @@ except ImportError:
 try:
     import os
     import sys
-    from pathlib import Path
+
     scripts_dir = os.path.dirname(os.path.abspath(__file__))
     src_dir = os.path.dirname(os.path.dirname(scripts_dir))
     if src_dir not in sys.path:
         sys.path.insert(0, src_dir)
-        
-    from render_tag.geometry.camera import sample_camera_pose, validate_camera_pose, CameraPose
+
+    from render_tag.geometry.camera import (
+        sample_camera_pose,
+        validate_camera_pose,
+    )
+
     GEOMETRY_AVAILABLE = True
 except ImportError:
     GEOMETRY_AVAILABLE = False
@@ -39,20 +43,20 @@ except ImportError:
 
 def set_camera_intrinsics(camera_config: dict) -> None:
     """Set camera intrinsics from configuration.
-    
+
     Args:
         camera_config: Camera configuration dictionary containing resolution, fov, intrinsics
     """
     resolution = camera_config.get("resolution", [640, 480])
     fov = camera_config.get("fov", 60.0)
-    
+
     # Set resolution
     bproc.camera.set_resolution(resolution[0], resolution[1])
-    
+
     # Check for explicit intrinsics
     intrinsics = camera_config.get("intrinsics", {})
     k_matrix = intrinsics.get("k_matrix")
-    
+
     if k_matrix:
         # Use explicit K matrix
         bproc.camera.set_intrinsics_from_K_matrix(
@@ -65,7 +69,7 @@ def set_camera_intrinsics(camera_config: dict) -> None:
         focal_length = intrinsics.get("focal_length")
         focal_length_x = intrinsics.get("focal_length_x")
         focal_length_y = intrinsics.get("focal_length_y")
-        
+
         if focal_length_x and focal_length_y:
             fx, fy = focal_length_x, focal_length_y
         elif focal_length:
@@ -73,22 +77,22 @@ def set_camera_intrinsics(camera_config: dict) -> None:
         else:
             # Compute from FOV
             fx = fy = resolution[0] / (2.0 * math.tan(math.radians(fov / 2.0)))
-        
+
         cx = intrinsics.get("principal_point_x")
         if cx is None:
             cx = resolution[0] / 2.0
-            
+
         cy = intrinsics.get("principal_point_y")
         if cy is None:
             cy = resolution[1] / 2.0
-        
+
         # For Blender 4.2+, ensure K is a list of lists of floats for mathutils compatibility
         K_list = [
             [float(fx), 0.0, float(cx)],
             [0.0, float(fy), float(cy)],
             [0.0, 0.0, 1.0],
         ]
-        
+
         bproc.camera.set_intrinsics_from_K_matrix(
             K=K_list,
             image_width=resolution[0],
@@ -108,7 +112,7 @@ def sample_camera_poses(
     total_samples: int = 1,
 ) -> list[np.ndarray]:
     """Sample camera poses from a partial sphere looking at a point.
-    
+
     Args:
         num_samples: Number of camera poses to sample
         look_at_point: The 3D point cameras should look at
@@ -119,14 +123,14 @@ def sample_camera_poses(
         sampling_mode: "random", "distance", or "angle"
         sample_idx: Current sample index (for distance/angle modes)
         total_samples: Total number of samples in the sequence
-        
+
     Returns:
         List of 4x4 camera-to-world transformation matrices
     """
     poses = []
     attempts = 0
     max_attempts = num_samples * 50
-    
+
     # Pre-calculate steps for structured sampling if num_samples > 1
     if num_samples > 1:
         dist_steps = np.linspace(min_distance, max_distance, num_samples)
@@ -135,20 +139,20 @@ def sample_camera_poses(
         t = sample_idx / (total_samples - 1) if total_samples > 1 else 0.5
         dist_steps = [min_distance + t * (max_distance - min_distance)]
         elev_steps = [min_elevation + t * (max_elevation - min_elevation)]
-    
+
     while len(poses) < num_samples and attempts < max_attempts:
         i = len(poses)
         attempts += 1
-        
+
         # Determine sampling parameters based on mode
         curr_dist = None
         curr_elev = None
-        
+
         if sampling_mode == "distance":
             curr_dist = dist_steps[i]
         elif sampling_mode == "angle":
             curr_elev = elev_steps[i]
-            
+
         # 1. Use pure-Python geometry for sampling
         pose = sample_camera_pose(
             look_at_point=look_at_point,
@@ -159,17 +163,17 @@ def sample_camera_poses(
             distance=curr_dist,
             elevation=curr_elev,
         )
-        
+
         # 2. Use pure-Python geometry for validation
         if validate_camera_pose(pose, look_at_point, min_distance):
             poses.append(pose.transform_matrix)
-    
+
     return poses
 
 
 def add_camera_poses_to_scene(poses: list[np.ndarray]) -> None:
     """Add multiple camera poses to the BlenderProc scene.
-    
+
     Args:
         poses: List of 4x4 camera-to-world matrices
     """
@@ -179,7 +183,7 @@ def add_camera_poses_to_scene(poses: list[np.ndarray]) -> None:
 
 def get_camera_k_matrix() -> np.ndarray:
     """Get the current camera's intrinsic matrix.
-    
+
     Returns:
         3x3 camera intrinsic matrix K
     """

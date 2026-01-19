@@ -15,6 +15,7 @@ from render_tag.geometry.math import look_at_rotation, make_transformation_matri
 @dataclass
 class CameraPose:
     """A camera pose in world coordinates."""
+
     location: np.ndarray
     rotation_matrix: np.ndarray
     transform_matrix: np.ndarray
@@ -48,27 +49,35 @@ def sample_camera_pose(
         A CameraPose object.
     """
     look_at_point = np.asarray(look_at_point)
-    
+
     # 1. Sample spherical coordinates
-    dist = distance if distance is not None else np.random.uniform(min_distance, max_distance)
-    elev = elevation if elevation is not None else np.random.uniform(min_elevation, max_elevation)
+    dist = (
+        distance
+        if distance is not None
+        else np.random.uniform(min_distance, max_distance)
+    )
+    elev = (
+        elevation
+        if elevation is not None
+        else np.random.uniform(min_elevation, max_elevation)
+    )
     azim = azimuth if azimuth is not None else np.random.uniform(0, 2 * np.pi)
-    
+
     # 2. Convert elevation to spherical phi (angle from vertical Z)
     # elev=1 is directly above (phi=0), elev=0 is horizontal (phi=pi/2)
     phi = np.arccos(elev)
-    
+
     # 3. Calculate 3D position relative to target
     dx = dist * np.sin(phi) * np.cos(azim)
     dy = dist * np.sin(phi) * np.sin(azim)
     dz = dist * np.cos(phi)
-    
+
     location = look_at_point + np.array([dx, dy, dz])
-    
+
     # 4. Compute rotation to look at target
     forward_vec = look_at_point - location
     rotation_matrix = look_at_rotation(forward_vec)
-    
+
     # Apply inplane rotation (roll) if specified
     if abs(inplane_rot) > 1e-6:
         # Roll is rotation around the local Z axis (which is forward/backward in Blender)
@@ -76,9 +85,9 @@ def sample_camera_pose(
         # Let's keep it simple for now or match Blender's rotation_from_forward_vec roll parameter
         # For now, we'll assume the basic look_at is sufficient and add roll if needed.
         pass
-        
+
     transform_matrix = make_transformation_matrix(location, rotation_matrix)
-    
+
     return CameraPose(
         location=location,
         rotation_matrix=rotation_matrix,
@@ -104,14 +113,14 @@ def validate_camera_pose(
         True if the pose is valid.
     """
     look_at_point = np.asarray(look_at_point)
-    
+
     # Check distance
     dist = np.linalg.norm(pose.location - look_at_point)
     if dist < min_distance:
         return False
-        
+
     # Check height
     if pose.location[2] < min_height:
         return False
-        
+
     return True

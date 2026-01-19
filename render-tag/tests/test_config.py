@@ -14,7 +14,6 @@ from render_tag.config import (
     GenConfig,
     LightingConfig,
     PhysicsConfig,
-    SceneConfig,
     TagConfig,
     TagFamily,
     load_config,

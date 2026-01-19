@@ -24,12 +24,12 @@ except ImportError:
 
 def load_detections(csv_path: Path) -> dict[str, list[dict]]:
     """Load detections from CSV file.
-    
+
     Returns:
         Dictionary mapping image_id to list of detections
     """
     detections: dict[str, list[dict]] = {}
-    
+
     with open(csv_path, newline="") as f:
         reader = csv.DictReader(f)
         for row in reader:
@@ -45,11 +45,11 @@ def load_detections(csv_path: Path) -> dict[str, list[dict]]:
                 "tag_family": row.get("tag_family", "unknown"),
                 "corners": corners,
             }
-            
+
             if image_id not in detections:
                 detections[image_id] = []
             detections[image_id].append(detection)
-    
+
     return detections
 
 
@@ -61,7 +61,7 @@ def draw_detection(
     line_width: int = 2,
 ) -> None:
     """Draw a detection on the image.
-    
+
     Args:
         draw: PIL ImageDraw object
         corners: List of 4 (x, y) corner coordinates
@@ -71,13 +71,13 @@ def draw_detection(
     """
     if len(corners) != 4:
         return
-    
+
     # Draw quadrilateral
     for i in range(4):
         start = corners[i]
         end = corners[(i + 1) % 4]
         draw.line([start, end], fill=color, width=line_width)
-    
+
     # Draw corner markers
     marker_size = 5
     corner_colors = ["red", "orange", "yellow", "green"]  # BL, BR, TR, TL
@@ -88,7 +88,7 @@ def draw_detection(
             fill=corner_colors[i],
             outline="white",
         )
-    
+
     # Draw tag ID label
     centroid_x = sum(c[0] for c in corners) / 4
     centroid_y = sum(c[1] for c in corners) / 4
@@ -102,21 +102,21 @@ def visualize_image(
     show: bool = True,
 ) -> Image.Image:
     """Visualize detections on an image.
-    
+
     Args:
         image_path: Path to the image file
         detections: List of detection dictionaries
         output_path: Optional path to save the visualization
         show: Whether to display the image
-        
+
     Returns:
         The annotated image
     """
     img = Image.open(image_path).convert("RGB")
     draw = ImageDraw.Draw(img)
-    
+
     colors = ["lime", "cyan", "magenta", "yellow", "red"]
-    
+
     for i, detection in enumerate(detections):
         color = colors[i % len(colors)]
         draw_detection(
@@ -125,14 +125,14 @@ def visualize_image(
             detection["tag_id"],
             color=color,
         )
-    
+
     if output_path:
         img.save(output_path)
         print(f"Saved visualization to: {output_path}")
-    
+
     if show:
         img.show()
-    
+
     return img
 
 
@@ -142,7 +142,7 @@ def visualize_dataset(
     save_viz: bool = True,
 ) -> None:
     """Visualize all or specific images in a dataset.
-    
+
     Args:
         output_dir: Path to the dataset output directory
         specific_image: Optional specific image ID to visualize
@@ -151,22 +151,24 @@ def visualize_dataset(
     csv_path = output_dir / "tags.csv"
     images_dir = output_dir / "images"
     viz_dir = output_dir / "visualizations"
-    
+
     if not csv_path.exists():
         print(f"Error: CSV file not found: {csv_path}")
         return
-    
+
     if not images_dir.exists():
         print(f"Error: Images directory not found: {images_dir}")
         return
-    
+
     # Load all detections
     detections = load_detections(csv_path)
-    print(f"Loaded {sum(len(d) for d in detections.values())} detections from {len(detections)} images")
-    
+    print(
+        f"Loaded {sum(len(d) for d in detections.values())} detections from {len(detections)} images"
+    )
+
     if save_viz:
         viz_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # Process images
     if specific_image:
         image_ids = [specific_image] if specific_image in detections else []
@@ -180,16 +182,18 @@ def visualize_dataset(
             return
     else:
         image_ids = list(detections.keys())
-    
+
     for image_id in image_ids:
         image_path = images_dir / f"{image_id}.png"
         if not image_path.exists():
             print(f"Warning: Image not found: {image_path}")
             continue
-        
+
         output_path = viz_dir / f"{image_id}_viz.png" if save_viz else None
-        
-        print(f"Visualizing: {image_id} ({len(detections.get(image_id, []))} detections)")
+
+        print(
+            f"Visualizing: {image_id} ({len(detections.get(image_id, []))} detections)"
+        )
         visualize_image(
             image_path,
             detections.get(image_id, []),
@@ -203,13 +207,15 @@ def main() -> None:
         description="Visualize render-tag detections for debugging"
     )
     parser.add_argument(
-        "--output", "-o",
+        "--output",
+        "-o",
         type=Path,
         required=True,
         help="Path to the dataset output directory",
     )
     parser.add_argument(
-        "--image", "-i",
+        "--image",
+        "-i",
         type=str,
         default=None,
         help="Specific image ID to visualize (without extension)",
@@ -219,9 +225,9 @@ def main() -> None:
         action="store_true",
         help="Don't save visualization images",
     )
-    
+
     args = parser.parse_args()
-    
+
     visualize_dataset(
         args.output,
         specific_image=args.image,

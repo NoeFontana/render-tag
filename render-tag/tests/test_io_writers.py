@@ -6,15 +6,14 @@ import json
 import tempfile
 from pathlib import Path
 
-import pytest
 
 from render_tag.data_io.writers import (
     COCOWriter,
     CSVWriter,
-    DetectionRecord,
     corners_to_clockwise_order,
     verify_corner_order,
 )
+from render_tag.data_io.types import DetectionRecord
 
 
 class TestDetectionRecord:
@@ -44,7 +43,7 @@ class TestCSVWriter:
         with tempfile.TemporaryDirectory() as tmpdir:
             csv_path = Path(tmpdir) / "tags.csv"
             writer = CSVWriter(csv_path)
-            
+
             corners = [(10.5, 20.5), (110.5, 20.5), (110.5, 120.5), (10.5, 120.5)]
             detection = DetectionRecord(
                 image_id="scene_0001",
@@ -53,7 +52,7 @@ class TestCSVWriter:
                 corners=corners,
             )
             writer.write_detection(detection)
-            
+
             # Read and verify
             content = csv_path.read_text()
             lines = content.strip().split("\n")
@@ -66,7 +65,7 @@ class TestCSVWriter:
         with tempfile.TemporaryDirectory() as tmpdir:
             csv_path = Path(tmpdir) / "tags.csv"
             writer = CSVWriter(csv_path)
-            
+
             corners = [(0, 0), (100, 0), (100, 100), (0, 100)]
             detections = [
                 DetectionRecord("img1", 0, "tag36h11", corners),
@@ -74,7 +73,7 @@ class TestCSVWriter:
                 DetectionRecord("img3", 2, "DICT_4X4_50", corners),
             ]
             writer.write_detections(detections)
-            
+
             lines = csv_path.read_text().strip().split("\n")
             assert len(lines) == 4  # Header + 3 detections
 
@@ -82,11 +81,11 @@ class TestCSVWriter:
         with tempfile.TemporaryDirectory() as tmpdir:
             csv_path = Path(tmpdir) / "tags.csv"
             writer = CSVWriter(csv_path)
-            
+
             # Invalid detection with only 3 corners
             detection = DetectionRecord("img1", 0, "tag36h11", [(0, 0), (1, 1), (2, 2)])
             writer.write_detection(detection)
-            
+
             # File should not be created since the only detection was invalid
             assert not csv_path.exists()
 
@@ -95,11 +94,11 @@ class TestCOCOWriter:
     def test_add_category(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             writer = COCOWriter(Path(tmpdir))
-            
+
             cat_id1 = writer.add_category("tag36h11")
             cat_id2 = writer.add_category("DICT_4X4_50")
             cat_id3 = writer.add_category("tag36h11")  # Duplicate
-            
+
             assert cat_id1 == 1
             assert cat_id2 == 2
             assert cat_id3 == 1  # Should return existing ID
@@ -108,10 +107,10 @@ class TestCOCOWriter:
     def test_add_image(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             writer = COCOWriter(Path(tmpdir))
-            
+
             img_id1 = writer.add_image("images/test1.png", 640, 480)
             img_id2 = writer.add_image("images/test2.png", 1920, 1080)
-            
+
             assert img_id1 == 1
             assert img_id2 == 2
             assert len(writer.images) == 2
@@ -119,16 +118,16 @@ class TestCOCOWriter:
     def test_add_annotation(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             writer = COCOWriter(Path(tmpdir))
-            
+
             cat_id = writer.add_category("tag36h11")
             img_id = writer.add_image("test.png", 640, 480)
-            
+
             corners = [(100, 100), (200, 100), (200, 200), (100, 200)]
             ann_id = writer.add_annotation(img_id, cat_id, corners, tag_id=5)
-            
+
             assert ann_id == 1
             assert len(writer.annotations) == 1
-            
+
             ann = writer.annotations[0]
             assert ann["image_id"] == img_id
             assert ann["category_id"] == cat_id
@@ -139,19 +138,19 @@ class TestCOCOWriter:
         with tempfile.TemporaryDirectory() as tmpdir:
             output_dir = Path(tmpdir)
             writer = COCOWriter(output_dir)
-            
+
             cat_id = writer.add_category("tag36h11")
             img_id = writer.add_image("test.png", 640, 480)
             corners = [(0, 0), (100, 0), (100, 100), (0, 100)]
             writer.add_annotation(img_id, cat_id, corners)
-            
+
             output_path = writer.save()
-            
+
             assert output_path.exists()
-            
+
             with open(output_path) as f:
                 data = json.load(f)
-            
+
             assert "images" in data
             assert "annotations" in data
             assert "categories" in data
@@ -162,17 +161,17 @@ class TestCOCOWriter:
     def test_bbox_calculation(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             writer = COCOWriter(Path(tmpdir))
-            
+
             cat_id = writer.add_category("tag36h11")
             img_id = writer.add_image("test.png", 640, 480)
-            
+
             # Non-axis-aligned quad
             corners = [(50, 100), (150, 50), (200, 150), (100, 200)]
             writer.add_annotation(img_id, cat_id, corners)
-            
+
             ann = writer.annotations[0]
             bbox = ann["bbox"]
-            
+
             # bbox = [x_min, y_min, width, height]
             assert bbox[0] == 50  # x_min
             assert bbox[1] == 50  # y_min
@@ -184,10 +183,10 @@ class TestCornerOrdering:
     def test_corners_to_clockwise_order(self) -> None:
         # Input: BL, BR, TR, TL (CCW from bottom-left)
         ccw_corners = [(0, 0), (100, 0), (100, 100), (0, 100)]
-        
+
         # Output: TL, TR, BR, BL (CW from top-left)
         cw_corners = corners_to_clockwise_order(ccw_corners)
-        
+
         assert cw_corners[0] == (0, 100)  # TL
         assert cw_corners[1] == (100, 100)  # TR
         assert cw_corners[2] == (100, 0)  # BR

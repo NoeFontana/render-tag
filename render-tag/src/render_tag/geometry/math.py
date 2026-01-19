@@ -59,9 +59,10 @@ def rotation_matrix_from_vectors(vec1: np.ndarray, vec2: np.ndarray) -> np.ndarr
     Returns:
         (3, 3) rotation matrix.
     """
-    a, b = (vec1 / np.linalg.norm(vec1)).reshape(3), (
-        vec2 / np.linalg.norm(vec2)
-    ).reshape(3)
+    a, b = (
+        (vec1 / np.linalg.norm(vec1)).reshape(3),
+        (vec2 / np.linalg.norm(vec2)).reshape(3),
+    )
     v = np.cross(a, b)
     c = np.dot(a, b)
     s = np.linalg.norm(v)
@@ -73,11 +74,7 @@ def rotation_matrix_from_vectors(vec1: np.ndarray, vec2: np.ndarray) -> np.ndarr
         else:
             # 180 degree rotation around any orthogonal vector
             # Find an orthogonal vector
-            ortho = (
-                np.array([1, 0, 0])
-                if abs(a[0]) < 0.9
-                else np.array([0, 1, 0])
-            )
+            ortho = np.array([1, 0, 0]) if abs(a[0]) < 0.9 else np.array([0, 1, 0])
             v_ortho = np.cross(a, ortho)
             v_ortho /= np.linalg.norm(v_ortho)
             # Rodrigues rotation for 180 degrees
@@ -90,32 +87,34 @@ def rotation_matrix_from_vectors(vec1: np.ndarray, vec2: np.ndarray) -> np.ndarr
     return rotation_matrix
 
 
-def look_at_rotation(forward_vec: np.ndarray, up_vec: np.ndarray = np.array([0, 0, 1])) -> np.ndarray:
+def look_at_rotation(
+    forward_vec: np.ndarray, up_vec: np.ndarray = np.array([0, 0, 1])
+) -> np.ndarray:
     """Compute a rotation matrix from a forward vector and an up vector.
-    
+
     This matches the behavior of bproc.camera.rotation_from_forward_vec.
     The camera's local forward is -Z, up is Y.
-    
+
     Args:
         forward_vec: Direction the camera should face.
         up_vec: World up vector.
-        
+
     Returns:
         (3, 3) rotation matrix.
     """
     # Normalize forward vector
     f = forward_vec / np.linalg.norm(forward_vec)
-    
+
     # Handle degenerate case where forward is parallel to up
     if abs(np.dot(f, up_vec)) > 0.999:
         # Use a different up vector
         up_vec = np.array([0, 1, 0]) if abs(f[1]) < 0.999 else np.array([1, 0, 0])
-        
+
     # Standard Gram-Schmidt or similar to find axes
     # In BlenderProc/OpenCV, Z is usually forward (or -Z)
     # Blender camera: forward is -Z, up is Y, right is X
     # BlenderProc's rotation_from_forward_vec maps world forward to camera -Z
-    
+
     # Camera axes in world coordinates
     # cam_z = -f (forward is -Z)
     z_axis = -f
@@ -124,7 +123,7 @@ def look_at_rotation(forward_vec: np.ndarray, up_vec: np.ndarray = np.array([0, 
     x_axis /= np.linalg.norm(x_axis)
     # cam_y = cam_z x cam_x (up is Y)
     y_axis = np.cross(z_axis, x_axis)
-    
+
     # Rotation matrix columns are the world-space axes
     R = np.stack([x_axis, y_axis, z_axis], axis=1)
     return R

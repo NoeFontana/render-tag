@@ -32,12 +32,12 @@ def is_facing_camera(
     dist = np.linalg.norm(to_camera)
     if dist < 1e-6:
         return False
-        
+
     to_camera_norm = to_camera / dist
-    
+
     # Normalize tag normal if not already
     tag_normal_norm = tag_normal / np.linalg.norm(tag_normal)
-    
+
     dot = np.dot(tag_normal_norm, to_camera_norm)
     return bool(dot > min_dot)
 
@@ -59,13 +59,13 @@ def project_points(
     """
     # 1. Image of cam_to_world: world_to_cam
     world_to_cam = np.linalg.inv(cam_to_world)
-    
+
     # 2. Convert to homogeneous coordinates
     points_hom = np.hstack([points_3d, np.ones((len(points_3d), 1))])
-    
+
     # 3. Transform to camera space
     points_cam = (world_to_cam @ points_hom.T).T
-    
+
     # 4. Project to 2D
     # Only keep points in front of camera (Z > 0)
     # Note: in many CV conventions Z is forward. In Blender camera space -Z is forward.
@@ -74,16 +74,16 @@ def project_points(
     # If Blender convention: z < 0 is in front.
     # If standard CV: z > 0 is in front.
     # bproc world_to_cam usually ends up with Z forward in internal logic.
-    
+
     # We'll project and check depth
     coords_2d = (k_matrix @ points_cam[:, :3].T).T
-    
+
     # Avoid division by zero
     depth = coords_2d[:, 2]
-    with np.errstate(divide='ignore', invalid='ignore'):
+    with np.errstate(divide="ignore", invalid="ignore"):
         coords_2d[:, 0] /= depth
         coords_2d[:, 1] /= depth
-        
+
     return coords_2d[:, :2]
 
 
@@ -108,20 +108,24 @@ def validate_visibility_metrics(
     """
     # 1. Count corners in bounds
     in_bounds = (
-        (corners_2d[:, 0] >= 0) & (corners_2d[:, 0] < image_width) &
-        (corners_2d[:, 1] >= 0) & (corners_2d[:, 1] < image_height)
+        (corners_2d[:, 0] >= 0)
+        & (corners_2d[:, 0] < image_width)
+        & (corners_2d[:, 1] >= 0)
+        & (corners_2d[:, 1] < image_height)
     )
     visible_corners = np.sum(in_bounds)
-    
+
     # 2. Compute area
     area = compute_polygon_area(corners_2d)
-    
-    is_visible = bool((visible_corners >= min_visible_corners) and (area >= min_area_pixels))
-    
+
+    is_visible = bool(
+        (visible_corners >= min_visible_corners) and (area >= min_area_pixels)
+    )
+
     metrics = {
         "visible_corners": int(visible_corners),
         "area": float(area),
         "in_bounds_mask": in_bounds.tolist(),
     }
-    
+
     return is_visible, metrics
