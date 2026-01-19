@@ -7,20 +7,20 @@
 Before spawning Blender, we must strictly define what we are asking it to do.
 
 ### 1.1. Define the Configuration Schema (`src/render_tag/config.py`)
-- [ ] Create a `GenConfig` Pydantic model (v2) to act as the single source of truth.
-- [ ] Fields to include:
+- [x] Create a `GenConfig` Pydantic model (v2) to act as the single source of truth.
+- [x] Fields to include:
     - `dataset`: output_dir, seed (int).
     - `camera`: resolution (w, h), fov (float), samples_per_scene (int), intrinsics (K matrix or focal length/sensor size).
-    - [ ] **Full Intrinsics Support**: Support all camera intrinsics supported by Blender (K matrix, principal point, distortion coefficients).
+    - [x] **Full Intrinsics Support**: Support all camera intrinsics supported by Blender (K matrix, principal point, distortion coefficients).
     - `tag`: family (enum: "tag36h11"), size_meters (float), texture_path (Path).
     - `scene`: lighting_intensity (min/max), background_hdri (Path or None).
     - `physics`: drop_height (float), scatter_radius (float).
-- [ ] Implement `load_config(path: Path) -> GenConfig` with strict YAML validation.
-- [ ] Agent Instruction: "Ensure the config model forbids invalid states (e.g., negative resolution)."
+- [x] Implement `load_config(path: Path) -> GenConfig` with strict YAML validation.
+- [x] Agent Instruction: "Ensure the config model forbids invalid states (e.g., negative resolution)."
 
 ### 1.2. Define the Output Schema
-- [ ] Define the `TagDetection` dataclass matching the Locus CSV format (image_id, tag_id, 4x corners).
-- [ ] Define the `COCOAnnotation` structure for instance segmentation.
+- [x] Define the `TagDetection` dataclass matching the Locus CSV format (image_id, tag_id, 4x corners).
+- [x] Define the `COCOAnnotation` structure for instance segmentation.
 
 ## Phase 2: The Blender Driver (The "Engine")
 This code runs INSIDE the Blender process. It has access to `bpy` and `bproc` but NO access to the CLI state.

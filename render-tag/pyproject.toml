@@ -9,7 +9,7 @@ dependencies = [
     "pydantic-settings>=2.3",
     "typer>=0.12",
     "rich>=13.7",
-    "blenderproc>=2.8.0" 
+    "pyyaml>=6.0",
 ]
 
 [project.scripts]
@@ -19,5 +19,8 @@ render-tag = "render_tag.cli:app"
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[tool.uv]
-dev-dependencies = ["pytest", "ruff", "mypy"]
+[tool.hatch.build.targets.wheel]
+packages = ["src/render_tag"]
+
+[dependency-groups]
+dev = ["pytest", "ruff", "mypy"]
