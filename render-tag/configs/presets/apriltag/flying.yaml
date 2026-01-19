@@ -1,0 +1,17 @@
+dataset:
+  output_dir: output/apriltag_flying
+  num_scenes: 5
+
+camera:
+  resolution: [640, 480]
+  samples_per_scene: 5
+
+tag:
+  size_meters: 0.1
+
+scenario:
+  layout: plain
+  tag_families: [tag36h11]
+  tags_per_scene: [5, 15]
+  flying: true
+  sampling_mode: random

@@ -1,0 +1,24 @@
+dataset:
+  output_dir: output/apriltag_kalibr
+  num_scenes: 1
+
+camera:
+  resolution: [1280, 1280]
+  samples_per_scene: 5
+  min_distance: 1.0
+  max_distance: 2.0
+  min_elevation: 0.7
+  max_elevation: 0.9
+
+tag:
+  size_meters: 0.1
+
+scenario:
+  layout: aprilgrid
+  tag_families: [tag36h11]
+  # Kalibr AprilGrid: 6x5 grid = 30 markers, each in its own cell
+  grid_size: [6, 5]
+  square_size: 0.12
+  marker_margin: 0.01
+  corner_size: 0.02
+  sampling_mode: random

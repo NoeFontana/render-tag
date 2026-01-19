@@ -1,0 +1,19 @@
+dataset:
+  output_dir: output/apriltag_dist
+  num_scenes: 1
+
+camera:
+  resolution: [1280, 720]
+  samples_per_scene: 20
+  # Controlled distance range
+  min_distance: 1.0
+  max_distance: 5.0
+
+tag:
+  size_meters: 0.1
+
+scenario:
+  layout: plain
+  tag_families: [tag36h11]
+  tags_per_scene: [1, 1]
+  sampling_mode: distance

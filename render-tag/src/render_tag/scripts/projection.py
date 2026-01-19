@@ -114,17 +114,20 @@ def check_tag_facing_camera(tag_obj) -> bool:
     world_normal = world_normal / np.linalg.norm(world_normal)
     
     # Get the vector from tag center to camera
-    tag_center = tag_obj.get_location()
-    cam_pose = bproc.camera.get_camera_pose()
-    cam_pos = cam_pose[:3, 3]
+    tag_center = np.array(tag_obj.get_location())
+    cam_pos = np.array(bpy.context.scene.camera.location)
     
-    to_camera = cam_pos - np.array(tag_center)
-    to_camera = to_camera / np.linalg.norm(to_camera)
+    to_camera = cam_pos - tag_center
+    dist = np.linalg.norm(to_camera)
+    if dist < 1e-6:
+        return False
+    to_camera = to_camera / dist
     
     # Dot product: positive means facing camera
     dot = np.dot(world_normal, to_camera)
     
-    return dot > 0
+    # Require at least cos(80 deg) = 0.17 to be visible
+    return dot > 0.15
 
 
 def compute_tag_area_in_image(corners_2d: list[tuple[float, float]]) -> float:

@@ -13,6 +13,8 @@ import argparse
 import json
 import sys
 import os
+import random
+import numpy as np
 from pathlib import Path
 
 # Add the current directory to sys.path to allow imports from sibling files
@@ -193,13 +195,33 @@ def main() -> int:
         # Setup scene background
         setup_scene(config)
         
-        # Create floor for physics
-        floor = create_floor()
+        # Get scenario flags
+        is_flying = scenario_config.get("flying", False)
+        sampling_mode = scenario_config.get("sampling_mode", "random")
+
+        # Create floor if NOT flying and NOT checkerboard
+        floor = None
+        layout_mode = scenario_config.get("layout", "plain")
+        if not is_flying and layout_mode not in ("cb", "aprilgrid"):
+            floor = create_floor()
         
         # Determine number of tags for this scene
-        tags_range = scenario_config.get("tags_per_scene", [1, 5])
-        import random
-        num_tags = random.randint(tags_range[0], tags_range[1])
+        grid_size = scenario_config.get("grid_size", [6, 6])
+        
+        if layout_mode == "cb":
+            # ChArUco board: tags go in alternating (white) squares
+            # For an MxN board, approx M*N/2 white squares (ceiling)
+            cols, rows = grid_size[0], grid_size[1]
+            total_squares = cols * rows
+            num_tags = (total_squares + 1) // 2  # Ceiling division
+        elif layout_mode == "aprilgrid":
+            # AprilGrid/Kalibr: tags in every cell
+            cols, rows = grid_size[0], grid_size[1]
+            num_tags = cols * rows
+        else:
+            tags_range = scenario_config.get("tags_per_scene", [1, 5])
+            num_tags = random.randint(tags_range[0], tags_range[1])
+            cols, rows = None, None
         
         # Create tag objects
         tag_objects = []
@@ -221,54 +243,74 @@ def main() -> int:
             tag_objects.append(tag_obj)
         
         # Apply layout
-        layout_mode = scenario_config.get("layout", "plain")
-        corner_size = scenario_config.get("corner_size", 0.01)
+        square_size = scenario_config.get("square_size", 0.12)
+        marker_margin = scenario_config.get("marker_margin", 0.01)
+        corner_size = scenario_config.get("corner_size", 0.02)
         tag_spacing = scenario_config.get("tag_spacing", 0.05)
         
         # Import layouts module here to avoid circular imports or early failure
         from layouts import apply_layout
         
-        # Position tags and creating connecting elements (corners)
-        layout_objects = apply_layout(
-            tag_objects=tag_objects,
-            layout_mode=layout_mode,
-            spacing=tag_spacing,
-            corner_size=corner_size,
-            center=(0, 0, 0) # Center on floor
-        )
+        if is_flying:
+            # Flying mode: ignore layout and scatter in volume
+            from scene import create_flying_layout
+            create_flying_layout(tag_objects, volume_size=2.0)
+            layout_objects = []
+        else:
+            # Standard mode: apply layout and settle with physics
+            layout_objects = apply_layout(
+                tag_objects=tag_objects,
+                layout_mode=layout_mode,
+                spacing=tag_spacing,
+                square_size=square_size,
+                marker_margin=marker_margin,
+                corner_size=corner_size,
+                center=(0, 0, 0),
+                cols=cols,
+                rows=rows,
+            )
+            
+            # For checkerboard or aprilgrid, create a white board background
+            if layout_mode in ("cb", "aprilgrid"):
+                board_width = cols * square_size
+                board_height = rows * square_size
+                
+                # Create a simple plane for the board
+                board = bproc.object.create_primitive("PLANE")
+                board.set_location([0, 0, -0.001]) # Slightly below tags
+                board.set_scale([board_width / 2, board_height / 2, 1])
+                board.persist_transformation_into_mesh()
+                
+                # White material
+                mat = bpy.data.materials.new(name="BoardWhite")
+                mat.use_nodes = True
+                bsdf = mat.node_tree.nodes.get("Principled BSDF")
+                if bsdf:
+                    bsdf.inputs["Base Color"].default_value = (1, 1, 1, 1)
+                    bsdf.inputs["Roughness"].default_value = 0.8
+                board.blender_obj.data.materials.clear()
+                board.blender_obj.data.materials.append(mat)
+                board.enable_rigidbody(active=False)
+                layout_objects.append(board)
+
+            # Setup Z height and simulate physics
+            drop_height = physics_config.get("drop_height", 0.1)
+            for obj in tag_objects + layout_objects:
+                 obj.enable_rigidbody(active=True)
+                 loc = obj.get_location()
+                 obj.set_location([loc[0], loc[1], drop_height])
+            
+            bproc.object.simulate_physics_and_fix_final_poses(
+                min_simulation_time=1,
+                max_simulation_time=2,
+                check_object_interval=1,
+            )
         
         # Setup lighting
         lighting_config = scene_config.get("lighting", {})
         setup_lighting(
             intensity_min=lighting_config.get("intensity_min", 50),
             intensity_max=lighting_config.get("intensity_max", 500),
-        )
-        
-        # Enable physics for all objects
-        drop_height = physics_config.get("drop_height", 0.1) # Lower drop for layouts
-        
-        # For layouts, we might want to just let them settle or stay fixed
-        # If "scatter" was intended, we wouldn't use a structured layout.
-        # Assuming we place them slightly above ground and let them fall to settle.
-        
-        # Check if we should simulate physics
-        # For checkerboards, we usually want them rigid.
-        # Let's make them active but maybe constrained? 
-        # For now, let's treat them as active rigid bodies that settle on the floor.
-        
-        for obj in tag_objects + layout_objects:
-             obj.enable_rigidbody(active=True)
-        
-        # Adjust Z height to be just above floor
-        for obj in tag_objects + layout_objects:
-            loc = obj.get_location()
-            obj.set_location([loc[0], loc[1], drop_height])
-        
-        # Simulate physics
-        bproc.object.simulate_physics_and_fix_final_poses(
-            min_simulation_time=1,
-            max_simulation_time=2, # Fast settle
-            check_object_interval=1,
         )
         
         # Sample camera poses with visibility guarantee
@@ -285,98 +327,46 @@ def main() -> int:
             # Sample ONE pose
             poses = sample_camera_poses(
                 num_samples=1,
-                look_at_point=[0, 0, 0],
-                min_distance=0.5,
-                max_distance=2.0,
+                look_at_point=[0, 0, 0.5] if is_flying else [0, 0, 0.05],
+                min_distance=camera_config.get("min_distance", 0.5),
+                max_distance=camera_config.get("max_distance", 2.0),
+                min_elevation=camera_config.get("min_elevation", 0.3),
+                max_elevation=camera_config.get("max_elevation", 0.9),
+                sampling_mode=sampling_mode,
+                sample_idx=valid_samples,
+                total_samples=samples_per_scene,
             )
-            pose = poses[0]
-            bproc.camera.add_camera_pose(pose)
+            if not poses:
+                continue
             
-            # Check visibility for this pose
-            # We need at least one tag to be visible and large enough
+            pose = poses[0]
+            
+            # Set camera pose directly via bpy to check visibility without adding keyframe
+            import mathutils
+            bpy.context.scene.camera.matrix_world = mathutils.Matrix(pose)
+            bpy.context.view_layer.update() # CRITICAL: Update scene to reflect new pose
+            # Check visibility
             visible_tags_count = 0
             for tag_obj in tag_objects:
                 if is_tag_sufficiently_visible(tag_obj, min_area_pixels=min_bits):
                     visible_tags_count += 1
             
-            if visible_tags_count == 0:
-                # Reject this pose, remove it
-                # bproc stores poses in a list, we can just not render it and reset
-                # But bproc.camera.add_camera_pose appends to the frame list.
-                # To "undo", we might be able to overwrite or just ignore.
-                # Actually, bproc renders ALL frames.
-                # So we should only KEEP frames that are valid.
-                pass 
-                # Ideally check BEFORE adding pose, but projection needs camera set?
-                # project_corners_to_image DOES rely on current cam pose?
-                # Actually check_tag_visibility -> project -> bproc.camera.project_points
-                # uses the ACTIVE camera for the current frame?
-                # bproc usually renders frames 0..N-1 based on poses added.
-                
-                # WORKAROUND: We added the pose. Now we check.
-                # If invalid, we don't increment valid_samples.
-                # But we validly wanted to "discard" the frame.
-                # Current bproc api adds a keyframe.
-                # We can just check visibility relative to the matrix WITHOUT setting it as keyframe
-                # if we modified projection to take a matrix.
-                # BUT project_corners_to_image uses bproc.camera.project_point
-                # which uses the internal renderer state.
-                
-                # Easier: Just render the valid ones.
-                # Since we are in a loop, we can just clear frames?
-                # bproc.utility.reset_keyframes() removes all.
+            if visible_tags_count > 0:
+                # Valid! Add the pose to the render queue
+                bproc.camera.add_camera_pose(pose)
+                valid_samples += 1
+                total_images += 1
+                total_detections += visible_tags_count
+                print(f"  [✓] Sample {valid_samples}/{samples_per_scene} (dist={np.linalg.norm(pose[:3, 3]):.2f}m) - {visible_tags_count} tags visible")
             else:
-                 # Valid!
-                 valid_samples += 1
-                 # Render this specific frame IMMEDIATELY (since we have the pose set)
-                 # Actually, bproc manages frames. 
-                 # If we added a pose, it's frame N.
-                 # If we want to skip, we shouldn't have added it?
-                 pass
-
-        # REFACTOR strategy for visibility check loop:
-        # 1. Generate many candidate poses
-        # 2. For each candidate:
-        #    - Set as current camera pose (frame 0)
-        #    - Check visibility
-        #    - If good, KEEP it (store in list)
-        # 3. Once we have sufficient poses, add them all to bproc for rendering
+                if attempts % 100 == 0:
+                    print(f"  [!] Attempt {attempts}/{max_total_attempts}: Still looking for visible pose...")
         
-        # Reset any camera poses set during checking
-        bproc.utility.reset_keyframes()
-        
-        collected_poses = []
-        candidate_count = 0
-        
-        while len(collected_poses) < samples_per_scene and candidate_count < max_total_attempts:
-             candidate_count += 1
-             # Sample one pose matrix
-             candidates = sample_camera_poses(1, [0,0,0], 0.5, 2.0)
-             pose_matrix = candidates[0]
-             
-             # Set this as the camera pose for frame 0 temporarily
-             bproc.camera.add_camera_pose(pose_matrix, frame=0)
-             
-             # Check visibility
-             visible_tags_count = 0
-             for tag_obj in tag_objects:
-                 if is_tag_sufficiently_visible(tag_obj, min_area_pixels=min_bits):
-                     visible_tags_count += 1
-             
-             if visible_tags_count > 0:
-                 collected_poses.append(pose_matrix)
-        
-        # Now setup the actual render frames
-        bproc.utility.reset_keyframes()
-        for i, pose in enumerate(collected_poses):
-            bproc.camera.add_camera_pose(pose, frame=i)
-
         # Render from each camera pose
-        for cam_idx in range(len(collected_poses)):
+        for cam_idx in range(valid_samples):
             # Render
             image_path = render_scene(output_dir, scene_idx, cam_idx)
             image_name = image_path.stem
-            total_images += 1
             
             # Add image to COCO dataset
             coco_image_id = coco_writer.add_image(
@@ -412,8 +402,6 @@ def main() -> int:
                     corners=corners_2d,
                     tag_id=tag_id,
                 )
-                
-                total_detections += 1
     
     # Save COCO annotations
     coco_writer.save()

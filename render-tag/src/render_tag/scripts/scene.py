@@ -162,6 +162,35 @@ def scatter_tags(
         )
 
 
+def create_flying_layout(
+    tag_objects: list,
+    volume_size: float = 2.0,
+) -> None:
+    """Randomly position and rotate tags in a 3D volume.
+    
+    Args:
+        tag_objects: List of tag mesh objects
+        volume_size: Size of the box volume (meters)
+    """
+    for tag in tag_objects:
+        # Random position in a 3D box centered at (0, 0, volume_size/2)
+        x = random.uniform(-volume_size/2, volume_size/2)
+        y = random.uniform(-volume_size/2, volume_size/2)
+        z = random.uniform(0.5, volume_size + 0.5)  # Stay above "ground" even if no ground
+        
+        # Completely random rotation
+        rx = random.uniform(0, 2 * 3.14159)
+        ry = random.uniform(0, 2 * 3.14159)
+        rz = random.uniform(0, 2 * 3.14159)
+        
+        tag.set_location([x, y, z])
+        tag.set_rotation_euler([rx, ry, rz])
+        
+        # Tags stay fixed in space (no gravity/physics needed for flying)
+        # or we could make them active with 0 gravity, but fixed is simpler.
+        tag.enable_rigidbody(active=False) # Static in air
+
+
 def randomize_floor_material(floor: Any, texture_dir: Optional[Path] = None) -> None:
     """Randomize the floor material for domain randomization.
     

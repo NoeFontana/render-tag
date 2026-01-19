@@ -64,7 +64,16 @@ class LayoutMode(str, Enum):
     """Layout mode for tag placement in scenes."""
     
     PLAIN = "plain"  # Tags equidistant, no connecting pattern
-    CHECKERBOARD = "cb"  # Tags connected by black corner squares
+    CHECKERBOARD = "cb"  # ChArUco board: tags in alternating squares
+    APRILGRID = "aprilgrid"  # Kalibr AprilGrid: tags in every cell + corner dots
+
+
+class SamplingMode(str, Enum):
+    """Camera sampling mode for dataset tuning."""
+    
+    RANDOM = "random"      # Random sphere sampling
+    DISTANCE = "distance"  # Varying distance to target
+    ANGLE = "angle"        # Varying tilt angle to target
 
 
 # Bit counts for each tag family (used for minimum pixel area calculation)
@@ -273,7 +282,7 @@ class SceneConfig(BaseModel):
 class PhysicsConfig(BaseModel):
     """Physics simulation configuration."""
 
-    drop_height: float = Field(default=1.5, gt=0, description="Drop height in meters")
+    drop_height: float = Field(default=0.2, gt=0, description="Drop height in meters")
     scatter_radius: float = Field(default=0.5, gt=0, description="Scatter radius in meters")
 
 
@@ -305,7 +314,16 @@ class ScenarioConfig(BaseModel):
     tag_spacing: float = Field(
         default=0.05,
         gt=0,
-        description="Spacing between tags in meters (plain layout only)",
+        description="Spacing between tags (cell size for checkerboard) in meters",
+    )
+
+    sampling_mode: SamplingMode = Field(
+        default=SamplingMode.RANDOM,
+        description="Sampling mode for camera poses (random, distance, angle)",
+    )
+    flying: bool = Field(
+        default=False,
+        description="If True, tags fly in space without a floor board",
     )
 
     @field_validator("tags_per_scene")

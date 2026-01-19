@@ -1,0 +1,18 @@
+dataset:
+  output_dir: output/apriltag_angle
+  num_scenes: 1
+
+camera:
+  resolution: [1280, 720]
+  samples_per_scene: 20
+  min_distance: 1.0
+  max_distance: 1.5
+
+tag:
+  size_meters: 0.16
+
+scenario:
+  layout: plain
+  tag_families: [tag36h11]
+  tags_per_scene: [1, 1]
+  sampling_mode: angle

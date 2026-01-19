@@ -88,7 +88,16 @@ uv run render-tag viz --output output/dataset_01 --no-save
 
 ## Configuration
 
-Create a YAML configuration file:
+Create a YAML configuration file or use a preset:
+
+```bash
+# Use a preset configuration
+uv run render-tag generate --config configs/presets/apriltag/aprilgrid.yaml
+
+# Or create your own config
+```
+
+### Basic Configuration
 
 ```yaml
 dataset:
@@ -107,6 +116,74 @@ tag:
 physics:
   drop_height: 1.5
   scatter_radius: 0.5
+```
+
+### Layout Modes
+
+render-tag supports three layout modes for different calibration board patterns:
+
+| Mode | Description | Use Case |
+|------|-------------|----------|
+| `plain` | Tags scattered randomly | General training data |
+| `cb` | ChArUco board (tags in alternating squares) | OpenCV camera calibration |
+| `aprilgrid` | Kalibr AprilGrid (tags in all cells + corner dots) | Kalibr multi-camera calibration |
+
+#### ChArUco Board (OpenCV)
+
+```yaml
+scenario:
+  layout: cb
+  tag_families: [DICT_6X6_250]
+  grid_size: [6, 6]       # 6x6 grid = 18 markers in white squares
+  square_size: 0.12       # Size of each checkerboard square (meters)
+  marker_margin: 0.01     # Margin between marker and square edge
+```
+
+#### AprilGrid (Kalibr)
+
+```yaml
+scenario:
+  layout: aprilgrid
+  tag_families: [tag36h11]
+  grid_size: [6, 5]       # 6x5 grid = 30 markers (one per cell)
+  square_size: 0.12       # Size of each grid cell (meters)
+  corner_size: 0.02       # Size of black corner squares
+```
+
+### Camera Sampling Modes
+
+```yaml
+camera:
+  samples_per_scene: 20
+  min_distance: 1.0
+  max_distance: 5.0
+  min_elevation: 0.3
+  max_elevation: 0.9
+
+scenario:
+  sampling_mode: distance  # Options: random, distance, angle
+```
+
+| Mode | Description |
+|------|-------------|
+| `random` | Random sampling within distance/elevation bounds |
+| `distance` | Linear distribution from min to max distance |
+| `angle` | Linear distribution from min to max elevation angle |
+
+### Preset Configurations
+
+Ready-to-use configurations are available in `configs/presets/`:
+
+```
+configs/presets/
+├── apriltag/
+│   ├── distance.yaml     # Distance-varied sampling
+│   ├── angle.yaml        # Angle-varied sampling
+│   ├── flying.yaml       # Tags in 3D space (no floor)
+│   └── aprilgrid.yaml    # Kalibr AprilGrid board
+└── aruco/
+    ├── checkerboard.yaml # OpenCV ChArUco board
+    └── checkerboard_v2.yaml
 ```
 
 ### Supported Tag Families
