@@ -377,12 +377,22 @@ class ScenarioConfig(BaseModel):
     corner_size: float = Field(
         default=0.01,
         gt=0,
-        description="Size of black corner squares in meters (checkerboard only)",
+        description="Size of black corner squares in meters (AprilGrid only)",
+    )
+    square_size: float = Field(
+        default=0.12,
+        gt=0,
+        description="Size of each grid cell for checkerboard/AprilGrid layouts (meters)",
+    )
+    marker_margin: float = Field(
+        default=0.01,
+        ge=0,
+        description="Margin between marker edge and cell edge (meters)",
     )
     tag_spacing: float = Field(
-        default=0.05,
+        default=0.20,
         gt=0,
-        description="Spacing between tags (cell size for checkerboard) in meters",
+        description="Center-to-center spacing between tags for plain layout (meters)",
     )
 
     sampling_mode: SamplingMode = Field(

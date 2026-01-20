@@ -98,22 +98,23 @@ def create_tag_plane(
     plane.blender_obj.name = f"Tag_{tag_family}_{tag_id}"
 
     # Scale to desired size
-    plane.set_scale([size_meters, size_meters, 1])
+    # PLANE primitive is 2x2 (-1 to 1), so we scale by size/2
+    plane.set_scale([size_meters / 2.0, size_meters / 2.0, 1])
 
     # Apply the scale to make it permanent
     plane.persist_transformation_into_mesh()
 
     # Store corner coordinates as custom properties
-    # These are in LOCAL space, scaled by size_meters
-    corners_local = []
-    for corner in CORNER_ORDER:
-        corners_local.append(
-            [
-                corner[0] * size_meters,
-                corner[1] * size_meters,
-                corner[2],
-            ]
-        )
+    # After persist_transformation_into_mesh, the mesh is already scaled.
+    # So we use base corners (half size) without additional scaling.
+    # These will be transformed to world space via matrix_world.
+    half = size_meters / 2.0
+    corners_local = [
+        [-half, -half, 0.0],  # BL
+        [half, -half, 0.0],   # BR  
+        [half, half, 0.0],    # TR
+        [-half, half, 0.0],   # TL
+    ]
 
     # Store metadata on the object
     plane.blender_obj["corner_coords"] = corners_local
@@ -142,6 +143,7 @@ def apply_tag_texture(obj: Any, texture_path: Path) -> None:
 
     # Create a new material
     material = bpy.data.materials.new(name=f"TagMaterial_{texture_path.stem}")
+    material.diffuse_color = (1, 1, 1, 1)  # Viewport color for Workbench
     material.use_nodes = True
 
     nodes = material.node_tree.nodes

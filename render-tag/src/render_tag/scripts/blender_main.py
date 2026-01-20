@@ -9,6 +9,7 @@ It is invoked by the CLI via: blenderproc run blender_main.py --config <path>
 
 import argparse
 import json
+import math
 import os
 import random
 import sys
@@ -107,6 +108,14 @@ def setup_scene(config: dict) -> None:
     hdri_path = config.get("scene", {}).get("background_hdri")
     if hdri_path and Path(hdri_path).is_file():
         setup_background(Path(hdri_path))
+    else:
+        # Pure white background for maximum contrast (matches reference image style)
+        if bpy:
+            bpy.context.scene.world.use_nodes = True
+            bg_node = bpy.context.scene.world.node_tree.nodes.get("Background")
+            if bg_node:
+                bg_node.inputs[0].default_value = (1.0, 1.0, 1.0, 1.0)
+                bg_node.inputs[1].default_value = 1.0
 
 
 def render_scene(output_dir: Path, scene_idx: int, cam_idx: int) -> Path:
@@ -180,25 +189,6 @@ def main() -> int:
     # Initialize BlenderProc
     bproc.init()
 
-    # Configure renderer mode for fast dev iteration
-    renderer_mode = getattr(args, "renderer_mode", "cycles")
-    if renderer_mode == "workbench":
-        # Ultra-fast wireframe/flat shading for scene composition checks
-        bpy.context.scene.render.engine = "BLENDER_WORKBENCH"
-        # Enable textures in workbench
-        bpy.data.scenes["Scene"].display.shading.light = "STUDIO"
-        bpy.data.scenes["Scene"].display.shading.color_type = "TEXTURE"
-        bpy.context.scene.render.resolution_percentage = 100
-        print("[FAST] Using Workbench renderer with Textures (STUDIO light)")
-    elif renderer_mode == "eevee":
-        # Fast rasterized preview (Blender 4.2+ uses BLENDER_EEVEE_NEXT)
-        try:
-            bpy.context.scene.render.engine = "BLENDER_EEVEE_NEXT"
-        except Exception:
-            bpy.context.scene.render.engine = "BLENDER_EEVEE"
-        bpy.context.scene.render.resolution_percentage = 50
-        print("[FAST] Using Eevee renderer at 50% resolution")
-    # else: use default Cycles for quality rendering
 
     # Get config sections
     camera_config = config.get("camera", {})
@@ -241,6 +231,26 @@ def main() -> int:
     for scene_idx in range(num_scenes):
         # Clean scene for new iteration
         bproc.clean_up()
+
+        # Configure renderer mode for fast dev iteration (re-apply after clean_up)
+        renderer_mode = getattr(args, "renderer_mode", "cycles")
+        if renderer_mode == "workbench":
+            # Ultra-fast wireframe/flat shading for scene composition checks
+            bpy.context.scene.render.engine = "BLENDER_WORKBENCH"
+            # Enable textures in workbench
+            bpy.data.scenes["Scene"].display.shading.light = "FLAT"
+            bpy.data.scenes["Scene"].display.shading.color_type = "TEXTURE"
+            bpy.context.scene.render.resolution_percentage = 100
+            print(f"[SCENE {scene_idx}] Using Workbench renderer with FLAT shading")
+        elif renderer_mode == "eevee":
+            # Fast rasterized preview (Blender 4.2+ uses BLENDER_EEVEE_NEXT)
+            try:
+                bpy.context.scene.render.engine = "BLENDER_EEVEE_NEXT"
+            except Exception:
+                bpy.context.scene.render.engine = "BLENDER_EEVEE"
+            bpy.context.scene.render.resolution_percentage = 100
+            print(f"[SCENE {scene_idx}] Using Eevee renderer at 100% resolution")
+
         set_camera_intrinsics(camera_config)
 
         # Setup scene background
@@ -257,8 +267,8 @@ def main() -> int:
         else:
             layout_mode = scene_config.get("layout", scenario_config.get("layout", "plain"))
 
-        # Create floor if NOT flying and NOT checkerboard/aprilgrid
-        if not is_flying and layout_mode not in ("cb", "aprilgrid"):
+        # Create floor if NOT flying and NOT a board layout
+        if not is_flying and layout_mode not in ("cb", "aprilgrid", "plain"):
             create_floor()
 
         # Determine number of tags for this scene
@@ -278,7 +288,9 @@ def main() -> int:
             import random
             tags_range = tag_config.get("tags_per_scene", scenario_config.get("tags_per_scene", [1, 5]))
             num_tags = random.randint(tags_range[0], tags_range[1])
-            cols, rows = None, None
+            # For plain board, calculate grid dimensions based on tag count
+            cols = math.ceil(math.sqrt(num_tags))
+            rows = math.ceil(num_tags / cols)
 
         # Create tag objects
         tag_objects = []
@@ -301,10 +313,16 @@ def main() -> int:
             tag_objects.append(tag_obj)
 
         # Apply layout
-        square_size = board_config.get("square_size", scenario_config.get("square_size", 0.12))
-        marker_margin = board_config.get("marker_margin", scenario_config.get("marker_margin", 0.01))
-        corner_size = board_config.get("corner_size", scenario_config.get("corner_size", 0.02))
-        tag_spacing = tag_config.get("tag_spacing", scenario_config.get("tag_spacing", 0.05))
+        # Interpret tag_spacing as the "gap" or "white space" between tags
+        tag_spacing = scenario_config.get("tag_spacing", 0.05)
+        
+        # For plain: spacing is the gap between borders
+        # For grid layouts (CB/AprilGrid): square_size includes the tag and the spacing
+        # Pitch (center-to-center) = tag_size + tag_spacing
+        square_size = tag_size + tag_spacing
+        marker_margin = tag_spacing / 2.0  # Tag is centered with half spacing on each side
+        
+        corner_size = scenario_config.get("corner_size", 0.02)
 
         # Import layouts module here to avoid circular imports or early failure
         from render_tag.scripts.layouts import apply_layout
@@ -320,6 +338,7 @@ def main() -> int:
                 tag_objects=tag_objects,
                 layout_mode=layout_mode,
                 spacing=tag_spacing,
+                tag_size=tag_size,
                 square_size=square_size,
                 marker_margin=marker_margin,
                 corner_size=corner_size,
@@ -328,29 +347,34 @@ def main() -> int:
                 rows=rows,
             )
 
-            # For checkerboard or aprilgrid, create a white board background
-            if layout_mode in ("cb", "aprilgrid"):
-                board_width = cols * square_size
-                board_height = rows * square_size
+            # Create a white board background for any board layout
+            board_width = cols * square_size
+            board_height = rows * square_size
 
-                # Create a simple plane for the board
-                board = bproc.object.create_primitive("PLANE")
-                board.blender_obj.name = "Board_Background"
-                board.set_location([0, 0, -0.001])  # Slightly below tags
-                board.set_scale([board_width / 2, board_height / 2, 1])
-                board.persist_transformation_into_mesh()
+            # Create a simple plane for the board
+            board = bproc.object.create_primitive("PLANE")
+            board.blender_obj.name = f"Board_Background_{layout_mode}"
+            board.set_location([0, 0, -0.005])  # More clearance below layout
+            board.set_scale([board_width / 2, board_height / 2, 1])
+            board.persist_transformation_into_mesh()
 
-                # White material
-                mat = bpy.data.materials.new(name="BoardWhite")
-                mat.use_nodes = True
-                bsdf = mat.node_tree.nodes.get("Principled BSDF")
-                if bsdf:
-                    bsdf.inputs["Base Color"].default_value = (1, 1, 1, 1)
-                    bsdf.inputs["Roughness"].default_value = 0.8
-                board.blender_obj.data.materials.clear()
-                board.blender_obj.data.materials.append(mat)
-                board.enable_rigidbody(active=False)
-                layout_objects.append(board)
+            # Pure White Emission Material (fail-safe for high contrast)
+            mat = bpy.data.materials.new(name="BoardWhite")
+            mat.diffuse_color = (1, 1, 1, 1)
+            mat.use_nodes = True
+            nodes = mat.node_tree.nodes
+            links = mat.node_tree.links
+            nodes.clear()
+            output = nodes.new("ShaderNodeOutputMaterial")
+            emission = nodes.new("ShaderNodeEmission")
+            emission.inputs["Color"].default_value = (1, 1, 1, 1)
+            emission.inputs["Strength"].default_value = 1.0
+            links.new(emission.outputs["Emission"], output.inputs["Surface"])
+            
+            board.blender_obj.data.materials.clear()
+            board.blender_obj.data.materials.append(mat)
+            board.enable_rigidbody(active=False)
+            layout_objects.append(board)
 
             # Setup Z height and simulate physics
             drop_height = physics_config.get("drop_height", 0.1)

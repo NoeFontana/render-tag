@@ -65,6 +65,7 @@ def apply_layout(
     layout_mode: str,
     *,
     spacing: float = 0.05,
+    tag_size: float = 0.1,
     square_size: float = 0.12,
     marker_margin: float = 0.01,
     corner_size: float = 0.02,
@@ -77,9 +78,10 @@ def apply_layout(
     Args:
         tag_objects: List of tag mesh objects to position.
         layout_mode: One of "plain", "cb" (ChArUco), or "aprilgrid".
-        spacing: Tag spacing for plain layout (meters).
-        square_size: Size of each grid square (meters).
-        marker_margin: Margin between marker and square edge (meters).
+        spacing: Gap between tag edges for plain layout (meters).
+        tag_size: Size of each tag (meters) - used for plain layout.
+        square_size: Size of each grid cell for CB/AprilGrid (meters).
+        marker_margin: Margin between marker and cell edge (meters).
         corner_size: Size of corner squares for AprilGrid (meters).
         center: Center point of the layout.
         cols: Number of columns (auto-calculated if None).
@@ -89,7 +91,7 @@ def apply_layout(
         List of additional objects created (black squares, corners).
     """
     if layout_mode == "plain":
-        create_plain_layout(tag_objects, spacing=spacing, center=center)
+        create_plain_layout(tag_objects, spacing=spacing, tag_size=tag_size, center=center)
         return []
 
     if layout_mode == "cb":
@@ -122,34 +124,38 @@ def create_plain_layout(
     tag_objects: list[MeshObject],
     *,
     spacing: float = 0.05,
+    tag_size: float = 0.1,
     center: tuple[float, float, float] = (0, 0, 0),
 ) -> None:
-    """Position tags equidistant in a grid with random rotations.
+    """Position tags in a grid layout.
 
     Args:
         tag_objects: List of tag mesh objects to position.
-        spacing: Distance between tag centers (meters).
+        spacing: Gap between tag edges (white space) in meters.
+        tag_size: Size of each tag in meters.
         center: Center point of the grid.
     """
     n = len(tag_objects)
     if n == 0:
         return
 
+    # Center-to-center distance = tag_size + gap
+    cell_size = tag_size + spacing
+
     cols = math.ceil(math.sqrt(n))
     rows = math.ceil(n / cols)
 
-    grid_width = (cols - 1) * spacing
-    grid_height = (rows - 1) * spacing
+    grid_width = (cols - 1) * cell_size
+    grid_height = (rows - 1) * cell_size
     start_x = center[0] - grid_width / 2
     start_y = center[1] - grid_height / 2
 
     for i, tag in enumerate(tag_objects):
         col, row = i % cols, i // cols
-        x = start_x + col * spacing
-        y = start_y + row * spacing
+        x = start_x + col * cell_size
+        y = start_y + row * cell_size
 
         tag.set_location([x, y, center[2]])
-        # Set rotation to 0 for exact placement
         tag.set_rotation_euler([0, 0, 0])
 
 
@@ -346,6 +352,7 @@ def _create_corner_squares(
 def _create_black_material(name: str) -> bpy.types.Material:
     """Create a simple black material."""
     mat = bpy.data.materials.new(name=name)
+    mat.diffuse_color = (0, 0, 0, 1)  # Viewport color for Workbench
     mat.use_nodes = True
 
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
