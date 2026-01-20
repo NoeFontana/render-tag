@@ -21,26 +21,11 @@ except ImportError:
     bpy = None  # type: ignore
     np = None  # type: ignore
 
-
-# Import pure-Python geometry modules
-try:
-    import os
-    import sys
-
-    scripts_dir = os.path.dirname(os.path.abspath(__file__))
-    src_dir = os.path.dirname(os.path.dirname(scripts_dir))
-    if src_dir not in sys.path:
-        sys.path.insert(0, src_dir)
-
-    from render_tag.geometry.visibility import (
-        is_facing_camera,
-        project_points,
-        validate_visibility_metrics,
-    )
-
-    GEOMETRY_AVAILABLE = True
-except ImportError:
-    GEOMETRY_AVAILABLE = False
+from render_tag.geometry.visibility import (
+    is_facing_camera,
+    project_points,
+    validate_visibility_metrics,
+)
 
 
 def project_corners_to_image(

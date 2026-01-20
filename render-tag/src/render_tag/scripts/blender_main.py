@@ -20,10 +20,9 @@ import numpy as np
 # ruff: noqa: E402
 
 # Add the src directory to sys.path to allow absolute imports from the render_tag package
-scripts_dir = os.path.dirname(os.path.abspath(__file__))
-src_dir = os.path.dirname(os.path.dirname(scripts_dir))
-if src_dir not in sys.path:
-    sys.path.insert(0, src_dir)
+# This is required because the package is not installed in the Blender python environment
+sys.path.append(str(Path(__file__).resolve().parents[2]))
+# (Relies on package being installed or PYTHONPATH set)
 
 # Try to import bpy but don't fail if not in Blender
 try:
@@ -41,58 +40,15 @@ from render_tag.scripts.projection import (
     project_corners_to_image,
 )
 from render_tag.scripts.scene import (
-    create_floor,
     setup_background,
     setup_lighting,
-    create_flying_layout,
 )
+from render_tag.common.constants import TAG_BIT_COUNTS
+from render_tag.scripts.compositor import compose_scene
 from render_tag.data_io.writers import COCOWriter, CSVWriter
 from render_tag.data_io.types import DetectionRecord
 
-# Bit counts for each tag family (used for minimum pixel area calculation)
-TAG_BIT_COUNTS = {
-    "tag36h11": 36,
-    "tag36h10": 36,
-    "tag25h9": 25,
-    "tag16h5": 16,
-    "tagCircle21h7": 21,
-    "tagCircle49h12": 49,
-    "tagCustom48h12": 48,
-    "tagStandard41h12": 41,
-    "tagStandard52h13": 52,
-    "DICT_4X4_50": 16,
-    "DICT_4X4_100": 16,
-    "DICT_4X4_250": 16,
-    "DICT_6X6_1000": 36,
-    "DICT_7X7_50": 49,
-    "DICT_7X7_100": 49,
-    "DICT_7X7_250": 49,
-    "DICT_7X7_1000": 49,
-    "DICT_ARUCO_ORIGINAL": 25,
-}
 
-# Grid dimensions (total bits across) for each tag family
-# This is data_bits + 2 (for the black border)
-TAG_GRID_SIZES = {
-    "tag36h11": 8,
-    "tag36h10": 8,
-    "tag25h9": 7,
-    "tag16h5": 6,
-    "tagCircle21h7": 9,  # Approximate for circle tags
-    "tagCircle49h12": 11,
-    "tagCustom48h12": 10,
-    "tagStandard41h12": 9,
-    "tagStandard52h13": 10,
-    "DICT_4X4_50": 6,
-    "DICT_4X4_100": 6,
-    "DICT_4X4_250": 6,
-    "DICT_6X6_1000": 8,
-    "DICT_7X7_50": 9,
-    "DICT_7X7_100": 9,
-    "DICT_7X7_250": 9,
-    "DICT_7X7_1000": 9,
-    "DICT_ARUCO_ORIGINAL": 7,  # 5x5 data
-}
 
 
 def parse_args() -> argparse.Namespace:
@@ -279,173 +235,19 @@ def main() -> int:
         # Setup scene background
         setup_scene(config)
 
-        # Get scenario flags
+        # Compose the scene (tags, layout, physics)
+        tag_objects, layout_objects, layout_mode = compose_scene(
+            scene_idx=scene_idx,
+            tag_config=tag_config,
+            scenario_config=scenario_config,
+            scene_config=scene_config,
+            physics_config=physics_config,
+            tag_families=tag_families,
+        )
+        
+        # Get flying flag for camera sampling
         is_flying = scenario_config.get("flying", False)
         sampling_mode = camera_config.get("sampling_mode", scenario_config.get("sampling_mode", "random"))
-
-        # Select layout for this scene
-        layout_list = scene_config.get("layouts", scenario_config.get("layouts"))
-        if layout_list:
-            layout_mode = layout_list[scene_idx % len(layout_list)]
-        else:
-            layout_mode = scene_config.get("layout", scenario_config.get("layout", "plain"))
-
-        # Create floor if NOT flying and NOT a board layout
-        if not is_flying and layout_mode not in ("cb", "aprilgrid", "plain"):
-            create_floor()
-
-        # Determine number of tags for this scene
-        grid_size = tag_config.get("grid_size", scenario_config.get("grid_size", [6, 6]))
-
-        if layout_mode == "cb":
-            # ChArUco board: tags go in alternating (white) squares
-            # For an MxN board, approx M*N/2 white squares (ceiling)
-            cols, rows = grid_size[0], grid_size[1]
-            total_squares = cols * rows
-            num_tags = (total_squares + 1) // 2  # Ceiling division
-        elif layout_mode == "aprilgrid":
-            # AprilGrid/Kalibr: tags in every cell
-            cols, rows = grid_size[0], grid_size[1]
-            num_tags = cols * rows
-        else:
-            import random
-            tags_range = tag_config.get("tags_per_scene", scenario_config.get("tags_per_scene", [1, 5]))
-            num_tags = random.randint(tags_range[0], tags_range[1])
-            # For plain board, calculate grid dimensions based on tag count
-            cols = math.ceil(math.sqrt(num_tags))
-            rows = math.ceil(num_tags / cols)
-
-        # Create tag objects
-        tag_objects = []
-        tag_size = tag_config.get("size_meters", 0.1)
-        texture_base_path = tag_config.get("texture_path")
-
-        for i in range(num_tags):
-            import random
-            family = random.choice(tag_families)
-            texture_path = get_tag_texture_path(family, texture_base_path, tag_id=i)
-
-            # Create tag with random ID (handled by texture loader usually, but here just reuse)
-            # In a real pipeline, we'd select specific IDs.
-            tag_obj = create_tag_plane(tag_size, texture_path, family, tag_id=i)
-
-            # Set custom properties for ground truth
-            tag_obj.blender_obj["tag_id"] = i  # Placeholder ID, ideally from texture
-            tag_obj.blender_obj["tag_family"] = family
-
-            tag_objects.append(tag_obj)
-
-        # Apply layout
-        # Interpret tag_spacing as the "gap" or "white space" between tags
-        # Logic: spacing_meters = (spacing_bits / grid_size) * tag_size
-        primary_family = tag_families[0]
-        tag_bit_grid_size = TAG_GRID_SIZES.get(primary_family, 8)
-        
-        # Default to 2 bits spacing if nothing specified
-        tag_spacing_bits = scenario_config.get("tag_spacing_bits", 
-                                             tag_config.get("tag_spacing_bits", 2))
-        
-        # Calculate from bits
-        tag_spacing = (tag_spacing_bits / tag_bit_grid_size) * tag_size
-        
-        # For plain: spacing is the gap between borders
-        # For grid layouts (CB/AprilGrid): square_size includes the tag and the spacing
-        # Pitch (center-to-center) = tag_size + tag_spacing
-        square_size = tag_size + tag_spacing
-        marker_margin = tag_spacing / 2.0  # Tag is centered with half spacing on each side
-        
-        # Corner size should fill the spacing gap (AprilGrid)
-        corner_size = tag_spacing
-
-        # Import layouts module here to avoid circular imports or early failure
-        from render_tag.scripts.layouts import apply_layout
-
-        if is_flying:
-            # Flying mode: ignore layout and scatter in volume
-            create_flying_layout(
-                tag_objects, volume_size=tag_config.get("scatter_radius", 0.5) * 2
-            )
-        else:
-            # Standard mode: apply layout and settle with physics
-            layout_objects = apply_layout(
-                tag_objects=tag_objects,
-                layout_mode=layout_mode,
-                spacing=tag_spacing,
-                tag_size=tag_size,
-                square_size=square_size,
-                marker_margin=marker_margin,
-                corner_size=corner_size,
-                center=(0, 0, 0),
-                cols=cols,
-                rows=rows,
-            )
-
-            # Create a white board background for any board layout
-            board_width = cols * square_size
-            board_height = rows * square_size
-
-            # Create a simple plane for the board
-            board = bproc.object.create_primitive("PLANE")
-            board.blender_obj.name = f"Board_Background_{layout_mode}"
-            board.set_location([0, 0, -0.005])  # More clearance below layout
-            board.set_scale([board_width / 2, board_height / 2, 1])
-            board.persist_transformation_into_mesh()
-
-            # Pure White Emission Material (fail-safe for high contrast)
-            mat = bpy.data.materials.new(name="BoardWhite")
-            mat.diffuse_color = (1, 1, 1, 1)
-            mat.use_nodes = True
-            nodes = mat.node_tree.nodes
-            links = mat.node_tree.links
-            nodes.clear()
-            output = nodes.new("ShaderNodeOutputMaterial")
-            emission = nodes.new("ShaderNodeEmission")
-            emission.inputs["Color"].default_value = (1, 1, 1, 1)
-            emission.inputs["Strength"].default_value = 1.0
-            links.new(emission.outputs["Emission"], output.inputs["Surface"])
-            
-            board.blender_obj.data.materials.clear()
-            board.blender_obj.data.materials.append(mat)
-            board.enable_rigidbody(active=False)
-            layout_objects.append(board)
-
-            # Setup Z height and simulate physics
-            drop_height = physics_config.get("drop_height", 0.1)
-            # If drop_height is 0, we skip physics simulation and place directly on floor/board
-            simulate_physics = drop_height > 0
-
-            # Object visibility and physics setup
-            # Each layout function already sets basic X, Y. We just ensure Z stacking.
-            for obj in tag_objects:
-                loc = obj.get_location()
-                if simulate_physics:
-                    obj.set_location([loc[0], loc[1], drop_height + 0.002])
-                    obj.enable_rigidbody(active=True)
-                else:
-                    obj.set_location([loc[0], loc[1], 0.002]) # Tags on top
-                    obj.enable_rigidbody(active=False)
-
-            for obj in layout_objects:
-                loc = obj.get_location()
-                if "Board_Background" in obj.blender_obj.name:
-                    obj.set_location([loc[0], loc[1], 0.0]) # Board at Z=0
-                    obj.enable_rigidbody(active=False)
-                else:
-                    if simulate_physics:
-                        obj.set_location([loc[0], loc[1], drop_height + 0.001])
-                        obj.enable_rigidbody(active=True)
-                    else:
-                        obj.set_location([loc[0], loc[1], 0.001]) # Layout elements in middle
-                        obj.enable_rigidbody(active=False)
-
-            if simulate_physics:
-                bproc.object.simulate_physics_and_fix_final_poses(
-                    min_simulation_time=1,
-                    check_object_interval=1,
-                )
-
-            # CRITICAL: Update scene after all objects are placed to ensure matrix_world is correct for visibility checks
-            bpy.context.view_layer.update()
 
         # Setup lighting
         lighting_config = scene_config.get("lighting", {})

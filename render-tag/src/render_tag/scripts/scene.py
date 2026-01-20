@@ -241,3 +241,58 @@ def randomize_floor_material(floor: Any, texture_dir: Optional[Path] = None) -> 
             g = random.uniform(0.1, 0.8)
             b = random.uniform(0.1, 0.8)
             bsdf.inputs["Base Color"].default_value = (r, g, b, 1)
+
+
+def create_board(
+    cols: int,
+    rows: int,
+    square_size: float,
+    layout_mode: str = "board",
+) -> Any:
+    """Create a white background board for layouts.
+
+    Args:
+        cols: Number of columns in the grid
+        rows: Number of rows in the grid
+        square_size: Size of each square (cell)
+        layout_mode: Layout mode string for naming
+
+    Returns:
+        The board mesh object
+    """
+    board_width = cols * square_size
+    board_height = rows * square_size
+
+    # Create a simple plane for the board
+    board = bproc.object.create_primitive("PLANE")
+    board.blender_obj.name = f"Board_Background_{layout_mode}"
+    # More clearance below layout (-0.005) to avoid z-fighting with tags/squares at 0 or near 0
+    board.set_location([0, 0, -0.005])
+    board.set_scale([board_width / 2, board_height / 2, 1])
+    board.persist_transformation_into_mesh()
+
+    # Pure White Emission Material (fail-safe for high contrast)
+    mat = _create_white_emission_material("BoardWhite")
+    
+    board.blender_obj.data.materials.clear()
+    board.blender_obj.data.materials.append(mat)
+    board.enable_rigidbody(active=False)
+    
+    return board
+
+
+def _create_white_emission_material(name: str) -> Any:
+    """Create a pure white emission material."""
+    mat = bpy.data.materials.new(name=name)
+    mat.diffuse_color = (1, 1, 1, 1)
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
+    nodes.clear()
+    output = nodes.new("ShaderNodeOutputMaterial")
+    emission = nodes.new("ShaderNodeEmission")
+    emission.inputs["Color"].default_value = (1, 1, 1, 1)
+    emission.inputs["Strength"].default_value = 1.0
+    links.new(emission.outputs["Emission"], output.inputs["Surface"])
+    return mat
+
