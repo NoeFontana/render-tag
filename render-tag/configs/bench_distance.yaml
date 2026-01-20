@@ -32,6 +32,6 @@ scenario:
   # - Default: 2 bits
   # - Unifies Plain gap and Checkerboard margins
   tag_spacing_bits: 2
-  corner_size: 0.02
+
   
   sampling_mode: distance

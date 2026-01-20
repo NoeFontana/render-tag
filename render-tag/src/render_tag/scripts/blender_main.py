@@ -339,14 +339,14 @@ def main() -> int:
         # Interpret tag_spacing as the "gap" or "white space" between tags
         # Logic: spacing_meters = (spacing_bits / grid_size) * tag_size
         primary_family = tag_families[0]
-        grid_size = TAG_GRID_SIZES.get(primary_family, 8)
+        tag_bit_grid_size = TAG_GRID_SIZES.get(primary_family, 8)
         
         # Default to 2 bits spacing if nothing specified
         tag_spacing_bits = scenario_config.get("tag_spacing_bits", 
                                              tag_config.get("tag_spacing_bits", 2))
         
         # Calculate from bits
-        tag_spacing = (tag_spacing_bits / grid_size) * tag_size
+        tag_spacing = (tag_spacing_bits / tag_bit_grid_size) * tag_size
         
         # For plain: spacing is the gap between borders
         # For grid layouts (CB/AprilGrid): square_size includes the tag and the spacing
@@ -354,7 +354,8 @@ def main() -> int:
         square_size = tag_size + tag_spacing
         marker_margin = tag_spacing / 2.0  # Tag is centered with half spacing on each side
         
-        corner_size = scenario_config.get("corner_size", 0.02)
+        # Corner size should fill the spacing gap (AprilGrid)
+        corner_size = tag_spacing
 
         # Import layouts module here to avoid circular imports or early failure
         from render_tag.scripts.layouts import apply_layout
