@@ -18,5 +18,5 @@ scenario:
   tag_families: [DICT_6X6_250]
   grid_size: [6, 6]
   corner_size: 0.02
-  tag_spacing: 0.15
+  tag_spacing_bits: 2
   sampling_mode: random

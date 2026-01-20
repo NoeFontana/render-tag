@@ -28,11 +28,10 @@ scenario:
   tags_per_scene: [36, 36]
   grid_size: [6, 6]
   
-  # tag_spacing: gap between tags (white space) in meters
-  # - Plain: gap between tag edges
-  # - CB/AprilGrid: equals square_size (cell size)
-  tag_spacing: 0.09  # 9cm gap between 16cm tags
-  marker_margin: 0.02
+  # tag_spacing_bits: spacing defined in number of bits relative to tag grid size
+  # - Default: 2 bits
+  # - Unifies Plain gap and Checkerboard margins
+  tag_spacing_bits: 2
   corner_size: 0.02
   
   sampling_mode: distance

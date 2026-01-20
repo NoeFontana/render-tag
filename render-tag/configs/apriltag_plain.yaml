@@ -16,7 +16,7 @@ scenario:
   layout: plain
   tag_families: [tag36h11]
   tags_per_scene: [2, 5]
-  tag_spacing: 0.15
+  tag_spacing_bits: 2
 
 scene:
   lighting:

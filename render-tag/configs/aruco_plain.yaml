@@ -17,7 +17,7 @@ scenario:
   layout: plain
   tag_families: [DICT_4X4_50]
   tags_per_scene: [3, 8]
-  tag_spacing: 0.12
+  tag_spacing_bits: 2
 
 scene:
   lighting:

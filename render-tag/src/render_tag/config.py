@@ -389,10 +389,9 @@ class ScenarioConfig(BaseModel):
         ge=0,
         description="Margin between marker edge and cell edge (meters)",
     )
-    tag_spacing: float = Field(
-        default=0.20,
-        gt=0,
-        description="Center-to-center spacing between tags for plain layout (meters)",
+    tag_spacing_bits: Optional[int] = Field(
+        default=2,
+        description="Spacing between tags in number of bits (relative to tag grid size)",
     )
 
     sampling_mode: SamplingMode = Field(

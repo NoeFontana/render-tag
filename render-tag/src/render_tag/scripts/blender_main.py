@@ -71,6 +71,29 @@ TAG_BIT_COUNTS = {
     "DICT_ARUCO_ORIGINAL": 25,
 }
 
+# Grid dimensions (total bits across) for each tag family
+# This is data_bits + 2 (for the black border)
+TAG_GRID_SIZES = {
+    "tag36h11": 8,
+    "tag36h10": 8,
+    "tag25h9": 7,
+    "tag16h5": 6,
+    "tagCircle21h7": 9,  # Approximate for circle tags
+    "tagCircle49h12": 11,
+    "tagCustom48h12": 10,
+    "tagStandard41h12": 9,
+    "tagStandard52h13": 10,
+    "DICT_4X4_50": 6,
+    "DICT_4X4_100": 6,
+    "DICT_4X4_250": 6,
+    "DICT_6X6_1000": 8,
+    "DICT_7X7_50": 9,
+    "DICT_7X7_100": 9,
+    "DICT_7X7_250": 9,
+    "DICT_7X7_1000": 9,
+    "DICT_ARUCO_ORIGINAL": 7,  # 5x5 data
+}
+
 
 def parse_args() -> argparse.Namespace:
     """Parse command line arguments passed by the CLI."""
@@ -314,7 +337,16 @@ def main() -> int:
 
         # Apply layout
         # Interpret tag_spacing as the "gap" or "white space" between tags
-        tag_spacing = scenario_config.get("tag_spacing", 0.05)
+        # Logic: spacing_meters = (spacing_bits / grid_size) * tag_size
+        primary_family = tag_families[0]
+        grid_size = TAG_GRID_SIZES.get(primary_family, 8)
+        
+        # Default to 2 bits spacing if nothing specified
+        tag_spacing_bits = scenario_config.get("tag_spacing_bits", 
+                                             tag_config.get("tag_spacing_bits", 2))
+        
+        # Calculate from bits
+        tag_spacing = (tag_spacing_bits / grid_size) * tag_size
         
         # For plain: spacing is the gap between borders
         # For grid layouts (CB/AprilGrid): square_size includes the tag and the spacing
