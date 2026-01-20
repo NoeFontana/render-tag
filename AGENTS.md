@@ -126,3 +126,9 @@ Debug: uv run render-tag generate --debug ... (Opens Blender UI)
 # 5. DOCUMENTATION
 - Docstrings must use Google Style.
 - Every Pydantic model field must have a `description="..."`.
+
+# 6. REFACTORING & MODULARITY
+- PURE PYTHON: Geometry/math logic MUST reside in `src/render_tag/geometry/` or `common/` and be independent of `bpy`/`blenderproc`.
+- IMPORTS: NO `sys.path` patching or `try-import` hacks in modules. Rely on the entry point or `PYTHONPATH`.
+- COMPOSITION: Scene assembly logic belongs in a dedicated `compositor` module, not the main driver.
+- MOCKING: Mock `blenderproc`/`bpy` in `sys.modules` *before* import to unit test Blender scripts.
