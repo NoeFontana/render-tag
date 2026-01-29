@@ -12,9 +12,9 @@ import subprocess
 import tempfile
 from pathlib import Path
 from typing import Any
-from PIL import Image, ImageDraw
 
 import typer
+from PIL import Image, ImageDraw
 from rich.console import Console
 from rich.panel import Panel
 
@@ -229,7 +229,6 @@ def generate(
         if job_config_path.exists():
             job_config_path.unlink()
 
-
         if job_config_path.exists():
             job_config_path.unlink()
 
@@ -267,17 +266,18 @@ def experiment(
 ) -> None:
     """
     Run a controlled experiment (Parameter Sweep).
-    
+
     Generates multiple datasets based on sweep definitions, keeping other
     variables constant (ceteris paribus).
     """
     import sys
-    from render_tag.experiment import (
-        expand_experiment, 
-        load_experiment_config, 
-        save_manifest
-    )
+
     from render_tag.config import GenConfig
+    from render_tag.experiment import (
+        expand_experiment,
+        load_experiment_config,
+        save_manifest,
+    )
 
     console.print(
         Panel.fit(
@@ -285,7 +285,7 @@ def experiment(
             border_style="blue",
         )
     )
-    
+
     # Check dependencies
     if not check_blenderproc_installed():
         console.print("[bold red]Error:[/bold red] blenderproc not installed.")
@@ -301,39 +301,44 @@ def experiment(
 
     # Expand Variants
     variants = expand_experiment(exp)
-    console.print(f"[bold]Found {len(variants)} variants[/bold] for experiment '{exp.name}'")
-    
+    console.print(
+        f"[bold]Found {len(variants)} variants[/bold] for experiment '{exp.name}'"
+    )
+
     # Prepare Base Output
     exp_dir = output / exp.name
     exp_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # Execute Variants
     for i, variant in enumerate(variants):
-        console.print(f"\n[bold cyan]Run {i+1}/{len(variants)}: {variant.variant_id}[/bold cyan]")
+        console.print(
+            f"\n[bold cyan]Run {i + 1}/{len(variants)}: {variant.variant_id}[/bold cyan]"
+        )
         console.print(f"[dim]Description: {variant.description}[/dim]")
-        
+
         variant_dir = exp_dir / variant.variant_id
         variant_dir.mkdir(exist_ok=True)
-        
+
         # Update config output dir for this variant
         # (Though Generator takes output_dir explicitly, setting it in config is good for consistency)
         variant.config.dataset.output_dir = variant_dir
-        
+
         # 1. Generate Recipes
         generator = Generator(variant.config, variant_dir)
         recipes = generator.generate_all()
         recipe_path = variant_dir / "scene_recipes.json"
         generator.save_recipe_json(recipes, "scene_recipes.json")
-        
+
         # 2. Save Manifest
         save_manifest(variant_dir, variant, cli_args=sys.argv)
-        
+
         # 3. Serialize Config for BlenderProc
         job_config_path = variant_dir / "generation_config.json"
         serialize_config_to_json(variant.config, job_config_path)
 
         # 4. Ensure Assets (Optimized: only check once? No, easy to check every time)
         from .tag_gen import ensure_tag_asset
+
         scenario = variant.config.scenario
         families = scenario.tag_families if scenario else [variant.config.tag.family]
         assets_dir = Path("assets/tags")
@@ -341,8 +346,8 @@ def experiment(
         # Assuming we can just ensure generic usage for now
         # Ideally we check what tags are actually in the recipe
         for family_enum in families:
-            for j in range(10): # Arbitrary small number
-                 ensure_tag_asset(family_enum.value, j, assets_dir)
+            for j in range(10):  # Arbitrary small number
+                ensure_tag_asset(family_enum.value, j, assets_dir)
 
         # 5. Run BlenderProc
         script_path = Path(__file__).parent / "scripts" / "executor.py"
@@ -357,7 +362,7 @@ def experiment(
             "--renderer-mode",
             renderer_mode,
         ]
-        
+
         try:
             result = subprocess.run(
                 cmd,
@@ -366,21 +371,29 @@ def experiment(
                 text=True,
             )
             if result.returncode != 0:
-                console.print(f"[bold red]Variant {variant.variant_id} Failed![/bold red]")
+                console.print(
+                    f"[bold red]Variant {variant.variant_id} Failed![/bold red]"
+                )
                 if result.stderr:
-                     console.print(f"[red]{result.stderr[:1000]}[/red]")
+                    console.print(f"[red]{result.stderr[:1000]}[/red]")
                 # We might want to continue to next variant or stop?
                 # Stopping is probably safer for experiments
                 raise typer.Exit(code=1)
-                
+
             console.print(f"[green]✓ {variant.variant_id} Complete[/green]")
-            
+
         except subprocess.SubprocessError as e:
-             console.print(f"[bold red]Error running BlenderProc:[/bold red] {e}")
-             raise typer.Exit(code=1)
-             
-    console.print(f"\n[bold green]Experiment '{exp.name}' Completed Successfully![/bold green]")
+            console.print(f"[bold red]Error running BlenderProc:[/bold red] {e}")
+            raise typer.Exit(code=1)
+
+    console.print(
+        f"\n[bold green]Experiment '{exp.name}' Completed Successfully![/bold green]"
+    )
     console.print(f"[dim]Results:[/dim] {exp_dir}")
+
+
+@app.command()
+def validate_config(
     config: Path = typer.Option(
         "configs/default.yaml",
         "--config",
@@ -544,14 +557,14 @@ def viz_recipe(
 ) -> None:
     """
     Visualize a scene recipe in 2D (Shadow Render).
-    
+
     Generates a top-down view of the layout for verification.
     """
     from .tools.viz_2d import visualize_recipe
-    
+
     output.mkdir(parents=True, exist_ok=True)
     console.print(f"[dim]Visualizing recipe:[/dim] {recipe}")
-    
+
     try:
         visualize_recipe(recipe, output)
         console.print(f"[bold green]✓ Visualization saved to:[/bold green] {output}")
@@ -607,26 +620,26 @@ def validate_recipe(
 ) -> None:
     """
     Validate a scene recipe explicitly (Pre-Flight Check).
-    
+
     Checks schema compliance, asset availability, and geometric integrity.
     """
     from .tools.validator import validate_recipe_file
-    
+
     console.print(f"[dim]Validating recipe:[/dim] {recipe}")
-    
+
     is_valid, errors, warnings = validate_recipe_file(recipe)
-    
+
     if warnings:
         console.print("\n[bold yellow]Warnings:[/bold yellow]")
         for w in warnings:
             console.print(w)
-            
+
     if not is_valid:
         console.print("\n[bold red]Validation Failed:[/bold red]")
         for e in errors:
             console.print(e)
         raise typer.Exit(code=1)
-    
+
     console.print("\n[bold green]✓ Recipe is Valid![/bold green]")
 
 

@@ -284,7 +284,7 @@ class CameraConfig(BaseModel):
         default=0.0, ge=0, description="Std dev of camera velocity"
     )
     shutter_time_ms: float = Field(
-        default=10.0, gt=0, description="Shutter open time in milliseconds"
+        default=10.0, ge=0, description="Shutter open time in milliseconds"
     )
 
     # Depth of Field

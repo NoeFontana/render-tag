@@ -14,13 +14,36 @@ try:
 except ImportError:
     bpy = None
 
+from render_tag.common.constants import TAG_BIT_COUNTS
+from render_tag.data_io.types import DetectionRecord
+from render_tag.data_io.writers import COCOWriter, CSVWriter
 from render_tag.scripts.assets import create_tag_plane, get_tag_texture_path
 from render_tag.scripts.camera import set_camera_intrinsics
-from render_tag.scripts.scene import setup_background, setup_lighting, create_board, create_floor
-from render_tag.scripts.projection import is_tag_sufficiently_visible, project_corners_to_image, check_tag_visibility, check_tag_facing_camera
-from render_tag.data_io.writers import COCOWriter, CSVWriter
-from render_tag.data_io.types import DetectionRecord
-from render_tag.common.constants import TAG_BIT_COUNTS
+from render_tag.scripts.projection import (
+    check_tag_facing_camera,
+    check_tag_visibility,
+    is_tag_sufficiently_visible,
+    project_corners_to_image,
+)
+from render_tag.scripts.scene import (
+    create_board,
+    create_floor,
+    setup_background,
+    setup_lighting,
+)
+
+
+def apply_sensor_noise(image: np.ndarray, iso_level: float) -> np.ndarray:
+    if iso_level <= 0:
+        return image
+    img_float = image.astype(np.float32) / 255.0
+    scale = 1000.0 * (1.0 - iso_level * 0.9)
+    noisy = np.random.poisson(img_float * scale) / scale
+    sigma = 0.01 + (iso_level * 0.1)
+    noise = np.random.normal(0, sigma, img_float.shape)
+    noisy = noisy + noise
+    noisy = np.clip(noisy, 0, 1)
+    return (noisy * 255).astype(np.uint8)
 
 
 def get_valid_detections(
@@ -28,7 +51,6 @@ def get_valid_detections(
     min_visible_corners: int = 3,
     require_facing: bool = True,
 ) -> list[tuple]:
-    """Get detections for visible, properly-facing tags."""
     valid_detections = []
     for tag_obj in tag_objects:
         if not check_tag_visibility(tag_obj, min_visible_corners):
@@ -44,19 +66,22 @@ def get_valid_detections(
 
 def parse_args():
     parser = argparse.ArgumentParser(description="BlenderProc render-tag executor")
-    parser.add_argument("--recipe", type=Path, required=True, help="Path to scene_recipes.json")
+    parser.add_argument(
+        "--recipe", type=Path, required=True, help="Path to scene_recipes.json"
+    )
     parser.add_argument("--output", type=Path, required=True, help="Output directory")
-    parser.add_argument("--renderer-mode", choices=["cycles", "workbench", "eevee"], default="cycles")
+    parser.add_argument(
+        "--renderer-mode", choices=["cycles", "workbench", "eevee"], default="cycles"
+    )
     return parser.parse_args()
 
 
 def execute_recipe(recipe, output_dir, renderer_mode, csv_writer, coco_writer):
     scene_idx = recipe["scene_id"]
     print(f"--- Executing Scene {scene_idx} ---")
-    
+
     bproc.clean_up()
-    
-    # 1. Renderer Setup
+
     if renderer_mode == "workbench":
         bpy.context.scene.render.engine = "BLENDER_WORKBENCH"
         bpy.data.scenes["Scene"].display.shading.light = "FLAT"
@@ -67,13 +92,11 @@ def execute_recipe(recipe, output_dir, renderer_mode, csv_writer, coco_writer):
         except Exception:
             bpy.context.scene.render.engine = "BLENDER_EEVEE"
 
-    # 2. World Setup
     world_config = recipe.get("world", {})
     hdri_path = world_config.get("background_hdri")
     if hdri_path and Path(hdri_path).is_file():
         setup_background(Path(hdri_path))
     else:
-        # Default white
         bpy.context.scene.world.use_nodes = True
         bg_node = bpy.context.scene.world.node_tree.nodes.get("Background")
         if bg_node:
@@ -84,7 +107,6 @@ def execute_recipe(recipe, output_dir, renderer_mode, csv_writer, coco_writer):
     intensity = lighting.get("intensity", 100)
     setup_lighting(intensity_min=intensity, intensity_max=intensity)
 
-    # 3. Object Setup
     tag_objects = []
     for obj_recipe in recipe["objects"]:
         if obj_recipe["type"] == "TAG":
@@ -93,55 +115,86 @@ def execute_recipe(recipe, output_dir, renderer_mode, csv_writer, coco_writer):
             tag_id = props["tag_id"]
             tag_size = props["tag_size"]
             texture_base_path = props.get("texture_base_path")
-            
-            texture_path = get_tag_texture_path(family, texture_base_path, tag_id=tag_id)
+
+            texture_path = get_tag_texture_path(
+                family, texture_base_path, tag_id=tag_id
+            )
             tag_obj = create_tag_plane(tag_size, texture_path, family, tag_id=tag_id)
-            
-            # Apply placement from recipe
+
             tag_obj.set_location(obj_recipe["location"])
             tag_obj.set_rotation_euler(obj_recipe["rotation_euler"])
-            
-            # Handle scaling if marker_size property exists
+
             if "marker_size" in props:
                 current_size = max(tag_obj.blender_obj.dimensions[:2])
                 if current_size > 0:
                     scale = props["marker_size"] / current_size
                     tag_obj.set_scale([scale, scale, 1])
                     tag_obj.persist_transformation_into_mesh()
-            
+
             tag_obj.blender_obj["tag_id"] = tag_id
             tag_obj.blender_obj["tag_family"] = family
             tag_objects.append(tag_obj)
-            
+
         elif obj_recipe["type"] == "BOARD":
             props = obj_recipe["properties"]
-            # Map generator's BOARD to scripts.scene.create_board
-            create_board(props["cols"], props["rows"], props["square_size"], props["mode"])
-        
-    # 4. Camera Setup and Rendering
-    # CSV and COCO writers are passed from main()
-    
-    # Add categories to COCO (Simplified)
+            create_board(
+                props["cols"], props["rows"], props["square_size"], props["mode"]
+            )
+
     for tag_obj in tag_objects:
         coco_writer.add_category(tag_obj.blender_obj["tag_family"])
 
+    rendered_outputs = []
+
     for cam_idx, cam_recipe in enumerate(recipe["cameras"]):
-        # Set intrinsics (only needs to be done once if they are same, but recipes allow per-camera)
-        set_camera_intrinsics(cam_recipe)
-        
-        # Add pose
+        bproc.utility.reset_keyframes()
+
         pose_matrix = np.array(cam_recipe["transform_matrix"])
-        bproc.camera.add_camera_pose(pose_matrix)
-        
-        # In this simplistic executor, we render one by one or all at once?
-        # blenderproc.renderer.render() renders ALL added poses.
-        # But for visibility checks we need to iterate.
-    
-    rendered_data = bproc.renderer.render()
-    
-    # Process each rendered frame
-    # Resolution for COCO and CSV
-    camera_config = recipe["cameras"][0]["intrinsics"] # Assume same for all for now
+        bproc.camera.add_camera_pose(pose_matrix, frame=0)
+
+        velocity = cam_recipe.get("velocity")
+        shutter_time_ms = cam_recipe.get("shutter_time_ms", 0.0)
+        iso_noise = cam_recipe.get("iso_noise", 0.0)
+
+        if velocity and shutter_time_ms > 0:
+            vx, vy, vz = velocity
+            dt = shutter_time_ms / 1000.0
+            start_matrix = mathutils.Matrix(pose_matrix)
+            end_loc = start_matrix.to_translation() + mathutils.Vector(
+                (vx * dt, vy * dt, vz * dt)
+            )
+            end_matrix = start_matrix.copy()
+            end_matrix.translation = end_loc
+
+            bproc.camera.add_camera_pose(end_matrix, frame=1)
+
+            bpy.context.scene.render.use_motion_blur = True
+            bpy.context.scene.render.motion_blur_shutter = 1.0
+        else:
+            bpy.context.scene.render.use_motion_blur = False
+
+        fstop = cam_recipe.get("fstop")
+        focus_dist = cam_recipe.get("focus_distance")
+        cam_data = bpy.context.scene.camera.data
+        if fstop:
+            cam_data.dof.use_dof = True
+            cam_data.dof.aperture_fstop = fstop
+            if focus_dist:
+                cam_data.dof.focus_distance = focus_dist
+        else:
+            cam_data.dof.use_dof = False
+
+        data = bproc.renderer.render()
+
+        if "colors" in data:
+            img = data["colors"][0]
+            if iso_noise > 0:
+                img = apply_sensor_noise(img, iso_noise)
+            rendered_outputs.append(img)
+
+    rendered_data = {"colors": rendered_outputs}
+
+    camera_config = recipe["cameras"][0]["intrinsics"]
     resolution = camera_config.get("resolution", [640, 480])
 
     for cam_idx in range(len(recipe["cameras"])):
@@ -149,35 +202,28 @@ def execute_recipe(recipe, output_dir, renderer_mode, csv_writer, coco_writer):
         image_path = output_dir / "images" / f"{image_name}.png"
         image_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Save frame from rendered data
         if "colors" in rendered_data and len(rendered_data["colors"]) > cam_idx:
             from PIL import Image
             img_array = rendered_data["colors"][cam_idx]
             Image.fromarray(img_array.astype(np.uint8)).save(str(image_path))
 
-        # Add image to COCO dataset
         coco_image_id = coco_writer.add_image(
             file_name=f"images/{image_path.name}",
             width=resolution[0],
             height=resolution[1],
         )
 
-        # CRITICAL: Manually update camera matrix to match this frame for visibility writing
         frame_pose = bproc.camera.get_camera_pose(cam_idx)
         bpy.context.scene.camera.matrix_world = mathutils.Matrix(frame_pose)
         bpy.context.view_layer.update()
 
-        # Get valid detections (visible, facing camera)
-        # Note: We use the same min_visible_corners and require_facing as blender_main.py defaults
         valid_detections = get_valid_detections(tag_objects)
 
-        # Write detections
         for tag_obj, corners_2d in valid_detections:
             blender_obj = tag_obj.blender_obj
             tag_id = blender_obj.get("tag_id", 0)
             tag_fam = blender_obj.get("tag_family", "unknown")
 
-            # Write to CSV
             detection = DetectionRecord(
                 image_id=image_name,
                 tag_id=tag_id,
@@ -188,7 +234,6 @@ def execute_recipe(recipe, output_dir, renderer_mode, csv_writer, coco_writer):
                 detection, width=resolution[0], height=resolution[1]
             )
 
-            # Write to COCO
             coco_writer.add_annotation(
                 image_id=coco_image_id,
                 category_id=coco_writer._category_map.get(tag_fam, 1),
@@ -206,24 +251,20 @@ def main():
     args = parse_args()
     with open(args.recipe) as f:
         recipes = json.load(f)
-    
+
     output_dir = args.output
     output_dir.mkdir(parents=True, exist_ok=True)
-    
+
     bproc.init()
-    
-    # Initialize writers once for the entire run
+
     csv_writer = CSVWriter(output_dir / "tags.csv")
     coco_writer = COCOWriter(output_dir)
 
-    # Add tag families to COCO categories from all recipes if possible, 
-    # but add_category is idempotent so we can do it lazily.
-
     for recipe in recipes:
         execute_recipe(recipe, output_dir, args.renderer_mode, csv_writer, coco_writer)
-    
-    # Save COCO once at the end
+
     coco_writer.save()
+
 
 if __name__ == "__main__":
     sys.exit(main())
