@@ -1,9 +1,13 @@
 import blenderproc as bproc
 import argparse
 import json
+import logging
 import sys
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
 import numpy as np
+from PIL import Image
 
 # Add the src directory to sys.path
 sys.path.append(str(Path(__file__).resolve().parents[2]))
@@ -16,12 +20,13 @@ except ImportError:
 
 from render_tag.common.constants import TAG_BIT_COUNTS
 from render_tag.data_io.types import DetectionRecord
-from render_tag.data_io.writers import COCOWriter, CSVWriter
+from render_tag.data_io.writers import COCOWriter, CSVWriter, RichTruthWriter
 from render_tag.scripts.assets import create_tag_plane, get_tag_texture_path
 from render_tag.scripts.camera import set_camera_intrinsics
 from render_tag.scripts.projection import (
     check_tag_facing_camera,
     check_tag_visibility,
+    compute_geometric_metadata,
     is_tag_sufficiently_visible,
     project_corners_to_image,
 )
@@ -32,25 +37,52 @@ from render_tag.scripts.scene import (
     setup_lighting,
 )
 
+# Configure logging
+logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+logger = logging.getLogger(__name__)
+
 
 def apply_sensor_noise(image: np.ndarray, iso_level: float) -> np.ndarray:
+    """Apply Poisson and Gaussian noise to simulate sensor noise.
+
+    Args:
+        image: Input RGB image array (0-255).
+        iso_level: Noise intensity level (0.0 to 1.0).
+
+    Returns:
+        Noisy RGB image array (0-255).
+    """
     if iso_level <= 0:
         return image
+
     img_float = image.astype(np.float32) / 255.0
+    # Higher scale = less Poisson noise
     scale = 1000.0 * (1.0 - iso_level * 0.9)
     noisy = np.random.poisson(img_float * scale) / scale
+
+    # Add Gaussian noise for electronic noise
     sigma = 0.01 + (iso_level * 0.1)
     noise = np.random.normal(0, sigma, img_float.shape)
-    noisy = noisy + noise
-    noisy = np.clip(noisy, 0, 1)
+
+    noisy = np.clip(noisy + noise, 0, 1)
     return (noisy * 255).astype(np.uint8)
 
 
 def get_valid_detections(
-    tag_objects: list,
+    tag_objects: List[Any],
     min_visible_corners: int = 3,
     require_facing: bool = True,
-) -> list[tuple]:
+) -> List[Tuple[Any, np.ndarray]]:
+    """Determine which tags are adequately visible in the current camera view.
+
+    Args:
+        tag_objects: List of Blender objects Representing tags.
+        min_visible_corners: Minimum corners that must be in frustum.
+        require_facing: If True, tags must be facing the camera.
+
+    Returns:
+        List of (tag_object, corners_2d) tuples.
+    """
     valid_detections = []
     for tag_obj in tag_objects:
         if not check_tag_visibility(tag_obj, min_visible_corners):
@@ -64,7 +96,8 @@ def get_valid_detections(
     return valid_detections
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
+    """Parse command line arguments."""
     parser = argparse.ArgumentParser(description="BlenderProc render-tag executor")
     parser.add_argument(
         "--recipe", type=Path, required=True, help="Path to scene_recipes.json"
@@ -76,12 +109,21 @@ def parse_args():
     return parser.parse_args()
 
 
-def execute_recipe(recipe, output_dir, renderer_mode, csv_writer, coco_writer):
+def execute_recipe(
+    recipe: Dict[str, Any],
+    output_dir: Path,
+    renderer_mode: str,
+    csv_writer: CSVWriter,
+    coco_writer: COCOWriter,
+    rich_writer: RichTruthWriter,
+) -> None:
+    """Execute a single scene recipe: setup scene, render, and export data."""
     scene_idx = recipe["scene_id"]
-    print(f"--- Executing Scene {scene_idx} ---")
+    logger.info(f"--- Executing Scene {scene_idx} ---")
 
     bproc.clean_up()
 
+    # 1. Setup Renderer
     if renderer_mode == "workbench":
         bpy.context.scene.render.engine = "BLENDER_WORKBENCH"
         bpy.data.scenes["Scene"].display.shading.light = "FLAT"
@@ -92,6 +134,7 @@ def execute_recipe(recipe, output_dir, renderer_mode, csv_writer, coco_writer):
         except Exception:
             bpy.context.scene.render.engine = "BLENDER_EEVEE"
 
+    # 2. Setup World (Background and Lighting)
     world_config = recipe.get("world", {})
     hdri_path = world_config.get("background_hdri")
     if hdri_path and Path(hdri_path).is_file():
@@ -107,6 +150,7 @@ def execute_recipe(recipe, output_dir, renderer_mode, csv_writer, coco_writer):
     intensity = lighting.get("intensity", 100)
     setup_lighting(intensity_min=intensity, intensity_max=intensity)
 
+    # 3. Create Objects
     tag_objects = []
     for obj_recipe in recipe["objects"]:
         if obj_recipe["type"] == "TAG":
@@ -121,6 +165,12 @@ def execute_recipe(recipe, output_dir, renderer_mode, csv_writer, coco_writer):
             )
             tag_obj = create_tag_plane(tag_size, texture_path, family, tag_id=tag_id)
 
+            # Set properties for visibility/segmentation checks
+            tag_obj.blender_obj.pass_index = tag_id + 1
+            tag_obj.blender_obj["tag_id"] = tag_id
+            tag_obj.blender_obj["tag_family"] = family
+            tag_obj.blender_obj["category_id"] = tag_id + 1
+
             tag_obj.set_location(obj_recipe["location"])
             tag_obj.set_rotation_euler(obj_recipe["rotation_euler"])
 
@@ -131,8 +181,6 @@ def execute_recipe(recipe, output_dir, renderer_mode, csv_writer, coco_writer):
                     tag_obj.set_scale([scale, scale, 1])
                     tag_obj.persist_transformation_into_mesh()
 
-            tag_obj.blender_obj["tag_id"] = tag_id
-            tag_obj.blender_obj["tag_family"] = family
             tag_objects.append(tag_obj)
 
         elif obj_recipe["type"] == "BOARD":
@@ -141,21 +189,27 @@ def execute_recipe(recipe, output_dir, renderer_mode, csv_writer, coco_writer):
                 props["cols"], props["rows"], props["square_size"], props["mode"]
             )
 
+    # Update categories in COCO writer
     for tag_obj in tag_objects:
         coco_writer.add_category(tag_obj.blender_obj["tag_family"])
 
+    # 4. Render Loop
     rendered_outputs = []
+    cam_recipes = recipe["cameras"]
 
-    for cam_idx, cam_recipe in enumerate(recipe["cameras"]):
+    for cam_idx, cam_recipe in enumerate(cam_recipes):
         bproc.utility.reset_keyframes()
 
+        # Add camera pose
         pose_matrix = np.array(cam_recipe["transform_matrix"])
         bproc.camera.add_camera_pose(pose_matrix, frame=0)
 
+        # Handle Sensor Simulation
         velocity = cam_recipe.get("velocity")
         shutter_time_ms = cam_recipe.get("shutter_time_ms", 0.0)
         iso_noise = cam_recipe.get("iso_noise", 0.0)
 
+        # Motion Blur
         if velocity and shutter_time_ms > 0:
             vx, vy, vz = velocity
             dt = shutter_time_ms / 1000.0
@@ -167,12 +221,12 @@ def execute_recipe(recipe, output_dir, renderer_mode, csv_writer, coco_writer):
             end_matrix.translation = end_loc
 
             bproc.camera.add_camera_pose(end_matrix, frame=1)
-
             bpy.context.scene.render.use_motion_blur = True
             bpy.context.scene.render.motion_blur_shutter = 1.0
         else:
             bpy.context.scene.render.use_motion_blur = False
 
+        # Depth of Field
         fstop = cam_recipe.get("fstop")
         focus_dist = cam_recipe.get("focus_distance")
         cam_data = bpy.context.scene.camera.data
@@ -184,6 +238,8 @@ def execute_recipe(recipe, output_dir, renderer_mode, csv_writer, coco_writer):
         else:
             cam_data.dof.use_dof = False
 
+        # Enable Segmentation and Render
+        bproc.renderer.enable_segmentation_output(default_values={"category_id": 0})
         data = bproc.renderer.render()
 
         if "colors" in data:
@@ -192,18 +248,22 @@ def execute_recipe(recipe, output_dir, renderer_mode, csv_writer, coco_writer):
                 img = apply_sensor_noise(img, iso_noise)
             rendered_outputs.append(img)
 
-    rendered_data = {"colors": rendered_outputs}
+    # Dictionary to store all rendered results
+    rendered_data = {
+        "colors": rendered_outputs,
+        "segmaps": data.get("segmentation", []),
+    }
 
-    camera_config = recipe["cameras"][0]["intrinsics"]
+    # 5. Export Data
+    camera_config = cam_recipes[0]["intrinsics"]
     resolution = camera_config.get("resolution", [640, 480])
 
-    for cam_idx in range(len(recipe["cameras"])):
+    for cam_idx in range(len(cam_recipes)):
         image_name = f"scene_{scene_idx:04d}_cam_{cam_idx:04d}"
         image_path = output_dir / "images" / f"{image_name}.png"
         image_path.parent.mkdir(parents=True, exist_ok=True)
 
         if "colors" in rendered_data and len(rendered_data["colors"]) > cam_idx:
-            from PIL import Image
             img_array = rendered_data["colors"][cam_idx]
             Image.fromarray(img_array.astype(np.uint8)).save(str(image_path))
 
@@ -213,58 +273,88 @@ def execute_recipe(recipe, output_dir, renderer_mode, csv_writer, coco_writer):
             height=resolution[1],
         )
 
+        # Update Blender state for metadata projection
         frame_pose = bproc.camera.get_camera_pose(cam_idx)
         bpy.context.scene.camera.matrix_world = mathutils.Matrix(frame_pose)
         bpy.context.view_layer.update()
 
         valid_detections = get_valid_detections(tag_objects)
+        segmap = (
+            rendered_data["segmaps"][cam_idx]
+            if "segmaps" in rendered_data and len(rendered_data["segmaps"]) > cam_idx
+            else None
+        )
 
         for tag_obj, corners_2d in valid_detections:
             blender_obj = tag_obj.blender_obj
             tag_id = blender_obj.get("tag_id", 0)
             tag_fam = blender_obj.get("tag_family", "unknown")
 
+            # Calculate Rich Metadata
+            geom = compute_geometric_metadata(tag_obj)
+
+            # Calculate Occlusion Metadata via Segmentation Map
+            occlusion_ratio = 0.0
+            if segmap is not None:
+                obj_idx = blender_obj.pass_index
+                visible_pixels = np.sum(segmap == obj_idx)
+                theoretical_pixels = geom["pixel_area"]
+
+                if theoretical_pixels > 0:
+                    vis_ratio = visible_pixels / theoretical_pixels
+                    occlusion_ratio = float(np.clip(1.0 - vis_ratio, 0.0, 1.0))
+
             detection = DetectionRecord(
                 image_id=image_name,
                 tag_id=tag_id,
                 tag_family=tag_fam,
                 corners=corners_2d,
-            )
-            csv_writer.write_detection(
-                detection, width=resolution[0], height=resolution[1]
+                distance=geom["distance"],
+                angle_of_incidence=geom["angle_of_incidence"],
+                pixel_area=geom["pixel_area"],
+                occlusion_ratio=occlusion_ratio,
             )
 
+            # Write to all outputs
+            csv_writer.write_detection(detection, resolution[0], resolution[1])
             coco_writer.add_annotation(
                 image_id=coco_image_id,
                 category_id=coco_writer._category_map.get(tag_fam, 1),
                 corners=corners_2d,
-                tag_id=tag_id,
+                detection=detection,
                 width=resolution[0],
                 height=resolution[1],
             )
+            rich_writer.add_detection(detection)
 
-    coco_writer.save()
-    print(f"✓ Rendered {len(recipe['cameras'])} cameras for scene {scene_idx}")
+    logger.info(f"✓ Rendered {len(cam_recipes)} cameras for scene {scene_idx}")
 
 
-def main():
+def main() -> None:
+    """Main entry point for BlenderProc execution."""
     args = parse_args()
-    with open(args.recipe) as f:
-        recipes = json.load(f)
-
     output_dir = args.output
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    with open(args.recipe) as f:
+        recipes = json.load(f)
+
     bproc.init()
 
+    # Initialize writers
     csv_writer = CSVWriter(output_dir / "tags.csv")
     coco_writer = COCOWriter(output_dir)
+    rich_writer = RichTruthWriter(output_dir / "rich_truth.json")
 
     for recipe in recipes:
-        execute_recipe(recipe, output_dir, args.renderer_mode, csv_writer, coco_writer)
+        execute_recipe(
+            recipe, output_dir, args.renderer_mode, csv_writer, coco_writer, rich_writer
+        )
 
+    # Save all results
     coco_writer.save()
+    rich_writer.save()
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()

@@ -29,6 +29,13 @@ class DetectionRecord:
     tag_family: str
     corners: list[tuple[float, float]]  # Standardized as list of tuples
 
+    # Phase 6: Rich Metadata
+    distance: float = 0.0
+    angle_of_incidence: float = 0.0
+    pixel_area: float = 0.0
+    occlusion_ratio: float = 0.0
+    metadata: dict[str, Any] = field(default_factory=dict)
+
     def validate(self) -> bool:
         """Check if the detection is valid (has 4 corners)."""
         return len(self.corners) == 4

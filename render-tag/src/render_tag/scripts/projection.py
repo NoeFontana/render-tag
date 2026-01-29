@@ -58,15 +58,10 @@ def project_corners_to_image(
     # Use current camera matrix instead of bproc stored poses
     # Blender matrix_world: right=X, up=Y, forward=-Z
     cam2world_blender = np.array(bpy.context.scene.camera.matrix_world)
-    
+
     # Convert to OpenCV convention: right=X, down=-Y, forward=Z
     # We flip the Y and Z axes of the camera coordinate system
-    flip_mat = np.array([
-        [1, 0, 0, 0],
-        [0, -1, 0, 0],
-        [0, 0, -1, 0],
-        [0, 0, 0, 1]
-    ])
+    flip_mat = np.array([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]])
     cam2world = cam2world_blender @ flip_mat
 
     points_2d = project_points(np.array(corners_world), k_matrix, cam2world)
@@ -115,6 +110,46 @@ def compute_tag_area_in_image(corners_2d: list[tuple[float, float]]) -> float:
 
     _, metrics = validate_visibility_metrics(np.array(corners_2d), res_x, res_y)
     return metrics["area"]
+
+
+def compute_geometric_metadata(tag_obj: Any) -> dict[str, float]:
+    """Compute geometric metadata for a tag.
+
+    Returns:
+        Dictionary with 'distance', 'angle_of_incidence', and 'pixel_area'.
+    """
+    # 1. Distance
+    tag_location = np.array(tag_obj.get_location())
+    cam_location = np.array(bpy.context.scene.camera.location)
+    distance = float(np.linalg.norm(tag_location - cam_location))
+
+    # 2. Angle of Incidence
+    # Get tag normal in world space
+    world_matrix = np.array(tag_obj.get_local2world_mat())
+    local_normal = np.array([0, 0, 1, 0])
+    world_normal = (world_matrix @ local_normal)[:3]
+    world_normal /= np.linalg.norm(world_normal)
+
+    # Vector from tag to camera
+    to_cam = cam_location - tag_location
+    to_cam /= np.linalg.norm(to_cam)
+
+    # Cosine of angle is dot product
+    cos_theta = np.clip(np.dot(world_normal, to_cam), -1.0, 1.0)
+    angle_rad = np.arccos(cos_theta)
+    angle_deg = float(np.degrees(angle_rad))
+
+    # 3. Pixel Area
+    corners_2d = project_corners_to_image(tag_obj)
+    pixel_area = 0.0
+    if corners_2d:
+        pixel_area = compute_tag_area_in_image(corners_2d)
+
+    return {
+        "distance": distance,
+        "angle_of_incidence": angle_deg,
+        "pixel_area": pixel_area,
+    }
 
 
 def is_tag_sufficiently_visible(

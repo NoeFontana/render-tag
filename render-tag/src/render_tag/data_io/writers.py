@@ -11,8 +11,9 @@ from __future__ import annotations
 import csv
 import json
 from pathlib import Path
-import numpy as np
 from typing import TYPE_CHECKING
+
+import numpy as np
 
 if TYPE_CHECKING:
     pass
@@ -26,8 +27,8 @@ try:
     pkg_root = Path(__file__).parent.parent
     if str(pkg_root) not in sys.path:
         sys.path.insert(0, str(pkg_root))
-    from render_tag.geometry.math import compute_polygon_area
     from render_tag.data_io.annotations import compute_bbox, normalize_corner_order
+    from render_tag.geometry.math import compute_polygon_area
 
     GEOMETRY_AVAILABLE = True
 except ImportError:
@@ -162,12 +163,15 @@ class COCOWriter:
         image_id: int,
         category_id: int,
         corners: list[tuple[float, float]],
-        tag_id: int = 0,
         width: int | None = None,
         height: int | None = None,
+        detection: DetectionRecord | None = None,
     ) -> int:
         """Add an annotation for a detected tag (optionally clipped)."""
-        if len(corners) != 4:
+        if corners is None and detection is not None:
+            corners = detection.corners
+
+        if corners is None or len(corners) != 4:
             raise ValueError("Annotation must have exactly 4 corners")
 
         annotation_id = self._next_annotation_id
@@ -195,6 +199,17 @@ class COCOWriter:
         for corner in ordered_corners:
             segmentation.extend([corner[0], corner[1]])
 
+        # Prepare attributes
+        attributes = {
+            "tag_id": detection.tag_id if detection else 0,
+            "distance": detection.distance if detection else 0.0,
+            "angle_of_incidence": detection.angle_of_incidence if detection else 0.0,
+            "pixel_area": detection.pixel_area if detection else area,
+            "occlusion_ratio": detection.occlusion_ratio if detection else 0.0,
+        }
+        if detection and hasattr(detection, "metadata"):
+            attributes.update(detection.metadata)
+
         self.annotations.append(
             {
                 "id": annotation_id,
@@ -204,7 +219,7 @@ class COCOWriter:
                 "bbox": bbox,
                 "area": area,
                 "iscrowd": 0,
-                "attributes": {"tag_id": tag_id},
+                "attributes": attributes,
             }
         )
 
@@ -225,6 +240,37 @@ class COCOWriter:
             json.dump(coco_data, f, indent=2)
 
         return output_path
+
+
+class RichTruthWriter:
+    """Writer for structured JSON 'Data Product' containing all metadata."""
+
+    def __init__(self, output_path: Path) -> None:
+        self.output_path = output_path
+        self._detections: list[dict] = []
+
+    def add_detection(self, detection: DetectionRecord) -> None:
+        """Add a detection record to the output list."""
+        # Convert dataclass to dict, handle simple types
+        record = {
+            "image_id": detection.image_id,
+            "tag_id": detection.tag_id,
+            "tag_family": detection.tag_family,
+            "corners": detection.corners,
+            "distance": detection.distance,
+            "angle_of_incidence": detection.angle_of_incidence,
+            "pixel_area": detection.pixel_area,
+            "occlusion_ratio": detection.occlusion_ratio,
+            "metadata": detection.metadata,
+        }
+        self._detections.append(record)
+
+    def save(self) -> Path:
+        """Save all detections to the JSON file."""
+        self.output_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(self.output_path, "w") as f:
+            json.dump(self._detections, f, indent=2)
+        return self.output_path
 
 
 def corners_to_clockwise_order(
