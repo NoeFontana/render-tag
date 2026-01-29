@@ -11,7 +11,7 @@ from __future__ import annotations
 import csv
 import json
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 import numpy as np
 
@@ -39,13 +39,9 @@ from .types import DetectionRecord
 
 
 class CSVWriter:
-    """Writer for CSV format detection annotations.
+    """Writes detection data to a CSV file."""
 
-    Format: image_id, tag_id, tag_family, x1, y1, x2, y2, x3, y3, x4, y4
-    Corner order: BL (0), BR (1), TR (2), TL (3) - Counter-Clockwise from Bottom-Left
-    """
-
-    HEADER = [
+    HEADER: ClassVar[list[str]] = [
         "image_id",
         "tag_id",
         "tag_family",
@@ -86,9 +82,7 @@ class CSVWriter:
         self._ensure_initialized()
 
         # CSV format uses standard CCW order from BL
-        ordered_corners = normalize_corner_order(
-            detection.corners, target_order="ccw_bl"
-        )
+        ordered_corners = normalize_corner_order(detection.corners, target_order="ccw_bl")
 
         # Clip if dimensions provided
         if width is not None or height is not None:

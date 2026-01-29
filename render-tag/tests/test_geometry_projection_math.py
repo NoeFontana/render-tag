@@ -12,7 +12,6 @@ import math
 
 import numpy as np
 
-
 # ============================================================================
 # Pure Math Projection Utilities (no Blender dependency)
 # ============================================================================
@@ -58,7 +57,7 @@ def k_from_fov(resolution: tuple[int, int], fov_degrees: float) -> np.ndarray:
 def make_extrinsics(
     camera_position: np.ndarray,
     look_at: np.ndarray,
-    up: np.ndarray = None,
+    up: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Create camera extrinsics (R, t) from position and look-at point.
 
@@ -180,7 +179,7 @@ def project_corners(
 def compute_tag_corners_3d(
     center: np.ndarray,
     size: float,
-    normal: np.ndarray = np.array([0, 0, 1]),
+    normal: np.ndarray | None = None,
 ) -> list[np.ndarray]:
     """Compute 3D corner positions for a square tag.
 
@@ -194,6 +193,8 @@ def compute_tag_corners_3d(
     Returns:
         List of 4 corner positions in 3D
     """
+    if normal is None:
+        normal = np.array([0, 0, 1])
     half = size / 2.0
 
     # Default: tag lies in XY plane with Z as normal

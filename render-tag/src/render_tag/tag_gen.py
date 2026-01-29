@@ -6,7 +6,6 @@ on the fly using cv2.aruco.
 """
 
 from pathlib import Path
-from typing import Optional
 
 import cv2
 import numpy as np
@@ -44,7 +43,7 @@ def generate_tag_image(
     tag_id: int,
     size_pixels: int = 512,
     border_bits: int = 1,
-) -> Optional[np.ndarray]:
+) -> np.ndarray | None:
     """Generate a marker image for a given family and ID.
 
     Args:

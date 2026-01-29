@@ -1,5 +1,5 @@
 import numpy as np
-import pytest
+
 from render_tag.config import GenConfig
 from render_tag.generator import Generator
 

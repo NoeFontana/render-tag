@@ -6,14 +6,13 @@ import json
 import tempfile
 from pathlib import Path
 
-
+from render_tag.data_io.types import DetectionRecord
 from render_tag.data_io.writers import (
     COCOWriter,
     CSVWriter,
     corners_to_clockwise_order,
     verify_corner_order,
 )
-from render_tag.data_io.types import DetectionRecord
 
 
 class TestDetectionRecord:
@@ -123,7 +122,8 @@ class TestCOCOWriter:
             img_id = writer.add_image("test.png", 640, 480)
 
             corners = [(100, 100), (200, 100), (200, 200), (100, 200)]
-            ann_id = writer.add_annotation(img_id, cat_id, corners, tag_id=5)
+            detection = DetectionRecord("test.png", 5, "tag36h11", corners)
+            ann_id = writer.add_annotation(img_id, cat_id, corners, detection=detection)
 
             assert ann_id == 1
             assert len(writer.annotations) == 1

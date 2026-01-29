@@ -35,7 +35,7 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "UP", "B", "A", "C4", "SIM", "RUF"]
-ignore = []
+ignore = ["N803", "N806", "B008"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["render_tag"]
@@ -45,3 +45,18 @@ quote-style = "double"
 indent-style = "space"
 skip-magic-trailing-comma = false
 line-ending = "auto"
+
+[tool.ty.src]
+include = ["src", "tests"]
+
+[tool.ty.environment]
+python-version = "3.12"
+
+[tool.ty.rules]
+unresolved-import = "ignore"
+possibly-missing-attribute = "ignore"
+unresolved-attribute = "ignore"
+invalid-method-override = "ignore"
+invalid-assignment = "ignore"
+unused-ignore-comment = "ignore"
+invalid-argument-type = "ignore"

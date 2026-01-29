@@ -6,7 +6,7 @@ reproducible science.
 """
 
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -27,15 +27,15 @@ class Sweep(BaseModel):
     type: SweepType = Field(description="Type of sweep: linear or categorical")
 
     # For Categorical
-    values: Optional[List[Any]] = Field(
+    values: list[Any] | None = Field(
         default=None, description="List of values for categorical sweep"
     )
 
     # For Linear
-    min: Optional[float] = Field(default=None, description="Start value")
-    max: Optional[float] = Field(default=None, description="End value")
-    step: Optional[float] = Field(default=None, description="Step size")
-    steps: Optional[int] = Field(
+    min: float | None = Field(default=None, description="Start value")
+    max: float | None = Field(default=None, description="End value")
+    step: float | None = Field(default=None, description="Step size")
+    steps: int | None = Field(
         default=None, description="Number of steps (alternative to step size)"
     )
 
@@ -56,15 +56,11 @@ class Experiment(BaseModel):
     """Root configuration for an Experiment."""
 
     name: str = Field(description="Unique name for this experiment")
-    description: str = Field(
-        default="", description="Description of the hypothesis/goal"
-    )
+    description: str = Field(default="", description="Description of the hypothesis/goal")
 
     base_config: GenConfig = Field(description="The invariant base configuration")
 
-    sweeps: List[Sweep] = Field(
-        default_factory=list, description="List of variables to sweep"
-    )
+    sweeps: list[Sweep] = Field(default_factory=list, description="List of variables to sweep")
 
     # Lock configuration
     lock_layout: bool = Field(
@@ -75,7 +71,7 @@ class Experiment(BaseModel):
     )
     lock_camera: bool = Field(
         default=False,
-        description="If True, camera_seed is constant across variants (usually False for distance/angle sweeps)",
+        description="If True, camera_seed is constant (usually False for dist/angle sweeps)",
     )
 
 
@@ -86,9 +82,5 @@ class ExperimentVariant(BaseModel):
     variant_id: str
     description: str
 
-    config: GenConfig = Field(
-        description="The fully resolved configuration for this variant"
-    )
-    overrides: Dict[str, Any] = Field(
-        description="The parameters that were modified from base"
-    )
+    config: GenConfig = Field(description="The fully resolved configuration for this variant")
+    overrides: dict[str, Any] = Field(description="The parameters that were modified from base")

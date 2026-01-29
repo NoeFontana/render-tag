@@ -5,6 +5,7 @@ Unit tests for annotation_utils module.
 from __future__ import annotations
 
 import numpy as np
+
 from render_tag.data_io.annotations import compute_bbox, normalize_corner_order
 
 

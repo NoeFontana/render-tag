@@ -2,7 +2,6 @@
 Unit tests for compositor.py using mocked Blender environment.
 """
 
-import pytest
 from render_tag.scripts.compositor import compose_scene
 
 
@@ -16,7 +15,7 @@ def test_compose_scene_plain_counting(mock_blender_environment):
     tag_families = ["tag36h11"]
 
     # Run
-    tag_objects, layout_objects, mode = compose_scene(
+    tag_objects, _layout_objects, mode = compose_scene(
         scene_idx=0,
         tag_config=tag_config,
         scenario_config=scenario_config,
@@ -74,7 +73,7 @@ def test_compose_scene_aprilgrid(mock_blender_environment):
     physics_config = {}
     tag_families = ["tag36h11"]
 
-    tag_objects, layout_objects, mode = compose_scene(
+    tag_objects, _layout_objects, mode = compose_scene(
         0, tag_config, scenario_config, scene_config, physics_config, tag_families
     )
 

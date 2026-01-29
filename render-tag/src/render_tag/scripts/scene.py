@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import random
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     pass
@@ -54,7 +54,7 @@ def setup_lighting(
     """
     lights = []
 
-    for i in range(num_lights):
+    for _ in range(num_lights):
         # Random position in a hemisphere above the scene
         theta = random.uniform(0, 2 * 3.14159)
         phi = random.uniform(0.2, 0.8) * 3.14159 / 2  # Bias towards top
@@ -176,9 +176,7 @@ def create_flying_layout(
         # Random position in a 3D box centered at (0, 0, volume_size/2)
         x = random.uniform(-volume_size / 2, volume_size / 2)
         y = random.uniform(-volume_size / 2, volume_size / 2)
-        z = random.uniform(
-            0.5, volume_size + 0.5
-        )  # Stay above "ground" even if no ground
+        z = random.uniform(0.5, volume_size + 0.5)  # Stay above "ground" even if no ground
 
         # Completely random rotation
         rx = random.uniform(0, 2 * 3.14159)
@@ -193,7 +191,7 @@ def create_flying_layout(
         tag.enable_rigidbody(active=False)  # Static in air
 
 
-def randomize_floor_material(floor: Any, texture_dir: Optional[Path] = None) -> None:
+def randomize_floor_material(floor: Any, texture_dir: Path | None = None) -> None:
     """Randomize the floor material for domain randomization.
 
     Args:
@@ -228,11 +226,7 @@ def randomize_floor_material(floor: Any, texture_dir: Optional[Path] = None) -> 
             return
 
     # Fallback: randomize color
-    material = (
-        floor.blender_obj.data.materials[0]
-        if floor.blender_obj.data.materials
-        else None
-    )
+    material = floor.blender_obj.data.materials[0] if floor.blender_obj.data.materials else None
     if material:
         nodes = material.node_tree.nodes
         bsdf = nodes.get("Principled BSDF")
@@ -273,11 +267,11 @@ def create_board(
 
     # Pure White Emission Material (fail-safe for high contrast)
     mat = _create_white_emission_material("BoardWhite")
-    
+
     board.blender_obj.data.materials.clear()
     board.blender_obj.data.materials.append(mat)
     board.enable_rigidbody(active=False)
-    
+
     return board
 
 
@@ -295,4 +289,3 @@ def _create_white_emission_material(name: str) -> Any:
     emission.inputs["Strength"].default_value = 1.0
     links.new(emission.outputs["Emission"], output.inputs["Surface"])
     return mat
-

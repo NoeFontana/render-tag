@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+
 from render_tag.geometry.visibility import (
     is_facing_camera,
     project_points,
@@ -71,17 +72,13 @@ def test_validate_visibility_metrics():
     corners = np.array([[310, 230], [330, 230], [330, 250], [310, 250]])
     width, height = 640, 480
 
-    is_vis, metrics = validate_visibility_metrics(
-        corners, width, height, min_area_pixels=100
-    )
+    is_vis, metrics = validate_visibility_metrics(corners, width, height, min_area_pixels=100)
     assert is_vis is True
     assert metrics["area"] == pytest.approx(400.0)
     assert metrics["visible_corners"] == 4
 
     # Half out-of-bounds
     corners_off = np.array([[-10, 230], [10, 230], [10, 250], [-10, 250]])
-    is_vis, metrics = validate_visibility_metrics(
-        corners_off, width, height, min_visible_corners=4
-    )
+    is_vis, metrics = validate_visibility_metrics(corners_off, width, height, min_visible_corners=4)
     assert is_vis is False
     assert metrics["visible_corners"] == 2

@@ -7,7 +7,7 @@ strict validation and type safety for all generation parameters.
 
 from enum import Enum
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import yaml
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -131,19 +131,11 @@ class SeedConfig(BaseModel):
     Allows locking specific aspects of randomness while varying others.
     """
 
-    global_seed: int = Field(default=42, description="Master seed")
-    layout: Optional[int] = Field(
-        default=None, description="Override for layout generation"
-    )
-    lighting: Optional[int] = Field(
-        default=None, description="Override for lighting generation"
-    )
-    camera: Optional[int] = Field(
-        default=None, description="Override for camera sampling"
-    )
-    noise: Optional[int] = Field(
-        default=None, description="Seed for image noise/augmentation"
-    )
+    global_seed: int = Field(default=42, ge=0, description="Master seed")
+    layout: int | None = Field(default=None, description="Override for layout generation")
+    lighting: int | None = Field(default=None, description="Override for lighting generation")
+    camera: int | None = Field(default=None, description="Override for camera sampling")
+    noise: int | None = Field(default=None, description="Seed for image noise/augmentation")
 
     @property
     def layout_seed(self) -> int:
@@ -189,35 +181,35 @@ class CameraIntrinsics(BaseModel):
     """
 
     # K matrix (3x3 intrinsic matrix) - optional, overrides other params if set
-    k_matrix: Optional[list[list[float]]] = Field(
+    k_matrix: list[list[float]] | None = Field(
         default=None,
         description="3x3 camera intrinsic matrix [[fx, 0, cx], [0, fy, cy], [0, 0, 1]]",
     )
 
     # Individual intrinsic parameters
-    focal_length_x: Optional[float] = Field(
+    focal_length_x: float | None = Field(
         default=None, gt=0, description="Focal length in x (pixels)"
     )
-    focal_length_y: Optional[float] = Field(
+    focal_length_y: float | None = Field(
         default=None, gt=0, description="Focal length in y (pixels)"
     )
-    focal_length: Optional[float] = Field(
+    focal_length: float | None = Field(
         default=None,
         gt=0,
         description="Single focal length (used for both x and y if fx/fy not set)",
     )
-    principal_point_x: Optional[float] = Field(
+    principal_point_x: float | None = Field(
         default=None, description="Principal point x coordinate (cx)"
     )
-    principal_point_y: Optional[float] = Field(
+    principal_point_y: float | None = Field(
         default=None, description="Principal point y coordinate (cy)"
     )
 
     # Sensor-based specification
-    sensor_width_mm: Optional[float] = Field(
+    sensor_width_mm: float | None = Field(
         default=None, gt=0, description="Sensor width in millimeters"
     )
-    focal_length_mm: Optional[float] = Field(
+    focal_length_mm: float | None = Field(
         default=None, gt=0, description="Focal length in millimeters"
     )
 
@@ -230,9 +222,7 @@ class CameraIntrinsics(BaseModel):
 
     @field_validator("k_matrix")
     @classmethod
-    def validate_k_matrix(
-        cls, v: Optional[list[list[float]]]
-    ) -> Optional[list[list[float]]]:
+    def validate_k_matrix(cls, v: list[list[float]] | None) -> list[list[float]] | None:
         if v is None:
             return v
         if len(v) != 3 or any(len(row) != 3 for row in v):
@@ -255,9 +245,7 @@ class CameraConfig(BaseModel):
     resolution: tuple[Annotated[int, Field(gt=0)], Annotated[int, Field(gt=0)]] = Field(
         default=(640, 480), description="Image resolution (width, height)"
     )
-    fov: float = Field(
-        default=60.0, gt=0, lt=180, description="Field of view in degrees"
-    )
+    fov: float = Field(default=60.0, gt=0, lt=180, description="Field of view in degrees")
     samples_per_scene: int = Field(
         default=10, gt=0, description="Number of camera samples per scene"
     )
@@ -265,33 +253,27 @@ class CameraConfig(BaseModel):
         default_factory=CameraIntrinsics, description="Camera intrinsic parameters"
     )
     # Sampling parameters
-    min_distance: float = Field(
-        default=0.5, gt=0, description="Minimum camera distance"
-    )
-    max_distance: float = Field(
-        default=2.0, gt=0, description="Maximum camera distance"
-    )
+    min_distance: float = Field(default=0.5, gt=0, description="Minimum camera distance")
+    max_distance: float = Field(default=2.0, gt=0, description="Maximum camera distance")
     min_elevation: float = Field(default=0.3, ge=0, le=1, description="Min elevation")
     max_elevation: float = Field(default=0.9, ge=0, le=1, description="Max elevation")
-    elevation: Optional[float] = Field(default=None, description="Fixed elevation")
-    azimuth: Optional[float] = Field(default=None, description="Fixed azimuth")
+    elevation: float | None = Field(default=None, description="Fixed elevation")
+    azimuth: float | None = Field(default=None, description="Fixed azimuth")
 
     # Phase 5: Sensor Simulation Configs
     velocity_mean: float = Field(
         default=0.0, ge=0, description="Mean camera velocity (m/s) for motion blur"
     )
-    velocity_std: float = Field(
-        default=0.0, ge=0, description="Std dev of camera velocity"
-    )
+    velocity_std: float = Field(default=0.0, ge=0, description="Std dev of camera velocity")
     shutter_time_ms: float = Field(
         default=10.0, ge=0, description="Shutter open time in milliseconds"
     )
 
     # Depth of Field
-    fstop: Optional[float] = Field(
+    fstop: float | None = Field(
         default=None, gt=0, description="Lens aperture (f-stop). None=Infinite focus"
     )
-    focus_distance: Optional[float] = Field(
+    focus_distance: float | None = Field(
         default=None,
         gt=0,
         description="Fixed focus distance. None=Auto-focus on target",
@@ -337,21 +319,13 @@ class CameraConfig(BaseModel):
         )
 
         # Try focal_length_x/y
-        if (
-            intrinsics.focal_length_x is not None
-            and intrinsics.focal_length_y is not None
-        ):
+        if intrinsics.focal_length_x is not None and intrinsics.focal_length_y is not None:
             fx, fy = intrinsics.focal_length_x, intrinsics.focal_length_y
         elif intrinsics.focal_length is not None:
             fx = fy = intrinsics.focal_length
-        elif (
-            intrinsics.sensor_width_mm is not None
-            and intrinsics.focal_length_mm is not None
-        ):
+        elif intrinsics.sensor_width_mm is not None and intrinsics.focal_length_mm is not None:
             # Compute from sensor dimensions
-            fx = fy = (
-                intrinsics.focal_length_mm / intrinsics.sensor_width_mm
-            ) * self.width
+            fx = fy = (intrinsics.focal_length_mm / intrinsics.sensor_width_mm) * self.width
         else:
             # Default: compute from FOV
             import math
@@ -365,23 +339,15 @@ class TagConfig(BaseModel):
     """AprilTag configuration."""
 
     family: TagFamily = Field(default=TagFamily.TAG36H11, description="AprilTag family")
-    size_meters: float = Field(
-        default=0.1, gt=0, description="Tag size in meters (outer edge)"
-    )
-    texture_path: Optional[Path] = Field(
-        default=None, description="Path to tag texture directory"
-    )
+    size_meters: float = Field(default=0.1, gt=0, description="Tag size in meters (outer edge)")
+    texture_path: Path | None = Field(default=None, description="Path to tag texture directory")
 
 
 class LightingConfig(BaseModel):
     """Lighting configuration."""
 
-    intensity_min: float = Field(
-        default=50.0, ge=0, description="Minimum light intensity"
-    )
-    intensity_max: float = Field(
-        default=500.0, ge=0, description="Maximum light intensity"
-    )
+    intensity_min: float = Field(default=50.0, ge=0, description="Minimum light intensity")
+    intensity_max: float = Field(default=500.0, ge=0, description="Maximum light intensity")
 
     @model_validator(mode="after")
     def validate_intensity_range(self) -> "LightingConfig":
@@ -396,10 +362,8 @@ class SceneConfig(BaseModel):
     lighting: LightingConfig = Field(
         default_factory=LightingConfig, description="Lighting parameters"
     )
-    background_hdri: Optional[Path] = Field(
-        default=None, description="Path to HDRI background image"
-    )
-    texture_dir: Optional[Path] = Field(
+    background_hdri: Path | None = Field(default=None, description="Path to HDRI background image")
+    texture_dir: Path | None = Field(
         default=None, description="Path to texture directory for backgrounds"
     )
 
@@ -408,9 +372,7 @@ class PhysicsConfig(BaseModel):
     """Physics simulation configuration."""
 
     drop_height: float = Field(default=0.2, ge=0, description="Drop height in meters")
-    scatter_radius: float = Field(
-        default=0.5, gt=0, description="Scatter radius in meters"
-    )
+    scatter_radius: float = Field(default=0.5, gt=0, description="Scatter radius in meters")
 
 
 class ScenarioConfig(BaseModel):
@@ -426,7 +388,7 @@ class ScenarioConfig(BaseModel):
         default=[TagFamily.TAG36H11],
         description="Tag families to use in this scenario",
     )
-    layouts: Optional[list[LayoutMode]] = Field(
+    layouts: list[LayoutMode] | None = Field(
         default=None,
         description="Optional list of layouts to iterate through across scenes",
     )
@@ -454,7 +416,7 @@ class ScenarioConfig(BaseModel):
         ge=0,
         description="Margin between marker edge and cell edge (meters)",
     )
-    tag_spacing_bits: Optional[int] = Field(
+    tag_spacing_bits: int | None = Field(
         default=2,
         description="Spacing between tags in number of bits (relative to tag grid size)",
     )
@@ -463,7 +425,7 @@ class ScenarioConfig(BaseModel):
         default=SamplingMode.RANDOM,
         description="Sampling mode for camera poses (random, distance, angle)",
     )
-    azimuth: Optional[float] = Field(
+    azimuth: float | None = Field(
         default=None,
         description="Fixed azimuth in radians for deterministic alignment",
     )

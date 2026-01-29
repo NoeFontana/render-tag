@@ -7,7 +7,7 @@ This module handles creating tag planes with proper texturing and corner trackin
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     import blenderproc as bproc
@@ -37,9 +37,9 @@ CORNER_ORDER = [
 
 def get_tag_texture_path(
     tag_family: str,
-    custom_path: Optional[Path] = None,
-    tag_id: Optional[int] = None,
-) -> Optional[Path]:
+    custom_path: Path | None = None,
+    tag_id: int | None = None,
+) -> Path | None:
     """Get the path to a tag texture file.
 
     Args:
@@ -78,7 +78,7 @@ def get_tag_texture_path(
 
 def create_tag_plane(
     size_meters: float,
-    texture_path: Optional[Path],
+    texture_path: Path | None,
     tag_family: str,
     tag_id: int = 0,
 ) -> Any:
@@ -111,9 +111,9 @@ def create_tag_plane(
     half = size_meters / 2.0
     corners_local = [
         [-half, -half, 0.0],  # BL
-        [half, -half, 0.0],   # BR  
-        [half, half, 0.0],    # TR
-        [-half, half, 0.0],   # TL
+        [half, -half, 0.0],  # BR
+        [half, half, 0.0],  # TR
+        [-half, half, 0.0],  # TL
     ]
 
     # Store metadata on the object
@@ -221,10 +221,7 @@ def get_corner_world_coords(tag_obj: Any) -> list[list[float]]:
         world_homo = np.dot(world_matrix, local_homo)
 
         # Project back to 3D by dividing by w (usually 1.0 for affine transforms)
-        if abs(world_homo[3]) > 1e-6:
-            world_pos = world_homo[:3] / world_homo[3]
-        else:
-            world_pos = world_homo[:3]
+        world_pos = world_homo[:3] / world_homo[3] if abs(world_homo[3]) > 1e-6 else world_homo[:3]
 
         corners_world.append(world_pos.tolist())
 

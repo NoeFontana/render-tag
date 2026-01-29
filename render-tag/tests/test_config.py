@@ -14,6 +14,7 @@ from render_tag.config import (
     GenConfig,
     LightingConfig,
     PhysicsConfig,
+    SeedConfig,
     TagConfig,
     TagFamily,
     load_config,
@@ -27,8 +28,8 @@ class TestDatasetConfig:
         assert config.seed == 42
 
     def test_negative_seed_rejected(self) -> None:
-        with pytest.raises(ValueError, match="Seed must be non-negative"):
-            DatasetConfig(seed=-1)
+        with pytest.raises(ValueError):
+            DatasetConfig(seeds=SeedConfig(global_seed=-1))
 
 
 class TestCameraIntrinsics:

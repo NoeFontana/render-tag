@@ -87,20 +87,10 @@ def rotation_matrix_from_vectors(vec1: np.ndarray, vec2: np.ndarray) -> np.ndarr
     return rotation_matrix
 
 
-def look_at_rotation(
-    forward_vec: np.ndarray, up_vec: np.ndarray = np.array([0, 0, 1])
-) -> np.ndarray:
+def look_at_rotation(forward_vec: np.ndarray, up_vec: np.ndarray | None = None) -> np.ndarray:
     """Compute a rotation matrix from a forward vector and an up vector.
 
-    This matches the behavior of bproc.camera.rotation_from_forward_vec.
-    The camera's local forward is -Z, up is Y.
-
-    Args:
-        forward_vec: Direction the camera should face.
-        up_vec: World up vector.
-
-    Returns:
-        (3, 3) rotation matrix.
+    (3, 3) rotation matrix.
     """
     # Normalize forward vector
     f = forward_vec / np.linalg.norm(forward_vec)
@@ -118,11 +108,14 @@ def look_at_rotation(
     # Camera axes in world coordinates
     # cam_z = -f (forward is -Z)
     z_axis = -f
+
     # cam_x = up x cam_z (right is X)
-    x_axis = np.cross(up_vec, z_axis)
+    if up_vec is None:
+        up_vec = np.array([0, 0, 1], dtype=np.float64)
+    x_axis = np.cross(np.asarray(up_vec), np.asarray(z_axis))
     x_axis /= np.linalg.norm(x_axis)
     # cam_y = cam_z x cam_x (up is Y)
-    y_axis = np.cross(z_axis, x_axis)
+    y_axis = np.cross(np.asarray(z_axis), np.asarray(x_axis))
 
     # Rotation matrix columns are the world-space axes
     R = np.stack([x_axis, y_axis, z_axis], axis=1)

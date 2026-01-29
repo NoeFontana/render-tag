@@ -6,6 +6,7 @@ BEFORE any tests run or imports happen.
 """
 
 import sys
+import types
 from pathlib import Path
 
 import pytest
@@ -20,7 +21,7 @@ if str(src_path) not in sys.path:
 # because test files import modules that import blenderproc.
 
 # Import our mocks
-from tests.mocks import blender_api, blenderproc_api
+from tests.mocks import blender_api, blenderproc_api  # noqa: E402
 
 # Inject them into sys.modules
 sys.modules["bpy"] = blender_api
@@ -28,9 +29,9 @@ sys.modules["blenderproc"] = blenderproc_api
 
 # Mock mathutils
 if "mathutils" not in sys.modules:
-    import types
+    from typing import Any
 
-    mathutils = types.ModuleType("mathutils")
+    mathutils: Any = types.ModuleType("mathutils")
     mathutils.Matrix = lambda x=None: x if x is not None else []
     mathutils.Vector = lambda x=None: x
     sys.modules["mathutils"] = mathutils

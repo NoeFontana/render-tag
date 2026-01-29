@@ -13,10 +13,10 @@ Blender-specific mesh creation is kept separate.
 from __future__ import annotations
 
 import math
+from typing import TYPE_CHECKING
+
 import blenderproc as bproc
 import bpy
-
-from typing import TYPE_CHECKING
 
 from render_tag.geometry.board import (
     BoardSpec,
@@ -27,6 +27,7 @@ from render_tag.geometry.board import (
 
 if TYPE_CHECKING:
     import blenderproc.types as bproc_types
+
     MeshObject = bproc_types.MeshObject
 
 

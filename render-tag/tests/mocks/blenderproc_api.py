@@ -2,8 +2,6 @@
 Mock for BlenderProc module.
 """
 
-from typing import Any, List, Optional
-
 import numpy as np
 
 # Re-use MockObject from blender_api for consistency if needed,
@@ -69,7 +67,7 @@ class MockObjectModule:
 
 
 class MockCamera:
-    def get_intrinsics_as_K_matrix(self):
+    def get_intrinsics_as_K_matrix(self):  # noqa: N802
         return np.eye(3)
 
     def add_camera_pose(self, transform):
@@ -89,7 +87,7 @@ def init():
 
 
 # Singleton instances
-object = MockObjectModule()
+object = MockObjectModule()  # noqa: A001
 loader = MockLoader()
 camera = MockCamera()
 renderer = MockRenderer()

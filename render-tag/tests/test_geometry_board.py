@@ -24,7 +24,6 @@ from render_tag.geometry.board import (
     validate_no_overlaps,
 )
 
-
 # ============================================================================
 # BoardSpec Tests
 # ============================================================================
@@ -71,9 +70,7 @@ class TestBoardSpec:
 
     def test_expected_tag_count_aprilgrid(self) -> None:
         """AprilGrid tag count = total squares."""
-        spec = BoardSpec(
-            rows=6, cols=8, square_size=0.05, board_type=BoardType.APRILGRID
-        )
+        spec = BoardSpec(rows=6, cols=8, square_size=0.05, board_type=BoardType.APRILGRID)
         assert spec.expected_tag_count == spec.total_squares
 
     def test_corner_count_aprilgrid(self) -> None:
@@ -111,12 +108,8 @@ class TestCharucoLayout:
 
         for sq in layout.squares:
             expected_white = (sq.row + sq.col) % 2 == 0
-            assert sq.is_white == expected_white, (
-                f"Square ({sq.row},{sq.col}) has wrong color"
-            )
-            assert sq.has_tag == expected_white, (
-                f"Square ({sq.row},{sq.col}) tag status wrong"
-            )
+            assert sq.is_white == expected_white, f"Square ({sq.row},{sq.col}) has wrong color"
+            assert sq.has_tag == expected_white, f"Square ({sq.row},{sq.col}) tag status wrong"
 
     def test_charuco_has_white_border(self) -> None:
         """All corner squares should have same color (consistent border)."""
@@ -155,9 +148,7 @@ class TestAprilGridLayout:
 
     def test_aprilgrid_fills_all_cells(self) -> None:
         """Every cell should have a tag."""
-        spec = BoardSpec(
-            rows=5, cols=7, square_size=0.05, board_type=BoardType.APRILGRID
-        )
+        spec = BoardSpec(rows=5, cols=7, square_size=0.05, board_type=BoardType.APRILGRID)
         layout = compute_aprilgrid_layout(spec)
 
         is_valid, msg = validate_aprilgrid_filling(layout)
@@ -165,44 +156,34 @@ class TestAprilGridLayout:
 
     def test_aprilgrid_tag_count(self) -> None:
         """Tag count should equal total cells."""
-        spec = BoardSpec(
-            rows=5, cols=7, square_size=0.05, board_type=BoardType.APRILGRID
-        )
+        spec = BoardSpec(rows=5, cols=7, square_size=0.05, board_type=BoardType.APRILGRID)
         layout = compute_aprilgrid_layout(spec)
 
         assert len(layout.tag_positions) == 5 * 7
 
     def test_aprilgrid_corner_count(self) -> None:
         """Corner count should be (rows+1) * (cols+1)."""
-        spec = BoardSpec(
-            rows=5, cols=7, square_size=0.05, board_type=BoardType.APRILGRID
-        )
+        spec = BoardSpec(rows=5, cols=7, square_size=0.05, board_type=BoardType.APRILGRID)
         layout = compute_aprilgrid_layout(spec)
 
         assert len(layout.corner_positions) == 6 * 8  # (5+1) * (7+1) = 48
 
     def test_aprilgrid_positions_form_regular_grid(self) -> None:
         """Tag positions should form a regular grid with uniform spacing."""
-        spec = BoardSpec(
-            rows=4, cols=4, square_size=0.1, board_type=BoardType.APRILGRID
-        )
+        spec = BoardSpec(rows=4, cols=4, square_size=0.1, board_type=BoardType.APRILGRID)
         layout = compute_aprilgrid_layout(spec)
 
         # Check that horizontal spacing is uniform
-        xs = sorted(set(p.x for p in layout.tag_positions))
+        xs = sorted({p.x for p in layout.tag_positions})
         for i in range(1, len(xs)):
             spacing = xs[i] - xs[i - 1]
-            assert abs(spacing - spec.square_size) < 1e-9, (
-                f"Irregular x spacing: {spacing}"
-            )
+            assert abs(spacing - spec.square_size) < 1e-9, f"Irregular x spacing: {spacing}"
 
         # Check that vertical spacing is uniform
-        ys = sorted(set(p.y for p in layout.tag_positions))
+        ys = sorted({p.y for p in layout.tag_positions})
         for i in range(1, len(ys)):
             spacing = ys[i] - ys[i - 1]
-            assert abs(spacing - spec.square_size) < 1e-9, (
-                f"Irregular y spacing: {spacing}"
-            )
+            assert abs(spacing - spec.square_size) < 1e-9, f"Irregular y spacing: {spacing}"
 
 
 # ============================================================================
@@ -223,9 +204,7 @@ class TestGeometryInvariants:
 
     def test_board_is_centered_aprilgrid(self) -> None:
         """AprilGrid board should be centered at requested center."""
-        spec = BoardSpec(
-            rows=5, cols=7, square_size=0.05, board_type=BoardType.APRILGRID
-        )
+        spec = BoardSpec(rows=5, cols=7, square_size=0.05, board_type=BoardType.APRILGRID)
         layout = compute_aprilgrid_layout(spec, center=(-0.5, 0.5, 0.0))
 
         is_valid, msg = validate_board_is_centered(layout)
@@ -259,7 +238,7 @@ class TestGeometryInvariants:
         # Margin is half the square size, so marker_size = 0
         spec = BoardSpec(rows=4, cols=4, square_size=0.1, marker_margin=0.05)
 
-        is_valid, msg = validate_marker_fits_in_square(spec)
+        is_valid, _msg = validate_marker_fits_in_square(spec)
         # This should still pass since 0.1 - 2*0.05 = 0 which is not positive
         # Actually spec.marker_size = 0 which fails the "must be positive" check
         assert not is_valid

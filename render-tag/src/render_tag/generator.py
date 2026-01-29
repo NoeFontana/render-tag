@@ -7,9 +7,8 @@ by a separate Blender process. This isolates logical calculations from Blender.
 
 import json
 import random
-from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 import numpy as np
 
@@ -21,10 +20,7 @@ from render_tag.geometry.board import (
     compute_aprilgrid_layout,
     compute_charuco_layout,
 )
-from render_tag.geometry.camera import sample_camera_pose, validate_camera_pose
-from render_tag.geometry.math import (
-    look_at_rotation,  # Added for potentially more complex orientations
-)
+from render_tag.geometry.camera import sample_camera_pose
 from render_tag.schema import (
     CameraIntrinsics,
     CameraRecipe,
@@ -40,7 +36,7 @@ from render_tag.schema import (
 class Generator:
     """Generates scene recipes based on configuration."""
 
-    def __init__(self, config: Union[Dict[str, Any], GenConfig], output_dir: Path):
+    def __init__(self, config: dict[str, Any] | GenConfig, output_dir: Path):
         if isinstance(config, dict):
             # Try to validate/convert to GenConfig
             self.config = GenConfig.model_validate(config)
@@ -54,7 +50,7 @@ class Generator:
         random.seed(seed)
         np.random.seed(seed)
 
-    def generate_all(self) -> List[SceneRecipe]:
+    def generate_all(self) -> list[SceneRecipe]:
         """Generate all scene recipes requested in the config."""
         num_scenes = self.config.dataset.num_scenes
         recipes = []
@@ -98,7 +94,7 @@ class Generator:
             ),
         )
 
-    def _generate_layout_objects(self, scene_id: int) -> List[ObjectRecipe]:
+    def _generate_layout_objects(self, scene_id: int) -> list[ObjectRecipe]:
         tag_config = self.config.tag
         scenario_config = self.config.scenario
         # scene_config = self.config.scene # Not used for layout list?
@@ -108,9 +104,7 @@ class Generator:
         # Determine layout mode
         # If layouts list is defined, iterate through it
         if scenario_config.layouts:
-            layout_mode = scenario_config.layouts[
-                scene_id % len(scenario_config.layouts)
-            ]
+            layout_mode = scenario_config.layouts[scene_id % len(scenario_config.layouts)]
         else:
             layout_mode = scenario_config.layout
 
@@ -139,9 +133,7 @@ class Generator:
         # Generate Tag Objects
         for i in range(num_tags):
             family = random.choice(tag_families)
-            texture_base_path = (
-                str(tag_config.texture_path) if tag_config.texture_path else None
-            )
+            texture_base_path = str(tag_config.texture_path) if tag_config.texture_path else None
 
             tag_obj = ObjectRecipe(
                 type="TAG",
@@ -174,7 +166,7 @@ class Generator:
 
                 tag_bit_grid_size = TAG_GRID_SIZES.get(primary_family, 8)
 
-                tag_spacing_bits = scenario_config.tag_spacing_bits
+                tag_spacing_bits = scenario_config.tag_spacing_bits or 2
                 tag_spacing = (tag_spacing_bits / tag_bit_grid_size) * tag_size
                 square_size = tag_size + tag_spacing
 
@@ -197,7 +189,7 @@ class Generator:
 
         return objects
 
-    def _apply_flying_layout(self, objects: List[ObjectRecipe], radius: float):
+    def _apply_flying_layout(self, objects: list[ObjectRecipe], radius: float):
         for obj in objects:
             obj.location = [
                 random.uniform(-radius, radius),
@@ -212,7 +204,7 @@ class Generator:
 
     def _apply_grid_layout(
         self,
-        objects: List[ObjectRecipe],
+        objects: list[ObjectRecipe],
         mode: str,
         cols: int,
         rows: int,
@@ -220,16 +212,15 @@ class Generator:
     ):
         """Apply grid layout (math only)."""
         scenario_config = self.config.scenario
-        tag_config = self.config.tag
+        _tag_config = self.config.tag
 
         # Spacing logic
         tag_families = [f.value for f in scenario_config.tag_families]
         primary_family = tag_families[0]
-        from render_tag.common.constants import TAG_GRID_SIZES
 
         tag_bit_grid_size = TAG_GRID_SIZES.get(primary_family, 8)
 
-        tag_spacing_bits = scenario_config.tag_spacing_bits
+        tag_spacing_bits = scenario_config.tag_spacing_bits or 2
         tag_spacing = (tag_spacing_bits / tag_bit_grid_size) * tag_size
         square_size = tag_size + tag_spacing
         marker_margin = tag_spacing / 2.0
@@ -275,13 +266,11 @@ class Generator:
                 marker_margin=marker_margin,
                 board_type=BoardType.APRILGRID,
             )
-            layout = compute_aprilgrid_layout(
-                spec, corner_size=corner_size, center=(0, 0, 0)
-            )
+            layout = compute_aprilgrid_layout(spec, corner_size=corner_size, center=(0, 0, 0))
             self._apply_layout_to_objects(objects, layout, spec.marker_size)
 
     def _apply_layout_to_objects(
-        self, objects: List[ObjectRecipe], layout: Any, marker_size: float
+        self, objects: list[ObjectRecipe], layout: Any, marker_size: float
     ):
         tag_idx = 0
         for sq in layout.squares:
@@ -293,12 +282,12 @@ class Generator:
                 obj.properties["marker_size"] = marker_size
                 tag_idx += 1
 
-    def _generate_camera_recipes(self) -> List[CameraRecipe]:
+    def _generate_camera_recipes(self) -> list[CameraRecipe]:
         camera_config = self.config.camera
         samples_per_scene = camera_config.samples_per_scene
 
         recipes = []
-        for i in range(samples_per_scene):
+        for _ in range(samples_per_scene):
             # Sample pose
             pose = sample_camera_pose(
                 look_at_point=[0, 0, 0],
@@ -349,9 +338,7 @@ class Generator:
             intrinsics=camera_config.intrinsics.model_dump(),
         )
 
-    def save_recipe_json(
-        self, recipes: List[SceneRecipe], filename: str = "scene_recipes.json"
-    ):
+    def save_recipe_json(self, recipes: list[SceneRecipe], filename: str = "scene_recipes.json"):
         path = self.output_dir / filename
         # Pydantic serialization
         data = [json.loads(r.model_dump_json()) for r in recipes]
@@ -359,5 +346,5 @@ class Generator:
             json.dump(data, f, indent=2)
         return path
 
-    def _serialize_recipe(self, recipe: SceneRecipe) -> Dict[str, Any]:
+    def _serialize_recipe(self, recipe: SceneRecipe) -> dict[str, Any]:
         return recipe.model_dump()

@@ -9,9 +9,6 @@ It is invoked by the CLI via: blenderproc run blender_main.py --config <path>
 
 import argparse
 import json
-import math
-import os
-import random
 import sys
 from pathlib import Path
 
@@ -31,8 +28,11 @@ except ImportError:
     bpy = None  # type: ignore
 
 # Now we can import using the full package path
-from render_tag.scripts.assets import create_tag_plane, get_tag_texture_path
+from render_tag.common.constants import TAG_BIT_COUNTS
+from render_tag.data_io.types import DetectionRecord
+from render_tag.data_io.writers import COCOWriter, CSVWriter
 from render_tag.scripts.camera import sample_camera_poses, set_camera_intrinsics
+from render_tag.scripts.compositor import compose_scene
 from render_tag.scripts.projection import (
     check_tag_facing_camera,
     check_tag_visibility,
@@ -43,12 +43,6 @@ from render_tag.scripts.scene import (
     setup_background,
     setup_lighting,
 )
-from render_tag.common.constants import TAG_BIT_COUNTS
-from render_tag.scripts.compositor import compose_scene
-from render_tag.data_io.writers import COCOWriter, CSVWriter
-from render_tag.data_io.types import DetectionRecord
-
-
 
 
 def parse_args() -> argparse.Namespace:
@@ -70,7 +64,7 @@ def parse_args() -> argparse.Namespace:
         "--renderer-mode",
         choices=["cycles", "workbench", "eevee"],
         default="cycles",
-        help="Rendering engine: cycles (quality), workbench (instant wireframe), eevee (fast preview)",
+        help="Rendering engine: cycles (quality), workbench (instant), eevee (fast)",
     )
     return parser.parse_args()
 
@@ -168,13 +162,12 @@ def main() -> int:
     # Initialize BlenderProc
     bproc.init()
 
-
     # Get config sections
     camera_config = config.get("camera", {})
     tag_config = config.get("tag", {})
     scene_config = config.get("scene", {})
     physics_config = scene_config.get("physics", config.get("physics", {}))
-    board_config = config.get("board", {})
+    _board_config = config.get("board", {})
     scenario_config = config.get("scenario", {})
 
     # Set camera intrinsics
@@ -236,7 +229,7 @@ def main() -> int:
         setup_scene(config)
 
         # Compose the scene (tags, layout, physics)
-        tag_objects, layout_objects, layout_mode = compose_scene(
+        tag_objects, _layout_objects, layout_mode = compose_scene(
             scene_idx=scene_idx,
             tag_config=tag_config,
             scenario_config=scenario_config,
@@ -244,10 +237,12 @@ def main() -> int:
             physics_config=physics_config,
             tag_families=tag_families,
         )
-        
+
         # Get flying flag for camera sampling
         is_flying = scenario_config.get("flying", False)
-        sampling_mode = camera_config.get("sampling_mode", scenario_config.get("sampling_mode", "random"))
+        sampling_mode = camera_config.get(
+            "sampling_mode", scenario_config.get("sampling_mode", "random")
+        )
 
         # Setup lighting
         lighting_config = scene_config.get("lighting", {})
@@ -267,7 +262,11 @@ def main() -> int:
 
             # Sample ONE pose
             # For board layouts, look exactly at the center of the board
-            look_target = [0, 0, 0] if layout_mode in ("cb", "aprilgrid", "plain") else ([0, 0, 0.5] if is_flying else [0, 0, 0.05])
+            look_target = (
+                [0, 0, 0]
+                if layout_mode in ("cb", "aprilgrid", "plain")
+                else ([0, 0, 0.5] if is_flying else [0, 0, 0.05])
+            )
             poses = sample_camera_poses(
                 num_samples=1,
                 look_at_point=look_target,
@@ -304,20 +303,20 @@ def main() -> int:
                 valid_samples += 1
                 total_images += 1
                 total_detections += visible_tags_count
-                print(
-                    f"  [✓] Sample {valid_samples}/{samples_per_scene} (dist={np.linalg.norm(pose[:3, 3]):.2f}m) - {visible_tags_count} tags visible"
+                msg = (
+                    f"{scene_idx}.{valid_samples}: {samples_per_scene} "
+                    f"(dist={np.linalg.norm(pose[:3, 3]):.2f}m) - {visible_tags_count} tags"
                 )
+                print(msg)
             else:
                 if attempts % 100 == 0:
                     print(
-                        f"  [!] Attempt {attempts}/{max_total_attempts}: Still looking for visible pose..."
+                        f"  [!] Attempt {attempts}/{max_total_attempts}: "
+                        "Still looking for visible pose..."
                     )
         # Render ALL VALID camera poses at once (frames)
         # BlenderProc renders all poses added via bproc.camera.add_camera_pose
-        if valid_samples > 0:
-            rendered_data = bproc.renderer.render()
-        else:
-            rendered_data = {}
+        rendered_data = bproc.renderer.render() if valid_samples > 0 else {}
 
         # Process each rendered frame
         for cam_idx in range(valid_samples):
@@ -328,6 +327,7 @@ def main() -> int:
             # Save frame from rendered data
             if "colors" in rendered_data and len(rendered_data["colors"]) > cam_idx:
                 from PIL import Image
+
                 img_array = rendered_data["colors"][cam_idx]
                 Image.fromarray(img_array.astype(np.uint8)).save(str(image_path))
 
@@ -361,16 +361,14 @@ def main() -> int:
                     tag_family=tag_fam,
                     corners=corners_2d,
                 )
-                csv_writer.write_detection(
-                    detection, width=resolution[0], height=resolution[1]
-                )
+                csv_writer.write_detection(detection, width=resolution[0], height=resolution[1])
 
                 # Write to COCO
                 coco_writer.add_annotation(
                     image_id=coco_image_id,
                     category_id=coco_writer._category_map.get(tag_fam, 1),
                     corners=corners_2d,
-                    tag_id=tag_id,
+                    detection=detection,
                     width=resolution[0],
                     height=resolution[1],
                 )

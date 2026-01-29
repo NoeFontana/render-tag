@@ -16,7 +16,6 @@ import pytest
 
 from render_tag.cli import check_blenderproc_installed
 
-
 # Skip all tests in this file if blenderproc is not installed
 pytestmark = pytest.mark.skipif(
     not check_blenderproc_installed(), reason="BlenderProc is not installed"
@@ -131,9 +130,8 @@ physics:
             "x4",
             "y4",
         ]
-        assert all(f in reader.fieldnames for f in expected_fields), (
-            "Missing CSV fields"
-        )
+        assert reader.fieldnames is not None
+        assert all(f in reader.fieldnames for f in expected_fields), "Missing CSV fields"
 
         # Check values are within image bounds (100x100)
         for row in rows:

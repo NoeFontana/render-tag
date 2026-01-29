@@ -7,6 +7,7 @@ Handles camera pose sampling and validation without Blender dependencies.
 from __future__ import annotations
 
 from dataclasses import dataclass
+
 import numpy as np
 
 from render_tag.geometry.math import look_at_rotation, make_transformation_matrix
@@ -51,16 +52,8 @@ def sample_camera_pose(
     look_at_point = np.asarray(look_at_point)
 
     # 1. Sample spherical coordinates
-    dist = (
-        distance
-        if distance is not None
-        else np.random.uniform(min_distance, max_distance)
-    )
-    elev = (
-        elevation
-        if elevation is not None
-        else np.random.uniform(min_elevation, max_elevation)
-    )
+    dist = distance if distance is not None else np.random.uniform(min_distance, max_distance)
+    elev = elevation if elevation is not None else np.random.uniform(min_elevation, max_elevation)
     azim = azimuth if azimuth is not None else np.random.uniform(0, 2 * np.pi)
 
     # 2. Convert elevation to spherical phi (angle from vertical Z)
@@ -120,7 +113,5 @@ def validate_camera_pose(
         return False
 
     # Check height
-    if pose.location[2] < min_height:
-        return False
-
-    return True
+    # Check height
+    return not pose.location[2] < min_height

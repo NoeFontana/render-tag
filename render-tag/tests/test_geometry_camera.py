@@ -5,6 +5,7 @@ Unit tests for camera_geometry module.
 from __future__ import annotations
 
 import numpy as np
+
 from render_tag.geometry.camera import sample_camera_pose, validate_camera_pose
 
 
@@ -46,9 +47,7 @@ def test_validate_camera_pose():
 
     # Valid pose
     pose_ok = sample_camera_pose(look_at, distance=1.0, elevation=0.5)
-    assert (
-        validate_camera_pose(pose_ok, look_at, min_distance=0.5, min_height=0.1) is True
-    )
+    assert validate_camera_pose(pose_ok, look_at, min_distance=0.5, min_height=0.1) is True
 
     # Too close
     assert validate_camera_pose(pose_ok, look_at, min_distance=1.5) is False

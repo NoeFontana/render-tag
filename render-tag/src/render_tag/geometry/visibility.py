@@ -7,6 +7,7 @@ Handles facing checks and occupancy metrics without Blender dependencies.
 from __future__ import annotations
 
 import numpy as np
+
 from render_tag.geometry.math import compute_polygon_area
 
 
@@ -118,9 +119,7 @@ def validate_visibility_metrics(
     # 2. Compute area
     area = compute_polygon_area(corners_2d)
 
-    is_visible = bool(
-        (visible_corners >= min_visible_corners) and (area >= min_area_pixels)
-    )
+    is_visible = bool((visible_corners >= min_visible_corners) and (area >= min_area_pixels))
 
     metrics = {
         "visible_corners": int(visible_corners),

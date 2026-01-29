@@ -6,10 +6,11 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+
 from render_tag.geometry.math import (
     compute_polygon_area,
-    make_transformation_matrix,
     look_at_rotation,
+    make_transformation_matrix,
 )
 
 

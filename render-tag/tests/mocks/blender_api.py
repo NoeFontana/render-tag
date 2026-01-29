@@ -3,21 +3,21 @@ Mock for Blender's bpy module.
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 @dataclass
 class MockObject:
     name: str = "MockObject"
-    location: List[float] = field(default_factory=lambda: [0.0, 0.0, 0.0])
-    rotation_euler: List[float] = field(default_factory=lambda: [0.0, 0.0, 0.0])
-    scale: List[float] = field(default_factory=lambda: [1.0, 1.0, 1.0])
-    dimensions: List[float] = field(default_factory=lambda: [1.0, 1.0, 1.0])
+    location: list[float] = field(default_factory=lambda: [0.0, 0.0, 0.0])
+    rotation_euler: list[float] = field(default_factory=lambda: [0.0, 0.0, 0.0])
+    scale: list[float] = field(default_factory=lambda: [1.0, 1.0, 1.0])
+    dimensions: list[float] = field(default_factory=lambda: [1.0, 1.0, 1.0])
     data: Any = None
     pass_index: int = 0
 
     # Custom properties simulation
-    _properties: Dict[str, Any] = field(default_factory=dict)
+    _properties: dict[str, Any] = field(default_factory=dict)
 
     def __getitem__(self, key):
         return self._properties.get(key)
@@ -48,7 +48,8 @@ class MockCollection:
     def __init__(self):
         self._objects = {}
 
-    def new(self, name: str):
+    def new(self, *args: Any, **kwargs: Any) -> Any:
+        name = args[0] if args else kwargs.get("name", "MockObject")
         obj = MockObject(name=name)
         self._objects[name] = obj
         return obj
@@ -136,9 +137,7 @@ class MockNode(MockObject):
         self.inputs._objects["Alpha"] = MockSocket(name="Alpha")
         self.inputs._objects["Roughness"] = MockSocket(name="Roughness")
         self.inputs._objects["Specular"] = MockSocket(name="Specular")
-        self.inputs._objects["Specular IOR Level"] = MockSocket(
-            name="Specular IOR Level"
-        )
+        self.inputs._objects["Specular IOR Level"] = MockSocket(name="Specular IOR Level")
         self.inputs._objects["Emission"] = MockSocket(name="Emission")
         self.inputs._objects["Emission Strength"] = MockSocket(name="Emission Strength")
         self.outputs._objects["Color"] = MockSocket(name="Color")
@@ -148,7 +147,8 @@ class MockNode(MockObject):
 
 
 class MockNodes(MockCollection):
-    def new(self, type_name: str):
+    def new(self, name: str, **kwargs: Any) -> Any:
+        type_name = name
         node = MockNode(name=type_name)
 
         # Default sockets
@@ -190,7 +190,7 @@ class MockNodes(MockCollection):
 
 
 class MockLinks(MockCollection):
-    def new(self, input, output):
+    def new(self, input_socket: Any, output_socket: Any) -> Any:
         link = MockObject(name="Link")
         self._objects["Link"] = link
         return link
@@ -217,13 +217,18 @@ class MockMaterials(MockCollection):
         return mat
 
 
+class MockUVLayers(MockCollection):
+    def new(self, name: str = "UVLayer", **kwargs: Any) -> Any:
+        obj = MockObject(name=name)
+        self._objects[name] = obj
+        return obj
+
+
 class MockMesh(MockObject):
     def __init__(self, name="MockMesh"):
         super().__init__(name=name)
         self.materials = MockCollection()
-        self.uv_layers = MockCollection()
-        # Add 'new' to uv_layers
-        self.uv_layers.new = lambda name: MockObject(name=name)
+        self.uv_layers = MockUVLayers()
 
 
 class MockData:

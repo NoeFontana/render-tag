@@ -13,10 +13,9 @@ Usage:
 import argparse
 import csv
 from pathlib import Path
-from typing import Optional
 
 try:
-    from PIL import Image, ImageDraw, ImageFont
+    from PIL import Image, ImageDraw
 except ImportError:
     print("Error: PIL/Pillow is required. Install with: pip install Pillow")
     raise
@@ -98,7 +97,7 @@ def draw_detection(
 def visualize_image(
     image_path: Path,
     detections: list[dict],
-    output_path: Optional[Path] = None,
+    output_path: Path | None = None,
     show: bool = True,
 ) -> Image.Image:
     """Visualize detections on an image.
@@ -138,7 +137,7 @@ def visualize_image(
 
 def visualize_dataset(
     output_dir: Path,
-    specific_image: Optional[str] = None,
+    specific_image: str | None = None,
     save_viz: bool = True,
 ) -> None:
     """Visualize all or specific images in a dataset.
@@ -162,9 +161,7 @@ def visualize_dataset(
 
     # Load all detections
     detections = load_detections(csv_path)
-    print(
-        f"Loaded {sum(len(d) for d in detections.values())} detections from {len(detections)} images"
-    )
+    print(f"Loaded {sum(len(d) for d in detections.values())} dets from {len(detections)} imgs")
 
     if save_viz:
         viz_dir.mkdir(parents=True, exist_ok=True)
@@ -191,9 +188,7 @@ def visualize_dataset(
 
         output_path = viz_dir / f"{image_id}_viz.png" if save_viz else None
 
-        print(
-            f"Visualizing: {image_id} ({len(detections.get(image_id, []))} detections)"
-        )
+        print(f"Visualizing: {image_id} ({len(detections.get(image_id, []))} detections)")
         visualize_image(
             image_path,
             detections.get(image_id, []),
@@ -203,9 +198,7 @@ def visualize_dataset(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Visualize render-tag detections for debugging"
-    )
+    parser = argparse.ArgumentParser(description="Visualize render-tag detections for debugging")
     parser.add_argument(
         "--output",
         "-o",

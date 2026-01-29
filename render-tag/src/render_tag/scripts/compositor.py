@@ -1,9 +1,10 @@
 """
 Scene composition logic for render-tag.
 
-This module orchestrates the creation of tags, application of layouts, 
+This module orchestrates the creation of tags, application of layouts,
 and setup of board backgrounds.
 """
+
 from __future__ import annotations
 
 import math
@@ -21,8 +22,8 @@ except ImportError:
     bproc = None  # type: ignore
     bpy = None  # type: ignore
 
+from render_tag.common.constants import TAG_GRID_SIZES
 from render_tag.scripts.assets import create_tag_plane, get_tag_texture_path
-from render_tag.common.constants import TAG_BIT_COUNTS, TAG_GRID_SIZES
 from render_tag.scripts.layouts import apply_layout
 from render_tag.scripts.scene import create_board, create_floor, create_flying_layout
 
@@ -59,11 +60,11 @@ def compose_scene(
         layout_mode = scene_config.get("layout", scenario_config.get("layout", "plain"))
 
     # Create floor if NOT flying and NOT a board layout
-    # Note: create_floor returns a single object, but we don't need to track it 
+    # Note: create_floor returns a single object, but we don't need to track it
     # in layout_objects if it's passive/static floor unless we want to move it.
-    # However, blender_main previously created it but didn't return it to a list 
+    # However, blender_main previously created it but didn't return it to a list
     # unless it was part of physics setup?
-    # In blender_main, create_floor() was called but return value ignored. 
+    # In blender_main, create_floor() was called but return value ignored.
     # It creates a static object internally.
     if not is_flying and layout_mode not in ("cb", "aprilgrid", "plain"):
         create_floor()
@@ -85,9 +86,9 @@ def compose_scene(
         num_tags = random.randint(tags_range[0], tags_range[1])
         # For plain board, calculate grid dimensions based on tag count
         if layout_mode == "plain" and (cols * rows < num_tags):
-             # For plain layout (non-fixed grid), recalc cols/rows to fit tags
-             cols = math.ceil(math.sqrt(num_tags))
-             rows = math.ceil(num_tags / cols)
+            # For plain layout (non-fixed grid), recalc cols/rows to fit tags
+            cols = math.ceil(math.sqrt(num_tags))
+            rows = math.ceil(num_tags / cols)
 
     # Create tag objects
     tag_objects = []
@@ -112,23 +113,22 @@ def compose_scene(
 
     if is_flying:
         # Flying mode: ignore layout and scatter in volume
-        create_flying_layout(
-            tag_objects, volume_size=tag_config.get("scatter_radius", 0.5) * 2
-        )
+        create_flying_layout(tag_objects, volume_size=tag_config.get("scatter_radius", 0.5) * 2)
     else:
         # Standard mode: apply layout and settle with physics
-        
+
         # Calculate spacing logic
         primary_family = tag_families[0]
         tag_bit_grid_size = TAG_GRID_SIZES.get(primary_family, 8)
-        
+
         # Default to 2 bits spacing if nothing specified
-        tag_spacing_bits = scenario_config.get("tag_spacing_bits", 
-                                             tag_config.get("tag_spacing_bits", 2))
-        
+        tag_spacing_bits = scenario_config.get(
+            "tag_spacing_bits", tag_config.get("tag_spacing_bits", 2)
+        )
+
         # Calculate from bits
         tag_spacing = (tag_spacing_bits / tag_bit_grid_size) * tag_size
-        
+
         square_size = tag_size + tag_spacing
         marker_margin = tag_spacing / 2.0
         corner_size = tag_spacing

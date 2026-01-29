@@ -83,7 +83,7 @@ def generate(
         "cycles",
         "--renderer-mode",
         "-r",
-        help="Rendering engine: cycles (quality), workbench (instant wireframe), eevee (fast preview)",
+        help="Rendering engine: cycles, workbench, eevee",
     ),
 ) -> None:
     """
@@ -105,7 +105,7 @@ def generate(
             "[bold red]Error:[/bold red] blenderproc is not installed or not in PATH.\n"
             "Install it with: [cyan]pip install blenderproc[/cyan]"
         )
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from None
 
     # Load and validate configuration
     console.print(f"[dim]Loading config from[/dim] {config}")
@@ -113,10 +113,10 @@ def generate(
         gen_config = load_config(config)
     except FileNotFoundError:
         console.print(f"[bold red]Error:[/bold red] Config file not found: {config}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from None
     except ValueError as e:
         console.print(f"[bold red]Error:[/bold red] Invalid config: {e}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from None
 
     # Override num_scenes if provided
     # Create a modified config with the CLI-provided num_scenes
@@ -198,9 +198,7 @@ def generate(
         )
 
         if result.returncode != 0:
-            console.print(
-                f"[bold red]Rendering Failed![/bold red] Exit code: {result.returncode}"
-            )
+            console.print(f"[bold red]Rendering Failed![/bold red] Exit code: {result.returncode}")
             if result.stderr:
                 console.print(f"[red]Error output:[/red]\n{result.stderr[:1000]}")
             raise typer.Exit(code=result.returncode)
@@ -222,7 +220,7 @@ def generate(
 
     except subprocess.SubprocessError as e:
         console.print(f"[bold red]Error:[/bold red] Failed to run BlenderProc: {e}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from None
 
     finally:
         # Clean up temporary config file
@@ -272,7 +270,6 @@ def experiment(
     """
     import sys
 
-    from render_tag.config import GenConfig
     from render_tag.experiment import (
         expand_experiment,
         load_experiment_config,
@@ -289,7 +286,7 @@ def experiment(
     # Check dependencies
     if not check_blenderproc_installed():
         console.print("[bold red]Error:[/bold red] blenderproc not installed.")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from None
 
     # Load Experiment
     console.print(f"[dim]Loading experiment from[/dim] {config}")
@@ -297,13 +294,11 @@ def experiment(
         exp = load_experiment_config(config)
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] Invalid experiment config: {e}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from None
 
     # Expand Variants
     variants = expand_experiment(exp)
-    console.print(
-        f"[bold]Found {len(variants)} variants[/bold] for experiment '{exp.name}'"
-    )
+    console.print(f"[bold]Found {len(variants)} variants[/bold] for experiment '{exp.name}'")
 
     # Prepare Base Output
     exp_dir = output / exp.name
@@ -311,16 +306,14 @@ def experiment(
 
     # Execute Variants
     for i, variant in enumerate(variants):
-        console.print(
-            f"\n[bold cyan]Run {i + 1}/{len(variants)}: {variant.variant_id}[/bold cyan]"
-        )
+        console.print(f"\n[bold cyan]Run {i + 1}/{len(variants)}: {variant.variant_id}[/bold cyan]")
         console.print(f"[dim]Description: {variant.description}[/dim]")
 
         variant_dir = exp_dir / variant.variant_id
         variant_dir.mkdir(exist_ok=True)
 
         # Update config output dir for this variant
-        # (Though Generator takes output_dir explicitly, setting it in config is good for consistency)
+        # (Generator takes output_dir explicitly, setting it in config is for consistency)
         variant.config.dataset.output_dir = variant_dir
 
         # 1. Generate Recipes
@@ -371,24 +364,20 @@ def experiment(
                 text=True,
             )
             if result.returncode != 0:
-                console.print(
-                    f"[bold red]Variant {variant.variant_id} Failed![/bold red]"
-                )
+                console.print(f"[bold red]Variant {variant.variant_id} Failed![/bold red]")
                 if result.stderr:
                     console.print(f"[red]{result.stderr[:1000]}[/red]")
                 # We might want to continue to next variant or stop?
                 # Stopping is probably safer for experiments
-                raise typer.Exit(code=1)
+                raise typer.Exit(code=1) from None
 
             console.print(f"[green]✓ {variant.variant_id} Complete[/green]")
 
         except subprocess.SubprocessError as e:
             console.print(f"[bold red]Error running BlenderProc:[/bold red] {e}")
-            raise typer.Exit(code=1)
+            raise typer.Exit(code=1) from None
 
-    console.print(
-        f"\n[bold green]Experiment '{exp.name}' Completed Successfully![/bold green]"
-    )
+    console.print(f"\n[bold green]Experiment '{exp.name}' Completed Successfully![/bold green]")
     console.print(f"[dim]Results:[/dim] {exp_dir}")
 
 
@@ -420,10 +409,10 @@ def validate_config(
         console.print(f"  Samples/Scene: {gen_config.camera.samples_per_scene}")
     except FileNotFoundError:
         console.print(f"[bold red]Error:[/bold red] Config file not found: {config}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from None
     except ValueError as e:
         console.print(f"[bold red]Error:[/bold red] Invalid config: {e}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from None
 
 
 @app.command()
@@ -431,9 +420,7 @@ def info() -> None:
     """
     Show information about the render-tag installation.
     """
-    console.print(
-        "[bold]render-tag[/bold] - Synthetic Data Generator for Fiducial Markers\n"
-    )
+    console.print("[bold]render-tag[/bold] - Synthetic Data Generator for Fiducial Markers\n")
 
     # Check blenderproc
     if check_blenderproc_installed():
@@ -570,7 +557,7 @@ def viz_recipe(
         console.print(f"[bold green]✓ Visualization saved to:[/bold green] {output}")
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] Visualization failed: {e}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from None
 
 
 @app.command()
@@ -638,7 +625,7 @@ def validate_recipe(
         console.print("\n[bold red]Validation Failed:[/bold red]")
         for e in errors:
             console.print(e)
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from None
 
     console.print("\n[bold green]✓ Recipe is Valid![/bold green]")
 

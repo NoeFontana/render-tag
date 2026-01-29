@@ -4,13 +4,12 @@ Unit tests for the CLI module.
 
 import tempfile
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from typer.testing import CliRunner
 
 from render_tag.cli import app, check_blenderproc_installed, serialize_config_to_json
 from render_tag.config import GenConfig
-
 
 runner = CliRunner()
 
@@ -73,9 +72,7 @@ class TestCLIValidateCommand:
         assert result.exit_code in [0, 1, 2]
 
     def test_validate_missing_config(self) -> None:
-        result = runner.invoke(
-            app, ["validate", "--config", "/nonexistent/config.yaml"]
-        )
+        result = runner.invoke(app, ["validate", "--config", "/nonexistent/config.yaml"])
         assert result.exit_code != 0
 
 
@@ -91,9 +88,7 @@ class TestCLIGenerateCommand:
     def test_generate_without_blenderproc(self) -> None:
         # Mock blenderproc as not installed
         with patch("render_tag.cli.check_blenderproc_installed", return_value=False):
-            with tempfile.NamedTemporaryFile(
-                mode="w", suffix=".yaml", delete=False
-            ) as f:
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
                 f.write("dataset:\n  seed: 42\n")
                 config_path = f.name
 
@@ -117,9 +112,7 @@ class TestCLIGenerateCommand:
 
     @patch("subprocess.run")
     @patch("render_tag.cli.check_blenderproc_installed", return_value=True)
-    def test_generate_command_structure(
-        self, mock_check: patch, mock_run: patch
-    ) -> None:
+    def test_generate_command_structure(self, mock_check: MagicMock, mock_run: MagicMock) -> None:
         """Test that the blenderproc command is well-formed without actually running it."""
         import unittest.mock as mock
 
@@ -158,16 +151,14 @@ class TestCLIGenerateCommand:
 
             # Verify blender_main.py is referenced
             cmd_str = " ".join(cmd)
-            assert "blender_main.py" in cmd_str, (
-                "Command should reference blender_main.py"
-            )
+            assert "blender_main.py" in cmd_str, "Command should reference blender_main.py"
         finally:
             Path(config_path).unlink(missing_ok=True)
 
     @patch("subprocess.run")
     @patch("render_tag.cli.check_blenderproc_installed", return_value=True)
     def test_generate_config_serialization(
-        self, mock_check: patch, mock_run: patch
+        self, mock_check: MagicMock, mock_run: MagicMock
     ) -> None:
         """Test that config JSON is serialized and passed to subprocess."""
         import unittest.mock as mock
@@ -217,9 +208,7 @@ camera:
 
     @patch("subprocess.run")
     @patch("render_tag.cli.check_blenderproc_installed", return_value=True)
-    def test_generate_with_renderer_mode(
-        self, mock_check: patch, mock_run: patch
-    ) -> None:
+    def test_generate_with_renderer_mode(self, mock_check: MagicMock, mock_run: MagicMock) -> None:
         """Test that --renderer-mode flag is passed to subprocess."""
         import unittest.mock as mock
 
@@ -258,7 +247,7 @@ camera:
 
     @patch("subprocess.run")
     @patch("render_tag.cli.check_blenderproc_installed", return_value=True)
-    def test_generate_scenes_override(self, mock_check: patch, mock_run: patch) -> None:
+    def test_generate_scenes_override(self, mock_check: MagicMock, mock_run: MagicMock) -> None:
         """Test that --scenes flag overrides config value."""
         import unittest.mock as mock
 

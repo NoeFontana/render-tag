@@ -6,7 +6,7 @@ This module handles projecting 3D tag corners to 2D image coordinates.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     import numpy as np
@@ -30,8 +30,8 @@ from render_tag.geometry.visibility import (
 
 def project_corners_to_image(
     tag_obj: Any,
-    camera_matrix: Optional[np.ndarray] = None,
-) -> Optional[list[tuple[float, float]]]:
+    camera_matrix: np.ndarray | None = None,
+) -> list[tuple[float, float]] | None:
     """Project the 3D corners of a tag to 2D image coordinates.
 
     Args:
@@ -51,9 +51,7 @@ def project_corners_to_image(
 
     # Project all corners at once using shared utility
     k_matrix = (
-        camera_matrix
-        if camera_matrix is not None
-        else bproc.camera.get_intrinsics_as_K_matrix()
+        camera_matrix if camera_matrix is not None else bproc.camera.get_intrinsics_as_K_matrix()
     )
     # Use current camera matrix instead of bproc stored poses
     # Blender matrix_world: right=X, up=Y, forward=-Z

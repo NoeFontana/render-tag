@@ -45,8 +45,12 @@ def normalize_corner_order(
         List of 4 (x, y) tuples.
     """
     corners = np.asarray(corners)
+    assert corners.ndim == 2, "Corners must be a 2D array."
+    assert corners.shape[1] == 2, "Corners must have 2 columns (x, y)."
     if corners.shape != (4, 2):
-        return [tuple(float(c) for c in pt) for pt in corners]
+        # If not exactly 4 corners, return as-is after converting to tuples
+        return [(float(pt[0]), float(pt[1])) for pt in corners]
+    assert len(corners) == 4
 
     # Current logic in writers.py assumes input is CCW from BL
     # BL, BR, TR, TL
@@ -58,6 +62,7 @@ def normalize_corner_order(
     elif target_order == "ccw_bl":
         ordered = [bl, br, tr, tl]
     else:
-        ordered = list(corners)
+        # If target_order is unknown, return original corners as tuples
+        ordered = [(float(p[0]), float(p[1])) for p in corners]
 
     return [(float(p[0]), float(p[1])) for p in ordered]

@@ -11,7 +11,6 @@ Supports:
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional
 
 
 class BoardType(Enum):
@@ -42,7 +41,7 @@ class SquareInfo:
     center: BoardPosition
     is_white: bool  # True = white square (where tags go in ChArUco)
     has_tag: bool = False
-    tag_id: Optional[int] = None
+    tag_id: int | None = None
 
 
 @dataclass
@@ -363,7 +362,7 @@ def validate_board_is_centered(
     if dx > tolerance or dy > tolerance:
         return (
             False,
-            f"Board center ({actual_cx:.4f}, {actual_cy:.4f}) != expected ({layout.center.x}, {layout.center.y})",
+            f"Center ({actual_cx:.4f}, {actual_cy:.4f}) != ({layout.center.x}, {layout.center.y})",
         )
 
     return True, ""
@@ -424,11 +423,11 @@ def validate_marker_fits_in_square(spec: BoardSpec) -> tuple[bool, str]:
     return True, ""
 
 
-def validate_board_plausibility(layout: BoardLayout) -> list[tuple[bool, str]]:
+def validate_board_plausibility(layout: BoardLayout) -> list[tuple[str, bool, str]]:
     """Run all plausibility checks on a board layout.
 
     Returns:
-        List of (is_valid, error_message) tuples for each check
+        List of (check_name, is_valid, error_message) triplets for each check
     """
     results = []
 

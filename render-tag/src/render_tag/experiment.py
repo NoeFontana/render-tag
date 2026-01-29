@@ -5,12 +5,10 @@ Handles the expansion of high-level Experiment descriptions into concrete
 variants (SceneRecipes) and manages provenance (Manifests).
 """
 
-import copy
-import hashlib
 import json
 import random
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 import numpy as np
 
@@ -45,7 +43,7 @@ def load_experiment_config(path: Path) -> Experiment:
     return Experiment(**data)
 
 
-def expand_experiment(experiment: Experiment) -> List[ExperimentVariant]:
+def expand_experiment(experiment: Experiment) -> list[ExperimentVariant]:
     """Expand an Experiment into a list of concrete Variants.
 
     This performs a parameter sweep (grid search) across all defined sweeps.
@@ -103,16 +101,17 @@ def expand_experiment(experiment: Experiment) -> List[ExperimentVariant]:
         # A common pattern: Base seed + Variant Index if NOT locked.
 
         base_seeds = config_dict.get("dataset", {}).get("seeds", {})
-        # Ensure it exists if flat config was normalized differently (handled by schema but dict might vary)
+        # Ensure it exists if flat config was normalized differently
+        # (handled by schema but dict might vary)
         if "seeds" not in config_dict.get("dataset", {}):
             config_dict.setdefault("dataset", {})["seeds"] = {}
 
         global_seed = base_seeds.get("global_seed", 42)
 
         # We need to set explicit overrides in SeedConfig if they aren't locked
-        # If they ARE locked, we don't need to touch them (they default to global_seed or explicit override)
+        # If they ARE locked, we don't need to touch them.
         # BUT if we change global_seed, everything changes.
-        # So we usually keep global_seed constant for the experiment, but utilize the granular seeds.
+        # So we usually keep global_seed constant but utilize the granular seeds.
 
         seeds_update = {}
 
@@ -121,7 +120,8 @@ def expand_experiment(experiment: Experiment) -> List[ExperimentVariant]:
             seeds_update["layout"] = global_seed + i * 100
         elif "layout" not in base_seeds:
             # Explicitly lock it to global seed to be safe?
-            # No, SeedConfig defaults layout->global. So as long as global doesn't change we are good.
+            # No, SeedConfig defaults layout->global.
+            # So as long as global doesn't change we are good.
             pass
 
         if not experiment.lock_lighting:
@@ -138,8 +138,8 @@ def expand_experiment(experiment: Experiment) -> List[ExperimentVariant]:
             new_config = GenConfig.model_validate(config_dict)
         except Exception as e:
             raise ValueError(
-                f"Failed to create valid config for variant {variant_id} with overrides {overrides}: {e}"
-            )
+                f"Failed to create config for {variant_id} with {overrides}: {e}"
+            ) from e
 
         variants.append(
             ExperimentVariant(
@@ -154,9 +154,7 @@ def expand_experiment(experiment: Experiment) -> List[ExperimentVariant]:
     return variants
 
 
-def save_manifest(
-    output_dir: Path, variant: ExperimentVariant, cli_args: List[str] = None
-):
+def save_manifest(output_dir: Path, variant: ExperimentVariant, cli_args: list[str] | None = None):
     """Save a provenance manifest for a generated dataset."""
     import datetime
     import subprocess
@@ -164,9 +162,7 @@ def save_manifest(
     # Get Git SHA
     try:
         git_sha = (
-            subprocess.check_output(
-                ["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL
-            )
+            subprocess.check_output(["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL)
             .decode()
             .strip()
         )
@@ -174,7 +170,7 @@ def save_manifest(
         git_sha = "unknown"
 
     manifest = {
-        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "timestamp": datetime.datetime.now(datetime.UTC).isoformat(),
         "git_sha": git_sha,
         "command": " ".join(cli_args) if cli_args else "unknown",
         "experiment_name": variant.experiment_name,
@@ -195,11 +191,13 @@ def save_manifest(
         json.dump(manifest, f, indent=2)
 
 
-def _get_sweep_values(sweep: Sweep) -> List[Any]:
+def _get_sweep_values(sweep: Sweep) -> list[Any]:
     if sweep.type == SweepType.CATEGORICAL:
-        return sweep.values
+        return sweep.values or []
     elif sweep.type == SweepType.LINEAR:
         # Generate linear range
+        assert sweep.min is not None
+        assert sweep.max is not None
         if sweep.step:
             # arange may handle floats poorly, careful
             # Use linspace style logic if possible or exact steps
@@ -207,14 +205,19 @@ def _get_sweep_values(sweep: Sweep) -> List[Any]:
             curr = sweep.min
             while curr <= sweep.max + 1e-9:
                 values.append(curr)
-                curr += sweep.step
+                if sweep.step is not None:
+                    curr += sweep.step
+                else:
+                    break
             return values
-        elif sweep.steps:
+        elif sweep.steps is not None:
+            assert sweep.min is not None
+            assert sweep.max is not None
             return list(np.linspace(sweep.min, sweep.max, sweep.steps))
     return []
 
 
-def _update_nested_dict(d: Dict[str, Any], path: str, value: Any):
+def _update_nested_dict(d: dict[str, Any], path: str, value: Any):
     """Update a nested dictionary using dot-notation path."""
     parts = path.split(".")
     curr = d
@@ -223,8 +226,9 @@ def _update_nested_dict(d: Dict[str, Any], path: str, value: Any):
             curr[part] = {}
         curr = curr[part]
         if not isinstance(curr, dict):
-            # If we hit a Pydantic model dump that is a list or other type, we can't recurse easily with dot notation
-            # unless we support list indexing e.g. "cameras.0.fov"
+            # If we hit a Pydantic model dump that is a list or other type,
+            # we can't recurse easily with dot notation unless we support list indexing
+            # e.g. "cameras.0.fov"
             raise ValueError(f"Cannot traverse path '{path}' at '{part}': not a dict")
 
     curr[parts[-1]] = value

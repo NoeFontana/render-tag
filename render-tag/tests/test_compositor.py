@@ -1,6 +1,6 @@
-
 import sys
 from unittest.mock import MagicMock, patch
+
 import pytest
 
 # Mock blenderproc and bpy BEFORE importing modules that use them
@@ -8,19 +8,21 @@ sys.modules["blenderproc"] = MagicMock()
 sys.modules["bpy"] = MagicMock()
 
 # Now import the module under test
-from render_tag.scripts import compositor
+from render_tag.scripts import compositor  # noqa: E402
+
 
 class TestCompositor:
     @pytest.fixture
     def mock_dependencies(self):
-        with patch("render_tag.scripts.compositor.create_tag_plane") as mock_tag, \
-             patch("render_tag.scripts.compositor.apply_layout") as mock_layout, \
-             patch("render_tag.scripts.compositor.create_board") as mock_board, \
-             patch("render_tag.scripts.compositor.create_floor") as mock_floor, \
-             patch("render_tag.scripts.compositor.create_flying_layout") as mock_flying, \
-             patch("render_tag.scripts.compositor._setup_physics_for_objects") as mock_physics, \
-             patch("render_tag.scripts.compositor.get_tag_texture_path") as mock_texture:
-            
+        with (
+            patch("render_tag.scripts.compositor.create_tag_plane") as mock_tag,
+            patch("render_tag.scripts.compositor.apply_layout") as mock_layout,
+            patch("render_tag.scripts.compositor.create_board") as mock_board,
+            patch("render_tag.scripts.compositor.create_floor") as mock_floor,
+            patch("render_tag.scripts.compositor.create_flying_layout") as mock_flying,
+            patch("render_tag.scripts.compositor._setup_physics_for_objects") as mock_physics,
+            patch("render_tag.scripts.compositor.get_tag_texture_path") as mock_texture,
+        ):
             mock_tag.return_value = MagicMock()
             mock_texture.return_value = "path/to/texture.png"
             yield {
@@ -34,7 +36,11 @@ class TestCompositor:
 
     def test_compose_scene_plain_auto_calc(self, mock_dependencies):
         """Test composing a plain scene where grid size is auto-calculated."""
-        tag_config = {"size_meters": 0.1, "tags_per_scene": [4, 4], "grid_size": [1, 1]} # grid_size small to force recalc
+        tag_config = {
+            "size_meters": 0.1,
+            "tags_per_scene": [4, 4],
+            "grid_size": [1, 1],
+        }  # grid_size small to force recalc
         scenario_config = {"layout": "plain"}
         scene_config = {}
         physics_config = {"drop_height": 0.1}

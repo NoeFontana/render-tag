@@ -1,11 +1,11 @@
-import blenderproc as bproc
 import argparse
 import json
 import logging
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
+import blenderproc as bproc
 import numpy as np
 from PIL import Image
 
@@ -18,21 +18,17 @@ try:
 except ImportError:
     bpy = None
 
-from render_tag.common.constants import TAG_BIT_COUNTS
 from render_tag.data_io.types import DetectionRecord
 from render_tag.data_io.writers import COCOWriter, CSVWriter, RichTruthWriter
 from render_tag.scripts.assets import create_tag_plane, get_tag_texture_path
-from render_tag.scripts.camera import set_camera_intrinsics
 from render_tag.scripts.projection import (
     check_tag_facing_camera,
     check_tag_visibility,
     compute_geometric_metadata,
-    is_tag_sufficiently_visible,
     project_corners_to_image,
 )
 from render_tag.scripts.scene import (
     create_board,
-    create_floor,
     setup_background,
     setup_lighting,
 )
@@ -69,10 +65,10 @@ def apply_sensor_noise(image: np.ndarray, iso_level: float) -> np.ndarray:
 
 
 def get_valid_detections(
-    tag_objects: List[Any],
+    tag_objects: list[Any],
     min_visible_corners: int = 3,
     require_facing: bool = True,
-) -> List[Tuple[Any, np.ndarray]]:
+) -> list[tuple[Any, np.ndarray]]:
     """Determine which tags are adequately visible in the current camera view.
 
     Args:
@@ -99,9 +95,7 @@ def get_valid_detections(
 def parse_args() -> argparse.Namespace:
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(description="BlenderProc render-tag executor")
-    parser.add_argument(
-        "--recipe", type=Path, required=True, help="Path to scene_recipes.json"
-    )
+    parser.add_argument("--recipe", type=Path, required=True, help="Path to scene_recipes.json")
     parser.add_argument("--output", type=Path, required=True, help="Output directory")
     parser.add_argument(
         "--renderer-mode", choices=["cycles", "workbench", "eevee"], default="cycles"
@@ -110,7 +104,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def execute_recipe(
-    recipe: Dict[str, Any],
+    recipe: dict[str, Any],
     output_dir: Path,
     renderer_mode: str,
     csv_writer: CSVWriter,
@@ -160,9 +154,7 @@ def execute_recipe(
             tag_size = props["tag_size"]
             texture_base_path = props.get("texture_base_path")
 
-            texture_path = get_tag_texture_path(
-                family, texture_base_path, tag_id=tag_id
-            )
+            texture_path = get_tag_texture_path(family, texture_base_path, tag_id=tag_id)
             tag_obj = create_tag_plane(tag_size, texture_path, family, tag_id=tag_id)
 
             # Set properties for visibility/segmentation checks
@@ -185,9 +177,7 @@ def execute_recipe(
 
         elif obj_recipe["type"] == "BOARD":
             props = obj_recipe["properties"]
-            create_board(
-                props["cols"], props["rows"], props["square_size"], props["mode"]
-            )
+            create_board(props["cols"], props["rows"], props["square_size"], props["mode"])
 
     # Update categories in COCO writer
     for tag_obj in tag_objects:
@@ -197,7 +187,7 @@ def execute_recipe(
     rendered_outputs = []
     cam_recipes = recipe["cameras"]
 
-    for cam_idx, cam_recipe in enumerate(cam_recipes):
+    for _cam_idx, cam_recipe in enumerate(cam_recipes):
         bproc.utility.reset_keyframes()
 
         # Add camera pose
@@ -214,9 +204,7 @@ def execute_recipe(
             vx, vy, vz = velocity
             dt = shutter_time_ms / 1000.0
             start_matrix = mathutils.Matrix(pose_matrix)
-            end_loc = start_matrix.to_translation() + mathutils.Vector(
-                (vx * dt, vy * dt, vz * dt)
-            )
+            end_loc = start_matrix.to_translation() + mathutils.Vector((vx * dt, vy * dt, vz * dt))
             end_matrix = start_matrix.copy()
             end_matrix.translation = end_loc
 
@@ -347,9 +335,7 @@ def main() -> None:
     rich_writer = RichTruthWriter(output_dir / "rich_truth.json")
 
     for recipe in recipes:
-        execute_recipe(
-            recipe, output_dir, args.renderer_mode, csv_writer, coco_writer, rich_writer
-        )
+        execute_recipe(recipe, output_dir, args.renderer_mode, csv_writer, coco_writer, rich_writer)
 
     # Save all results
     coco_writer.save()
