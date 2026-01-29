@@ -276,6 +276,32 @@ class CameraConfig(BaseModel):
     elevation: Optional[float] = Field(default=None, description="Fixed elevation")
     azimuth: Optional[float] = Field(default=None, description="Fixed azimuth")
 
+    # Phase 5: Sensor Simulation Configs
+    velocity_mean: float = Field(
+        default=0.0, ge=0, description="Mean camera velocity (m/s) for motion blur"
+    )
+    velocity_std: float = Field(
+        default=0.0, ge=0, description="Std dev of camera velocity"
+    )
+    shutter_time_ms: float = Field(
+        default=10.0, gt=0, description="Shutter open time in milliseconds"
+    )
+
+    # Depth of Field
+    fstop: Optional[float] = Field(
+        default=None, gt=0, description="Lens aperture (f-stop). None=Infinite focus"
+    )
+    focus_distance: Optional[float] = Field(
+        default=None,
+        gt=0,
+        description="Fixed focus distance. None=Auto-focus on target",
+    )
+
+    # Sensor Noise/Distortion
+    iso_noise: float = Field(
+        default=0.0, ge=0, description="Simulated sensor gain/ISO noise level (0-1)"
+    )
+
     @property
     def width(self) -> int:
         return self.resolution[0]
