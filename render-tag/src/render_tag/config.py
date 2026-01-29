@@ -125,21 +125,56 @@ def get_min_pixel_area(tag_family: str | TagFamily) -> int:
     return TAG_BIT_COUNTS.get(tag_family, 36)  # Default to 36 if unknown
 
 
+class SeedConfig(BaseModel):
+    """Hierarchical random seed configuration.
+
+    Allows locking specific aspects of randomness while varying others.
+    """
+
+    global_seed: int = Field(default=42, description="Master seed")
+    layout: Optional[int] = Field(
+        default=None, description="Override for layout generation"
+    )
+    lighting: Optional[int] = Field(
+        default=None, description="Override for lighting generation"
+    )
+    camera: Optional[int] = Field(
+        default=None, description="Override for camera sampling"
+    )
+    noise: Optional[int] = Field(
+        default=None, description="Seed for image noise/augmentation"
+    )
+
+    @property
+    def layout_seed(self) -> int:
+        return self.layout if self.layout is not None else self.global_seed
+
+    @property
+    def lighting_seed(self) -> int:
+        return self.lighting if self.lighting is not None else self.global_seed
+
+    @property
+    def camera_seed(self) -> int:
+        return self.camera if self.camera is not None else self.global_seed
+
+    @property
+    def noise_seed(self) -> int:
+        return self.noise if self.noise is not None else self.global_seed + 1
+
+
 class DatasetConfig(BaseModel):
     """Dataset output configuration."""
 
     output_dir: Path = Field(
         default=Path("output"), description="Output directory for generated data"
     )
-    seed: int = Field(default=42, description="Random seed for reproducibility")
+    seeds: SeedConfig = Field(default_factory=SeedConfig, description="Random seeds")
     num_scenes: int = Field(default=1, gt=0, description="Number of scenes to generate")
 
-    @field_validator("seed")
-    @classmethod
-    def validate_seed(cls, v: int) -> int:
-        if v < 0:
-            raise ValueError("Seed must be non-negative")
-        return v
+    # Backwards compatibility property
+    @property
+    def seed(self) -> int:
+        return self.seeds.global_seed
 
 
 class CameraIntrinsics(BaseModel):
@@ -230,8 +265,12 @@ class CameraConfig(BaseModel):
         default_factory=CameraIntrinsics, description="Camera intrinsic parameters"
     )
     # Sampling parameters
-    min_distance: float = Field(default=0.5, gt=0, description="Minimum camera distance")
-    max_distance: float = Field(default=2.0, gt=0, description="Maximum camera distance")
+    min_distance: float = Field(
+        default=0.5, gt=0, description="Minimum camera distance"
+    )
+    max_distance: float = Field(
+        default=2.0, gt=0, description="Maximum camera distance"
+    )
     min_elevation: float = Field(default=0.3, ge=0, le=1, description="Min elevation")
     max_elevation: float = Field(default=0.9, ge=0, le=1, description="Max elevation")
     elevation: Optional[float] = Field(default=None, description="Fixed elevation")
@@ -489,7 +528,9 @@ def _convert_flat_config(flat: dict) -> dict:
         nested["physics"] = flat["physics"]
     if "output_dir" in flat:
         nested["dataset"]["output_dir"] = flat["output_dir"]
+    if "output_dir" in flat:
+        nested["dataset"]["output_dir"] = flat["output_dir"]
     if "seed" in flat:
-        nested["dataset"]["seed"] = flat["seed"]
+        nested["dataset"]["seeds"] = {"global_seed": flat["seed"]}
 
     return nested
