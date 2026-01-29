@@ -13,6 +13,15 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 
+from render_tag.schema import (
+    SceneRecipe,
+    ObjectRecipe,
+    CameraRecipe,
+    CameraIntrinsics,
+    WorldRecipe,
+    LightingConfig,
+)
+
 from render_tag.common.constants import TAG_GRID_SIZES
 from render_tag.geometry.board import (
     BoardSpec,
@@ -24,33 +33,7 @@ from render_tag.geometry.camera import sample_camera_pose, validate_camera_pose
 from render_tag.geometry.math import look_at_rotation # Added for potentially more complex orientations
 
 
-@dataclass
-class ObjectRecipe:
-    """Recipe for a single Blender object."""
-    type: str  # "MESH", "PLANE", "TAG", etc.
-    name: str
-    location: List[float]
-    rotation_euler: List[float]
-    scale: List[float]
-    properties: Dict[str, Any] = field(default_factory=dict)
-    material: Optional[str] = None
-    texture_path: Optional[str] = None
-
-
-@dataclass
-class CameraRecipe:
-    """Recipe for a camera pose and intrinsics."""
-    transform_matrix: List[List[float]]
-    intrinsics: Dict[str, Any]
-
-
-@dataclass
-class SceneRecipe:
-    """Complete recipe for a single scene."""
-    scene_id: int
-    objects: List[ObjectRecipe] = field(default_factory=list)
-    cameras: List[CameraRecipe] = field(default_factory=list)
-    world: Dict[str, Any] = field(default_factory=dict)
+# Removed dataclasses as they are replaced by schema.py imports
 
 
 class Generator:
@@ -84,19 +67,19 @@ class Generator:
 
         return recipe
 
-    def _generate_world_config(self) -> Dict[str, Any]:
+    def _generate_world_config(self) -> WorldRecipe:
         scene_config = self.config.get("scene", {})
         lighting_config = scene_config.get("lighting", {})
         
-        return {
-            "background_hdri": scene_config.get("background_hdri"),
-            "lighting": {
-                "intensity": random.uniform(
+        return WorldRecipe(
+            background_hdri=scene_config.get("background_hdri"),
+            lighting=LightingConfig(
+                intensity=random.uniform(
                     lighting_config.get("intensity_min", 50),
                     lighting_config.get("intensity_max", 500)
                 )
-            }
-        }
+            )
+        )
 
     def _generate_layout_objects(self, scene_id: int) -> List[ObjectRecipe]:
         tag_config = self.config.get("tag", {})
@@ -275,21 +258,21 @@ class Generator:
             ))
         return recipes
 
-    def _get_intrinsics_config(self) -> Dict[str, Any]:
+    def _get_intrinsics_config(self) -> CameraIntrinsics:
         camera_config = self.config.get("camera", {})
-        return {
-            "resolution": camera_config.get("resolution", [640, 480]),
-            "fov": camera_config.get("fov", 60.0),
-            "intrinsics": camera_config.get("intrinsics", {})
-        }
+        return CameraIntrinsics(
+            resolution=camera_config.get("resolution", [640, 480]),
+            fov=camera_config.get("fov", 60.0),
+            intrinsics=camera_config.get("intrinsics", {})
+        )
 
     def save_recipe_json(self, recipes: List[SceneRecipe], filename: str = "scene_recipes.json"):
         path = self.output_dir / filename
-        data = [self._serialize_recipe(r) for r in recipes]
+        # Pydantic serialization
+        data = [json.loads(r.model_dump_json()) for r in recipes]
         with open(path, "w") as f:
             json.dump(data, f, indent=2)
         return path
 
     def _serialize_recipe(self, recipe: SceneRecipe) -> Dict[str, Any]:
-        import dataclasses
-        return dataclasses.asdict(recipe)
+        return recipe.model_dump()

@@ -377,6 +377,41 @@ def _visualize_dataset(
 
 
 @app.command()
+def viz_recipe(
+    recipe: Path = typer.Option(
+        ...,
+        "--recipe",
+        "-r",
+        help="Path to the scene recipe JSON file",
+        exists=True,
+        dir_okay=False,
+    ),
+    output: Path = typer.Option(
+        "output/viz",
+        "--output",
+        "-o",
+        help="Output directory for visualizations",
+    ),
+) -> None:
+    """
+    Visualize a scene recipe in 2D (Shadow Render).
+    
+    Generates a top-down view of the layout for verification.
+    """
+    from .tools.viz_2d import visualize_recipe
+    
+    output.mkdir(parents=True, exist_ok=True)
+    console.print(f"[dim]Visualizing recipe:[/dim] {recipe}")
+    
+    try:
+        visualize_recipe(recipe, output)
+        console.print(f"[bold green]✓ Visualization saved to:[/bold green] {output}")
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] Visualization failed: {e}")
+        raise typer.Exit(code=1)
+
+
+@app.command()
 def viz(
     output: Path = typer.Option(
         ...,
@@ -408,6 +443,42 @@ def viz(
         specific_image=image,
         save_viz=not no_save,
     )
+
+
+@app.command()
+def validate_recipe(
+    recipe: Path = typer.Option(
+        ...,
+        "--recipe",
+        "-r",
+        help="Path to the scene recipe JSON file",
+        exists=True,
+        dir_okay=False,
+    ),
+) -> None:
+    """
+    Validate a scene recipe explicitly (Pre-Flight Check).
+    
+    Checks schema compliance, asset availability, and geometric integrity.
+    """
+    from .tools.validator import validate_recipe_file
+    
+    console.print(f"[dim]Validating recipe:[/dim] {recipe}")
+    
+    is_valid, errors, warnings = validate_recipe_file(recipe)
+    
+    if warnings:
+        console.print("\n[bold yellow]Warnings:[/bold yellow]")
+        for w in warnings:
+            console.print(w)
+            
+    if not is_valid:
+        console.print("\n[bold red]Validation Failed:[/bold red]")
+        for e in errors:
+            console.print(e)
+        raise typer.Exit(code=1)
+    
+    console.print("\n[bold green]✓ Recipe is Valid![/bold green]")
 
 
 def main() -> None:
