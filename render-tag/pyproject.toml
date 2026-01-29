@@ -27,4 +27,21 @@ build-backend = "hatchling.build"
 packages = ["src/render_tag"]
 
 [dependency-groups]
-dev = ["pytest", "ruff", "mypy"]
+dev = ["pytest", "ruff", "mypy", "ty"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "A", "C4", "SIM", "RUF"]
+ignore = []
+
+[tool.ruff.lint.isort]
+known-first-party = ["render_tag"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
