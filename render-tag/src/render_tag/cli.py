@@ -19,6 +19,7 @@ from rich.console import Console
 from rich.panel import Panel
 
 from .config import GenConfig, load_config
+from .generator import Generator
 
 app = typer.Typer(
     name="render-tag",
@@ -139,7 +140,15 @@ def generate(
     serialize_config_to_json(gen_config, job_config_path)
     console.print(f"[dim]Job config:[/dim] {job_config_path}")
 
-    # Pre-generate tag assets if they don't exist
+    # 1. Generate Scene Recipes (Pure Python)
+    console.print("\n[bold]Generating scene recipes...[/bold]")
+    generator = Generator(gen_config.model_dump(mode="json"), output)
+    recipes = generator.generate_all()
+    recipe_path = output / "scene_recipes.json"
+    generator.save_recipe_json(recipes, "scene_recipes.json")
+    console.print(f"[dim]Recipe saved to:[/dim] {recipe_path}")
+
+    # 2. Ensure tag assets (as before)
     from .tag_gen import ensure_tag_asset
 
     assets_dir = Path("assets/tags")
@@ -162,14 +171,14 @@ def generate(
                 console.print(f"  [dim]Checked asset:[/dim] {asset_path.name}")
 
     # Build the blenderproc command
-    script_path = Path(__file__).parent / "scripts" / "blender_main.py"
+    script_path = Path(__file__).parent / "scripts" / "executor.py"
 
     cmd = [
         "blenderproc",
         "run",
         str(script_path),
-        "--config",
-        str(job_config_path),
+        "--recipe",
+        str(recipe_path),
         "--output",
         str(output),
         "--renderer-mode",
