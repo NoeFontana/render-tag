@@ -109,6 +109,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--renderer-mode", choices=["cycles", "workbench", "eevee"], default="cycles"
     )
+    parser.add_argument("--shard-id", type=str, default="main", help="Unique ID for output files")
     return parser.parse_args()
 
 
@@ -364,7 +365,9 @@ def main() -> None:
     bproc.init()
 
     # Initialize writers
-    csv_writer = CSVWriter(output_dir / "tags.csv")
+    # Initialize writers
+    csv_filename = f"tags_shard_{args.shard_id}.csv"
+    csv_writer = CSVWriter(output_dir / csv_filename)
     coco_writer = COCOWriter(output_dir)
     rich_writer = RichTruthWriter(output_dir / "rich_truth.json")
 

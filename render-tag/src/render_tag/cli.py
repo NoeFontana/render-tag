@@ -5,11 +5,14 @@ This module runs in the standard system Python environment and manages
 the BlenderProc subprocess for rendering.
 """
 
+import concurrent.futures
 import csv
 import json
+import os
 import shutil
 import subprocess
 import tempfile
+import time
 from pathlib import Path
 from typing import Any
 
@@ -85,6 +88,22 @@ def generate(
         "-r",
         help="Rendering engine: cycles, workbench, eevee",
     ),
+    workers: int = typer.Option(
+        1,
+        "--workers",
+        "-w",
+        help="Number of parallel processes",
+    ),
+    shard_index: int = typer.Option(
+        -1,
+        "--shard-index",
+        help="Index of this shard [0-based]. If -1, auto-detects from Cloud ENV.",
+    ),
+    total_shards: int = typer.Option(
+        1,
+        "--total-shards",
+        help="Total number of shards (for Cloud/Cluster usage)",
+    ),
 ) -> None:
     """
     Generate synthetic fiducial marker training data.
@@ -138,14 +157,56 @@ def generate(
         job_config_path = Path(tmp_file.name)
 
     serialize_config_to_json(gen_config, job_config_path)
+    serialize_config_to_json(gen_config, job_config_path)
     console.print(f"[dim]Job config:[/dim] {job_config_path}")
+
+    # --- STRATEGY SELECTION ---
+
+    # 1. Resolve Shard Index (Cloud Auto-detect)
+    if shard_index == -1 and total_shards > 1:
+        shard_index = _resolve_shard_index()
+        if shard_index == -1:
+            # Fallback if detection failed but user asked for shards
+            # (This might happen if default is -1 but total_shards > 1 and NOT in cloud)
+            # But if workers > 1, we are in Local Manager Mode, so index -1 is fine there.
+            pass
+
+    # 2. Local Parallel (Manager Mode)
+    if workers > 1 and total_shards == 1:
+        console.print(f"[bold]Running Local Parallel Manager ({workers} workers)[/bold]")
+        _run_local_parallel(
+            config_path=config,
+            output_dir=output,
+            num_scenes=num_scenes,
+            workers=workers,
+            renderer_mode=renderer_mode,
+            verbose=verbose,
+        )
+        return
+
+    # 3. Worker / Cloud Mode
+    if shard_index == -1:
+        shard_index = 0  # Default to 0 if single process/worker
+
+    console.print(f"[bold]Running Shard {shard_index + 1}/{total_shards}[/bold]")
 
     # 1. Generate Scene Recipes (Pure Python)
     console.print("\n[bold]Generating scene recipes...[/bold]")
     generator = Generator(gen_config.model_dump(mode="json"), output)
-    recipes = generator.generate_all()
-    recipe_path = output / "scene_recipes.json"
-    generator.save_recipe_json(recipes, "scene_recipes.json")
+
+    # Use Sharded Generation
+    recipes = generator.generate_shards(
+        total_scenes=num_scenes, shard_index=shard_index, total_shards=total_shards
+    )
+
+    if not recipes:
+        console.print("[yellow]Empty shard range. Exiting.[/yellow]")
+        return
+
+    # Unique recipe filename for this shard
+    recipe_filename = f"recipes_shard_{shard_index}.json"
+    recipe_path = output / recipe_filename
+    generator.save_recipe_json(recipes, recipe_filename)
     console.print(f"[dim]Recipe saved to:[/dim] {recipe_path}")
 
     # 2. Ensure tag assets (as before)
@@ -183,6 +244,8 @@ def generate(
         str(output),
         "--renderer-mode",
         renderer_mode,
+        "--shard-id",
+        str(shard_index),
     ]
 
     console.print("\n[bold]Launching BlenderProc...[/bold]")
@@ -229,6 +292,106 @@ def generate(
 
         if job_config_path.exists():
             job_config_path.unlink()
+
+
+def _resolve_shard_index() -> int:
+    """Auto-detect shard index from common Cloud environments."""
+    # AWS Batch
+    if "AWS_BATCH_JOB_ARRAY_INDEX" in os.environ:
+        return int(os.environ["AWS_BATCH_JOB_ARRAY_INDEX"])
+
+    # GCP Cloud Run (Task Index)
+    if "CLOUD_RUN_TASK_INDEX" in os.environ:
+        return int(os.environ["CLOUD_RUN_TASK_INDEX"])
+
+    # Kubernetes (Job Completion Index)
+    if "JOB_COMPLETION_INDEX" in os.environ:
+        return int(os.environ["JOB_COMPLETION_INDEX"])
+
+    return -1
+
+
+def _run_local_parallel(
+    config_path: Path,
+    output_dir: Path,
+    num_scenes: int,
+    workers: int,
+    renderer_mode: str,
+    verbose: bool,
+):
+    """Spawns multiple instances of 'render-tag generate' recursively."""
+    # We call ourselves recursively, but setting total-shards = workers
+    # and NO workers flag (so it enters Worker Mode)
+
+    cmd_base = [
+        "render-tag",
+        "generate",
+        "--config",
+        str(config_path),
+        "--output",
+        str(output_dir),
+        "--scenes",
+        str(num_scenes),
+        "--renderer-mode",
+        renderer_mode,
+        "--total-shards",
+        str(workers),  # Split work exactly by worker count
+    ]
+    if verbose:
+        cmd_base.append("--verbose")
+
+    start_time = time.time()
+
+    with concurrent.futures.ProcessPoolExecutor(max_workers=workers) as executor:
+        futures = []
+        for i in range(workers):
+            # Recursive call sending specific shard index
+            cmd = cmd_base + ["--shard-index", str(i)]
+            futures.append(executor.submit(subprocess.run, cmd, check=True))
+
+        # Wait for all
+        for i, future in enumerate(concurrent.futures.as_completed(futures)):
+            try:
+                future.result()
+            except Exception as e:
+                console.print(f"[bold red]Worker failed:[/bold red] {e}")
+                raise typer.Exit(1)
+
+    elapsed = time.time() - start_time
+    console.print(f"[bold green]Parallel execution finished in {elapsed:.2f}s[/bold green]")
+
+    # Merge Results
+    _merge_csv_results(output_dir)
+
+
+def _merge_csv_results(output_dir: Path):
+    """Combine tags_shard_*.csv into tags.csv"""
+    console.print("Merging worker results...")
+    shards = list(output_dir.glob("tags_shard_*.csv"))
+    if not shards:
+        return
+
+    # Sort to ensure some deterministic order (though rows might be mixed if we just cat)
+    # Actually, we should probably sort by filename to keep index order
+    shards.sort(key=lambda p: p.name)
+
+    final_csv = output_dir / "tags.csv"
+    header_written = False
+
+    with open(final_csv, "w") as outfile:
+        for shard_file in shards:
+            with open(shard_file) as infile:
+                header = infile.readline()
+                if not header_written:
+                    outfile.write(header)
+                    header_written = True
+                # Write the rest
+                for line in infile:
+                    outfile.write(line)
+            # Cleanup
+            shard_file.unlink()
+
+    console.print(f"[dim]Merged {len(shards)} shards into[/dim] {final_csv}")
 
 
 @app.command()

@@ -58,6 +58,32 @@ class Generator:
             recipes.append(self.generate_scene(i))
         return recipes
 
+    def generate_shards(
+        self, total_scenes: int, shard_index: int, total_shards: int
+    ) -> list[SceneRecipe]:
+        """Generate a deterministic slice of the dataset."""
+        if total_shards > total_scenes:
+            total_shards = total_scenes
+            if shard_index >= total_shards:
+                return []
+
+        scenes_per_shard = total_scenes // total_shards
+        start_idx = shard_index * scenes_per_shard
+
+        # Ensure the last shard picks up any remainder
+        if shard_index == total_shards - 1:
+            end_idx = total_scenes
+        else:
+            end_idx = start_idx + scenes_per_shard
+
+        print(f"Generating Shard {shard_index + 1}/{total_shards} (Scenes {start_idx}-{end_idx})")
+
+        recipes = []
+        for i in range(start_idx, end_idx):
+            recipes.append(self.generate_scene(i))
+
+        return recipes
+
     def generate_scene(self, scene_id: int) -> SceneRecipe:
         """Generate a single scene recipe."""
         recipe = SceneRecipe(scene_id=scene_id)
