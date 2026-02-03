@@ -15,9 +15,13 @@ if TYPE_CHECKING:
 # BlenderProc imports (only available inside Blender)
 try:
     import blenderproc as bproc
+    import bpy
+    import mathutils
     import numpy as np
 except ImportError:
     bproc = None  # type: ignore
+    bpy = None  # type: ignore
+    mathutils = None  # type: ignore
     np = None  # type: ignore
 
 from render_tag.geometry.camera import (
@@ -176,3 +180,46 @@ def get_camera_k_matrix() -> np.ndarray:
         3x3 camera intrinsic matrix K
     """
     return bproc.camera.get_intrinsics_as_K_matrix()
+
+
+def setup_motion_blur(
+    pose_matrix: np.ndarray | list[list[float]],
+    velocity: list[float] | None,
+    shutter_time_ms: float,
+) -> None:
+    """Setup motion blur by adding a second camera keyframe.
+
+    Calculates the end position based on velocity and shutter time,
+    sets a keyframe at frame 1, and enables motion blur in Blender.
+
+    Args:
+        pose_matrix: 4x4 camera-to-world transformation matrix
+        velocity: [vx, vy, vz] velocity vector in m/s
+        shutter_time_ms: Shutter open time in milliseconds
+    """
+    if not (velocity and shutter_time_ms > 0):
+        if bpy:
+            bpy.context.scene.render.use_motion_blur = False
+        return
+
+    if not (bpy and bproc and mathutils):
+        return
+
+    vx, vy, vz = velocity
+    dt = shutter_time_ms / 1000.0
+
+    # Ensure pose_matrix is suitable for mathutils
+    start_matrix = mathutils.Matrix(pose_matrix)
+
+    # Calculate end location: start_loc + velocity * dt
+    # Note: We translate in WORLD space assuming velocity is in world space
+    end_loc = start_matrix.to_translation() + mathutils.Vector((vx * dt, vy * dt, vz * dt))
+
+    end_matrix = start_matrix.copy()
+    end_matrix.translation = end_loc
+
+    bproc.camera.add_camera_pose(end_matrix, frame=1)
+    bpy.context.scene.render.use_motion_blur = True
+
+    # Blender's motion blur factor. 1.0 means the blur covers the entire frame duration.
+    bpy.context.scene.render.motion_blur_shutter = 1.0

@@ -26,6 +26,7 @@ except ImportError:
     bpy = None
 
 from render_tag.backend.assets import create_tag_plane, get_tag_texture_path  # noqa: E402
+from render_tag.backend.camera import setup_motion_blur  # noqa: E402
 from render_tag.backend.projection import (  # noqa: E402
     check_tag_facing_camera,
     check_tag_visibility,
@@ -236,19 +237,7 @@ def execute_recipe(
         iso_noise = cam_recipe.get("iso_noise", 0.0)
 
         # Motion Blur
-        if velocity and shutter_time_ms > 0:
-            vx, vy, vz = velocity
-            dt = shutter_time_ms / 1000.0
-            start_matrix = mathutils.Matrix(pose_matrix)
-            end_loc = start_matrix.to_translation() + mathutils.Vector((vx * dt, vy * dt, vz * dt))
-            end_matrix = start_matrix.copy()
-            end_matrix.translation = end_loc
-
-            bproc.camera.add_camera_pose(end_matrix, frame=1)
-            bpy.context.scene.render.use_motion_blur = True
-            bpy.context.scene.render.motion_blur_shutter = 1.0
-        else:
-            bpy.context.scene.render.use_motion_blur = False
+        setup_motion_blur(pose_matrix, velocity, shutter_time_ms)
 
         # Depth of Field
         fstop = cam_recipe.get("fstop")
