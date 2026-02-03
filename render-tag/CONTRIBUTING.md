@@ -19,7 +19,9 @@ Thank you for your interest in contributing to `render-tag`!
 
 ### 1. Make Changes
 -   If changing generation logic, modify `src/render_tag/generator.py`.
--   If changing rendering logic, modify `src/render_tag/backend/executor.py`.
+-   If changing orchestration/sharding, modify `src/render_tag/orchestration/sharding.py`.
+-   If changing visualization/I/O, modify `src/render_tag/data_io/`.
+-   If changing rendering backend logic, modify `src/render_tag/backend/executor.py`.
 
 ### 2. Verify Config
 Ensure your changes didn't break config validation:

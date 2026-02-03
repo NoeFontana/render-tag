@@ -5,24 +5,20 @@ This module runs in the standard system Python environment and manages
 the BlenderProc subprocess for rendering.
 """
 
-import concurrent.futures
-import csv
 import json
-import os
 import shutil
 import subprocess
 import tempfile
-import time
 from pathlib import Path
-from typing import Any
 
 import typer
-from PIL import Image, ImageDraw
 from rich.console import Console
 from rich.panel import Panel
 
 from .config import GenConfig, load_config
+from .data_io.visualization import visualize_dataset, visualize_recipe
 from .generator import Generator
+from .orchestration.sharding import resolve_shard_index, run_local_parallel
 
 app = typer.Typer(
     name="render-tag",
@@ -137,11 +133,8 @@ def generate(
         console.print(f"[bold red]Error:[/bold red] Invalid config: {e}")
         raise typer.Exit(code=1) from None
 
-    # Override num_scenes if provided
-    # Create a modified config with the CLI-provided num_scenes
-    config_dict = gen_config.model_dump()
-    config_dict["dataset"]["num_scenes"] = num_scenes
-    gen_config = GenConfig.model_validate(config_dict)
+    # Apply CLI Overrides
+    gen_config.dataset.num_scenes = num_scenes
 
     # Create output directory
     output.mkdir(parents=True, exist_ok=True)
@@ -160,21 +153,14 @@ def generate(
     serialize_config_to_json(gen_config, job_config_path)
     console.print(f"[dim]Job config:[/dim] {job_config_path}")
 
-    # --- STRATEGY SELECTION ---
-
     # 1. Resolve Shard Index (Cloud Auto-detect)
     if shard_index == -1 and total_shards > 1:
-        shard_index = _resolve_shard_index()
-        if shard_index == -1:
-            # Fallback if detection failed but user asked for shards
-            # (This might happen if default is -1 but total_shards > 1 and NOT in cloud)
-            # But if workers > 1, we are in Local Manager Mode, so index -1 is fine there.
-            pass
+        shard_index = resolve_shard_index()
 
     # 2. Local Parallel (Manager Mode)
     if workers > 1 and total_shards == 1:
         console.print(f"[bold]Running Local Parallel Manager ({workers} workers)[/bold]")
-        _run_local_parallel(
+        run_local_parallel(
             config_path=config,
             output_dir=output,
             num_scenes=num_scenes,
@@ -301,105 +287,18 @@ def generate(
         if job_config_path.exists():
             job_config_path.unlink()
 
-
-def _resolve_shard_index() -> int:
-    """Auto-detect shard index from common Cloud environments."""
-    # AWS Batch
-    if "AWS_BATCH_JOB_ARRAY_INDEX" in os.environ:
-        return int(os.environ["AWS_BATCH_JOB_ARRAY_INDEX"])
-
-    # GCP Cloud Run (Task Index)
-    if "CLOUD_RUN_TASK_INDEX" in os.environ:
-        return int(os.environ["CLOUD_RUN_TASK_INDEX"])
-
-    # Kubernetes (Job Completion Index)
-    if "JOB_COMPLETION_INDEX" in os.environ:
-        return int(os.environ["JOB_COMPLETION_INDEX"])
-
-    return -1
-
-
-def _run_local_parallel(
-    config_path: Path,
-    output_dir: Path,
-    num_scenes: int,
-    workers: int,
-    renderer_mode: str,
-    verbose: bool,
-):
-    """Spawns multiple instances of 'render-tag generate' recursively."""
-    # We call ourselves recursively, but setting total-shards = workers
-    # and NO workers flag (so it enters Worker Mode)
-
-    cmd_base = [
-        "render-tag",
-        "generate",
-        "--config",
-        str(config_path),
-        "--output",
-        str(output_dir),
-        "--scenes",
-        str(num_scenes),
-        "--renderer-mode",
-        renderer_mode,
-        "--total-shards",
-        str(workers),  # Split work exactly by worker count
-    ]
-    if verbose:
-        cmd_base.append("--verbose")
-
-    start_time = time.time()
-
-    with concurrent.futures.ProcessPoolExecutor(max_workers=workers) as executor:
-        futures = []
-        for i in range(workers):
-            # Recursive call sending specific shard index
-            cmd = [*cmd_base, "--shard-index", str(i)]
-            futures.append(executor.submit(subprocess.run, cmd, check=True))
-
-        # Wait for all
-        for future in concurrent.futures.as_completed(futures):
-            try:
-                future.result()
-            except Exception as e:
-                console.print(f"[bold red]Worker failed:[/bold red] {e}")
-                raise typer.Exit(1) from None
-
-    elapsed = time.time() - start_time
-    console.print(f"[bold green]Parallel execution finished in {elapsed:.2f}s[/bold green]")
-
     # Merge Results
-    _merge_csv_results(output_dir)
+    if total_shards == 1:
+        # In single shard mode, executor might have output tags_shard_0.csv
+        # We handle this in the executor or here?
+        # Actually executor.py in single-shard mode outputs tags_shard_0.csv
+        # CLI expects tags.csv.
+        shard_csv = output / "tags_shard_0.csv"
+        if shard_csv.exists() and not (output / "tags.csv").exists():
+            shard_csv.rename(output / "tags.csv")
+            console.print("[dim]Renamed tags_shard_0.csv -> tags.csv[/dim]")
 
-
-def _merge_csv_results(output_dir: Path):
-    """Combine tags_shard_*.csv into tags.csv"""
-    console.print("Merging worker results...")
-    shards = list(output_dir.glob("tags_shard_*.csv"))
-    if not shards:
-        return
-
-    # Sort to ensure some deterministic order (though rows might be mixed if we just cat)
-    # Actually, we should probably sort by filename to keep index order
-    shards.sort(key=lambda p: p.name)
-
-    final_csv = output_dir / "tags.csv"
-    header_written = False
-
-    with open(final_csv, "w") as outfile:
-        for shard_file in shards:
-            with open(shard_file) as infile:
-                header = infile.readline()
-                if not header_written:
-                    outfile.write(header)
-                    header_written = True
-                # Write the rest
-                for line in infile:
-                    outfile.write(line)
-            # Cleanup
-            shard_file.unlink()
-
-    console.print(f"[dim]Merged {len(shards)} shards into[/dim] {final_csv}")
+    console.print("[bold green]✓ Generation session complete[/bold green]")
 
 
 @app.command()
@@ -620,82 +519,6 @@ def info() -> None:
     console.print(f"  ArUco: {len(arucos)} dictionaries")
 
 
-def _visualize_dataset(
-    output_dir: Path,
-    specific_image: Any = None,
-    save_viz: bool = True,
-) -> None:
-    """Internal helper to visualize dataset detections."""
-    csv_path = output_dir / "tags.csv"
-    images_dir = output_dir / "images"
-    viz_dir = output_dir / "visualizations"
-
-    if not csv_path.exists():
-        console.print(f"[bold red]Error:[/bold red] CSV file not found: {csv_path}")
-        return
-
-    # Load detections
-    detections: dict[str, list[dict]] = {}
-    with open(csv_path, newline="") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            img_id = row["image_id"]
-            if img_id not in detections:
-                detections[img_id] = []
-            detections[img_id].append(
-                {
-                    "tag_id": int(row["tag_id"]),
-                    "corners": [
-                        (float(row["x1"]), float(row["y1"])),
-                        (float(row["x2"]), float(row["y2"])),
-                        (float(row["x3"]), float(row["y3"])),
-                        (float(row["x4"]), float(row["y4"])),
-                    ],
-                }
-            )
-
-    if save_viz:
-        viz_dir.mkdir(parents=True, exist_ok=True)
-
-    image_ids = (
-        [specific_image]
-        if specific_image and specific_image in detections
-        else list(detections.keys())
-    )
-
-    for image_id in image_ids:
-        img_path = images_dir / f"{image_id}.png"
-        if not img_path.exists():
-            continue
-
-        img = Image.open(img_path).convert("RGB")
-        draw = ImageDraw.Draw(img)
-
-        for det in detections[image_id]:
-            corners = det["corners"]
-            # Draw polygon
-            for i in range(4):
-                draw.line([corners[i], corners[(i + 1) % 4]], fill="lime", width=2)
-            # Draw BL (red) and other corners
-            draw.ellipse(
-                [
-                    corners[0][0] - 4,
-                    corners[0][1] - 4,
-                    corners[0][0] + 4,
-                    corners[0][1] + 4,
-                ],
-                fill="red",
-            )
-
-        if save_viz:
-            out_path = viz_dir / f"{image_id}_viz.png"
-            img.save(out_path)
-            console.print(f"[dim]Saved visualization:[/dim] {out_path.name}")
-
-        if specific_image:
-            img.show()
-
-
 @app.command()
 def viz_recipe(
     recipe: Path = typer.Option(
@@ -718,8 +541,6 @@ def viz_recipe(
 
     Generates a top-down view of the layout for verification.
     """
-    from .tools.viz_2d import visualize_recipe
-
     output.mkdir(parents=True, exist_ok=True)
     console.print(f"[dim]Visualizing recipe:[/dim] {recipe}")
 
@@ -758,7 +579,7 @@ def viz(
     """
     Visualize detection annotations overlaid on rendered images.
     """
-    _visualize_dataset(
+    visualize_dataset(
         output,
         specific_image=image,
         save_viz=not no_save,

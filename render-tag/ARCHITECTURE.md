@@ -5,7 +5,9 @@
 ## High-Level Overview
 
 1.  **Host Process (Standard Python)**:
-    *   **CLI (`cli.py`)**: Entry point for users. Handles configuration validation and orchestration.
+    *   **CLI (`cli.py`)**: Entry point for users. Modularized to use `orchestration` for sharding.
+    *   **Orchestration (`orchestration/sharding.py`)**: Manages parallel execution, shard detection (AWS/GCP/K8s), and result merging.
+    *   **Visualization (`data_io/visualization.py`)**: Provides 2D recipe previews and 3D detection overlays.
     *   **Generator (`generator.py`)**: Pure logic component. detailed "Recipes" (`SceneRecipe`) for each scene based on the configuration. It is deterministic and has NO dependency on Blender.
     *   **Output**: The Host process produces a `scene_recipes.json` file, which acts as the contract between Host and Backend.
 
@@ -17,11 +19,18 @@
 
 ```
 src/render_tag/
-├── cli.py              # Host: CLI entry point
+├── cli.py              # Host: CLI entry point (slim)
 ├── config.py           # Host: Configuration schema
 ├── generator.py        # Host: Logic to create recipes
 ├── schema.py           # Shared: Data contracts (Recipes)
 ├── geometry/           # Shared: Pure math/geometry logic
+├── encapsulation/      # Host: (Optional) encapsulation layer
+├── orchestration/      # Host: Sharding and parallel execution logic
+│   └── sharding.py     #   - Shard detection and multiprocessing
+├── data_io/            # Shared/Host: Data input/output
+│   ├── visualization.py #   - 2D and 3D visualization tools
+│   ├── writers.py      #   - COCO, CSV, Rich truth writers
+│   └── types.py        #   - Shared data types
 ├── backend/            # Backend: Code running INSIDE Blender
 │   ├── executor.py     #   - Main driver
 │   ├── scene.py        #   - Scene setup (lights, background)
