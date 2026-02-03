@@ -269,6 +269,14 @@ def generate(
         console.print("\n[bold green]✓ Dataset generated successfully![/bold green]")
         console.print(f"[dim]Output saved to:[/dim] {output}")
 
+        # If running in single-shard mode (standard), rename the shard CSV to tags.csv
+        # for simpler usability.
+        if total_shards == 1:
+            shard_csv = output / f"tags_shard_{shard_index}.csv"
+            final_csv = output / "tags.csv"
+            if shard_csv.exists():
+                shard_csv.rename(final_csv)
+
         # Show summary of generated files
         images_dir = output / "images"
         if images_dir.exists():
@@ -346,16 +354,16 @@ def _run_local_parallel(
         futures = []
         for i in range(workers):
             # Recursive call sending specific shard index
-            cmd = cmd_base + ["--shard-index", str(i)]
+            cmd = [*cmd_base, "--shard-index", str(i)]
             futures.append(executor.submit(subprocess.run, cmd, check=True))
 
         # Wait for all
-        for i, future in enumerate(concurrent.futures.as_completed(futures)):
+        for future in concurrent.futures.as_completed(futures):
             try:
                 future.result()
             except Exception as e:
                 console.print(f"[bold red]Worker failed:[/bold red] {e}")
-                raise typer.Exit(1)
+                raise typer.Exit(1) from None
 
     elapsed = time.time() - start_time
     console.print(f"[bold green]Parallel execution finished in {elapsed:.2f}s[/bold green]")

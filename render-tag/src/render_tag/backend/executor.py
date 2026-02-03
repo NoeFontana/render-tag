@@ -1,4 +1,3 @@
-import os
 import sys
 
 # Move site-packages to the end to prioritize Blender's internal libraries (like NumPy)
@@ -7,15 +6,15 @@ sys.path = [p for p in sys.path if "site-packages" not in p] + [
     p for p in sys.path if "site-packages" in p
 ]
 
-import argparse
-import json
-import logging
-from pathlib import Path
-from typing import Any
+import argparse  # noqa: E402
+import json  # noqa: E402
+import logging  # noqa: E402
+from pathlib import Path  # noqa: E402
+from typing import Any  # noqa: E402
 
-import blenderproc as bproc
-import numpy as np
-from PIL import Image
+import blenderproc as bproc  # noqa: E402
+import numpy as np  # noqa: E402
+from PIL import Image  # noqa: E402
 
 # Add the src directory to sys.path
 sys.path.append(str(Path(__file__).resolve().parents[2]))
@@ -26,21 +25,21 @@ try:
 except ImportError:
     bpy = None
 
-from render_tag.backend.assets import create_tag_plane, get_tag_texture_path
-from render_tag.backend.projection import (
+from render_tag.backend.assets import create_tag_plane, get_tag_texture_path  # noqa: E402
+from render_tag.backend.projection import (  # noqa: E402
     check_tag_facing_camera,
     check_tag_visibility,
     compute_geometric_metadata,
     project_corners_to_image,
 )
-from render_tag.backend.scene import (
+from render_tag.backend.scene import (  # noqa: E402
     create_board,
     randomize_floor_material,
     setup_background,
     setup_lighting,
 )
-from render_tag.data_io.types import DetectionRecord
-from render_tag.data_io.writers import COCOWriter, CSVWriter, RichTruthWriter
+from render_tag.data_io.types import DetectionRecord  # noqa: E402
+from render_tag.data_io.writers import COCOWriter, CSVWriter, RichTruthWriter  # noqa: E402
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")

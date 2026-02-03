@@ -21,6 +21,8 @@ if str(src_path) not in sys.path:
 # because test files import modules that import blenderproc.
 
 # Import our mocks
+# Add root to sys.path to find 'tests'
+sys.path.append(str(Path(__file__).parent.parent))
 from tests.mocks import blender_api, blenderproc_api  # noqa: E402
 
 # Inject them into sys.modules

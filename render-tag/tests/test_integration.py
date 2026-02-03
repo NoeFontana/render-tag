@@ -217,7 +217,7 @@ tag:
 
         try:
             result = subprocess.run(
-                ["render-tag", "validate", "--config", config_path],
+                ["render-tag", "validate-config", "--config", config_path],
                 capture_output=True,
                 text=True,
             )
@@ -238,7 +238,7 @@ dataset:
 
         try:
             result = subprocess.run(
-                ["render-tag", "validate", "--config", config_path],
+                ["render-tag", "validate-config", "--config", config_path],
                 capture_output=True,
                 text=True,
             )

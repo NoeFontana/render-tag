@@ -71,10 +71,7 @@ class Generator:
         start_idx = shard_index * scenes_per_shard
 
         # Ensure the last shard picks up any remainder
-        if shard_index == total_shards - 1:
-            end_idx = total_scenes
-        else:
-            end_idx = start_idx + scenes_per_shard
+        end_idx = total_scenes if shard_index == total_shards - 1 else start_idx + scenes_per_shard
 
         print(f"Generating Shard {shard_index + 1}/{total_shards} (Scenes {start_idx}-{end_idx})")
 

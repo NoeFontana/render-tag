@@ -7,7 +7,7 @@ strict validation and type safety for all generation parameters.
 
 from enum import Enum
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 import yaml
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -167,6 +167,16 @@ class DatasetConfig(BaseModel):
     @property
     def seed(self) -> int:
         return self.seeds.global_seed
+
+    @model_validator(mode="before")
+    @classmethod
+    def map_legacy_seed(cls, data: Any) -> Any:
+        if isinstance(data, dict) and "seed" in data:
+            if "seeds" not in data:
+                data["seeds"] = {}
+            if isinstance(data["seeds"], dict):
+                data["seeds"]["global_seed"] = data["seed"]
+        return data
 
 
 class CameraIntrinsics(BaseModel):
