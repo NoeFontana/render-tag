@@ -7,8 +7,35 @@ that the "Executor" (Blender) or "Shadow Renderer" (Visualization) can consume s
 """
 
 from typing import Any
+from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field
+
+
+class NoiseType(str, Enum):
+    """Types of sensor noise models."""
+
+    GAUSSIAN = "gaussian"
+    POISSON = "poisson"
+    SALT_AND_PEPPER = "salt_and_pepper"
+
+
+class SensorNoiseConfig(BaseModel):
+    """Configuration for parametric sensor noise."""
+
+    model: NoiseType = Field(default=NoiseType.GAUSSIAN, description="Noise model type")
+
+    # Gaussian parameters
+    mean: float = Field(default=0.0, description="Mean for Gaussian noise")
+    stddev: float = Field(default=0.0, description="Standard deviation for Gaussian noise")
+
+    # Salt and Pepper parameters
+    salt_vs_pepper: float = Field(
+        default=0.5, ge=0.0, le=1.0, description="Probability of salt vs pepper"
+    )
+    amount: float = Field(
+        default=0.0, ge=0.0, le=1.0, description="Proportion of pixels to affect"
+    )
 
 
 class ObjectRecipe(BaseModel):
@@ -58,6 +85,9 @@ class CameraRecipe(BaseModel):
     fstop: float | None = Field(default=None, description="Aperture f-stop")
     focus_distance: float | None = Field(default=None, description="Focus distance in meters")
     iso_noise: float | None = Field(default=None, description="ISO noise level (0-1)")
+    sensor_noise: SensorNoiseConfig | None = Field(
+        default=None, description="Parametric sensor noise config"
+    )
 
 
 class LightingConfig(BaseModel):

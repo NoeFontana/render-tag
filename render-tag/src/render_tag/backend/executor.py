@@ -38,8 +38,10 @@ from render_tag.backend.scene import (  # noqa: E402
     setup_background,
     setup_lighting,
 )
+from render_tag.backend.sensors import apply_parametric_noise  # noqa: E402
 from render_tag.data_io.types import DetectionRecord  # noqa: E402
 from render_tag.data_io.writers import COCOWriter, CSVWriter, RichTruthWriter  # noqa: E402
+from render_tag.schema import SensorNoiseConfig  # noqa: E402
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
@@ -266,7 +268,16 @@ def execute_recipe(
 
         if "colors" in data:
             img = data["colors"][0]
-            if iso_noise > 0:
+            sensor_noise_data = cam_recipe.get("sensor_noise")
+            if sensor_noise_data:
+                # Apply new parametric noise
+                try:
+                    noise_config = SensorNoiseConfig(**sensor_noise_data)
+                    img = apply_parametric_noise(img, noise_config)
+                except Exception as e:
+                    logger.warning(f"Failed to apply parametric noise: {e}")
+            elif iso_noise > 0:
+                # Fallback to legacy ISO noise
                 img = apply_sensor_noise(img, iso_noise)
             rendered_outputs.append(img)
 
