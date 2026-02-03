@@ -81,22 +81,8 @@ class CSVWriter:
 
         self._ensure_initialized()
 
-        # CSV format uses standard CCW order from BL
-        ordered_corners = normalize_corner_order(detection.corners, target_order="ccw_bl")
-
-        # Clip if dimensions provided
-        if width is not None or height is not None:
-            ordered_corners = [
-                (
-                    max(0.0, min(float(width or 1e9), c[0])),
-                    max(0.0, min(float(height or 1e9), c[1])),
-                )
-                for c in ordered_corners
-            ]
-
-        row = [detection.image_id, detection.tag_id, detection.tag_family]
-        for corner in ordered_corners:
-            row.extend([f"{corner[0]:.4f}", f"{corner[1]:.4f}"])
+        # Delegate CSV formatting to the data record
+        row = detection.to_csv_row(width=width, height=height)
 
         with open(self.output_path, "a", newline="") as f:
             writer = csv.writer(f)
@@ -265,29 +251,3 @@ class RichTruthWriter:
         with open(self.output_path, "w") as f:
             json.dump(self._detections, f, indent=2)
         return self.output_path
-
-
-def corners_to_clockwise_order(
-    corners: list[tuple[float, float]],
-) -> list[tuple[float, float]]:
-    """Legacy helper maintained for backward compatibility."""
-    return normalize_corner_order(corners, target_order="cw_tl")
-
-
-def verify_corner_order(
-    corners: list[tuple[float, float]],
-    expected_order: str = "ccw",
-) -> bool:
-    """Verify that corners are in the expected winding order."""
-    if len(corners) != 4:
-        return False
-
-    # We need signed area for winding order
-    x = np.array([c[0] for c in corners])
-    y = np.array([c[1] for c in corners])
-    signed_area = 0.5 * (np.dot(x, np.roll(y, -1)) - np.dot(y, np.roll(x, -1)))
-
-    if expected_order == "ccw":
-        return bool(signed_area > 0)
-    else:  # cw
-        return bool(signed_area < 0)

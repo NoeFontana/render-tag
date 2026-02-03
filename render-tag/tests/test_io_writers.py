@@ -6,13 +6,9 @@ import json
 import tempfile
 from pathlib import Path
 
+from render_tag.data_io.annotations import normalize_corner_order, verify_corner_order
 from render_tag.data_io.types import DetectionRecord
-from render_tag.data_io.writers import (
-    COCOWriter,
-    CSVWriter,
-    corners_to_clockwise_order,
-    verify_corner_order,
-)
+from render_tag.data_io.writers import COCOWriter, CSVWriter
 
 
 class TestDetectionRecord:
@@ -185,7 +181,7 @@ class TestCornerOrdering:
         ccw_corners = [(0, 0), (100, 0), (100, 100), (0, 100)]
 
         # Output: TL, TR, BR, BL (CW from top-left)
-        cw_corners = corners_to_clockwise_order(ccw_corners)
+        cw_corners = normalize_corner_order(ccw_corners, target_order="cw_tl")
 
         assert cw_corners[0] == (0, 100)  # TL
         assert cw_corners[1] == (100, 100)  # TR

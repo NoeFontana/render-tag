@@ -66,3 +66,31 @@ def normalize_corner_order(
         ordered = [(float(p[0]), float(p[1])) for p in corners]
 
     return [(float(p[0]), float(p[1])) for p in ordered]
+
+
+def verify_corner_order(
+    corners: np.ndarray | list[tuple[float, float]],
+    expected_order: str = "ccw",
+) -> bool:
+    """Verify that corners are in the expected winding order.
+
+    Args:
+        corners: (4, 2) corner coordinates.
+        expected_order: "ccw" (positive area) or "cw" (negative area).
+
+    Returns:
+        True if the winding order matches.
+    """
+    corners = np.asarray(corners)
+    if len(corners) != 4:
+        return False
+
+    # We need signed area for winding order
+    x = corners[:, 0]
+    y = corners[:, 1]
+    signed_area = 0.5 * (np.dot(x, np.roll(y, -1)) - np.dot(y, np.roll(x, -1)))
+
+    if expected_order == "ccw":
+        return bool(signed_area > 0)
+    else:  # cw
+        return bool(signed_area < 0)

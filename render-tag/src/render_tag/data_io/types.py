@@ -43,14 +43,21 @@ class DetectionRecord:
     def to_csv_row(
         self, width: float | None = None, height: float | None = None
     ) -> list[str | int | float]:
-        """Convert to CSV row format (optionally clipped)."""
+        """Convert to CSV row format (normalized and optionally clipped)."""
+        from render_tag.data_io.annotations import normalize_corner_order
+
         row: list[str | int | float] = [self.image_id, self.tag_id, self.tag_family]
-        for x, y in self.corners:
+
+        # CSV format uses standard CCW order from BL
+        ordered_corners = normalize_corner_order(self.corners, target_order="ccw_bl")
+
+        for x, y in ordered_corners:
             if width is not None:
                 x = max(0.0, min(float(width), x))
             if height is not None:
                 y = max(0.0, min(float(height), y))
-            row.extend([x, y])
+            # Format to 4 decimal places for consistency
+            row.extend([float(f"{x:.4f}"), float(f"{y:.4f}")])
         return row
 
     @staticmethod

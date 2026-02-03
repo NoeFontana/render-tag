@@ -340,7 +340,7 @@ def experiment(
     """
     import sys
 
-    from render_tag.experiment import (
+    from render_tag.orchestration.experiment import (
         expand_experiment,
         load_experiment_config,
         save_manifest,

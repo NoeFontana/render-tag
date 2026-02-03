@@ -1,6 +1,6 @@
 from render_tag.config import GenConfig
-from render_tag.experiment import expand_experiment
-from render_tag.experiment_schema import Experiment, Sweep, SweepType
+from render_tag.orchestration.experiment import expand_experiment
+from render_tag.orchestration.experiment_schema import Experiment, Sweep, SweepType
 
 
 def test_expand_experiment_linear_sweep():
