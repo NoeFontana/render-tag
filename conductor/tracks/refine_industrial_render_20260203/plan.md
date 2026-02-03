@@ -1,0 +1,41 @@
+# Implementation Plan - Refine Industrial Rendering & Sensor Simulation
+
+This plan focuses on enhancing the photorealism and sensor accuracy of the `render-tag` pipeline.
+
+## Phase 1: Advanced Sensor Noise & Motion Blur
+**Goal:** Implement realistic camera artifacts to minimize the sim-to-real gap.
+
+- [x] Task: Implement Parametric Sensor Noise Models 70f7958
+    - [ ] Create `SensorNoiseConfig` Pydantic model in `src/render_tag/schema.py` supporting Gaussian, Poisson, and Salt-and-Pepper parameters.
+    - [ ] Implement noise generation logic in `src/render_tag/backend/camera.py` (or a new `sensors.py` module).
+    - [ ] Write unit tests for noise generation functions to ensure statistical correctness.
+    - [ ] Integrate noise application into the rendering pipeline in `src/render_tag/backend/executor.py`.
+- [ ] Task: Refine Procedural Motion Blur
+    - [ ] Update `CameraConfig` in `src/render_tag/schema.py` to include exposure time and velocity parameters.
+    - [ ] Implement motion blur calculation logic in `src/render_tag/backend/camera.py` utilizing Blender's motion blur settings.
+    - [ ] Write unit tests verifying that higher velocity/exposure time results in increased blur values.
+- [ ] Task: Conductor - User Manual Verification 'Phase 1: Advanced Sensor Noise & Motion Blur' (Protocol in workflow.md)
+
+## Phase 2: Industrial Lighting & Surface Imperfections
+**Goal:** Create realistic industrial environments and tag wear-and-tear.
+
+- [ ] Task: Industrial HDRi Lighting Presets
+    - [ ] Define new `LightingConfig` presets for "Factory", "Warehouse", and "Outdoor Industrial" in `src/render_tag/config.py` (or yaml configs).
+    - [ ] Ensure `src/render_tag/backend/scene.py` correctly loads and applies these HDRi maps.
+    - [ ] Validate that lighting intensity and rotation are randomized within realistic bounds.
+- [ ] Task: Procedural Surface Imperfections
+    - [ ] Create `TagSurfaceConfig` in `src/render_tag/schema.py` for scratches, dust, and specularity.
+    - [ ] Implement material shader modification logic in `src/render_tag/backend/assets.py` to apply these textures to tag meshes.
+    - [ ] Write tests ensuring that surface imperfection parameters correctly modify the material node tree in Blender.
+- [ ] Task: Conductor - User Manual Verification 'Phase 2: Industrial Lighting & Surface Imperfections' (Protocol in workflow.md)
+
+## Phase 3: Integration & Validation
+**Goal:** Verify the complete pipeline and ensure data integrity.
+
+- [ ] Task: Update "Shadow Render" for New Features
+    - [ ] Update `src/render_tag/generator.py` (and visualization tools) to approximate/visualize noise and lighting in the 2D preview.
+    - [ ] Ensure `validate-recipe` command covers the new configuration parameters.
+- [ ] Task: Full Pipeline Integration Test
+    - [ ] Create an integration test `tests/test_industrial_pipeline.py` that runs a full generation cycle with new features enabled.
+    - [ ] Verify that output images are generated and annotations are correct (bounding boxes match visible tags).
+- [ ] Task: Conductor - User Manual Verification 'Phase 3: Integration & Validation' (Protocol in workflow.md)
