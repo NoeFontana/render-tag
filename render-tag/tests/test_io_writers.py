@@ -6,7 +6,6 @@ import json
 import tempfile
 from pathlib import Path
 
-from render_tag.data_io.annotations import normalize_corner_order, verify_corner_order
 from render_tag.data_io.types import DetectionRecord
 from render_tag.data_io.writers import COCOWriter, CSVWriter
 
@@ -34,55 +33,52 @@ class TestDetectionRecord:
 
 
 class TestCSVWriter:
-    def test_write_single_detection(self) -> None:
-        with tempfile.TemporaryDirectory() as tmpdir:
-            csv_path = Path(tmpdir) / "tags.csv"
-            writer = CSVWriter(csv_path)
+    def test_write_single_detection(self, tmp_path: Path) -> None:
+        csv_path = tmp_path / "tags.csv"
+        writer = CSVWriter(csv_path)
 
-            corners = [(10.5, 20.5), (110.5, 20.5), (110.5, 120.5), (10.5, 120.5)]
-            detection = DetectionRecord(
-                image_id="scene_0001",
-                tag_id=0,
-                tag_family="tag36h11",
-                corners=corners,
-            )
-            writer.write_detection(detection)
+        corners = [(10.5, 20.5), (110.5, 20.5), (110.5, 120.5), (10.5, 120.5)]
+        detection = DetectionRecord(
+            image_id="scene_0001",
+            tag_id=0,
+            tag_family="tag36h11",
+            corners=corners,
+        )
+        writer.write_detection(detection)
 
-            # Read and verify
-            content = csv_path.read_text()
-            lines = content.strip().split("\n")
-            assert len(lines) == 2  # Header + 1 detection
-            assert lines[0] == "image_id,tag_id,tag_family,x1,y1,x2,y2,x3,y3,x4,y4"
-            assert "scene_0001" in lines[1]
-            assert "tag36h11" in lines[1]
+        # Read and verify
+        content = csv_path.read_text()
+        lines = content.strip().split("\n")
+        assert len(lines) == 2  # Header + 1 detection
+        assert lines[0] == "image_id,tag_id,tag_family,x1,y1,x2,y2,x3,y3,x4,y4"
+        assert "scene_0001" in lines[1]
+        assert "tag36h11" in lines[1]
 
-    def test_write_multiple_detections(self) -> None:
-        with tempfile.TemporaryDirectory() as tmpdir:
-            csv_path = Path(tmpdir) / "tags.csv"
-            writer = CSVWriter(csv_path)
+    def test_write_multiple_detections(self, tmp_path: Path) -> None:
+        csv_path = tmp_path / "tags.csv"
+        writer = CSVWriter(csv_path)
 
-            corners = [(0, 0), (100, 0), (100, 100), (0, 100)]
-            detections = [
-                DetectionRecord("img1", 0, "tag36h11", corners),
-                DetectionRecord("img2", 1, "tag36h11", corners),
-                DetectionRecord("img3", 2, "DICT_4X4_50", corners),
-            ]
-            writer.write_detections(detections)
+        corners = [(0, 0), (100, 0), (100, 100), (0, 100)]
+        detections = [
+            DetectionRecord("img1", 0, "tag36h11", corners),
+            DetectionRecord("img2", 1, "tag36h11", corners),
+            DetectionRecord("img3", 2, "DICT_4X4_50", corners),
+        ]
+        writer.write_detections(detections)
 
-            lines = csv_path.read_text().strip().split("\n")
-            assert len(lines) == 4  # Header + 3 detections
+        lines = csv_path.read_text().strip().split("\n")
+        assert len(lines) == 4  # Header + 3 detections
 
-    def test_skip_invalid_detection(self) -> None:
-        with tempfile.TemporaryDirectory() as tmpdir:
-            csv_path = Path(tmpdir) / "tags.csv"
-            writer = CSVWriter(csv_path)
+    def test_skip_invalid_detection(self, tmp_path: Path) -> None:
+        csv_path = tmp_path / "tags.csv"
+        writer = CSVWriter(csv_path)
 
-            # Invalid detection with only 3 corners
-            detection = DetectionRecord("img1", 0, "tag36h11", [(0, 0), (1, 1), (2, 2)])
-            writer.write_detection(detection)
+        # Invalid detection with only 3 corners
+        detection = DetectionRecord("img1", 0, "tag36h11", [(0, 0), (1, 1), (2, 2)])
+        writer.write_detection(detection)
 
-            # File should not be created since the only detection was invalid
-            assert not csv_path.exists()
+        # File should not be created since the only detection was invalid
+        assert not csv_path.exists()
 
 
 class TestCOCOWriter:
@@ -173,34 +169,3 @@ class TestCOCOWriter:
             assert bbox[1] == 50  # y_min
             assert bbox[2] == 150  # width (200 - 50)
             assert bbox[3] == 150  # height (200 - 50)
-
-
-class TestCornerOrdering:
-    def test_corners_to_clockwise_order(self) -> None:
-        # Input: BL, BR, TR, TL (CCW from bottom-left)
-        ccw_corners = [(0, 0), (100, 0), (100, 100), (0, 100)]
-
-        # Output: TL, TR, BR, BL (CW from top-left)
-        cw_corners = normalize_corner_order(ccw_corners, target_order="cw_tl")
-
-        assert cw_corners[0] == (0, 100)  # TL
-        assert cw_corners[1] == (100, 100)  # TR
-        assert cw_corners[2] == (100, 0)  # BR
-        assert cw_corners[3] == (0, 0)  # BL
-
-    def test_verify_corner_order_ccw(self) -> None:
-        # CCW ordered corners
-        corners = [(0, 0), (100, 0), (100, 100), (0, 100)]
-        assert verify_corner_order(corners, "ccw") is True
-        assert verify_corner_order(corners, "cw") is False
-
-    def test_verify_corner_order_cw(self) -> None:
-        # CW ordered corners (reversed)
-        corners = [(0, 100), (100, 100), (100, 0), (0, 0)]
-        assert verify_corner_order(corners, "cw") is True
-        assert verify_corner_order(corners, "ccw") is False
-
-    def test_verify_corner_order_invalid(self) -> None:
-        # Wrong number of corners
-        corners = [(0, 0), (100, 0), (100, 100)]
-        assert verify_corner_order(corners, "ccw") is False

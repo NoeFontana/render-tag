@@ -25,41 +25,31 @@ class TestCheckBlenderprocInstalled:
 
 
 class TestSerializeConfigToJson:
-    def test_serialize_default_config(self) -> None:
+    def test_serialize_default_config(self, tmp_path: Path) -> None:
         config = GenConfig()
+        output_path = tmp_path / "config.json"
 
-        with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:
-            output_path = Path(f.name)
+        serialize_config_to_json(config, output_path)
 
-        try:
-            serialize_config_to_json(config, output_path)
+        assert output_path.exists()
+        content = output_path.read_text()
+        assert "camera" in content
+        assert "tag" in content
+        assert "dataset" in content
 
-            assert output_path.exists()
-            content = output_path.read_text()
-            assert "camera" in content
-            assert "tag" in content
-            assert "dataset" in content
-        finally:
-            output_path.unlink(missing_ok=True)
-
-    def test_serialize_custom_config(self) -> None:
+    def test_serialize_custom_config(self, tmp_path: Path) -> None:
         config = GenConfig()
         config.camera.resolution = (1920, 1080)
+        output_path = tmp_path / "custom_config.json"
 
-        with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:
-            output_path = Path(f.name)
+        serialize_config_to_json(config, output_path)
 
-        try:
-            serialize_config_to_json(config, output_path)
+        import json
 
-            import json
+        with open(output_path) as f:
+            data = json.load(f)
 
-            with open(output_path) as f:
-                data = json.load(f)
-
-            assert data["camera"]["resolution"] == [1920, 1080]
-        finally:
-            output_path.unlink(missing_ok=True)
+        assert data["camera"]["resolution"] == [1920, 1080]
 
 
 class TestCLIValidateCommand:
@@ -85,34 +75,32 @@ class TestCLIInfoCommand:
 
 
 class TestCLIGenerateCommand:
-    def test_generate_without_blenderproc(self) -> None:
+    def test_generate_without_blenderproc(self, tmp_path: Path) -> None:
         # Mock blenderproc as not installed
         with patch("render_tag.cli.check_blenderproc_installed", return_value=False):
-            with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
-                f.write("dataset:\n  seed: 42\n")
-                config_path = f.name
+            config_path = tmp_path / "config.yaml"
+            config_path.write_text("dataset:\n  seed: 42\n")
 
-            try:
-                result = runner.invoke(
-                    app,
-                    [
-                        "generate",
-                        "--config",
-                        config_path,
-                        "--output",
-                        "/tmp/test_output",
-                    ],
-                )
+            result = runner.invoke(
+                app,
+                [
+                    "generate",
+                    "--config",
+                    str(config_path),
+                    "--output",
+                    str(tmp_path / "test_output"),
+                ],
+            )
 
-                # Should fail because blenderproc is not installed
-                assert result.exit_code == 1
-                assert "blenderproc" in result.stdout.lower()
-            finally:
-                Path(config_path).unlink(missing_ok=True)
+            # Should fail because blenderproc is not installed
+            assert result.exit_code == 1
+            assert "blenderproc" in result.stdout.lower()
 
     @patch("subprocess.run")
     @patch("render_tag.cli.check_blenderproc_installed", return_value=True)
-    def test_generate_command_structure(self, mock_check: MagicMock, mock_run: MagicMock) -> None:
+    def test_generate_command_structure(
+        self, mock_check: MagicMock, mock_run: MagicMock, tmp_path: Path
+    ) -> None:
         """Test that the blenderproc command is well-formed without actually running it."""
         import unittest.mock as mock
 
@@ -125,50 +113,44 @@ class TestCLIGenerateCommand:
             mock_gen_instance = MockGenerator.return_value
             mock_gen_instance.generate_shards.return_value = [{"some": "recipe"}]
 
-            with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
-                f.write("dataset:\n  seed: 42\n")
-                config_path = f.name
+            config_path = tmp_path / "config.yaml"
+            config_path.write_text("dataset:\n  seed: 42\n")
 
-            try:
-                runner.invoke(
-                    app,
-                    [
-                        "generate",
-                        "--config",
-                        config_path,
-                        "--output",
-                        "/tmp/test_output_cmd",
-                    ],
-                )
+            runner.invoke(
+                app,
+                [
+                    "generate",
+                    "--config",
+                    str(config_path),
+                    "--output",
+                    str(tmp_path / "test_output_cmd"),
+                ],
+            )
 
-                # Verify subprocess.run was called
-                assert mock_run.called, "subprocess.run should have been called"
+            # Verify subprocess.run was called
+            assert mock_run.called, "subprocess.run should have been called"
 
-                # Get the command that was passed to subprocess.run
-                call_args = mock_run.call_args
-                cmd = call_args[0][0]  # First positional arg is the command list
+            # Get the command that was passed to subprocess.run
+            call_args = mock_run.call_args
+            cmd = call_args[0][0]  # First positional arg is the command list
 
-                # Verify command structure
-                assert "blenderproc" in cmd, "Command should include 'blenderproc'"
-                assert "run" in cmd, "Command should include 'run'"
-                # New CLI passes --recipe, not --config to the backend script
-                assert "--recipe" in cmd, "Command should include '--recipe'"
-                assert "--output" in cmd, "Command should include '--output'"
-                assert "--renderer-mode" in cmd, "Command should include '--renderer-mode'"
-                assert "--shard-id" in cmd, "Command should include '--shard-id'"
+            # Verify command structure
+            assert "blenderproc" in cmd, "Command should include 'blenderproc'"
+            assert "run" in cmd, "Command should include 'run'"
+            # New CLI passes --recipe, not --config to the backend script
+            assert "--recipe" in cmd, "Command should include '--recipe'"
+            assert "--output" in cmd, "Command should include '--output'"
+            assert "--renderer-mode" in cmd, "Command should include '--renderer-mode'"
+            assert "--shard-id" in cmd, "Command should include '--shard-id'"
 
-                # Verify executor is referenced
-                cmd_str = " ".join(cmd)
-                assert "backend/executor.py" in cmd_str, (
-                    "Command should reference backend/executor.py"
-                )
-            finally:
-                Path(config_path).unlink(missing_ok=True)
+            # Verify executor is referenced
+            cmd_str = " ".join(cmd)
+            assert "backend/executor.py" in cmd_str, "Command should reference backend/executor.py"
 
     @patch("subprocess.run")
     @patch("render_tag.cli.check_blenderproc_installed", return_value=True)
     def test_generate_config_serialization(
-        self, mock_check: MagicMock, mock_run: MagicMock
+        self, mock_check: MagicMock, mock_run: MagicMock, tmp_path: Path
     ) -> None:
         """Test that recipe JSON is generated and passed to subprocess."""
         import unittest.mock as mock
@@ -180,44 +162,42 @@ class TestCLIGenerateCommand:
             # return a dummy recipe list
             mock_gen_instance.generate_shards.return_value = [{"scene_id": 0}]
 
-            with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
-                f.write("""
+            config_path = tmp_path / "test_config.yaml"
+            config_path.write_text("""
 dataset:
   seed: 12345
 """)
-                config_path = f.name
 
-            try:
-                runner.invoke(
-                    app,
-                    [
-                        "generate",
-                        "--config",
-                        config_path,
-                        "--output",
-                        "/tmp/test_output_serialization",
-                        "--scenes",
-                        "5",
-                    ],
-                )
+            runner.invoke(
+                app,
+                [
+                    "generate",
+                    "--config",
+                    str(config_path),
+                    "--output",
+                    str(tmp_path / "test_output_serialization"),
+                    "--scenes",
+                    "5",
+                ],
+            )
 
-                # Get the command and find the recipe path
-                call_args = mock_run.call_args
-                cmd = call_args[0][0]
+            # Get the command and find the recipe path
+            call_args = mock_run.call_args
+            cmd = call_args[0][0]
 
-                # Find the JSON recipe path in the command
-                recipe_idx = cmd.index("--recipe") + 1
-                json_recipe_path = Path(cmd[recipe_idx])
+            # Find the JSON recipe path in the command
+            recipe_idx = cmd.index("--recipe") + 1
+            json_recipe_path = Path(cmd[recipe_idx])
 
-                # Verify the JSON file name pattern
-                assert "recipes_shard_" in str(json_recipe_path.name)
-                assert json_recipe_path.suffix == ".json"
-            finally:
-                Path(config_path).unlink(missing_ok=True)
+            # Verify the JSON file name pattern
+            assert "recipes_shard_" in str(json_recipe_path.name)
+            assert json_recipe_path.suffix == ".json"
 
     @patch("subprocess.run")
     @patch("render_tag.cli.check_blenderproc_installed", return_value=True)
-    def test_generate_with_renderer_mode(self, mock_check: MagicMock, mock_run: MagicMock) -> None:
+    def test_generate_with_renderer_mode(
+        self, mock_check: MagicMock, mock_run: MagicMock, tmp_path: Path
+    ) -> None:
         """Test that --renderer-mode flag is passed to subprocess."""
         import unittest.mock as mock
 
@@ -228,40 +208,38 @@ dataset:
             mock_gen_instance = MockGenerator.return_value
             mock_gen_instance.generate_shards.return_value = [{"scene": 1}]
 
-            with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
-                f.write("dataset:\n  seed: 42\n")
-                config_path = f.name
+            config_path = tmp_path / "config.yaml"
+            config_path.write_text("dataset:\n  seed: 42\n")
 
-            try:
-                # Test with workbench mode
-                runner.invoke(
-                    app,
-                    [
-                        "generate",
-                        "--config",
-                        config_path,
-                        "--output",
-                        "/tmp/test_output_renderer",
-                        "--renderer-mode",
-                        "workbench",
-                    ],
-                )
+            # Test with workbench mode
+            runner.invoke(
+                app,
+                [
+                    "generate",
+                    "--config",
+                    str(config_path),
+                    "--output",
+                    str(tmp_path / "test_output_renderer"),
+                    "--renderer-mode",
+                    "workbench",
+                ],
+            )
 
-                call_args = mock_run.call_args
-                cmd = call_args[0][0]
+            call_args = mock_run.call_args
+            cmd = call_args[0][0]
 
-                # Find renderer-mode in command
-                assert "--renderer-mode" in cmd, "Command should include --renderer-mode"
-                renderer_idx = cmd.index("--renderer-mode") + 1
-                assert cmd[renderer_idx] == "workbench", (
-                    f"Expected 'workbench', got '{cmd[renderer_idx]}'"
-                )
-            finally:
-                Path(config_path).unlink(missing_ok=True)
+            # Find renderer-mode in command
+            assert "--renderer-mode" in cmd, "Command should include --renderer-mode"
+            renderer_idx = cmd.index("--renderer-mode") + 1
+            assert cmd[renderer_idx] == "workbench", (
+                f"Expected 'workbench', got '{cmd[renderer_idx]}'"
+            )
 
     @patch("subprocess.run")
     @patch("render_tag.cli.check_blenderproc_installed", return_value=True)
-    def test_generate_scenes_override(self, mock_check: MagicMock, mock_run: MagicMock) -> None:
+    def test_generate_scenes_override(
+        self, mock_check: MagicMock, mock_run: MagicMock, tmp_path: Path
+    ) -> None:
         """Test that --scenes flag overrides config value."""
         import unittest.mock as mock
 
@@ -272,40 +250,35 @@ dataset:
             mock_gen_instance = MockGenerator.return_value
             mock_gen_instance.generate_shards.return_value = [{"scene": 1}]
 
-            with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
-                # Config says 10 scenes
-                f.write("""
+            config_path = tmp_path / "ovr_config.yaml"
+            # Config says 10 scenes
+            config_path.write_text("""
 dataset:
   seed: 42
   num_scenes: 10
 """)
-                config_path = f.name
 
-            try:
-                # Override to 3 scenes via CLI
-                result = runner.invoke(
-                    app,
-                    [
-                        "generate",
-                        "--config",
-                        config_path,
-                        "--output",
-                        "/tmp/test_output_scenes",
-                        "--scenes",
-                        "3",
-                    ],
-                )
+            # Override to 3 scenes via CLI
+            result = runner.invoke(
+                app,
+                [
+                    "generate",
+                    "--config",
+                    str(config_path),
+                    "--output",
+                    str(tmp_path / "test_output_scenes"),
+                    "--scenes",
+                    "3",
+                ],
+            )
 
-                assert result.exit_code == 0, f"Command failed: {result.stdout}"
+            assert result.exit_code == 0, f"Command failed: {result.stdout}"
 
-                # Verify Generator was initialized with correct config (num_scenes=3)
-                assert MockGenerator.called
-                init_args = MockGenerator.call_args[0]
-                config_arg = init_args[0]
-                assert config_arg["dataset"]["num_scenes"] == 3
-
-            finally:
-                Path(config_path).unlink(missing_ok=True)
+            # Verify Generator was initialized with correct config (num_scenes=3)
+            assert MockGenerator.called
+            init_args = MockGenerator.call_args[0]
+            config_arg = init_args[0]
+            assert config_arg["dataset"]["num_scenes"] == 3
 
 
 class TestCLIHelp:

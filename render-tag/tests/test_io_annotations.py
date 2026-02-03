@@ -6,7 +6,11 @@ from __future__ import annotations
 
 import numpy as np
 
-from render_tag.data_io.annotations import compute_bbox, normalize_corner_order
+from render_tag.data_io.annotations import (
+    compute_bbox,
+    normalize_corner_order,
+    verify_corner_order,
+)
 
 
 def test_compute_bbox():
@@ -42,3 +46,18 @@ def test_normalize_corner_order_cw_tl():
     assert ordered[1] == (1.0, 1.0)  # TR
     assert ordered[2] == (1.0, 0.0)  # BR
     assert ordered[3] == (0.0, 0.0)  # BL
+
+
+def test_verify_corner_order():
+    # CCW ordered corners
+    ccw = [(0, 0), (100, 0), (100, 100), (0, 100)]
+    assert verify_corner_order(ccw, "ccw") is True
+    assert verify_corner_order(ccw, "cw") is False
+
+    # CW ordered corners (reversed)
+    cw = [(0, 100), (100, 100), (100, 0), (0, 0)]
+    assert verify_corner_order(cw, "cw") is True
+    assert verify_corner_order(cw, "ccw") is False
+
+    # Invalid
+    assert verify_corner_order([(0, 0), (1, 1), (2, 2)], "ccw") is False
