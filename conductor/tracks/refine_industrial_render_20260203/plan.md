@@ -10,7 +10,7 @@ This plan focuses on enhancing the photorealism and sensor accuracy of the `rend
     - [ ] Implement noise generation logic in `src/render_tag/backend/camera.py` (or a new `sensors.py` module).
     - [ ] Write unit tests for noise generation functions to ensure statistical correctness.
     - [ ] Integrate noise application into the rendering pipeline in `src/render_tag/backend/executor.py`.
-- [ ] Task: Refine Procedural Motion Blur
+- [x] Task: Refine Procedural Motion Blur 4875cb8
     - [ ] Update `CameraConfig` in `src/render_tag/schema.py` to include exposure time and velocity parameters.
     - [ ] Implement motion blur calculation logic in `src/render_tag/backend/camera.py` utilizing Blender's motion blur settings.
     - [ ] Write unit tests verifying that higher velocity/exposure time results in increased blur values.
