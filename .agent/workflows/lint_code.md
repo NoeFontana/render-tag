@@ -2,6 +2,7 @@
 description: lint and format code using ruff
 ---
 
+// turbo
 1. Run ruff to lint and format the code
    ```bash
    uv run ruff check --fix .

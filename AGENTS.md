@@ -1,96 +1,60 @@
 # AGENTS.md - The Law and The Loop
 
-**If you are an AI Agent reading this:**
-Welcome. This codebase has been optimized for YOU.
-Follow these rules to succeed efficiently without getting stuck in dependency hell or broken render loops.
+Welcome, Agent. This project follows **Google Antigravity Best Practices**. Your goal is to generate high-fidelity synthetic data without breaking the render pipeline.
 
 ---
 
 ## 1. The Law
+These are absolute constraints. Violation leads to failure.
 
-1.  **Do NOT import `bpy` in Logic Code.**
-    - `generator.py` and pure-Python logic must NEVER import Blender's `bpy`.
-    - If you are writing scene generation logic, use `src/render_tag/schema.py` and standard math libraries.
-    - Blender dependencies live ONLY in `src/render_tag/scripts/executor.py` and `blender_main.py`.
+1.  **Strict Isolation**: `src/render_tag/generator.py` (Logic) must NEVER import `bpy` (Blender).
+2.  **The Subprocess Pattern**: Blender runs in its own process. You interact with it ONLY via `SceneRecipe` JSON files.
+3.  **Schema is King**: If it doesn't validate against `src/render_tag/schema.py`, it doesn't exist.
+4.  **UV Only**: All commands must use `uv run`.
 
-2.  **Use the Recipe Pattern.**
-    - **Input**: Config (YAML) -> **Logic**: Generator (Python) -> **Output**: Recipe (JSON).
-    - Your goal is to produce a valid `scene_recipes.json`.
-    - Do not try to write scripts that "drive" Blender directly nicely. Just output data.
-
-3.  **Strict Schema Compliance.**
-    - All recipes must validate against `SceneRecipe` in `src/render_tag/schema.py`.
-    - Use `uv run render-tag validate-recipe` to check your work.
+> [!IMPORTANT]
+> Always read [.agent/rules](file:///.agent/rules) and use [.agent/workflows/](file:///.agent/workflows/) for common tasks.
 
 ---
 
 ## 2. The Loop (How to Iterate Fast)
+Do not wait for 3D renders. Use the **Shadow Render** loop.
 
-**Do NOT run the full Blender render to test layout changes.** It is slow and opaque.
-Use this feedback loop instead:
-
-1.  **Modify Logic**: Edit `generator.py` or your layout script.
-2.  **Generate Recipe**:
+1.  **Draft Logic**: Edit `src/render_tag/generator.py`.
+2.  **Generate & Validate**:
     ```bash
-    uv run render-tag generate --config configs/your_config.yaml --output output/test --scenes 1
-    # Arguments automatically trigger recipe generation
-    ```
-3.  **Validate**:
-    ```bash
+    uv run render-tag generate --config configs/dev.yaml --output output/test --scenes 1
     uv run render-tag validate-recipe --recipe output/test/scene_recipes.json
     ```
-    - If this fails, FIX IT. Do not proceed.
-4.  **Visualize (Shadow Render)**:
+3.  **Visual Feedback**:
     ```bash
     uv run render-tag viz-recipe --recipe output/test/scene_recipes.json --output output/test/viz
     ```
-    - Check the PNGs in `output/test/viz`. Are the tags overlapping? Is the board where you expect?
-5.  **Render (Only when sure)**:
-    ```bash
-    # The 'generate' command runs this automatically if validation passes (conceptually),
-    # or you can run the full generation command again.
-    uv run render-tag generate ... 
-    ```
+4.  **Optimize**: Refine the math in `generator.py` based on the 2D PNG outputs.
 
 ---
 
-## 3. The Architecture
+## 3. Architecture Overview
 
-```text
-[User Config (YAML)]
-       |
-       v
-+-----------------------+
-|   Logic Engine        |  <-- YOU WORK HERE
-| (src/render_tag/generator.py) |
-| (Pure Python, Fast)   |
-+-----------------------+
-       |
-       v
-[Scene Recipe (JSON)]   <-- The Interface (Schema)
-       |
-    +--+------------------+
-    |                     |
-    v                     v
-+------------+      +------------+
-| Validator  |      | Visualizer |
-| (fast)     |      | (fast 2D)  |
-+------------+      +------------+
-    |                     |
-    | (Approved)          v
-    v               [PNG Feedback]
-+-----------------------+
-|   Blender Executor    |  <-- Opaque Box
-| (runs inside Blender) |
-+-----------------------+
-       |
-       v
-    [Pixels]
+```mermaid
+graph TD
+    Config[YAML Config] --> Generator[generator.py - Pure Python]
+    Generator --> Recipe[scene_recipes.json - The Contract]
+    Recipe --> Validator[Validator/Visualizer - Fast]
+    Recipe --> Executor[scripts/blender_main.py - Blender Subprocess]
+    Executor --> Output[Golden Dataset - Images/CSV/COCO]
 ```
 
-## 4. Key Files
+## 4. Workflows
+Use these slash commands for standard operations:
+- `/lint_code`: Lint and format using `ruff`.
+- `/type_check`: Type check using `ty`.
+- `/generate_data`: Full generation and validation sequence.
 
-- **Contract**: `src/render_tag/schema.py` (Read this to understand the JSON structure)
-- **Logic**: `src/render_tag/generator.py` (Where the math happens)
-- **Executor**: `src/render_tag/scripts/executor.py` (The Blender driver - don't touch unless adding new object types)
-- **Tools**: `src/render_tag/tools/` (Validator, Visualizer)
+---
+
+## 5. Directory Map
+- [schema.py](file:///src/render_tag/schema.py): The source of truth for recipes.
+- [generator.py](file:///src/render_tag/generator.py): Where the procedural math happens.
+- [blender_main.py](file:///src/render_tag/scripts/blender_main.py): The 3D render driver.
+- [.agent/](file:///.agent/): Agent-specific rules and workflows.
