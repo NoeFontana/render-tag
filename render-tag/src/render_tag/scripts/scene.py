@@ -197,50 +197,83 @@ def create_flying_layout(
         tag.enable_rigidbody(active=False)  # Static in air
 
 
-def randomize_floor_material(floor: Any, texture_dir: Path | None = None) -> None:
-    """Randomize the floor material for domain randomization.
+def randomize_floor_material(
+    floor_obj: Any,
+    texture_path: str | None = None,
+    scale: float = 1.0,
+    rotation: float = 0.0,
+) -> None:
+    """Apply a randomized, scaled texture to the floor using shader nodes.
 
     Args:
-        floor: The floor mesh object
-        texture_dir: Optional directory containing PBR texture sets
+        floor_obj: The floor mesh object (bproc.types.MeshObject)
+        texture_path: Path to the texture image (optional)
+        scale: Tiling scale for the texture
+        rotation: Rotation for the texture in radians
     """
-    if texture_dir and texture_dir.exists():
-        # Load random texture from directory
-        textures = list(texture_dir.glob("*.jpg")) + list(texture_dir.glob("*.png"))
-        if textures:
-            texture_path = random.choice(textures)
-            image = bpy.data.images.load(str(texture_path))
+    if not texture_path or not Path(texture_path).exists():
+        # Fallback: randomize color if no texture provided
+        if floor_obj.blender_obj.data.materials:
+            mat = floor_obj.blender_obj.data.materials[0]
+        else:
+            mat = bpy.data.materials.new(name="RandomFloorMat")
+            floor_obj.blender_obj.data.materials.append(mat)
 
-            material = (
-                floor.blender_obj.data.materials[0]
-                if floor.blender_obj.data.materials
-                else bpy.data.materials.new(name="RandomFloor")
-            )
-            material.use_nodes = True
-
-            nodes = material.node_tree.nodes
-            links = material.node_tree.links
-
-            # Add texture node
-            tex_node = nodes.new("ShaderNodeTexImage")
-            tex_node.image = image
-
-            bsdf = nodes.get("Principled BSDF")
-            if bsdf:
-                links.new(tex_node.outputs["Color"], bsdf.inputs["Base Color"])
-
-            return
-
-    # Fallback: randomize color
-    material = floor.blender_obj.data.materials[0] if floor.blender_obj.data.materials else None
-    if material:
-        nodes = material.node_tree.nodes
+        mat.use_nodes = True
+        nodes = mat.node_tree.nodes
         bsdf = nodes.get("Principled BSDF")
         if bsdf:
             r = random.uniform(0.1, 0.8)
             g = random.uniform(0.1, 0.8)
             b = random.uniform(0.1, 0.8)
             bsdf.inputs["Base Color"].default_value = (r, g, b, 1)
+            bsdf.inputs["Roughness"].default_value = random.uniform(0.5, 1.0)
+        return
+
+    try:
+        image = bpy.data.images.load(str(texture_path))
+    except Exception as e:
+        print(f"Failed to load texture: {texture_path}, error: {e}")
+        return
+
+    # 1. Setup Material
+    if floor_obj.blender_obj.data.materials:
+        mat = floor_obj.blender_obj.data.materials[0]
+    else:
+        mat = bpy.data.materials.new(name="RandomFloorMat")
+        floor_obj.blender_obj.data.materials.append(mat)
+
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
+    nodes.clear()
+
+    # 2. Create Nodes
+    output = nodes.new("ShaderNodeOutputMaterial")
+    bsdf = nodes.new("ShaderNodeBsdfPrincipled")
+    tex_image = nodes.new("ShaderNodeTexImage")
+    mapping = nodes.new("ShaderNodeMapping")  # Controls Scale/Rotation
+    tex_coord = nodes.new("ShaderNodeTexCoord")  # Source Coordinates
+
+    # 3. Configure Properties
+    tex_image.image = image
+    tex_image.interpolation = "Linear"
+
+    # Apply Scale
+    mapping.inputs["Scale"].default_value = (scale, scale, scale)
+
+    # Apply Rotation
+    mapping.inputs["Rotation"].default_value = (0, 0, rotation)
+
+    # Randomize roughness slightly so the floor isn't perfect
+    bsdf.inputs["Roughness"].default_value = random.uniform(0.5, 1.0)
+
+    # 4. Link Graph
+    # Object Coords -> Mapping -> Image -> BSDF -> Output
+    links.new(tex_coord.outputs["Object"], mapping.inputs["Vector"])
+    links.new(mapping.outputs["Vector"], tex_image.inputs["Vector"])
+    links.new(tex_image.outputs["Color"], bsdf.inputs["Base Color"])
+    links.new(bsdf.outputs["BSDF"], output.inputs["Surface"])
 
 
 def create_board(

@@ -40,6 +40,7 @@ from render_tag.scripts.projection import (
     project_corners_to_image,
 )
 from render_tag.scripts.scene import (
+    randomize_floor_material,
     setup_background,
     setup_lighting,
 )
@@ -252,6 +253,29 @@ def main() -> int:
             radius_min=lighting_config.get("radius_min", 0.0),
             radius_max=lighting_config.get("radius_max", 0.0),
         )
+
+        # Apply Floor Randomization
+        # Look for the floor object (usually named "Plane")
+        floors = [o for o in bproc.object.get_all_mesh_objects() if "Plane" in o.get_name()]
+        if floors:
+            floor_obj = floors[0]
+            randomize_floor_material(
+                floor_obj,
+                texture_path=scene_config.get("texture_path"),
+                scale=scene_config.get("texture_scale", 1.0),
+                rotation=scene_config.get("texture_rotation", 0.0),
+            )
+        else:
+            # Check layout objects for floor
+            for obj in _layout_objects:
+                if "Plane" in obj.get_name():
+                    randomize_floor_material(
+                        obj,
+                        texture_path=scene_config.get("texture_path"),
+                        scale=scene_config.get("texture_scale", 1.0),
+                        rotation=scene_config.get("texture_rotation", 0.0),
+                    )
+                    break
 
         # Sample camera poses with visibility guarantee
         # We need `samples_per_scene` VALID images

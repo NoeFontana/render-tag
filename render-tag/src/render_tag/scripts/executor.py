@@ -37,6 +37,7 @@ from render_tag.scripts.projection import (
 )
 from render_tag.scripts.scene import (
     create_board,
+    randomize_floor_material,
     setup_background,
     setup_lighting,
 )
@@ -157,6 +158,25 @@ def execute_recipe(
         radius_min=radius,
         radius_max=radius,
     )
+
+    # 2b. Setup Background Texture (Floor)
+    texture_path = world_config.get("texture_path")
+    texture_scale = world_config.get("texture_scale", 1.0)
+    texture_rotation = world_config.get("texture_rotation", 0.0)
+
+    # Find floor or board objects to apply texture to
+    # We apply to the first plane we find that isn't a tag
+    all_meshes = bproc.object.get_all_mesh_objects()
+    for obj in all_meshes:
+        name = obj.get_name()
+        if ("Plane" in name or "Board" in name) and "Tag" not in name:
+            randomize_floor_material(
+                obj,
+                texture_path=texture_path,
+                scale=texture_scale,
+                rotation=texture_rotation,
+            )
+            break
 
     # 3. Create Objects
     tag_objects = []

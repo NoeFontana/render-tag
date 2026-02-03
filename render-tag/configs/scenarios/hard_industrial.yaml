@@ -1,0 +1,13 @@
+scene:
+  texture_dir: "assets/textures/adversarial"
+  texture_scale_min: 10.0
+  texture_scale_max: 20.0
+  random_texture_rotation: true
+  lighting:
+    radius_min: 0.2 # Soft shadows
+    radius_max: 0.5
+dataset:
+  num_scenes: 1
+  output_dir: "output/hard_industrial"
+camera:
+  samples_per_scene: 2

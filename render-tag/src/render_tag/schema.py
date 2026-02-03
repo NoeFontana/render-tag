@@ -73,6 +73,12 @@ class WorldRecipe(BaseModel):
 
     background_hdri: str | None = Field(default=None, description="Path to HDRI file")
     lighting: LightingConfig = Field(default_factory=LightingConfig)
+
+    # Resolved Texture Parameters
+    texture_path: str | None = Field(default=None, description="Path to chosen background texture")
+    texture_scale: float = Field(default=1.0, description="Tiling scale for the texture")
+    texture_rotation: float = Field(default=0.0, description="Rotation for the texture (radians)")
+
     use_nodes: bool = True
 
 

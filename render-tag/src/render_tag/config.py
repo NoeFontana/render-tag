@@ -392,6 +392,19 @@ class SceneConfig(BaseModel):
         default=None, description="Path to texture directory for backgrounds"
     )
 
+    # Tiling scale: 1.0 = stretched (Easy), 20.0 = highly repetitive (Hard)
+    texture_scale_min: float = Field(default=1.0, gt=0, description="Min texture tiling scale")
+    texture_scale_max: float = Field(default=1.0, gt=0, description="Max texture tiling scale")
+
+    # Rotation: Adds variation to the same texture asset
+    random_texture_rotation: bool = Field(default=True, description="Randomly rotate floor texture")
+
+    @model_validator(mode="after")
+    def validate_scale_range(self) -> "SceneConfig":
+        if self.texture_scale_min > self.texture_scale_max:
+            raise ValueError("texture_scale_min must be <= texture_scale_max")
+        return self
+
 
 class PhysicsConfig(BaseModel):
     """Physics simulation configuration."""
