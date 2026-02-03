@@ -366,10 +366,18 @@ class LightingConfig(BaseModel):
     intensity_min: float = Field(default=50.0, ge=0, description="Minimum light intensity")
     intensity_max: float = Field(default=500.0, ge=0, description="Maximum light intensity")
 
+    # Range for light source radius (shadow softness)
+    radius_min: float = Field(
+        default=0.0, ge=0.0, description="Minimum light radius (shadow softness)"
+    )
+    radius_max: float = Field(default=0.0, ge=0.0, description="Maximum light radius")
+
     @model_validator(mode="after")
-    def validate_intensity_range(self) -> "LightingConfig":
+    def validate_ranges(self) -> "LightingConfig":
         if self.intensity_min > self.intensity_max:
             raise ValueError("intensity_min must be <= intensity_max")
+        if self.radius_min > self.radius_max:
+            raise ValueError("radius_min must be <= radius_max")
         return self
 
 

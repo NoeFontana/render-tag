@@ -90,7 +90,8 @@ class Generator:
             lighting=LightingConfig(
                 intensity=random.uniform(
                     lighting_config.intensity_min, lighting_config.intensity_max
-                )
+                ),
+                radius=random.uniform(lighting_config.radius_min, lighting_config.radius_max),
             ),
         )
 

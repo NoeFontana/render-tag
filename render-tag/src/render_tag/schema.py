@@ -65,6 +65,7 @@ class LightingConfig(BaseModel):
 
     intensity: float = Field(default=100.0, description="Light intensity/strength")
     color: list[float] = Field(default=[1.0, 1.0, 1.0], min_length=3, max_length=3)
+    radius: float = Field(default=0.0, description="Light source radius (shadow softness)")
 
 
 class WorldRecipe(BaseModel):

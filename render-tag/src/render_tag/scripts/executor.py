@@ -1,7 +1,15 @@
+import os
+import sys
+
+# Move site-packages to the end to prioritize Blender's internal libraries (like NumPy)
+# while still allowing blenderproc to be imported if it's uniquely in the venv.
+sys.path = [p for p in sys.path if "site-packages" not in p] + [
+    p for p in sys.path if "site-packages" in p
+]
+
 import argparse
 import json
 import logging
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -142,7 +150,13 @@ def execute_recipe(
 
     lighting = world_config.get("lighting", {})
     intensity = lighting.get("intensity", 100)
-    setup_lighting(intensity_min=intensity, intensity_max=intensity)
+    radius = lighting.get("radius", 0.0)
+    setup_lighting(
+        intensity_min=intensity,
+        intensity_max=intensity,
+        radius_min=radius,
+        radius_max=radius,
+    )
 
     # 3. Create Objects
     tag_objects = []
@@ -285,8 +299,8 @@ def execute_recipe(
             occlusion_ratio = 0.0
             if segmap is not None:
                 obj_idx = blender_obj.pass_index
-                visible_pixels = np.sum(segmap == obj_idx)
                 theoretical_pixels = geom["pixel_area"]
+                visible_pixels = np.sum(segmap == obj_idx)
 
                 if theoretical_pixels > 0:
                     vis_ratio = visible_pixels / theoretical_pixels

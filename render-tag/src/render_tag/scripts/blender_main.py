@@ -249,6 +249,8 @@ def main() -> int:
         setup_lighting(
             intensity_min=lighting_config.get("intensity_min", 50),
             intensity_max=lighting_config.get("intensity_max", 500),
+            radius_min=lighting_config.get("radius_min", 0.0),
+            radius_max=lighting_config.get("radius_max", 0.0),
         )
 
         # Sample camera poses with visibility guarantee

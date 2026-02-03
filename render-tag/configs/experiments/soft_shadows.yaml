@@ -1,0 +1,25 @@
+dataset:
+  output_dir: output/soft_shadows_test
+  num_scenes: 1
+  seeds:
+    global_seed: 42
+
+camera:
+  samples_per_scene: 1
+  resolution: [640, 480]
+
+tag:
+  family: tag36h11
+  size_meters: 0.1
+
+scene:
+  lighting:
+    intensity_min: 300
+    intensity_max: 600
+    # Enable soft shadows
+    radius_min: 0.1
+    radius_max: 0.3
+
+scenario:
+  layout: plain
+  tags_per_scene: [3, 3]

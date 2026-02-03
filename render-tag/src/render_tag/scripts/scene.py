@@ -40,6 +40,8 @@ def setup_background(hdri_path: Path) -> None:
 def setup_lighting(
     intensity_min: float = 50,
     intensity_max: float = 500,
+    radius_min: float = 0.0,
+    radius_max: float = 0.0,
     num_lights: int = 3,
 ) -> list:
     """Set up randomized lighting for the scene.
@@ -77,6 +79,10 @@ def setup_lighting(
         light.set_location([x, y, z])
         light.set_energy(intensity)
         light.set_color(color)
+
+        if radius_max > 0 or radius_min > 0:
+            samp_radius = random.uniform(radius_min, radius_max)
+            light.set_radius(samp_radius)
 
         lights.append(light)
 
