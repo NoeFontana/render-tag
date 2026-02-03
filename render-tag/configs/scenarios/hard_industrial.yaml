@@ -1,5 +1,5 @@
 scene:
-  texture_dir: "assets/textures/adversarial"
+  texture_dir: "assets/textures/background/adversarial"
   texture_scale_min: 10.0
   texture_scale_max: 20.0
   random_texture_rotation: true

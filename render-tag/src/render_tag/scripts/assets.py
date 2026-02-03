@@ -66,6 +66,8 @@ def get_tag_texture_path(
 
     # Default texture locations
     default_paths = [
+        Path("assets/textures/background/adversarial") / f"{tag_family}.png",
+        Path("assets/textures/background/natural") / f"{tag_family}.png",
         Path("assets/textures") / f"{tag_family}.png",
         Path("assets/tags") / f"{tag_family}.png",
     ]

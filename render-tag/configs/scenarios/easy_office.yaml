@@ -1,5 +1,5 @@
 scene:
-  texture_dir: "assets/textures/floors/carpet"
+  texture_dir: "assets/textures/background/natural/carpet"
   texture_scale_min: 1.0
   texture_scale_max: 2.0
   random_texture_rotation: true
