@@ -6,6 +6,7 @@ This module handles creating tag planes with proper texturing and corner trackin
 
 from __future__ import annotations
 
+import random
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -81,6 +82,7 @@ def create_tag_plane(
     texture_path: Path | None,
     tag_family: str,
     tag_id: int = 0,
+    material_config: dict | None = None,
 ) -> Any:
     """Create a textured plane representing a fiducial marker.
 
@@ -123,7 +125,7 @@ def create_tag_plane(
 
     # Apply texture if provided
     if texture_path and texture_path.exists():
-        apply_tag_texture(plane, texture_path)
+        apply_tag_texture(plane, texture_path, material_config)
     else:
         # Apply a default material (white with slight roughness)
         apply_default_material(plane)
@@ -131,12 +133,13 @@ def create_tag_plane(
     return plane
 
 
-def apply_tag_texture(obj: Any, texture_path: Path) -> None:
+def apply_tag_texture(obj: Any, texture_path: Path, config: dict | None = None) -> None:
     """Apply a texture to the tag plane with correct UV mapping.
 
     Args:
         obj: The BlenderProc mesh object
         texture_path: Path to the texture image
+        config: Material configuration dictionary
     """
     # Load the texture image
     image = bpy.data.images.load(str(texture_path))
@@ -162,8 +165,19 @@ def apply_tag_texture(obj: Any, texture_path: Path) -> None:
     tex_node.interpolation = "Closest"  # Sharp pixels for tags
 
     # Set material properties for a printed tag
-    bsdf_node.inputs["Roughness"].default_value = 0.8
-    bsdf_node.inputs["Specular IOR Level"].default_value = 0.2
+    # Defaults (Backward Compatibility for existing hardcoded values)
+    roughness = 0.8
+    specular = 0.2
+
+    if config and config.get("randomize", False):
+        # Sample from configured ranges
+        roughness = random.uniform(
+            config.get("roughness_min", 0.6), config.get("roughness_max", 1.0)
+        )
+        specular = random.uniform(config.get("specular_min", 0.1), config.get("specular_max", 0.3))
+
+    bsdf_node.inputs["Roughness"].default_value = roughness
+    bsdf_node.inputs["Specular IOR Level"].default_value = specular
 
     # Link nodes
     links.new(tex_node.outputs["Color"], bsdf_node.inputs["Base Color"])

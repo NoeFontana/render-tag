@@ -94,13 +94,16 @@ def compose_scene(
     tag_objects = []
     tag_size = tag_config.get("size_meters", 0.1)
     texture_base_path = tag_config.get("texture_path")
+    material_config = tag_config.get("material", {})
 
     for i in range(num_tags):
         family = random.choice(tag_families)
         texture_path = get_tag_texture_path(family, texture_base_path, tag_id=i)
 
         # Create tag with random ID (handled by texture loader usually, but here just reuse)
-        tag_obj = create_tag_plane(tag_size, texture_path, family, tag_id=i)
+        tag_obj = create_tag_plane(
+            tag_size, texture_path, family, tag_id=i, material_config=material_config
+        )
 
         # Set custom properties for ground truth
         tag_obj.blender_obj["tag_id"] = i  # Placeholder ID, ideally from texture

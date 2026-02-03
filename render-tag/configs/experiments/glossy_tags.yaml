@@ -1,0 +1,16 @@
+tag:
+  family: tag36h11
+  size_meters: 0.1
+  material:
+    randomize: true
+    roughness_min: 0.05
+    roughness_max: 0.2
+    specular_min: 0.8
+    specular_max: 1.0
+dataset:
+  num_scenes: 2
+  output_dir: output/glossy_test
+camera:
+  samples_per_scene: 1
+scenario:
+  tags_per_scene: [3, 3]

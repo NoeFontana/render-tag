@@ -335,12 +335,29 @@ class CameraConfig(BaseModel):
         return [[fx, 0.0, cx], [0.0, fy, cy], [0.0, 0.0, 1.0]]
 
 
+class MaterialConfig(BaseModel):
+    """Configuration for tag material properties (Domain Randomization)."""
+
+    randomize: bool = Field(default=False, description="Enable material randomization")
+
+    # Range for Roughness (0.0 = Mirror, 1.0 = Matte)
+    # Default 0.8 matches existing behavior
+    roughness_min: float = Field(default=0.6, ge=0.0, le=1.0)
+    roughness_max: float = Field(default=1.0, ge=0.0, le=1.0)
+
+    # Range for Specular (0.0 = No highlights, 1.0 = Strong highlights)
+    # Default 0.2 matches existing behavior
+    specular_min: float = Field(default=0.1, ge=0.0, le=1.0)
+    specular_max: float = Field(default=0.3, ge=0.0, le=1.0)
+
+
 class TagConfig(BaseModel):
     """AprilTag configuration."""
 
     family: TagFamily = Field(default=TagFamily.TAG36H11, description="AprilTag family")
     size_meters: float = Field(default=0.1, gt=0, description="Tag size in meters (outer edge)")
     texture_path: Path | None = Field(default=None, description="Path to tag texture directory")
+    material: MaterialConfig = Field(default_factory=MaterialConfig)
 
 
 class LightingConfig(BaseModel):

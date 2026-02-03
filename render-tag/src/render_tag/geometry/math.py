@@ -90,10 +90,18 @@ def rotation_matrix_from_vectors(vec1: np.ndarray, vec2: np.ndarray) -> np.ndarr
 def look_at_rotation(forward_vec: np.ndarray, up_vec: np.ndarray | None = None) -> np.ndarray:
     """Compute a rotation matrix from a forward vector and an up vector.
 
-    (3, 3) rotation matrix.
+    Args:
+        forward_vec: Vector the camera should face.
+        up_vec: Vector representing 'up' (default is [0, 0, 1]).
+
+    Returns:
+        (3, 3) rotation matrix.
     """
     # Normalize forward vector
     f = forward_vec / np.linalg.norm(forward_vec)
+
+    if up_vec is None:
+        up_vec = np.array([0, 0, 1], dtype=np.float64)
 
     # Handle degenerate case where forward is parallel to up
     if abs(np.dot(f, up_vec)) > 0.999:
@@ -110,8 +118,6 @@ def look_at_rotation(forward_vec: np.ndarray, up_vec: np.ndarray | None = None) 
     z_axis = -f
 
     # cam_x = up x cam_z (right is X)
-    if up_vec is None:
-        up_vec = np.array([0, 0, 1], dtype=np.float64)
     x_axis = np.cross(np.asarray(up_vec), np.asarray(z_axis))
     x_axis /= np.linalg.norm(x_axis)
     # cam_y = cam_z x cam_x (up is Y)
