@@ -232,7 +232,7 @@ def generate(
                 console.print(f"  [dim]Checked asset:[/dim] {asset_path.name}")
 
     # Build the blenderproc command
-    script_path = Path(__file__).parent / "scripts" / "executor.py"
+    script_path = Path(__file__).parent / "backend" / "executor.py"
 
     cmd = [
         "blenderproc",
@@ -506,7 +506,7 @@ def experiment(
                 ensure_tag_asset(family_enum.value, j, assets_dir)
 
         # 5. Run BlenderProc
-        script_path = Path(__file__).parent / "scripts" / "executor.py"
+        script_path = Path(__file__).parent / "backend" / "executor.py"
         cmd = [
             "blenderproc",
             "run",

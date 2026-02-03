@@ -26,21 +26,21 @@ try:
 except ImportError:
     bpy = None
 
-from render_tag.data_io.types import DetectionRecord
-from render_tag.data_io.writers import COCOWriter, CSVWriter, RichTruthWriter
-from render_tag.scripts.assets import create_tag_plane, get_tag_texture_path
-from render_tag.scripts.projection import (
+from render_tag.backend.assets import create_tag_plane, get_tag_texture_path
+from render_tag.backend.projection import (
     check_tag_facing_camera,
     check_tag_visibility,
     compute_geometric_metadata,
     project_corners_to_image,
 )
-from render_tag.scripts.scene import (
+from render_tag.backend.scene import (
     create_board,
     randomize_floor_material,
     setup_background,
     setup_lighting,
 )
+from render_tag.data_io.types import DetectionRecord
+from render_tag.data_io.writers import COCOWriter, CSVWriter, RichTruthWriter
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")

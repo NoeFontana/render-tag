@@ -2,7 +2,7 @@ import argparse
 import os
 from pathlib import Path
 
-from huggingface_hub import HfApi, login
+from huggingface_hub import HfApi
 
 
 def upload_assets(

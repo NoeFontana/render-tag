@@ -41,7 +41,7 @@ def project_corners_to_image(
     Returns:
         List of 4 (x, y) tuples in image coordinates, or None if tag not visible
     """
-    from render_tag.scripts.assets import get_corner_world_coords
+    from render_tag.backend.assets import get_corner_world_coords
 
     # Get world coordinates of corners
     corners_world = get_corner_world_coords(tag_obj)
