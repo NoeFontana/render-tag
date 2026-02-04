@@ -12,6 +12,7 @@ import tempfile
 from pathlib import Path
 
 import typer
+from pydantic import ValidationError
 from rich.console import Console
 from rich.panel import Panel
 
@@ -138,6 +139,13 @@ def generate(
         gen_config = load_config(config)
     except FileNotFoundError:
         console.print(f"[bold red]Error:[/bold red] Config file not found: {config}")
+        raise typer.Exit(code=1) from None
+    except ValidationError as e:
+        console.print("[bold red]Validation Error:[/bold red]")
+        for err in e.errors():
+            loc = ".".join(str(l) for l in err["loc"])
+            msg = err["msg"]
+            console.print(f"  [cyan]{loc}[/cyan]: {msg}")
         raise typer.Exit(code=1) from None
     except ValueError as e:
         console.print(f"[bold red]Error:[/bold red] Invalid config: {e}")
