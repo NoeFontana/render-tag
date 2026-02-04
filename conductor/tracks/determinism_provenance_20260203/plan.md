@@ -31,11 +31,11 @@ This plan implements a strict deterministic seed hierarchy and a sidecar metadat
     - [ ] Create an integration test that runs a single scene render and verifies the existence and content of the sidecar JSON.
 - [x] Task: Conductor - User Manual Verification 'Phase 2: Metadata Provenance System' (Protocol in workflow.md) f2b1595
 
-## Phase 3: Verification & Benchmarking
+## Phase 3: Verification & Benchmarking [checkpoint: c7a87da]
 **Goal:** Verify bit-identical reproducibility and assess performance overhead.
 
 - [x] Task: Reproducibility Benchmark Test c8f626f
     - [ ] Write a script that runs the same job twice and compares the resulting images and sidecars for equality.
 - [x] Task: Verify Shard-Invariance c8f626f
     - [ ] Verify that running a 10-scene job with 1 shard vs. 2 shards produces the same 10 images.
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: Verification & Benchmarking' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 3: Verification & Benchmarking' (Protocol in workflow.md) c7a87da
