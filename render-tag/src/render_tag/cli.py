@@ -100,6 +100,11 @@ def generate(
         "--total-shards",
         help="Total number of shards (for Cloud/Cluster usage)",
     ),
+    seed: int = typer.Option(
+        -1,
+        "--seed",
+        help="Global random seed override",
+    ),
 ) -> None:
     """
     Generate synthetic fiducial marker training data.
@@ -135,6 +140,8 @@ def generate(
 
     # Apply CLI Overrides
     gen_config.dataset.num_scenes = num_scenes
+    if seed != -1:
+        gen_config.dataset.seeds.global_seed = seed
 
     # Create output directory
     output.mkdir(parents=True, exist_ok=True)

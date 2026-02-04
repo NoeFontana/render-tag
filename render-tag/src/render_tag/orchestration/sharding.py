@@ -10,6 +10,9 @@ from pathlib import Path
 
 from rich.console import Console
 
+from ..common.math import SeedManager
+from ..config import load_config
+
 console = Console()
 
 
@@ -85,13 +88,24 @@ def run_local_parallel(
     if verbose:
         cmd_base.append("--verbose")
 
+    # Load config to get master seed for deterministic sharding
+    try:
+        config = load_config(config_path)
+        master_seed = config.dataset.seeds.global_seed
+    except Exception as e:
+        console.print(f"[yellow]Warning: Could not load config for seed manager: {e}[/yellow]")
+        master_seed = 42
+
+    seed_manager = SeedManager(master_seed)
+
     start_time = time.time()
 
     with concurrent.futures.ProcessPoolExecutor(max_workers=workers) as executor:
         futures = []
         for i in range(workers):
-            # Recursive call sending specific shard index
-            cmd = [*cmd_base, "--shard-index", str(i)]
+            shard_seed = seed_manager.get_shard_seed(i)
+            # Recursive call sending specific shard index and deterministic seed
+            cmd = [*cmd_base, "--shard-index", str(i), "--seed", str(shard_seed)]
             futures.append(executor.submit(subprocess.run, cmd, check=True))
 
         # Wait for all
