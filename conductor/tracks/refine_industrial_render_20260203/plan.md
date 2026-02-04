@@ -19,7 +19,7 @@ This plan focuses on enhancing the photorealism and sensor accuracy of the `rend
 ## Phase 2: Industrial Lighting & Surface Imperfections
 **Goal:** Create realistic industrial environments and tag wear-and-tear.
 
-- [ ] Task: Industrial HDRi Lighting Presets
+- [x] Task: Industrial HDRi Lighting Presets 4ebe3bb
     - [ ] Define new `LightingConfig` presets for "Factory", "Warehouse", and "Outdoor Industrial" in `src/render_tag/config.py` (or yaml configs).
     - [ ] Ensure `src/render_tag/backend/scene.py` correctly loads and applies these HDRi maps.
     - [ ] Validate that lighting intensity and rotation are randomized within realistic bounds.
