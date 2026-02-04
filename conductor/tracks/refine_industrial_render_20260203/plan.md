@@ -16,7 +16,7 @@ This plan focuses on enhancing the photorealism and sensor accuracy of the `rend
     - [ ] Write unit tests verifying that higher velocity/exposure time results in increased blur values.
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Advanced Sensor Noise & Motion Blur' (Protocol in workflow.md) ae025f4
 
-## Phase 2: Industrial Lighting & Surface Imperfections
+## Phase 2: Industrial Lighting & Surface Imperfections [checkpoint: 178e2e7]
 **Goal:** Create realistic industrial environments and tag wear-and-tear.
 
 - [x] Task: Industrial HDRi Lighting Presets 4ebe3bb
@@ -27,7 +27,7 @@ This plan focuses on enhancing the photorealism and sensor accuracy of the `rend
     - [ ] Create `TagSurfaceConfig` in `src/render_tag/schema.py` for scratches, dust, and specularity.
     - [ ] Implement material shader modification logic in `src/render_tag/backend/assets.py` to apply these textures to tag meshes.
     - [ ] Write tests ensuring that surface imperfection parameters correctly modify the material node tree in Blender.
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Industrial Lighting & Surface Imperfections' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 2: Industrial Lighting & Surface Imperfections' (Protocol in workflow.md) 178e2e7
 
 ## Phase 3: Integration & Validation
 **Goal:** Verify the complete pipeline and ensure data integrity.
