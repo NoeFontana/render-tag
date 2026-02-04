@@ -35,6 +35,7 @@ except ImportError:
     GEOMETRY_AVAILABLE = False
 
 
+from render_tag.schema import SceneProvenance
 from .types import DetectionRecord
 
 
@@ -251,3 +252,32 @@ class RichTruthWriter:
         with open(self.output_path, "w") as f:
             json.dump(self._detections, f, indent=2)
         return self.output_path
+
+
+class SidecarWriter:
+    """Writes metadata sidecar files for generated images."""
+
+    def __init__(self, output_dir: Path) -> None:
+        self.output_dir = output_dir
+
+    def write_sidecar(self, image_name: str, provenance: SceneProvenance) -> Path:
+        """Write the provenance data to a JSON sidecar file.
+
+        Args:
+            image_name: Base name of the image (e.g. 'scene_0000_cam_0000')
+            provenance: SceneProvenance object
+
+        Returns:
+            Path to the written file
+        """
+        # Place sidecar alongside images in 'images' subdirectory
+        sidecar_dir = self.output_dir / "images"
+        sidecar_dir.mkdir(parents=True, exist_ok=True)
+
+        filename = f"{image_name}_meta.json"
+        path = sidecar_dir / filename
+
+        with open(path, "w") as f:
+            f.write(provenance.model_dump_json(indent=2))
+
+        return path

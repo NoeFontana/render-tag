@@ -9,6 +9,7 @@ sys.path = [p for p in sys.path if "site-packages" not in p] + [
 import argparse  # noqa: E402
 import json  # noqa: E402
 import logging  # noqa: E402
+from datetime import datetime, timezone  # noqa: E402
 from pathlib import Path  # noqa: E402
 from typing import Any  # noqa: E402
 
@@ -40,9 +41,15 @@ from render_tag.backend.scene import (  # noqa: E402
     setup_lighting,
 )
 from render_tag.backend.sensors import apply_parametric_noise  # noqa: E402
+from render_tag.common.git import get_git_hash  # noqa: E402
 from render_tag.data_io.types import DetectionRecord  # noqa: E402
-from render_tag.data_io.writers import COCOWriter, CSVWriter, RichTruthWriter  # noqa: E402
-from render_tag.schema import SensorNoiseConfig  # noqa: E402
+from render_tag.data_io.writers import (  # noqa: E402
+    COCOWriter,
+    CSVWriter,
+    RichTruthWriter,
+    SidecarWriter,
+)
+from render_tag.schema import SceneProvenance  # noqa: E402
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
@@ -122,10 +129,26 @@ def execute_recipe(
     csv_writer: CSVWriter,
     coco_writer: COCOWriter,
     rich_writer: RichTruthWriter,
+    sidecar_writer: SidecarWriter,
 ) -> None:
     """Execute a single scene recipe: setup scene, render, and export data."""
     scene_idx = recipe["scene_id"]
     logger.info(f"--- Executing Scene {scene_idx} ---")
+
+    # Prepare provenance data
+    # Note: git hash might be slow if called every scene?
+    # Optimization: Call it once in main and pass it down.
+    # For now, calling it here is fine.
+    git_hash = get_git_hash()
+    timestamp = datetime.now(timezone.utc).isoformat()
+    # We don't have explicit seeds dict here unless we pass it in recipe.
+    # Recipe has seed implicitly used to generate it.
+    provenance = SceneProvenance(
+        git_hash=git_hash,
+        timestamp=timestamp,
+        recipe_snapshot=recipe,
+        seeds=None,  # Or parse from recipe if we added it
+    )
 
     bproc.clean_up()
 
@@ -261,8 +284,8 @@ def execute_recipe(
             if sensor_noise_data:
                 # Apply new parametric noise
                 try:
-                    noise_config = SensorNoiseConfig(**sensor_noise_data)
-                    img = apply_parametric_noise(img, noise_config)
+                    # Pass the dict directly, avoiding Pydantic dependency in Blender
+                    img = apply_parametric_noise(img, sensor_noise_data)
                 except Exception as e:
                     logger.warning(f"Failed to apply parametric noise: {e}")
             elif iso_noise > 0:
@@ -288,6 +311,9 @@ def execute_recipe(
         if "colors" in rendered_data and len(rendered_data["colors"]) > cam_idx:
             img_array = rendered_data["colors"][cam_idx]
             Image.fromarray(img_array.astype(np.uint8)).save(str(image_path))
+
+        # Write Sidecar
+        sidecar_writer.write_sidecar(image_name, provenance)
 
         coco_image_id = coco_writer.add_image(
             file_name=f"images/{image_path.name}",
@@ -369,9 +395,18 @@ def main() -> None:
     csv_writer = CSVWriter(output_dir / csv_filename)
     coco_writer = COCOWriter(output_dir)
     rich_writer = RichTruthWriter(output_dir / "rich_truth.json")
+    sidecar_writer = SidecarWriter(output_dir)
 
     for recipe in recipes:
-        execute_recipe(recipe, output_dir, args.renderer_mode, csv_writer, coco_writer, rich_writer)
+        execute_recipe(
+            recipe,
+            output_dir,
+            args.renderer_mode,
+            csv_writer,
+            coco_writer,
+            rich_writer,
+            sidecar_writer,
+        )
 
     # Save all results
     coco_writer.save()
