@@ -16,7 +16,7 @@ This plan implements a strict deterministic seed hierarchy and a sidecar metadat
     - [ ] Verify that generating 10 `SceneRecipes` with the same shard seed produces identical JSON output.
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Deterministic Seed Hierarchy' (Protocol in workflow.md) db5219b
 
-## Phase 2: Metadata Provenance System
+## Phase 2: Metadata Provenance System [checkpoint: f2b1595]
 **Goal:** Automatically generate and save sidecar JSON files containing full generation context for every image.
 
 - [x] Task: Git Hash Retrieval Utility 3785fe0
@@ -29,7 +29,7 @@ This plan implements a strict deterministic seed hierarchy and a sidecar metadat
     - [ ] Ensure the sidecar is written by the backend (`blender_main.py`) or the orchestration layer after a successful render.
 - [x] Task: Integration Test - Provenance Chain b357d55
     - [ ] Create an integration test that runs a single scene render and verifies the existence and content of the sidecar JSON.
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Metadata Provenance System' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 2: Metadata Provenance System' (Protocol in workflow.md) f2b1595
 
 ## Phase 3: Verification & Benchmarking
 **Goal:** Verify bit-identical reproducibility and assess performance overhead.
