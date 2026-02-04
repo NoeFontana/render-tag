@@ -18,6 +18,15 @@ def test_cli_catches_validation_error(tmp_path):
     assert "Validation Error" in result.stdout
     # Check for Pydantic error message part
     assert "Input should be greater than 0" in result.stdout
+
+def test_cli_detects_missing_asset_preflight(tmp_path):
+    """Verify CLI catches missing HDRI during pre-flight."""
+    config_path = tmp_path / "missing_asset.yaml"
+    config_path.write_text("scene:\n  background_hdri: nonexistent_studio.exr\n")
     
-    # Check for rich formatting (custom)
-    assert "Validation Error" in result.stdout
+    # We use --skip-render to only trigger pre-flight
+    result = runner.invoke(app, ["generate", "--config", str(config_path), "--skip-render"])
+    
+    assert result.exit_code == 1
+    assert "Pre-flight Validation Failed" in result.stdout
+    assert "HDRI background not found" in result.stdout

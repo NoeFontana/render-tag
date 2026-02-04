@@ -215,6 +215,23 @@ def generate(
     generator.save_recipe_json(recipes, recipe_filename)
     console.print(f"[dim]Recipe saved to:[/dim] {recipe_path}")
 
+    # Run Pre-Flight Validation
+    from .tools.validator import validate_recipe_file
+
+    is_valid, errors, warnings = validate_recipe_file(recipe_path)
+
+    if warnings:
+        for w in warnings:
+            console.print(f"[yellow]Warning:[/yellow] {w}")
+
+    if not is_valid:
+        console.print("[bold red]Pre-flight Validation Failed![/bold red]")
+        for e in errors:
+            console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(code=1) from None
+
+    console.print("[green]✓ Pre-flight validation passed[/green]")
+
     # 2. Ensure tag assets (as before)
     from .tag_gen import ensure_tag_asset
 

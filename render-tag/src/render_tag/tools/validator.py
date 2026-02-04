@@ -35,6 +35,20 @@ class RecipeValidator:
 
     def _check_assets(self):
         """Check if referenced assets exist on disk."""
+        # 1. Check World Assets
+        hdri = self.recipe.world.background_hdri
+        if hdri:
+            path = Path(hdri)
+            if not path.exists():
+                self.errors.append(f"World: HDRI background not found: {path}")
+
+        tex = self.recipe.world.texture_path
+        if tex:
+            path = Path(tex)
+            if not path.exists():
+                self.errors.append(f"World: Background texture not found: {path}")
+
+        # 2. Check Object Assets
         for obj in self.recipe.objects:
             if obj.type == "TAG":
                 # In generator we might not have set texture_path explicitly if using properties
