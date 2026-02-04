@@ -27,7 +27,7 @@ This plan implements a strict deterministic seed hierarchy and a sidecar metadat
 - [x] Task: Implement Sidecar Writer 0358848
     - [ ] Update `src/render_tag/data_io/writers.py` to write the `scene_xxxx_meta.json` file alongside the PNG.
     - [ ] Ensure the sidecar is written by the backend (`blender_main.py`) or the orchestration layer after a successful render.
-- [ ] Task: Integration Test - Provenance Chain
+- [x] Task: Integration Test - Provenance Chain b357d55
     - [ ] Create an integration test that runs a single scene render and verifies the existence and content of the sidecar JSON.
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Metadata Provenance System' (Protocol in workflow.md)
 
