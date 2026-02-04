@@ -2,7 +2,7 @@
 
 This plan implements a strict deterministic seed hierarchy and a sidecar metadata provenance system to ensure scientific reproducibility of generated datasets.
 
-## Phase 1: Deterministic Seed Hierarchy
+## Phase 1: Deterministic Seed Hierarchy [checkpoint: db5219b]
 **Goal:** Implement a stable derivation of shard and scene seeds from a single master seed.
 
 - [x] Task: Implement `SeedManager` utility 6a91802
@@ -14,7 +14,7 @@ This plan implements a strict deterministic seed hierarchy and a sidecar metadat
 - [x] Task: Scene-Level Determinism 69673f6
     - [ ] Update `src/render_tag/generator.py` to initialize its local random state using the provided shard/scene seed.
     - [ ] Verify that generating 10 `SceneRecipes` with the same shard seed produces identical JSON output.
-- [ ] Task: Conductor - User Manual Verification 'Phase 1: Deterministic Seed Hierarchy' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 1: Deterministic Seed Hierarchy' (Protocol in workflow.md) db5219b
 
 ## Phase 2: Metadata Provenance System
 **Goal:** Automatically generate and save sidecar JSON files containing full generation context for every image.
