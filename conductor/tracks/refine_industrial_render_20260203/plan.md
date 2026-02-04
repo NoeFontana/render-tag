@@ -32,7 +32,7 @@ This plan focuses on enhancing the photorealism and sensor accuracy of the `rend
 ## Phase 3: Integration & Validation
 **Goal:** Verify the complete pipeline and ensure data integrity.
 
-- [ ] Task: Update "Shadow Render" for New Features
+- [x] Task: Update "Shadow Render" for New Features 0493277
     - [ ] Update `src/render_tag/generator.py` (and visualization tools) to approximate/visualize noise and lighting in the 2D preview.
     - [ ] Ensure `validate-recipe` command covers the new configuration parameters.
 - [ ] Task: Full Pipeline Integration Test
