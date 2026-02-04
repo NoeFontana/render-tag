@@ -49,7 +49,6 @@ from render_tag.data_io.writers import (  # noqa: E402
     RichTruthWriter,
     SidecarWriter,
 )
-from render_tag.schema import SceneProvenance  # noqa: E402
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
@@ -143,12 +142,12 @@ def execute_recipe(
     timestamp = datetime.now(timezone.utc).isoformat()
     # We don't have explicit seeds dict here unless we pass it in recipe.
     # Recipe has seed implicitly used to generate it.
-    provenance = SceneProvenance(
-        git_hash=git_hash,
-        timestamp=timestamp,
-        recipe_snapshot=recipe,
-        seeds=None,  # Or parse from recipe if we added it
-    )
+    provenance = {
+        "git_hash": git_hash,
+        "timestamp": timestamp,
+        "recipe_snapshot": recipe,
+        "seeds": None,  # Or parse from recipe if we added it
+    }
 
     bproc.clean_up()
 

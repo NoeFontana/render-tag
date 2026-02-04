@@ -11,7 +11,7 @@ from __future__ import annotations
 import csv
 import json
 from pathlib import Path
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import numpy as np
 
@@ -35,7 +35,9 @@ except ImportError:
     GEOMETRY_AVAILABLE = False
 
 
-from render_tag.schema import SceneProvenance
+if TYPE_CHECKING:
+    from render_tag.schema import SceneProvenance
+
 from .types import DetectionRecord
 
 
@@ -260,12 +262,12 @@ class SidecarWriter:
     def __init__(self, output_dir: Path) -> None:
         self.output_dir = output_dir
 
-    def write_sidecar(self, image_name: str, provenance: SceneProvenance) -> Path:
+    def write_sidecar(self, image_name: str, provenance: dict[str, Any] | SceneProvenance) -> Path:
         """Write the provenance data to a JSON sidecar file.
 
         Args:
             image_name: Base name of the image (e.g. 'scene_0000_cam_0000')
-            provenance: SceneProvenance object
+            provenance: SceneProvenance object or dict
 
         Returns:
             Path to the written file
@@ -278,6 +280,9 @@ class SidecarWriter:
         path = sidecar_dir / filename
 
         with open(path, "w") as f:
-            f.write(provenance.model_dump_json(indent=2))
+            if isinstance(provenance, dict):
+                json.dump(provenance, f, indent=2, default=str)
+            else:
+                f.write(provenance.model_dump_json(indent=2))
 
         return path
