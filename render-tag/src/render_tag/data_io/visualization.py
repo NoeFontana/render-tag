@@ -80,7 +80,14 @@ class ShadowRenderer:
             pos = matrix[:3, 3]
 
             self.ax.scatter(pos[0], pos[1], marker="^", c="red", s=100)
-            self.ax.text(pos[0], pos[1] + 0.05, f"Cam {i}", color="red", fontsize=8)
+            
+            info = f"Cam {i}"
+            if cam.iso_noise and cam.iso_noise > 0:
+                info += f"\nISO: {cam.iso_noise}"
+            if cam.sensor_noise:
+                info += f"\nNoise: {cam.sensor_noise.model.value}"
+            
+            self.ax.text(pos[0], pos[1] + 0.05, info, color="red", fontsize=8)
 
             forward = -matrix[:3, 2]
             arrow_len = 0.5
