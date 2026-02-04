@@ -24,7 +24,7 @@ This plan implements a strict deterministic seed hierarchy and a sidecar metadat
     - [ ] Write tests ensuring it handles cases where `.git` is missing or the repo is dirty.
 - [x] Task: Update Sidecar Schema 757fabb
     - [ ] Extend `src/render_tag/schema.py` to include a `SceneProvenance` model (git_hash, timestamp, recipe_snapshot).
-- [ ] Task: Implement Sidecar Writer
+- [x] Task: Implement Sidecar Writer 0358848
     - [ ] Update `src/render_tag/data_io/writers.py` to write the `scene_xxxx_meta.json` file alongside the PNG.
     - [ ] Ensure the sidecar is written by the backend (`blender_main.py`) or the orchestration layer after a successful render.
 - [ ] Task: Integration Test - Provenance Chain
