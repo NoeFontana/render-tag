@@ -11,7 +11,7 @@ This plan implements a strict deterministic seed hierarchy and a sidecar metadat
 - [x] Task: Integrate `SeedManager` into Sharding Logic bd860e6
     - [ ] Update `src/render_tag/orchestration/sharding.py` to use `SeedManager` for assigning seeds to shards.
     - [ ] Ensure the shard seed is passed as an environment variable or argument to the Blender subprocess.
-- [ ] Task: Scene-Level Determinism
+- [x] Task: Scene-Level Determinism 69673f6
     - [ ] Update `src/render_tag/generator.py` to initialize its local random state using the provided shard/scene seed.
     - [ ] Verify that generating 10 `SceneRecipes` with the same shard seed produces identical JSON output.
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Deterministic Seed Hierarchy' (Protocol in workflow.md)
