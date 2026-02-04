@@ -2,7 +2,7 @@
 
 This plan focuses on enhancing the photorealism and sensor accuracy of the `render-tag` pipeline.
 
-## Phase 1: Advanced Sensor Noise & Motion Blur
+## Phase 1: Advanced Sensor Noise & Motion Blur [checkpoint: ae025f4]
 **Goal:** Implement realistic camera artifacts to minimize the sim-to-real gap.
 
 - [x] Task: Implement Parametric Sensor Noise Models 70f7958
@@ -14,7 +14,7 @@ This plan focuses on enhancing the photorealism and sensor accuracy of the `rend
     - [ ] Update `CameraConfig` in `src/render_tag/schema.py` to include exposure time and velocity parameters.
     - [ ] Implement motion blur calculation logic in `src/render_tag/backend/camera.py` utilizing Blender's motion blur settings.
     - [ ] Write unit tests verifying that higher velocity/exposure time results in increased blur values.
-- [ ] Task: Conductor - User Manual Verification 'Phase 1: Advanced Sensor Noise & Motion Blur' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 1: Advanced Sensor Noise & Motion Blur' (Protocol in workflow.md) ae025f4
 
 ## Phase 2: Industrial Lighting & Surface Imperfections
 **Goal:** Create realistic industrial environments and tag wear-and-tear.
