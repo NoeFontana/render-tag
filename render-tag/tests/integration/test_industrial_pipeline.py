@@ -38,6 +38,7 @@ def industrial_config(tmp_path):
         yaml.dump(config, f)
     return config_path
 
+@pytest.mark.integration
 def test_industrial_pipeline(tmp_path, industrial_config):
     """Test full pipeline with industrial features enabled."""
     result = subprocess.run(

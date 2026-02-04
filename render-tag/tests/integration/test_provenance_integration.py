@@ -3,6 +3,7 @@ import pytest
 import json
 from pathlib import Path
 
+@pytest.mark.integration
 def test_provenance_sidecar_generated(tmp_path):
     """Verify that sidecar JSON files are generated with images."""
     output_dir = tmp_path / "output"

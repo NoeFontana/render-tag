@@ -22,6 +22,7 @@ pytestmark = pytest.mark.skipif(
 )
 
 
+@pytest.mark.integration
 class TestFullPipeline:
     """Integration tests that run the complete generation pipeline."""
 
@@ -199,6 +200,7 @@ physics:
             assert len(ann["bbox"]) == 4
 
 
+@pytest.mark.integration
 class TestValidateCommand:
     """Tests for the validate command."""
 
@@ -248,6 +250,7 @@ dataset:
             Path(config_path).unlink(missing_ok=True)
 
 
+@pytest.mark.integration
 class TestInfoCommand:
     """Tests for the info command (doesn't require BlenderProc)."""
 

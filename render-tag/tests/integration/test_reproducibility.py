@@ -5,6 +5,7 @@ import json
 import yaml
 from pathlib import Path
 
+@pytest.mark.integration
 def test_reproducibility_benchmark(tmp_path):
     """Verify that running generation twice produces bit-identical images at low resolution."""
     # Create a tiny resolution config to make rendering fast
@@ -44,6 +45,7 @@ def test_reproducibility_benchmark(tmp_path):
     img2 = out2 / "images/scene_0000_cam_0000.png"
     assert filecmp.cmp(img1, img2), "Images differ - determinism failed"
 
+@pytest.mark.integration
 def test_shard_invariance_fast(tmp_path):
     """Verify that splitting a job into shards does not change recipes (Fast version)."""
     # We use --skip-render to only verify the recipe logic
