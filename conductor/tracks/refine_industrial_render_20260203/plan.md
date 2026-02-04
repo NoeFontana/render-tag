@@ -29,7 +29,7 @@ This plan focuses on enhancing the photorealism and sensor accuracy of the `rend
     - [ ] Write tests ensuring that surface imperfection parameters correctly modify the material node tree in Blender.
 - [x] Task: Conductor - User Manual Verification 'Phase 2: Industrial Lighting & Surface Imperfections' (Protocol in workflow.md) 178e2e7
 
-## Phase 3: Integration & Validation
+## Phase 3: Integration & Validation [checkpoint: dfa191c]
 **Goal:** Verify the complete pipeline and ensure data integrity.
 
 - [x] Task: Update "Shadow Render" for New Features 0493277
@@ -38,4 +38,4 @@ This plan focuses on enhancing the photorealism and sensor accuracy of the `rend
 - [x] Task: Full Pipeline Integration Test b04fc4d
     - [ ] Create an integration test `tests/test_industrial_pipeline.py` that runs a full generation cycle with new features enabled.
     - [ ] Verify that output images are generated and annotations are correct (bounding boxes match visible tags).
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: Integration & Validation' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 3: Integration & Validation' (Protocol in workflow.md) dfa191c
