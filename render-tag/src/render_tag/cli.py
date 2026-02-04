@@ -105,6 +105,11 @@ def generate(
         "--seed",
         help="Global random seed override",
     ),
+    skip_render: bool = typer.Option(
+        False,
+        "--skip-render",
+        help="Only generate recipes, skip Blender rendering",
+    ),
 ) -> None:
     """
     Generate synthetic fiducial marker training data.
@@ -226,6 +231,10 @@ def generate(
 
     # Build the blenderproc command
     script_path = Path(__file__).parent / "backend" / "executor.py"
+
+    if skip_render:
+        console.print("[yellow]--skip-render provided. Skipping Blender launch.[/yellow]")
+        return
 
     cmd = [
         "blenderproc",

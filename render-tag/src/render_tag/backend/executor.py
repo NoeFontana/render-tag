@@ -134,6 +134,18 @@ def execute_recipe(
     scene_idx = recipe["scene_id"]
     logger.info(f"--- Executing Scene {scene_idx} ---")
 
+    # Ensure deterministic behavior in backend
+    # We use scene_idx as the seed base since it's stable across runs
+    if np:
+        np.random.seed(scene_idx)
+    import random
+    random.seed(scene_idx)
+    
+    if bpy:
+        # Cycles seed
+        bpy.context.scene.cycles.seed = scene_idx
+        bpy.context.scene.cycles.use_animated_seed = False
+
     # Prepare provenance data
     # Note: git hash might be slow if called every scene?
     # Optimization: Call it once in main and pass it down.
