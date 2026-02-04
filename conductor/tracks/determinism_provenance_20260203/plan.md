@@ -8,7 +8,7 @@ This plan implements a strict deterministic seed hierarchy and a sidecar metadat
 - [x] Task: Implement `SeedManager` utility 6a91802
     - [ ] Create a utility class in `src/render_tag/common/math.py` to handle sequential seed derivation.
     - [ ] Write tests verifying that `SeedManager(master_seed).get_shard_seed(n)` is stable and repeatable.
-- [ ] Task: Integrate `SeedManager` into Sharding Logic
+- [x] Task: Integrate `SeedManager` into Sharding Logic bd860e6
     - [ ] Update `src/render_tag/orchestration/sharding.py` to use `SeedManager` for assigning seeds to shards.
     - [ ] Ensure the shard seed is passed as an environment variable or argument to the Blender subprocess.
 - [ ] Task: Scene-Level Determinism
