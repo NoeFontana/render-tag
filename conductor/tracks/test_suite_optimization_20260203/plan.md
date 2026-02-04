@@ -2,7 +2,7 @@
 
 This plan reorganizes the test suite for better performance and enhances the "Shadow Render" loop to catch errors before Blender is launched.
 
-## Phase 1: Test Reorganization
+## Phase 1: Test Reorganization [checkpoint: 676b90b]
 **Goal:** Separate slow integration tests from fast unit tests.
 
 - [~] Task: Create `tests/unit` and `tests/integration` subdirectories
@@ -12,7 +12,7 @@ This plan reorganizes the test suite for better performance and enhances the "Sh
 - [x] Task: Configure Pytest Markers 35d149e
     - [ ] Add `pytest.ini` or update `pyproject.toml` to define the `integration` marker.
     - [ ] Decorate all integration tests with `@pytest.mark.integration`.
-- [ ] Task: Conductor - User Manual Verification 'Phase 1: Test Reorganization' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 1: Test Reorganization' (Protocol in workflow.md) 676b90b
 
 ## Phase 2: Enhanced "Pre-Flight" Validation
 **Goal:** Catch configuration and geometric errors in the fast path.
