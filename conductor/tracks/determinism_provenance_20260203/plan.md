@@ -19,7 +19,7 @@ This plan implements a strict deterministic seed hierarchy and a sidecar metadat
 ## Phase 2: Metadata Provenance System
 **Goal:** Automatically generate and save sidecar JSON files containing full generation context for every image.
 
-- [ ] Task: Git Hash Retrieval Utility
+- [x] Task: Git Hash Retrieval Utility 3785fe0
     - [ ] Implement a helper to retrieve the current HEAD git hash.
     - [ ] Write tests ensuring it handles cases where `.git` is missing or the repo is dirty.
 - [ ] Task: Update Sidecar Schema
