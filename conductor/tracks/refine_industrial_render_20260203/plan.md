@@ -23,7 +23,7 @@ This plan focuses on enhancing the photorealism and sensor accuracy of the `rend
     - [ ] Define new `LightingConfig` presets for "Factory", "Warehouse", and "Outdoor Industrial" in `src/render_tag/config.py` (or yaml configs).
     - [ ] Ensure `src/render_tag/backend/scene.py` correctly loads and applies these HDRi maps.
     - [ ] Validate that lighting intensity and rotation are randomized within realistic bounds.
-- [ ] Task: Procedural Surface Imperfections
+- [x] Task: Procedural Surface Imperfections 347a215
     - [ ] Create `TagSurfaceConfig` in `src/render_tag/schema.py` for scratches, dust, and specularity.
     - [ ] Implement material shader modification logic in `src/render_tag/backend/assets.py` to apply these textures to tag meshes.
     - [ ] Write tests ensuring that surface imperfection parameters correctly modify the material node tree in Blender.
