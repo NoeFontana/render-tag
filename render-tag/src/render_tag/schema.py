@@ -129,3 +129,12 @@ class SceneRecipe(BaseModel):
     world: WorldRecipe = Field(default_factory=WorldRecipe)
     objects: list[ObjectRecipe] = Field(default_factory=list)
     cameras: list[CameraRecipe] = Field(default_factory=list)
+
+
+class SceneProvenance(BaseModel):
+    """Metadata provenance for a generated image."""
+
+    git_hash: str = Field(description="Git commit hash of the code used for generation")
+    timestamp: str = Field(description="ISO 8601 timestamp of generation")
+    recipe_snapshot: dict[str, Any] = Field(description="Snapshot of the SceneRecipe used")
+    seeds: dict[str, int] | None = Field(default=None, description="Random seeds used")
