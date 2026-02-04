@@ -9,7 +9,7 @@ This plan reorganizes the test suite for better performance and enhances the "Sh
 - [x] Task: Reorganize existing tests 10dcb6b
     - [ ] Move `tests/test_integration.py`, `tests/test_industrial_pipeline.py`, and `tests/test_provenance_integration.py` to `tests/integration/`.
     - [ ] Move remaining functional tests to `tests/unit/`.
-- [ ] Task: Configure Pytest Markers
+- [x] Task: Configure Pytest Markers 35d149e
     - [ ] Add `pytest.ini` or update `pyproject.toml` to define the `integration` marker.
     - [ ] Decorate all integration tests with `@pytest.mark.integration`.
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Test Reorganization' (Protocol in workflow.md)
