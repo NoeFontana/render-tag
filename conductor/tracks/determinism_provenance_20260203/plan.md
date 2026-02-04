@@ -22,7 +22,7 @@ This plan implements a strict deterministic seed hierarchy and a sidecar metadat
 - [x] Task: Git Hash Retrieval Utility 3785fe0
     - [ ] Implement a helper to retrieve the current HEAD git hash.
     - [ ] Write tests ensuring it handles cases where `.git` is missing or the repo is dirty.
-- [ ] Task: Update Sidecar Schema
+- [x] Task: Update Sidecar Schema 757fabb
     - [ ] Extend `src/render_tag/schema.py` to include a `SceneProvenance` model (git_hash, timestamp, recipe_snapshot).
 - [ ] Task: Implement Sidecar Writer
     - [ ] Update `src/render_tag/data_io/writers.py` to write the `scene_xxxx_meta.json` file alongside the PNG.
