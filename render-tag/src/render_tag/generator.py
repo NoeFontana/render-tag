@@ -13,6 +13,7 @@ from typing import Any
 import numpy as np
 
 from render_tag.common import TAG_GRID_SIZES
+from render_tag.common.math import SeedManager
 from render_tag.config import GenConfig
 from render_tag.geometry.camera import sample_camera_pose
 from render_tag.geometry.layouts import apply_flying_layout, apply_grid_layout
@@ -82,17 +83,22 @@ class Generator:
 
         # 1. Setup World/Environment (Lighting)
         # Use lighting seed
-        self._seed_everything(self.config.dataset.seeds.lighting_seed + scene_id)
+        seed_lighting = SeedManager(self.config.dataset.seeds.lighting_seed).get_shard_seed(
+            scene_id
+        )
+        self._seed_everything(seed_lighting)
         recipe.world = self._generate_world_config()
 
         # 2. Setup Tags and Layout
         # Use layout seed
-        self._seed_everything(self.config.dataset.seeds.layout_seed + scene_id)
+        seed_layout = SeedManager(self.config.dataset.seeds.layout_seed).get_shard_seed(scene_id)
+        self._seed_everything(seed_layout)
         recipe.objects = self._generate_layout_objects(scene_id)
 
         # 3. Setup Cameras
         # Use camera seed
-        self._seed_everything(self.config.dataset.seeds.camera_seed + scene_id)
+        seed_camera = SeedManager(self.config.dataset.seeds.camera_seed).get_shard_seed(scene_id)
+        self._seed_everything(seed_camera)
         recipe.cameras = self._generate_camera_recipes()
 
         return recipe

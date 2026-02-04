@@ -96,16 +96,15 @@ def run_local_parallel(
         console.print(f"[yellow]Warning: Could not load config for seed manager: {e}[/yellow]")
         master_seed = 42
 
-    seed_manager = SeedManager(master_seed)
-
     start_time = time.time()
 
     with concurrent.futures.ProcessPoolExecutor(max_workers=workers) as executor:
         futures = []
         for i in range(workers):
-            shard_seed = seed_manager.get_shard_seed(i)
-            # Recursive call sending specific shard index and deterministic seed
-            cmd = [*cmd_base, "--shard-index", str(i), "--seed", str(shard_seed)]
+            # Recursive call sending specific shard index
+            # We do NOT pass --seed here, ensuring all shards use the same Master Seed
+            # from the config file. Generator handles scene-level determinism.
+            cmd = [*cmd_base, "--shard-index", str(i)]
             futures.append(executor.submit(subprocess.run, cmd, check=True))
 
         # Wait for all

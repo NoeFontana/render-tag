@@ -47,13 +47,9 @@ def test_run_local_parallel_passes_seeds():
                 args1 = mock_executor.submit.call_args_list[1][0][1]
                 
                 # Expecting something like ... --seed <val> ...
-                assert "--seed" in args0
-                assert "--seed" in args1
+                # We reverted passing --seed to ensure global invariance
+                assert "--seed" not in args0
+                assert "--seed" not in args1
                 
-                # Extract seeds
-                idx0 = args0.index("--seed") + 1
-                idx1 = args1.index("--seed") + 1
-                seed0 = int(args0[idx0])
-                seed1 = int(args1[idx1])
-                
-                assert seed0 != seed1
+                # Check shard index IS passed
+                assert "--shard-index" in args0
