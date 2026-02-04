@@ -12,6 +12,11 @@ from typing import Annotated, Any
 import yaml
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from render_tag.schema import (
+    CameraIntrinsics as CameraIntrinsicsRecipe,
+    SensorNoiseConfig,
+)
+
 
 class TagFamily(str, Enum):
     """Supported fiducial marker families.
@@ -292,6 +297,9 @@ class CameraConfig(BaseModel):
     # Sensor Noise/Distortion
     iso_noise: float = Field(
         default=0.0, ge=0, description="Simulated sensor gain/ISO noise level (0-1)"
+    )
+    sensor_noise: SensorNoiseConfig | None = Field(
+        default=None, description="Parametric sensor noise configuration"
     )
 
     @property

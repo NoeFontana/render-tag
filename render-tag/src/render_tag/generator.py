@@ -279,6 +279,7 @@ class Generator:
                     fstop=camera_config.fstop,
                     focus_distance=camera_config.focus_distance,
                     iso_noise=camera_config.iso_noise,
+                    sensor_noise=camera_config.sensor_noise,
                 )
             )
         return recipes
