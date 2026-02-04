@@ -35,7 +35,7 @@ This plan focuses on enhancing the photorealism and sensor accuracy of the `rend
 - [x] Task: Update "Shadow Render" for New Features 0493277
     - [ ] Update `src/render_tag/generator.py` (and visualization tools) to approximate/visualize noise and lighting in the 2D preview.
     - [ ] Ensure `validate-recipe` command covers the new configuration parameters.
-- [ ] Task: Full Pipeline Integration Test
+- [x] Task: Full Pipeline Integration Test b04fc4d
     - [ ] Create an integration test `tests/test_industrial_pipeline.py` that runs a full generation cycle with new features enabled.
     - [ ] Verify that output images are generated and annotations are correct (bounding boxes match visible tags).
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: Integration & Validation' (Protocol in workflow.md)
