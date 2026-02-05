@@ -54,6 +54,35 @@ Options:
   -o, --output PATH     Output directory [default: output/dataset_01]
   -n, --scenes INTEGER  Number of scenes to generate [default: 1]
   -v, --verbose         Enable verbose output from BlenderProc
+  -e, --executor TEXT   Execution engine: local, docker, mock [default: local]
+
+### Execution Engines
+
+render-tag supports different execution engines to suit your environment:
+
+| Executor | Description | Use Case |
+|----------|-------------|----------|
+| `local` | Uses local BlenderProc installation | Fast local development |
+| `docker` | Runs BlenderProc inside a container | Hermetic, reproducible runs |
+| `mock` | No-op execution (logs only) | Testing pipeline logic |
+
+#### Running with Docker
+
+To run rendering inside a container (requires Docker installed):
+
+```bash
+uv run render-tag generate --executor docker --scenes 10
+```
+
+*Note: Ensure the `render-tag:latest` image is built or available.*
+
+#### Running with Mock (Fast Test)
+
+To verify configuration and recipe generation without rendering:
+
+```bash
+uv run render-tag generate --executor mock --scenes 5
+```
 ```
 
 ### `render-tag validate`
