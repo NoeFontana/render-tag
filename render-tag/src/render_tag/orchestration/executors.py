@@ -71,6 +71,12 @@ class DockerExecutor:
     def __init__(self, image: str = "render-tag:latest"):
         self.image = image
         
+class DockerExecutor:
+    """Executes renders inside a Docker container."""
+    
+    def __init__(self, image: str = "render-tag:latest"):
+        self.image = image
+        
     def execute(
         self, 
         recipe_path: Path, 
@@ -79,8 +85,6 @@ class DockerExecutor:
         shard_id: str,
         verbose: bool = False
     ) -> None:
-        # Docker still uses the legacy entry point src/render_tag/backend/executor.py
-        # for simplicity, but eventually it should also use zmq_server.py
         abs_output = output_dir.absolute()
         abs_recipe = recipe_path.absolute()
         
