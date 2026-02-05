@@ -21,14 +21,77 @@ from .data_io.visualization import visualize_dataset, visualize_recipe
 from .generator import Generator
 from .orchestration.executors import ExecutorFactory
 from .orchestration.sharding import resolve_shard_index, run_local_parallel
-from .tools.validator import validate_recipe_file
+from .tools.validator import validate_recipe_file, AssetValidator
+from .orchestration.assets import AssetManager
 
 app = typer.Typer(
     name="render-tag",
     help="3D Procedural Synthetic Data Generation for Fiducial Markers",
     add_completion=False,
 )
+assets_app = typer.Typer(help="Manage binary assets (HDRIs, Textures, etc.)")
+app.add_typer(assets_app, name="assets")
+
 console = Console()
+
+
+def get_asset_manager() -> AssetManager:
+    """Helper to initialize AssetManager with local directory."""
+    # Assets folder is at the root of the project
+    local_dir = Path(__file__).parents[2] / "assets"
+    return AssetManager(local_dir=local_dir)
+
+
+@assets_app.command()
+def pull(
+    token: str = typer.Option(
+        None,
+        envvar="HF_TOKEN",
+        help="Hugging Face API token",
+    ),
+) -> None:
+    """
+    Download the latest assets from Hugging Face.
+    """
+    manager = get_asset_manager()
+    console.print(f"[bold]Pulling assets from {manager.repo_id}...[/bold]")
+    try:
+        manager.pull(token=token)
+        console.print("[bold green]✓ Assets synchronized successfully![/bold green]")
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1) from None
+
+
+@assets_app.command()
+def push(
+    message: str = typer.Option(
+        "Update assets",
+        "--message",
+        "-m",
+        help="Semantic commit message for the asset update",
+    ),
+    token: str = typer.Option(
+        None,
+        envvar="HF_TOKEN",
+        help="Hugging Face API token (required for write access)",
+    ),
+) -> None:
+    """
+    Upload local asset changes to Hugging Face.
+    """
+    if not token:
+        console.print("[bold red]Error:[/bold red] HF_TOKEN is required for pushing assets.")
+        raise typer.Exit(code=1) from None
+
+    manager = get_asset_manager()
+    console.print(f"[bold]Pushing assets to {manager.repo_id}...[/bold]")
+    try:
+        manager.push(token=token, commit_message=message)
+        console.print("[bold green]✓ Assets uploaded successfully![/bold green]")
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1) from None
 
 
 def check_blenderproc_installed() -> bool:
@@ -135,6 +198,26 @@ def generate(
 
     # 1. Setup Executor
     executor = ExecutorFactory.get_executor(executor_type)
+
+    # Check for assets (Pre-flight)
+    local_assets_dir = Path(__file__).parents[2] / "assets"
+    asset_validator = AssetValidator(local_assets_dir)
+    if not asset_validator.is_hydrated():
+        console.print("[bold yellow]Warning:[/bold yellow] Assets folder is missing or empty.")
+        if typer.confirm("Would you like to pull assets from Hugging Face now?", default=True):
+            # Try to pull
+            manager = get_asset_manager()
+            try:
+                # Use HF_TOKEN if available in env
+                manager.pull()
+                console.print("[bold green]✓ Assets synchronized successfully![/bold green]")
+            except Exception as e:
+                console.print(f"[bold red]Error pulling assets:[/bold red] {e}")
+                console.print("Please run [cyan]render-tag assets pull[/cyan] manually.")
+                raise typer.Exit(code=1) from None
+        else:
+            console.print("[bold red]Error:[/bold red] Required assets missing. Generation may fail.")
+            raise typer.Exit(code=1) from None
 
     # Check for blenderproc installation (only if local executor)
     if executor_type == "local" and not check_blenderproc_installed():

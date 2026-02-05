@@ -14,6 +14,35 @@ from pathlib import Path
 from render_tag.schema import SceneRecipe
 
 
+class AssetValidator:
+    """Validator for the local asset cache."""
+
+    def __init__(self, assets_dir: Path):
+        self.assets_dir = Path(assets_dir)
+        self.required_subdirs = ["hdri", "textures", "tags", "models"]
+
+    def is_hydrated(self) -> bool:
+        """Check if the assets folder exists and contains the required structure."""
+        if not self.assets_dir.exists():
+            return False
+
+        # Basic check: do subdirs exist?
+        for sub in self.required_subdirs:
+            if not (self.assets_dir / sub).exists():
+                return False
+
+        # Heuristic check: are there actually files?
+        # We check if at least one common subdir has content
+        has_content = False
+        for sub in ["hdri", "textures", "tags"]:
+            sub_path = self.assets_dir / sub
+            if sub_path.exists() and any(sub_path.iterdir()):
+                has_content = True
+                break
+
+        return has_content
+
+
 class RecipeValidator:
     """Validator for Scene Recipes."""
 
@@ -73,12 +102,22 @@ class RecipeValidator:
                         pass
 
     def _check_geometry(self):
-        """Check for physical intersectons."""
-        # Simple bounding box check for tags (assuming flat on Z=0 for grid layouts)
-        # This is strictly 2D XY check
-
+        """Check for physical intersections and board boundaries."""
         tag_boxes = []
+        board_aabb = None
 
+        # 1. Find Board Boundaries
+        for obj in self.recipe.objects:
+            if obj.type == "BOARD":
+                props = obj.properties
+                width = props.get("cols", 1) * props.get("square_size", 0.1)
+                height = props.get("rows", 1) * props.get("square_size", 0.1)
+                x, y = obj.location[0], obj.location[1]
+                # Assuming centered at location
+                board_aabb = (x - width / 2, x + width / 2, y - height / 2, y + height / 2)
+                break
+
+        # 2. Analyze Tags
         for i, obj in enumerate(self.recipe.objects):
             if obj.type == "TAG":
                 # properties has tag_size
@@ -90,14 +129,22 @@ class RecipeValidator:
                 x, y = obj.location[0], obj.location[1]
 
                 # Simple AABB (Axis Aligned Bounding Box) - ignores rotation for this quick check
-                # This could be a source of false positives for rotated tags, so maybe just warn?
-                # Or implemented OBB overlap.
-
-                # Let's do a simple distance check. Max radius is sqrt(w^2 + h^2)/2
                 radius = (w**2 + h**2) ** 0.5 / 2.0
                 tag_boxes.append((i, obj, x, y, radius))
 
-        # O(N^2) check
+                # Check if tag is within board boundaries
+                if board_aabb:
+                    bx_min, bx_max, by_min, by_max = board_aabb
+                    # Use a small buffer (1mm) for floating point
+                    if (
+                        x - w / 2 < bx_min - 0.001
+                        or x + w / 2 > bx_max + 0.001
+                        or y - h / 2 < by_min - 0.001
+                        or y + h / 2 > by_max + 0.001
+                    ):
+                        self.warnings.append(f"Tag '{obj.name}' is outside board boundaries.")
+
+        # O(N^2) overlap check
         for i in range(len(tag_boxes)):
             for j in range(i + 1, len(tag_boxes)):
                 _idx1, obj1, x1, y1, r1 = tag_boxes[i]
