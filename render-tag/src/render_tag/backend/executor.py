@@ -162,9 +162,8 @@ def execute_recipe(
         "seeds": None,  # Or parse from recipe if we added it
     }
 
-    # Reset object pool and basic bproc state
+    # Reset object pool
     global_pool.release_all()
-    bproc.clean_up()
 
     # Periodic Hybrid Garbage Collection (every 50 scenes)
     if scene_idx > 0 and scene_idx % 50 == 0 and bpy:
@@ -257,7 +256,9 @@ def execute_recipe(
 
         elif obj_recipe["type"] == "BOARD":
             # Check if board already exists in scene to avoid re-creation
-            existing_board = bproc.object.get_all_mesh_objects("Board_Background.*")
+            # bproc API doesn't support 'name' filter directly in this version
+            all_mesh_objs = bproc.object.get_all_mesh_objects()
+            existing_board = [o for o in all_mesh_objs if "Board_Background" in o.get_name()]
             if not existing_board:
                 props = obj_recipe["properties"]
                 create_board(props["cols"], props["rows"], props["square_size"], props["mode"])
@@ -416,6 +417,7 @@ def main() -> None:
         with open(args.recipe) as f:
             recipes = json.load(f)
         bproc.init()
+        bproc.clean_up()
 
     # Initialize writers
     # Initialize writers
