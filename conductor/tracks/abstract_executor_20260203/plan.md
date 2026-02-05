@@ -9,7 +9,7 @@ This plan refactors the render execution logic into a pluggable interface to sup
     - [ ] Create `src/render_tag/orchestration/executors.py`.
     - [ ] Define the `RenderExecutor` typing protocol.
     - [ ] Create an `ExecutorFactory` to instantiate the correct implementation based on a string name.
-- [ ] Task: Implement `LocalExecutor`
+- [x] Task: Implement `LocalExecutor` f7cde3b
     - [ ] Migrate the current `subprocess.run` logic from `src/render_tag/cli.py` to the `LocalExecutor` class.
 - [ ] Task: Implement `MockExecutor`
     - [ ] Create a `MockExecutor` that simply logs the execution command and returns success.
