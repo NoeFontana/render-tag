@@ -12,25 +12,35 @@ class ZmqHostClient:
     Client for sending commands to a persistent Blender backend via ZeroMQ.
     """
 
-    def __init__(self, host: str = "localhost", port: int = 5555, timeout_ms: int = 10000):
+    def __init__(self, host: str = "localhost", port: int = 5555, timeout_ms: int = 10000, context: Optional[zmq.Context] = None):
         self.address = f"tcp://{host}:{port}"
         self.timeout_ms = timeout_ms
-        self.context = zmq.Context()
-        self.socket = self.context.socket(zmq.REQ)
-        self.socket.setsockopt(zmq.RCVTIMEO, timeout_ms)
-        self.socket.setsockopt(zmq.SNDTIMEO, timeout_ms)
-        self.socket.setsockopt(zmq.LINGER, 0)
+        self.context = context or zmq.Context()
+        self._own_context = context is None
+        self.socket = None
         self.connected = False
+
+    def _create_socket(self):
+        """Creates and configures the ZMQ socket."""
+        if self.socket:
+            self.socket.close(linger=0)
+        self.socket = self.context.socket(zmq.REQ)
+        self.socket.setsockopt(zmq.RCVTIMEO, self.timeout_ms)
+        self.socket.setsockopt(zmq.SNDTIMEO, self.timeout_ms)
+        self.socket.setsockopt(zmq.LINGER, 0)
+        self.socket.connect(self.address)
 
     def connect(self):
         """Connects to the ZMQ backend."""
-        self.socket.connect(self.address)
+        self._create_socket()
         self.connected = True
 
     def disconnect(self):
         """Closes the ZMQ connection."""
-        self.socket.close()
-        self.context.term()
+        if self.socket:
+            self.socket.close(linger=0)
+        if self._own_context:
+            self.context.term()
         self.connected = False
 
     def send_command(
@@ -41,7 +51,11 @@ class ZmqHostClient:
     ) -> Response:
         """
         Sends a command and waits for a response.
+        If a timeout occurs, the socket is reset to maintain REQ/REP synchronization.
         """
+        if not self.connected:
+            self.connect()
+
         request_id = f"req-{int(time.time() * 1000)}"
         command = Command(
             command_type=command_type,
@@ -58,6 +72,8 @@ class ZmqHostClient:
             return Response.model_validate_json(response_json)
             
         except zmq.Again:
+            # REQ/REP synchronization is broken on timeout. Must reset socket.
+            self._create_socket()
             if raise_on_failure:
                 raise TimeoutError(f"Timeout waiting for response from {self.address}")
             return Response(
@@ -66,6 +82,8 @@ class ZmqHostClient:
                 message=f"Timeout waiting for response from {self.address}"
             )
         except Exception as e:
+            # Reset socket on any major error to be safe
+            self._create_socket()
             if raise_on_failure:
                 raise e
             return Response(

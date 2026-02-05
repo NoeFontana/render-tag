@@ -224,7 +224,9 @@ class ZmqBackendServer:
                     if cmd.command_type == CommandType.RENDER and resp.status == ResponseStatus.SUCCESS:
                         renders_completed += 1
                         if max_renders and renders_completed >= max_renders:
-                            logger.info(f"Reached max_renders ({max_renders}). Shutting down.")
+                            logger.info(f"Reached max_renders ({max_renders}). Shutting down soon.")
+                            # Give host a tiny bit of time to collect final telemetry
+                            time.sleep(1.0)
                             self.running = False
                             # Finalize writers
                             if "coco" in self.writers: self.writers["coco"].save()

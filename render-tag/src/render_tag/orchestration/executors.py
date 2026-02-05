@@ -5,34 +5,15 @@ Provides a pluggable interface for running BlenderProc locally,
 in containers, or via cloud batch systems.
 """
 
-from typing import Protocol, runtime_checkable, List
-from pathlib import Path
+import json
 import logging
-import subprocess
-import sys
-import time
+from pathlib import Path
+from typing import Protocol, runtime_checkable
+
+from render_tag.orchestration.unified_orchestrator import UnifiedWorkerOrchestrator
+from render_tag.schema.hot_loop import ResponseStatus
 
 logger = logging.getLogger(__name__)
-
-# Global list for tracking active render processes
-_active_render_processes: List[subprocess.Popen] = []
-
-def cleanup_render_processes():
-    """Kill all tracked render processes."""
-    for p in _active_render_processes:
-        if p.poll() is None:
-            try:
-                p.terminate()
-            except Exception:
-                pass
-    time.sleep(0.2)
-    for p in _active_render_processes:
-        if p.poll() is None:
-            try:
-                p.kill()
-            except Exception:
-                pass
-    _active_render_processes.clear()
 
 @runtime_checkable
 class RenderExecutor(Protocol):
@@ -46,19 +27,14 @@ class RenderExecutor(Protocol):
         shard_id: str,
         verbose: bool = False
     ) -> None:
-        """Execute the render for a given recipe.
-        
-        Args:
-            recipe_path: Path to the scene recipe JSON file.
-            output_dir: Directory where results should be saved.
-            renderer_mode: Blender render engine (cycles, eevee, etc.)
-            shard_id: Unique ID for this execution unit.
-            verbose: If True, show BlenderProc output.
-        """
+        """Execute the render for a given recipe."""
         ...
 
 class LocalExecutor:
-    """Executes renders using local BlenderProc installation."""
+    """
+    Executes renders locally using the UnifiedWorkerOrchestrator in ephemeral mode.
+    Retires the legacy subprocess-per-shard logic.
+    """
     
     def execute(
         self, 
@@ -68,47 +44,26 @@ class LocalExecutor:
         shard_id: str,
         verbose: bool = False
     ) -> None:
-        # Find the backend executor script relative to this file
-        # src/render_tag/orchestration/executors.py -> src/render_tag/backend/executor.py
-        script_path = Path(__file__).parent.parent / "backend" / "executor.py"
+        logger.info(f"Executing local render shard {shard_id} via Unified Orchestrator.")
         
-        if not script_path.exists():
-            raise FileNotFoundError(f"Backend executor script not found at {script_path}")
+        with open(recipe_path) as f:
+            recipes = json.load(f)
 
-        cmd = [
-            "blenderproc",
-            "run",
-            str(script_path),
-            "--recipe",
-            str(recipe_path),
-            "--output",
-            str(output_dir),
-            "--renderer-mode",
-            renderer_mode,
-            "--shard-id",
-            str(shard_id),
-        ]
-
-        logger.info(f"Launching local BlenderProc: {' '.join(cmd)}")
+        # Launch an ephemeral pool for this shard
+        # base_port is offset by a hash of shard_id to avoid conflicts in parallel runs
+        import hashlib
+        port_offset = int(hashlib.md5(shard_id.encode()).hexdigest(), 16) % 1000
         
-        p = subprocess.Popen(
-            cmd,
-            stdout=None if verbose else subprocess.PIPE,
-            stderr=None if verbose else subprocess.PIPE,
-            text=True,
-        )
-        _active_render_processes.append(p)
-
-        try:
-            stdout, stderr = p.communicate()
-            if p.returncode != 0:
-                logger.error(f"Local rendering failed with exit code {p.returncode}")
-                if stderr:
-                    logger.error(f"Error output:\n{stderr[:1000]}")
-                raise RuntimeError(f"BlenderProc failed (exit {p.returncode})")
-        finally:
-            if p in _active_render_processes:
-                _active_render_processes.remove(p)
+        with UnifiedWorkerOrchestrator(
+            num_workers=1,
+            base_port=8000 + port_offset,
+            ephemeral=True,
+            max_renders_per_worker=len(recipes)
+        ) as orchestrator:
+            for recipe in recipes:
+                resp = orchestrator.execute_recipe(recipe, output_dir, renderer_mode)
+                if resp.status != ResponseStatus.SUCCESS:
+                    raise RuntimeError(f"Render failed: {resp.message}")
 
 class DockerExecutor:
     """Executes renders inside a Docker container."""
@@ -124,12 +79,11 @@ class DockerExecutor:
         shard_id: str,
         verbose: bool = False
     ) -> None:
-        # We need absolute paths for Docker volume mapping
+        # Docker still uses the legacy entry point src/render_tag/backend/executor.py
+        # for simplicity, but eventually it should also use zmq_server.py
         abs_output = output_dir.absolute()
         abs_recipe = recipe_path.absolute()
         
-        # We mount the output directory to /output inside the container
-        # We also mount the recipe file
         cmd = [
             "docker", "run", "--rm",
             "-v", f"{abs_output}:/output",
@@ -143,7 +97,7 @@ class DockerExecutor:
         ]
 
         logger.info(f"Launching Docker BlenderProc: {' '.join(cmd)}")
-        
+        import subprocess
         result = subprocess.run(
             cmd,
             check=False,

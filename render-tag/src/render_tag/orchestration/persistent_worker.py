@@ -27,7 +27,9 @@ class PersistentWorkerProcess:
         blender_executable: str = "blenderproc",
         startup_timeout: int = 30,
         use_blenderproc: bool = True,
-        mock: bool = False
+        mock: bool = False,
+        max_renders: Optional[int] = None,
+        context: Optional[zmq.Context] = None
     ):
         self.worker_id = worker_id
         self.port = port
@@ -36,20 +38,15 @@ class PersistentWorkerProcess:
         self.startup_timeout = startup_timeout
         self.use_blenderproc = use_blenderproc
         self.mock = mock
+        self.max_renders = max_renders
+        self.context = context
         
         self.process: Optional[subprocess.Popen] = None
         self.client: Optional[ZmqHostClient] = None
 
     def _get_process_output(self) -> str:
         """Helper to get process output safely if it has exited."""
-        if not self.process:
-            return ""
-        try:
-            # Only communicate if it's already dead or we're ready to wait
-            stdout, stderr = self.process.communicate(timeout=0.1)
-            return f"Stdout: {stdout}\nStderr: {stderr}"
-        except Exception:
-            return "Could not retrieve process output (still running or pipe error)"
+        return "Process output capture disabled to prevent deadlocks."
 
     def start(self):
         """Spawns the Blender subprocess and waits for it to become ready."""
@@ -61,24 +58,29 @@ class PersistentWorkerProcess:
         if self.use_blenderproc:
             base_cmd = [self.blender_executable, "run", str(self.blender_script)]
         else:
+            # If not using blenderproc (e.g. standard python for mocks),
+            # just run the script directly.
             base_cmd = [self.blender_executable, str(self.blender_script)]
         
         cmd = base_cmd + ["--port", str(self.port)]
         if self.mock:
             cmd.append("--mock")
-
+        if self.max_renders:
+            cmd.extend(["--max-renders", str(self.max_renders)])
+    
         logger.info(f"Starting persistent worker {self.worker_id}: {' '.join(cmd)}")
         
-        # We start the process. The script needs to accept --port
+        # Start the process. Redirect output to DEVNULL to avoid pipe buffer deadlocks
+        # unless we specifically need to capture it for debugging.
         self.process = subprocess.Popen(
             cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
             text=True
         )
 
         # Initialize ZMQ client with short timeout for startup phase
-        self.client = ZmqHostClient(port=self.port, timeout_ms=1000)
+        self.client = ZmqHostClient(port=self.port, timeout_ms=1000, context=self.context)
         self.client.connect()
 
         # Wait for heartbeat/status success
@@ -86,8 +88,7 @@ class PersistentWorkerProcess:
         while time.time() - start_time < self.startup_timeout:
             poll_result = self.process.poll()
             if poll_result is not None:
-                output = self._get_process_output()
-                raise RuntimeError(f"Worker {self.worker_id} failed to start (exit {poll_result}).\n{output}")
+                raise RuntimeError(f"Worker {self.worker_id} failed to start (exit {poll_result}).")
 
             try:
                 resp = self.client.send_command(CommandType.STATUS, raise_on_failure=True)
@@ -101,15 +102,19 @@ class PersistentWorkerProcess:
                 
             time.sleep(0.5)
 
-        output = self._get_process_output()
         self.stop()
-        raise TimeoutError(f"Worker {self.worker_id} timed out during startup.\n{output}")
+        raise TimeoutError(f"Worker {self.worker_id} timed out during startup.")
 
     def stop(self):
         """Gracefully stops the worker."""
         if self.client:
             try:
-                self.client.send_command(CommandType.SHUTDOWN)
+                # Only try to send SHUTDOWN if process is still alive
+                if self.process and self.process.poll() is None:
+                    # Use a very short timeout for shutdown command
+                    self.client.socket.setsockopt(zmq.RCVTIMEO, 500)
+                    self.client.send_command(CommandType.SHUTDOWN)
+                
                 self.client.disconnect()
             except Exception:
                 pass
@@ -119,7 +124,7 @@ class PersistentWorkerProcess:
             if self.process.poll() is None:
                 self.process.terminate()
                 try:
-                    self.process.wait(timeout=5)
+                    self.process.wait(timeout=2)
                 except subprocess.TimeoutExpired:
                     self.process.kill()
             self.process = None
