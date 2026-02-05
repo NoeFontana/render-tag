@@ -35,7 +35,7 @@ This plan implements a high-performance auditing system to verify the quality an
     - [x] Implement `OutlierExporter` to generate the `outliers/` directory with symlinks.
 - [x] Task: Conductor - User Manual Verification 'Quality Gates & Outlier Identification' (Protocol in workflow.md) 4f09488
 
-## Phase 4: Reporting & Visualization
+## Phase 4: Reporting & Visualization [checkpoint: 76cd424]
 **Goal:** Generate machine-readable JSON and human-readable HTML dashboards.
 
 - [x] Task: JSON and Console Reporting 0ca7e64
@@ -44,12 +44,12 @@ This plan implements a high-performance auditing system to verify the quality an
 - [x] Task: Interactive HTML Dashboard 0ca7e64
     - [x] Write unit tests for HTML template rendering with Plotly/Altair data structures.
     - [x] Implement `DashboardGenerator` using a standalone HTML template for offline viewing.
-- [ ] Task: Conductor - User Manual Verification 'Reporting & Visualization' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Reporting & Visualization' (Protocol in workflow.md) 76cd424
 
 ## Phase 5: Comparative Analysis (Drift Detection)
 **Goal:** Enable comparing two datasets to detect statistical regressions.
 
-- [ ] Task: Audit Diff Command
-    - [ ] Write integration tests for `render-tag audit diff` comparing two known datasets.
-    - [ ] Implement `AuditDiff` logic to calculate deltas in variance and coverage.
+- [x] Task: Audit Diff Command 0c633e6
+    - [x] Write integration tests for `render-tag audit diff` comparing two known datasets.
+    - [x] Implement `AuditDiff` logic to calculate deltas in variance and coverage.
 - [ ] Task: Conductor - User Manual Verification 'Comparative Analysis (Drift Detection)' (Protocol in workflow.md)
