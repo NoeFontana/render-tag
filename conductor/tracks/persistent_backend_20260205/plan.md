@@ -42,7 +42,7 @@ Integrating the persistent backend into the Blender/BlenderProc rendering logic.
     - [x] Verify 3-5s startup cost is only incurred once.
 - [x] **Task: Conductor - User Manual Verification 'Hot Loop Rendering & State Management' (Protocol in workflow.md)** (27c1bc7)
 
-## Phase 4: Observability & Optimization
+## Phase 4: Observability & Optimization [checkpoint: 41f71f1]
 Adding telemetry and fine-tuning performance.
 
 - [x] **Task: Implement VRAM Guardrails** (41afe76)
@@ -51,4 +51,4 @@ Adding telemetry and fine-tuning performance.
     - [x] Pipe ZMQ telemetry to Polars for throughput analysis.
 - [x] **Task: Final Performance Benchmarking** (64dc037)
     - [x] Compare throughput (images/min) vs. the "Cold" baseline.
-- [ ] **Task: Conductor - User Manual Verification 'Observability & Optimization' (Protocol in workflow.md)**
+- [x] **Task: Conductor - User Manual Verification 'Observability & Optimization' (Protocol in workflow.md)** (41f71f1)
