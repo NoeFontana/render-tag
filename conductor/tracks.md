@@ -7,5 +7,4 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-- [x] **Track: Persistent Data & Scene Recycling ("Hot Loop")**
 *Link: [./tracks/hot_loop_20260205/](./tracks/hot_loop_20260205/)*
