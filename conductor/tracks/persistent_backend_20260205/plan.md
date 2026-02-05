@@ -17,9 +17,9 @@ This phase establishes the ZeroMQ messaging layer and the JSON protocol that wil
 ## Phase 2: Persistent Worker Lifecycle
 Implementing the "Resilient Managed Pool" logic to launch, monitor, and recycle Blender processes.
 
-- [ ] **Task: Implement `PersistentWorkerProcess` Manager**
-    - [ ] Logic for spawning Blender subprocesses with ZMQ arguments.
-    - [ ] Implement heartbeat monitoring and timeout handling.
+- [x] **Task: Implement `PersistentWorkerProcess` Manager** (521238d)
+    - [x] Logic for spawning Blender subprocesses with ZMQ arguments.
+    - [x] Implement heartbeat monitoring and timeout handling.
 - [ ] **Task: Implement `WorkerPool` Orchestrator**
     - [ ] Dynamic scaling of worker processes.
     - [ ] Logic for "Batch Stealing" or task distribution to persistent workers.
