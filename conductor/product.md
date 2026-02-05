@@ -6,11 +6,13 @@ Procedural 3D data generation for AprilTag training (Offline).
 ## Target Users
 - **Computer Vision Researchers:** Utilizing synthetic datasets to train, fine-tune, and validate tag detection and localization models.
 - **Robotics Engineers:** Benchmarking tag tracking performance and visual odometry in simulated environments that mimic real-world deployment.
+- **Infrastructure Engineers:** Managing large-scale data generation pipelines with managed binary assets and hermetic reproducibility.
 
 ## Core Goals & Features
 - **High-Fidelity Rendering:** Generate photorealistic scenes with complex lighting, varied textures, and realistic shadows to minimize the sim-to-real gap.
 - **Sensor Simulation:** Accurately model camera sensor characteristics, including noise profiles, lens distortion, and motion blur.
 - **Automated Annotations:** Produce pixel-perfect ground-truth data, including 2D/3D bounding boxes, segmentation masks, and standard formats like COCO.
+- **Managed Assets:** Single Source of Truth (SSoT) for HDRIs, textures, and models via Hugging Face, ensuring zero-config onboarding and deterministic results across environments.
 
 ## Supported Environments
 - **Controlled Indoor:** Lab and office settings with consistent lighting for baseline testing.

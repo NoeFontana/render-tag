@@ -8,6 +8,7 @@
 - **Blender:** The primary 3D engine used for high-fidelity rendering and procedural scene generation.
 - **BlenderProc (v2.8.0+):** A modular pipeline for generating photorealistic datasets, used as the primary interface for Blender.
 - **OpenCV (opencv-contrib-python):** Used for computer vision tasks, including tag detection validation and image processing.
+- **Hugging Face Hub:** Used as the remote Object Store for binary asset management and synchronization.
 
 ## Data Management & Infrastructure
 - **Pydantic (v2):** Used for strict data validation and settings management. All internal schemas and "Scene Recipes" are defined using Pydantic models.
