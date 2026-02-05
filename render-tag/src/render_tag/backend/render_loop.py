@@ -14,9 +14,23 @@ from PIL import Image
 try:
     import blenderproc as bproc
     import bpy
-except ImportError:
+except (ImportError, RuntimeError):
     bproc = None
     bpy = None
+
+def setup_mocks(bproc_mock, bpy_mock):
+    """Inject mocks for testing."""
+    global bproc, bpy
+    bproc = bproc_mock
+    bpy = bpy_mock
+    from render_tag.backend.assets import setup_mocks as setup_assets_mocks
+    from render_tag.backend.camera import setup_mocks as setup_camera_mocks
+    from render_tag.backend.projection import setup_mocks as setup_projection_mocks
+    from render_tag.backend.scene import setup_mocks as setup_scene_mocks
+    setup_assets_mocks(bproc_mock, bpy_mock)
+    setup_camera_mocks(bproc_mock, bpy_mock)
+    setup_projection_mocks(bproc_mock, bpy_mock)
+    setup_scene_mocks(bproc_mock, bpy_mock)
 
 from render_tag.backend.assets import create_tag_plane, get_tag_texture_path, global_pool
 from render_tag.backend.camera import setup_sensor_dynamics

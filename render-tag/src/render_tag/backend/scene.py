@@ -7,21 +7,28 @@ This module handles background setup, lighting, floor creation, and physics.
 from __future__ import annotations
 
 import random
+import math
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-if TYPE_CHECKING:
-    pass
+try:
+    import numpy as np
+except ImportError:
+    np = None
 
 # BlenderProc imports (only available inside Blender)
 try:
     import blenderproc as bproc
     import bpy
-    import numpy as np
-except ImportError:
+except (ImportError, RuntimeError):
     bproc = None  # type: ignore
     bpy = None  # type: ignore
-    np = None  # type: ignore
+
+def setup_mocks(bproc_mock, bpy_mock):
+    """Inject mocks for testing."""
+    global bproc, bpy
+    bproc = bproc_mock
+    bpy = bpy_mock
 
 
 def setup_background(hdri_path: Path) -> None:
@@ -77,9 +84,14 @@ def setup_lighting(
         phi = random.uniform(0.2, 0.8) * 3.14159 / 2  # Bias towards top
         radius = random.uniform(2, 5)
 
-        x = radius * np.sin(phi) * np.cos(theta)
-        y = radius * np.sin(phi) * np.sin(theta)
-        z = radius * np.cos(phi)
+        if np:
+            x = radius * np.sin(phi) * np.cos(theta)
+            y = radius * np.sin(phi) * np.sin(theta)
+            z = radius * np.cos(phi)
+        else:
+            x = radius * math.sin(phi) * math.cos(theta)
+            y = radius * math.sin(phi) * math.sin(theta)
+            z = radius * math.cos(phi)
 
         # Random intensity
         intensity = random.uniform(intensity_min, intensity_max)

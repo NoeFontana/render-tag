@@ -26,7 +26,8 @@ class PersistentWorkerProcess:
         blender_script: Path,
         blender_executable: str = "blenderproc",
         startup_timeout: int = 30,
-        use_blenderproc: bool = True
+        use_blenderproc: bool = True,
+        mock: bool = False
     ):
         self.worker_id = worker_id
         self.port = port
@@ -34,6 +35,7 @@ class PersistentWorkerProcess:
         self.blender_executable = blender_executable
         self.startup_timeout = startup_timeout
         self.use_blenderproc = use_blenderproc
+        self.mock = mock
         
         self.process: Optional[subprocess.Popen] = None
         self.client: Optional[ZmqHostClient] = None
@@ -55,19 +57,15 @@ class PersistentWorkerProcess:
             logger.warning(f"Worker {self.worker_id} is already running.")
             return
 
+        base_cmd = []
         if self.use_blenderproc:
-            cmd = [
-                self.blender_executable,
-                "run",
-                str(self.blender_script),
-                "--port", str(self.port)
-            ]
+            base_cmd = [self.blender_executable, "run", str(self.blender_script)]
         else:
-            cmd = [
-                self.blender_executable,
-                str(self.blender_script),
-                "--port", str(self.port)
-            ]
+            base_cmd = [self.blender_executable, str(self.blender_script)]
+        
+        cmd = base_cmd + ["--port", str(self.port)]
+        if self.mock:
+            cmd.append("--mock")
 
         logger.info(f"Starting persistent worker {self.worker_id}: {' '.join(cmd)}")
         

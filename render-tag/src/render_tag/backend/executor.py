@@ -9,7 +9,15 @@ sys.path = [p for p in sys.path if "site-packages" not in p] + [
     p for p in sys.path if "site-packages" in p
 ]
 
-import blenderproc as bproc
+try:
+    import numpy as np
+except ImportError:
+    np = None
+
+try:
+    import blenderproc as bproc
+except (ImportError, RuntimeError):
+    bproc = None
 
 # Add the src directory to sys.path
 sys.path.append(str(Path(__file__).resolve().parents[2]))

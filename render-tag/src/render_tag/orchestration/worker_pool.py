@@ -25,13 +25,15 @@ class WorkerPool:
         base_port: int,
         blender_script: Path,
         blender_executable: str = "blenderproc",
-        use_blenderproc: bool = True
+        use_blenderproc: bool = True,
+        mock: bool = False
     ):
         self.num_workers = num_workers
         self.base_port = base_port
         self.blender_script = blender_script
         self.blender_executable = blender_executable
         self.use_blenderproc = use_blenderproc
+        self.mock = mock
         
         self.workers: List[PersistentWorkerProcess] = []
         self.worker_queue = queue.Queue()
@@ -51,7 +53,8 @@ class WorkerPool:
                     port=self.base_port + i,
                     blender_script=self.blender_script,
                     blender_executable=self.blender_executable,
-                    use_blenderproc=self.use_blenderproc
+                    use_blenderproc=self.use_blenderproc,
+                    mock=self.mock
                 )
                 worker.start()
                 self.workers.append(worker)

@@ -11,15 +11,24 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     import numpy as np
 
+try:
+    import numpy as np
+except ImportError:
+    np = None
+
 # BlenderProc imports (only available inside Blender)
 try:
     import blenderproc as bproc
     import bpy
-    import numpy as np
-except ImportError:
+except (ImportError, RuntimeError):
     bproc = None  # type: ignore
     bpy = None  # type: ignore
-    np = None  # type: ignore
+
+def setup_mocks(bproc_mock, bpy_mock):
+    """Inject mocks for testing."""
+    global bproc, bpy
+    bproc = bproc_mock
+    bpy = bpy_mock
 
 from render_tag.geometry.visibility import (
     is_facing_camera,

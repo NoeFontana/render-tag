@@ -16,15 +16,20 @@ from typing import Dict, Any, List, Optional
 sys.path.append(str(Path(__file__).resolve().parents[2]))
 
 try:
+    import numpy as np
+except ImportError:
+    np = None
+
+try:
     import bpy
     import blenderproc as bproc
-except ImportError:
+except (ImportError, RuntimeError):
     bpy = None
     bproc = None
 
 from render_tag.schema.hot_loop import Command, Response, ResponseStatus, CommandType, Telemetry, calculate_state_hash
 from render_tag.backend.scene import setup_background
-from render_tag.backend.render_loop import execute_recipe
+from render_tag.backend.render_loop import execute_recipe, setup_mocks as setup_render_loop_mocks
 from render_tag.backend.assets import global_pool
 from render_tag.data_io.writers import (
     COCOWriter,
@@ -40,7 +45,7 @@ class ZmqBackendServer:
     Persistent backend server running inside Blender.
     """
 
-    def __init__(self, port: int = 5555):
+    def __init__(self, port: int = 5555, bproc_mock=None, bpy_mock=None):
         self.port = port
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.REP)
@@ -50,13 +55,25 @@ class ZmqBackendServer:
         self.parameters = {}
         self.start_time = time.time()
         
+        global bproc, bpy
+        if bproc_mock: 
+            bproc = bproc_mock
+        if bpy_mock: 
+            bpy = bpy_mock
+        
+        if bproc_mock or bpy_mock:
+            setup_render_loop_mocks(bproc_mock, bpy_mock)
+
         # Persistent writers to avoid file handle overhead
         self.current_output_dir: Optional[Path] = None
         self.writers: Dict[str, Any] = {}
         
         if bproc and bpy:
-            bproc.init()
-            bproc.clean_up()
+            try:
+                bproc.init()
+                bproc.clean_up()
+            except Exception:
+                pass
 
     def get_telemetry(self) -> Telemetry:
         """Collects backend telemetry."""
@@ -229,10 +246,20 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=5555)
+    parser.add_argument("--mock", action="store_true")
     args = parser.parse_args()
     
+    bproc_m, bpy_m = None, None
+    if args.mock:
+        # Add project root to path so we can import tests.mocks
+        project_root = str(Path(__file__).resolve().parents[3])
+        if project_root not in sys.path:
+            sys.path.append(project_root)
+        from tests.mocks import blenderproc_api as bproc_m
+        from tests.mocks import blender_api as bpy_m
+
     logging.basicConfig(level=logging.INFO)
-    server = ZmqBackendServer(port=args.port)
+    server = ZmqBackendServer(port=args.port, bproc_mock=bproc_m, bpy_mock=bpy_m)
     try:
         server.run()
     except KeyboardInterrupt:
