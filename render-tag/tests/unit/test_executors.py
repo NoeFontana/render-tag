@@ -56,3 +56,37 @@ def test_local_executor_execution(mock_run):
     assert "eevee" in cmd
     assert "--shard-id" in cmd
     assert "42" in cmd
+
+@patch("subprocess.run")
+def test_docker_executor_execution(mock_run):
+    """Verify that DockerExecutor calls docker with correct volume mappings."""
+    from render_tag.orchestration.executors import DockerExecutor
+    mock_run.return_value = MagicMock(returncode=0)
+    docker = DockerExecutor(image="render-tag:latest")
+    
+    recipe_path = Path("/abs/path/to/recipe.json")
+    output_dir = Path("/abs/path/to/output")
+    
+    docker.execute(
+        recipe_path=recipe_path,
+        output_dir=output_dir,
+        renderer_mode="cycles",
+        shard_id="shard_1"
+    )
+    
+    assert mock_run.called
+    args, _ = mock_run.call_args
+    cmd = args[0]
+    
+    assert cmd[0] == "docker"
+    assert cmd[1] == "run"
+    # Check volume mapping for output
+    assert "-v" in cmd
+    # Ensure the output directory is mapped
+    assert f"{output_dir.absolute()}:/output" in cmd
+    # Check image name
+    assert "render-tag:latest" in cmd
+    # Check that it runs the backend script inside container
+    assert "--recipe" in cmd
+    assert "--output" in cmd
+    assert "/output" in cmd

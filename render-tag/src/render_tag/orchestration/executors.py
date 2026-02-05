@@ -85,6 +85,53 @@ class LocalExecutor:
             # We raise an exception to signal failure to the orchestrator
             raise RuntimeError(f"BlenderProc failed (exit {result.returncode})")
 
+class DockerExecutor:
+    """Executes renders inside a Docker container."""
+    
+    def __init__(self, image: str = "render-tag:latest"):
+        self.image = image
+        
+    def execute(
+        self, 
+        recipe_path: Path, 
+        output_dir: Path, 
+        renderer_mode: str, 
+        shard_id: str,
+        verbose: bool = False
+    ) -> None:
+        # We need absolute paths for Docker volume mapping
+        abs_output = output_dir.absolute()
+        abs_recipe = recipe_path.absolute()
+        
+        # We mount the output directory to /output inside the container
+        # We also mount the recipe file
+        cmd = [
+            "docker", "run", "--rm",
+            "-v", f"{abs_output}:/output",
+            "-v", f"{abs_recipe}:/recipe.json",
+            self.image,
+            "blenderproc", "run", "src/render_tag/backend/executor.py",
+            "--recipe", "/recipe.json",
+            "--output", "/output",
+            "--renderer-mode", renderer_mode,
+            "--shard-id", shard_id
+        ]
+
+        logger.info(f"Launching Docker BlenderProc: {' '.join(cmd)}")
+        
+        result = subprocess.run(
+            cmd,
+            check=False,
+            capture_output=not verbose,
+            text=True,
+        )
+
+        if result.returncode != 0:
+            logger.error(f"Docker rendering failed with exit code {result.returncode}")
+            if result.stderr:
+                logger.error(f"Error output:\n{result.stderr[:1000]}")
+            raise RuntimeError(f"Docker execution failed (exit {result.returncode})")
+
 class MockExecutor:
     """No-op executor for testing purposes."""
     
@@ -106,6 +153,8 @@ class ExecutorFactory:
         """Return an instance of the requested executor."""
         if executor_type == "local":
             return LocalExecutor()
+        elif executor_type == "docker":
+            return DockerExecutor()
         elif executor_type == "mock":
             return MockExecutor()
         else:
