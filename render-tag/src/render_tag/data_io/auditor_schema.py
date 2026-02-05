@@ -48,3 +48,28 @@ class AuditReport(BaseModel):
     environmental: EnvironmentalAudit
     integrity: IntegrityAudit
     score: float = 0.0
+
+
+class GateRule(BaseModel):
+    """A single rule for a quality gate."""
+
+    metric: str
+    min: float | None = None
+    max: float | None = None
+    critical: bool = True
+    warning_msg: str | None = None
+    error_msg: str | None = None
+
+
+class QualityGateConfig(BaseModel):
+    """Configuration for quality gates."""
+
+    rules: list[GateRule] = Field(default_factory=list)
+
+
+class AuditResult(BaseModel):
+    """Final result of an audit run, including gates."""
+
+    report: AuditReport
+    gate_passed: bool = True
+    gate_failures: list[str] = Field(default_factory=list)

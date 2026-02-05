@@ -12,10 +12,12 @@ import polars as pl
 
 from .auditor_schema import (
     AuditReport,
+    AuditResult,
     DistributionStats,
     EnvironmentalAudit,
     GeometricAudit,
     IntegrityAudit,
+    QualityGateConfig,
 )
 
 
@@ -198,11 +200,14 @@ class DatasetAuditor:
         self.dataset_path = dataset_path
         self.reader = DatasetReader(dataset_path)
 
-    def run_audit(self) -> AuditReport:
+    def run_audit(self, gate_config: QualityGateConfig | None = None) -> AuditResult:
         """Run all auditors and compile the final report.
 
+        Args:
+            gate_config: Optional quality gate configuration to evaluate.
+
         Returns:
-            AuditReport object.
+            AuditResult object containing report and gate status.
         """
         import datetime
 
@@ -214,14 +219,30 @@ class DatasetAuditor:
         env_results = EnvironmentalAuditor(df).audit()
         integrity_results = IntegrityAuditor(df).audit()
 
-        # 3. Compile Report
-        return AuditReport(
+        # 3. Export Outliers
+        OutlierExporter(self.dataset_path, df).export()
+
+        # 4. Compile Report
+        report = AuditReport(
             dataset_name=self.dataset_path.name,
             timestamp=datetime.datetime.now(datetime.UTC).isoformat(),
             geometric=geom_results,
             environmental=env_results,
             integrity=integrity_results,
             score=self._calculate_score(geom_results, env_results, integrity_results),
+        )
+
+        # 5. Evaluate Gates
+        gate_passed = True
+        gate_failures = []
+        if gate_config:
+            enforcer = GateEnforcer(gate_config)
+            gate_passed, gate_failures = enforcer.evaluate(report)
+
+        return AuditResult(
+            report=report,
+            gate_passed=gate_passed,
+            gate_failures=gate_failures,
         )
 
     def _calculate_score(
@@ -244,3 +265,88 @@ class DatasetAuditor:
             score -= 10
 
         return float(max(0.0, min(100.0, score)))
+
+
+class GateEnforcer:
+    """Enforces quality gates based on audit reports."""
+
+    def __init__(self, config: dict[str, Any] | QualityGateConfig) -> None:
+        if isinstance(config, dict):
+            self.config = QualityGateConfig(**config)
+        else:
+            self.config = config
+
+    def evaluate(self, report: AuditReport) -> tuple[bool, list[str]]:
+        """Evaluate a report against the configured rules.
+
+        Returns:
+            (Success status, List of failure messages)
+        """
+        failures = []
+        is_success = True
+
+        for rule in self.config.rules:
+            val = self._get_metric_value(report, rule.metric)
+            if val is None:
+                continue
+
+            rule_failed = False
+            if rule.min is not None and val < rule.min:
+                rule_failed = True
+            if rule.max is not None and val > rule.max:
+                rule_failed = True
+
+            if rule_failed:
+                msg = rule.error_msg or f"Rule failed: {rule.metric}={val} (expected min={rule.min}, max={rule.max})"
+                failures.append(msg)
+                if rule.critical:
+                    is_success = False
+
+        return is_success, failures
+
+    def _get_metric_value(self, report: AuditReport, metric: str) -> float | None:
+        """Map a metric string to a value in the AuditReport."""
+        mapping = {
+            "tag_count": report.geometric.tag_count,
+            "image_count": report.geometric.image_count,
+            "pose_angle_max": report.geometric.incidence_angle.max,
+            "pose_angle_min": report.geometric.incidence_angle.min,
+            "distance_max": report.geometric.distance.max,
+            "distance_min": report.geometric.distance.min,
+            "lighting_intensity_mean": report.environmental.lighting_intensity.mean,
+            "impossible_poses": report.integrity.impossible_poses,
+            "score": report.score,
+        }
+        return float(mapping.get(metric)) if metric in mapping else None
+
+
+class OutlierExporter:
+    """Identifies and exports outlier images for manual review."""
+
+    def __init__(self, dataset_path: Path, df: pl.DataFrame) -> None:
+        self.dataset_path = dataset_path
+        self.df = df
+        self.outlier_dir = dataset_path / "outliers"
+
+    def export(self) -> Path:
+        """Identify outliers and create symlinks in the outliers directory.
+
+        Returns:
+            Path to the outliers directory.
+        """
+        self.outlier_dir.mkdir(parents=True, exist_ok=True)
+
+        # 1. Identify Outliers (Distance < 0)
+        outlier_df = self.df.filter(pl.col("distance") < 0)
+        outlier_ids = outlier_df["image_id"].unique().to_list()
+
+        # 2. Create Symlinks
+        for img_id in outlier_ids:
+            src = self.dataset_path / "images" / f"{img_id}.png"
+            dst = self.outlier_dir / f"{img_id}.png"
+            
+            if src.exists() and not dst.exists():
+                # Create relative symlink
+                dst.symlink_to(Path("..") / "images" / f"{img_id}.png")
+
+        return self.outlier_dir

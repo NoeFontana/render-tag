@@ -744,6 +744,15 @@ def audit(
         dir_okay=True,
         resolve_path=True,
     ),
+    gate: Path = typer.Option(
+        None,
+        "--gate",
+        "-g",
+        help="Path to quality_gate.yaml file",
+        exists=True,
+        dir_okay=False,
+        resolve_path=True,
+    ),
 ) -> None:
     """
     Audit a generated dataset for quality and integrity.
@@ -751,7 +760,9 @@ def audit(
     Calculates geometric and environmental metrics and checks against quality gates.
     """
     from .data_io.auditor import DatasetAuditor
+    from .data_io.auditor_schema import QualityGateConfig
     from rich.table import Table
+    import yaml
 
     console.print(
         Panel.fit(
@@ -761,18 +772,37 @@ def audit(
     )
 
     try:
+        # Load gate config if provided
+        gate_config = None
+        if gate:
+            with open(gate) as f:
+                gate_data = yaml.safe_load(f)
+            gate_config = QualityGateConfig(**gate_data)
+
         auditor = DatasetAuditor(path)
-        report = auditor.run_audit()
+        result = auditor.run_audit(gate_config=gate_config)
+        report = result.report
 
         console.print(f"[bold]AUDIT REPORT: {path.name}[/bold]")
         console.print("────────────────────────────────────────")
         
-        status_str = "[bold green]PASSED[/bold green] ✅" if report.score > 70 else "[bold red]FAILED[/bold red] ❌"
+        # Determine status based on gates if present, otherwise heuristic score
+        if gate:
+            status_str = "[bold green]PASSED[/bold green] ✅" if result.gate_passed else "[bold red]FAILED[/bold red] ❌"
+        else:
+            status_str = "[bold green]PASSED[/bold green] ✅" if report.score > 70 else "[bold red]FAILED[/bold red] ❌"
+        
         console.print(f"Status:   {status_str}")
         console.print(f"Score:    [bold]{report.score:.1f}/100[/bold]")
         console.print(f"Tags:     {report.geometric.tag_count}")
         console.print(f"Images:   {report.geometric.image_count}")
         console.print("")
+
+        if gate and not result.gate_passed:
+            console.print("[bold red]Gate Failures:[/bold red]")
+            for failure in result.gate_failures:
+                console.print(f"  - {failure}")
+            console.print("")
 
         # Geometric Table
         geom_table = Table(title="Geometric Distributions", box=None)
@@ -813,6 +843,10 @@ def audit(
         # Integrity
         if report.integrity.impossible_poses > 0:
             console.print(f"[bold red]⚠ Found {report.integrity.impossible_poses} impossible poses (distance < 0)[/bold red]")
+
+        # Exit with error if gate failed
+        if gate and not result.gate_passed:
+            raise typer.Exit(code=1)
 
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
