@@ -13,15 +13,15 @@ This plan refactors the rendering backend to maintain a persistent state between
     - [ ] Record baseline Mean Time Per Frame (MTPF) and VRAM profile.
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Performance Instrumentation' 46ee768 (Protocol in workflow.md)
 
-## Phase 2: Persistent World & Lazy HDRI Loading
+## Phase 2: Persistent World ## Phase 2: Persistent World & Lazy HDRI Loading Lazy HDRI Loading [checkpoint: f5effbf]
 **Goal:** Prevent redundant world state rebuilds and expensive HDRI swaps.
 
-- [ ] Task: Write Tests for HDRI Lazy Loader
+- [~] Task: Write Tests for HDRI Lazy Loader
     - [ ] Create unit tests in `tests/unit/test_backend_world.py` (mocked).
-- [ ] Task: Implement Persistent World State
+- [x] Task: Implement Persistent World State cc26d29
     - [ ] Refactor `setup_background` in `backend/scene.py` to detect if the requested HDRI is already loaded.
     - [ ] Update `executor.py` to maintain a reference to the active world state.
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Persistent World' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 2: Persistent World' f5effbf (Protocol in workflow.md)
 
 ## Phase 3: Resource Pooling (Tags & Materials)
 **Goal:** Eliminate object creation/deletion overhead and material churn.
