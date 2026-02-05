@@ -15,6 +15,8 @@
 - **Pydantic (v2):** Used for strict data validation and settings management. All internal schemas and "Scene Recipes" are defined using Pydantic models.
 - **Typer:** Powering the CLI interface, providing a user-friendly and type-safe way to interact with the generation pipeline.
 - **Dynamic Load Balancing:** A "Batch Stealing" orchestrator model for parallel rendering, supporting fault tolerance and session resuming.
+- **Polars:** High-performance, multi-threaded DataFrame library used for vectorized dataset auditing and KPI calculation.
+- **Plotly:** Used for generating interactive HTML dashboards for dataset visualization and manual quality review.
 - **Docker:** Supported as a pluggable execution engine for hermetic and reproducible rendering environments.
 - **PyYAML:** Used for handling configuration files and experiment definitions.
 - **Pillow:** Utilized for basic image manipulation and processing within the pipeline.
