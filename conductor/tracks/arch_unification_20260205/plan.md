@@ -37,8 +37,8 @@ Decoupling the procedural logic from the underlying rendering engine.
 ## Phase 4: Final Cleanup & Validation
 Removing redundant code and validating the simplified architecture.
 
-- [ ] **Task: Codebase-wide Retirement of Boilerplate**
-    - [ ] Remove `executor.py` and any remaining `setup_mocks` references.
+- [x] **Task: Codebase-wide Retirement of Boilerplate** (5403fba)
+    - [x] Remove `executor.py` and any remaining `setup_mocks` references.
 - [ ] **Task: Comprehensive Integration Benchmark**
     - [ ] Compare performance of the Unified Orchestrator against the previous benchmarks to ensure zero regression.
 - [ ] **Task: Conductor - User Manual Verification 'Final Cleanup & Validation' (Protocol in workflow.md)**
