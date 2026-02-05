@@ -9,9 +9,9 @@ This phase establishes the ZeroMQ messaging layer and the JSON protocol that wil
 - [x] **Task: Implement ZMQ Host Client** (795197b)
     - [x] Create `src/render_tag/orchestration/zmq_client.py`.
     - [x] Write tests for connection handling and message serialization.
-- [ ] **Task: Implement ZMQ Backend Server (Skeleton)**
-    - [ ] Create `src/render_tag/backend/zmq_server.py`.
-    - [ ] Implement basic Loop-back to verify Host-Backend connectivity via `uv run`.
+- [x] **Task: Implement ZMQ Backend Server (Skeleton)** (229537c)
+    - [x] Create `src/render_tag/backend/zmq_server.py`.
+    - [x] Implement basic Loop-back to verify Host-Backend connectivity via `uv run`.
 - [ ] **Task: Conductor - User Manual Verification 'Communication & Protocol Foundation' (Protocol in workflow.md)**
 
 ## Phase 2: Persistent Worker Lifecycle
