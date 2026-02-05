@@ -26,10 +26,10 @@ This plan implements a robust asset management system using Hugging Face as the 
 ## Phase 3: Runtime Safety & Pre-Flight Checks
 **Goal:** Integrate asset verification into the generation pipeline.
 
-- [ ] Task: Implement Pre-Flight Check
+- [~] Task: Implement Pre-Flight Check
     - [ ] Create an `AssetValidator` utility.
     - [ ] Update `generate` command to call validator before rendering.
-- [ ] Task: Add Interactive Prompt
+- [x] Task: Add Interactive Prompt f86ec05
     - [ ] Implement logic to detect TTY and prompt for download if assets are missing.
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: Runtime Safety' (Protocol in workflow.md)
 
