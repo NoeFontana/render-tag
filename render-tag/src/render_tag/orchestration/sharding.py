@@ -4,9 +4,12 @@ Orchestration logic for sharding and parallel execution in render-tag.
 
 import concurrent.futures
 import os
+import signal
 import subprocess
+import sys
 import time
 from pathlib import Path
+from typing import List
 
 from rich.console import Console
 
@@ -14,6 +17,33 @@ from ..common.math import SeedManager
 from ..config import load_config
 
 console = Console()
+
+# Global list to track active subprocesses for signal handling cleanup
+_active_processes: List[subprocess.Popen] = []
+
+
+def _signal_handler(sig, frame):
+    """Handle termination signals by killing all active worker processes."""
+    console.print(f"\n[bold red]Received signal {sig}. Terminating workers...[/bold red]")
+    for p in _active_processes:
+        if p.poll() is None:
+            try:
+                # On Windows, we might need a different approach, but sticking to Unix-like for now
+                p.terminate()
+            except Exception:
+                pass
+    
+    # Wait a moment for graceful termination
+    time.sleep(0.5)
+    for p in _active_processes:
+        if p.poll() is None:
+            try:
+                p.kill()
+            except Exception:
+                pass
+    
+    console.print("[dim]Workers cleaned up. Exiting.[/dim]")
+    sys.exit(1)
 
 
 def resolve_shard_index() -> int:
@@ -46,20 +76,22 @@ def merge_csv_results(output_dir: Path):
     final_csv = output_dir / "tags.csv"
     header_written = False
 
-    with open(final_csv, "w") as outfile:
-        for shard_file in shards:
-            with open(shard_file) as infile:
-                header = infile.readline()
-                if not header_written:
-                    outfile.write(header)
-                    header_written = True
-                # Write the rest
-                for line in infile:
-                    outfile.write(line)
-            # Cleanup
-            shard_file.unlink()
-
-    console.print(f"[dim]Merged {len(shards)} shards into[/dim] {final_csv}")
+    try:
+        with open(final_csv, "w") as outfile:
+            for shard_file in shards:
+                with open(shard_file) as infile:
+                    header = infile.readline()
+                    if not header_written:
+                        outfile.write(header)
+                        header_written = True
+                    # Write the rest
+                    for line in infile:
+                        outfile.write(line)
+                # Cleanup
+                shard_file.unlink()
+        console.print(f"[dim]Merged {len(shards)} shards into[/dim] {final_csv}")
+    except Exception as e:
+        console.print(f"[bold red]Failed to merge results:[/bold red] {e}")
 
 
 def run_local_parallel(
@@ -91,6 +123,10 @@ def run_local_parallel(
     if verbose:
         cmd_base.append("--verbose")
 
+    # Install signal handlers
+    signal.signal(signal.SIGINT, _signal_handler)
+    signal.signal(signal.SIGTERM, _signal_handler)
+
     # Load config to get master seed for deterministic sharding
     try:
         config = load_config(config_path)
@@ -100,25 +136,42 @@ def run_local_parallel(
         master_seed = 42
 
     start_time = time.time()
+    _active_processes.clear()
 
-    with concurrent.futures.ProcessPoolExecutor(max_workers=workers) as executor:
-        futures = []
+    try:
+        # Launch processes
         for i in range(workers):
-            # Recursive call sending specific shard index
-            # We do NOT pass --seed here, ensuring all shards use the same Master Seed
-            # from the config file. Generator handles scene-level determinism.
             cmd = [*cmd_base, "--shard-index", str(i)]
-            futures.append(executor.submit(subprocess.run, cmd, check=True))
+            # We use Popen instead of ProcessPoolExecutor for more direct control
+            # over the subprocess objects and signal handling.
+            p = subprocess.Popen(
+                cmd,
+                stdout=None if verbose else subprocess.DEVNULL,
+                stderr=None if verbose else subprocess.DEVNULL,
+            )
+            _active_processes.append(p)
 
         # Wait for all
-        for future in concurrent.futures.as_completed(futures):
-            try:
-                future.result()
-            except Exception as e:
-                console.print(f"[bold red]Worker failed:[/bold red] {e}")
-                from typer import Exit
+        failed = False
+        for p in _active_processes:
+            retcode = p.wait()
+            if retcode != 0:
+                failed = True
+                console.print(f"[bold red]Worker (PID {p.pid}) failed with code {retcode}[/bold red]")
 
-                raise Exit(1) from None
+        if failed:
+            from typer import Exit
+            raise Exit(1)
+
+    finally:
+        # Final cleanup attempt
+        for p in _active_processes:
+            if p.poll() is None:
+                try:
+                    p.terminate()
+                except Exception:
+                    pass
+        _active_processes.clear()
 
     elapsed = time.time() - start_time
     console.print(f"[bold green]Parallel execution finished in {elapsed:.2f}s[/bold green]")
