@@ -47,18 +47,26 @@ class Generator:
         random.seed(seed)
         np.random.seed(seed)
 
-    def generate_all(self) -> list[SceneRecipe]:
+    def generate_all(self, exclude_ids: set[int] | None = None) -> list[SceneRecipe]:
         """Generate all scene recipes requested in the config."""
         num_scenes = self.config.dataset.num_scenes
+        exclude_ids = exclude_ids or set()
         recipes = []
         for i in range(num_scenes):
+            if i in exclude_ids:
+                continue
             recipes.append(self.generate_scene(i))
         return recipes
 
     def generate_shards(
-        self, total_scenes: int, shard_index: int, total_shards: int
+        self,
+        total_scenes: int,
+        shard_index: int,
+        total_shards: int,
+        exclude_ids: set[int] | None = None,
     ) -> list[SceneRecipe]:
         """Generate a deterministic slice of the dataset."""
+        exclude_ids = exclude_ids or set()
         if total_shards > total_scenes:
             total_shards = total_scenes
             if shard_index >= total_shards:
@@ -74,6 +82,8 @@ class Generator:
 
         recipes = []
         for i in range(start_idx, end_idx):
+            if i in exclude_ids:
+                continue
             recipes.append(self.generate_scene(i))
 
         return recipes

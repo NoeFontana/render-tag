@@ -4,12 +4,13 @@ Orchestration logic for sharding and parallel execution in render-tag.
 
 import concurrent.futures
 import os
+import re
 import signal
 import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import List
+from typing import List, Set
 
 from rich.console import Console
 
@@ -44,6 +45,28 @@ def _signal_handler(sig, frame):
     
     console.print("[dim]Workers cleaned up. Exiting.[/dim]")
     sys.exit(1)
+
+
+def get_completed_scene_ids(output_dir: Path) -> Set[int]:
+    """
+    Identify completed scene IDs by scanning for sidecar JSON files.
+    
+    Assumes sidecar files follow the pattern 'scene_{id}_meta.json' or 'scene_{id}_cam_{cid}_meta.json'.
+    """
+    completed_ids = set()
+    images_dir = output_dir / "images"
+    if not images_dir.exists():
+        return completed_ids
+
+    # Regex to match scene_XXXX_meta.json or scene_XXXX_cam_YYYY_meta.json
+    pattern = re.compile(r"scene_(\d+)(?:_cam_\d+)?_meta\.json")
+
+    for f in images_dir.glob("*.json"):
+        match = pattern.match(f.name)
+        if match:
+            completed_ids.add(int(match.group(1)))
+
+    return completed_ids
 
 
 def resolve_shard_index() -> int:
@@ -102,6 +125,7 @@ def run_local_parallel(
     renderer_mode: str,
     verbose: bool,
     executor_type: str = "local",
+    resume: bool = False,
 ):
     """Spawns multiple instances of 'render-tag generate' recursively."""
     cmd_base = [
@@ -122,6 +146,8 @@ def run_local_parallel(
     ]
     if verbose:
         cmd_base.append("--verbose")
+    if resume:
+        cmd_base.append("--resume")
 
     # Install signal handlers
     signal.signal(signal.SIGINT, _signal_handler)

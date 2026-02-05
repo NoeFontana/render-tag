@@ -16,14 +16,14 @@ This plan refactors the parallel execution layer to handle crashes, implement sc
 ## Phase 2: Checkpointing & Resume Logic
 **Goal:** Enable the system to recover from failures without redundant work.
 
-- [ ] Task: Implement Sidecar-Based Completion Check
-    - [ ] Create a utility in `orchestration/sharding.py` to identify completed scenes by scanning for sidecar JSONs.
-- [ ] Task: Add `--resume` Flag to CLI
-    - [ ] Update `generate` command in `cli.py` to support the flag.
-    - [ ] Pass the list of completed scene IDs to the `Generator` to exclude them from recipe creation.
-- [ ] Task: Integration Test - Crash Recovery
-    - [ ] Create a test that kills a worker midway and verifies that a subsequent `--resume` run finishes the job correctly.
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Checkpointing' (Protocol in workflow.md)
+- [x] Task: Implement Sidecar-Based Completion Check
+    - [x] Create a utility in `orchestration/sharding.py` to identify completed scenes by scanning for sidecar JSONs.
+- [x] Task: Add `--resume` Flag to CLI
+    - [x] Update `generate` command in `cli.py` to support the flag.
+    - [x] Pass the list of completed scene IDs to the `Generator` to exclude them from recipe creation.
+- [x] Task: Integration Test - Crash Recovery
+    - [x] Create a test that kills a worker midway and verifies that a subsequent `--resume` run finishes the job correctly.
+- [x] Task: Conductor - User Manual Verification 'Phase 2: Checkpointing' (Protocol in workflow.md)
 
 ## Phase 3: Dynamic Load Balancing (Batch Stealing)
 **Goal:** Optimize throughput by moving from static ranges to dynamic task distribution.

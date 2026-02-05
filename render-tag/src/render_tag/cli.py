@@ -6,6 +6,7 @@ the BlenderProc subprocess for rendering.
 """
 
 import json
+import os
 import shutil
 import subprocess
 import tempfile
@@ -20,7 +21,7 @@ from .config import GenConfig, load_config
 from .data_io.visualization import visualize_dataset, visualize_recipe
 from .generator import Generator
 from .orchestration.executors import ExecutorFactory
-from .orchestration.sharding import resolve_shard_index, run_local_parallel
+from .orchestration.sharding import resolve_shard_index, run_local_parallel, get_completed_scene_ids
 from .tools.validator import validate_recipe_file, AssetValidator
 from .orchestration.assets import AssetManager
 
@@ -37,8 +38,10 @@ console = Console()
 
 def get_asset_manager() -> AssetManager:
     """Helper to initialize AssetManager with local directory."""
-    # Assets folder is at the root of the project
-    local_dir = Path(__file__).parents[2] / "assets"
+    # Assets folder is at the root of the project by default
+    # but can be overridden by environment variable
+    default_dir = Path(__file__).parents[2] / "assets"
+    local_dir = Path(os.environ.get("RENDER_TAG_ASSETS_DIR", default_dir))
     return AssetManager(local_dir=local_dir)
 
 
@@ -182,6 +185,11 @@ def generate(
         "-e",
         help="Execution engine: local, docker, mock",
     ),
+    resume: bool = typer.Option(
+        False,
+        "--resume",
+        help="Skip already completed scenes by checking sidecar metadata",
+    ),
 ) -> None:
     """
     Generate synthetic fiducial marker training data.
@@ -200,9 +208,19 @@ def generate(
     executor = ExecutorFactory.get_executor(executor_type)
 
     # Check for assets (Pre-flight)
-    local_assets_dir = Path(__file__).parents[2] / "assets"
+    default_assets_dir = Path(__file__).parents[2] / "assets"
+    local_assets_dir = Path(os.environ.get("RENDER_TAG_ASSETS_DIR", default_assets_dir))
     asset_validator = AssetValidator(local_assets_dir)
     if not asset_validator.is_hydrated():
+        # Check if we are in an interactive session
+        import sys
+        is_interactive = sys.stdin.isatty()
+
+        if not is_interactive:
+            console.print("[bold red]Error:[/bold red] Required assets missing.")
+            console.print("Please run [cyan]render-tag assets pull[/cyan] first.")
+            raise typer.Exit(code=1) from None
+
         console.print("[bold yellow]Warning:[/bold yellow] Assets folder is missing or empty.")
         if typer.confirm("Would you like to pull assets from Hugging Face now?", default=True):
             # Try to pull
@@ -271,9 +289,17 @@ def generate(
     if shard_index == -1 and total_shards > 1:
         shard_index = resolve_shard_index()
 
-    # 2. Local Parallel (Manager Mode)
+    # 2. Identify completed scenes if resuming
+    completed_ids = set()
+    if resume:
+        completed_ids = get_completed_scene_ids(output)
+        if completed_ids:
+            console.print(f"[bold yellow]Resuming run. Found {len(completed_ids)} completed scenes.[/bold yellow]")
+
+    # 3. Local Parallel (Manager Mode)
     if workers > 1 and total_shards == 1:
         console.print(f"[bold]Running Local Parallel Manager ({workers} workers)[/bold]")
+        # Pass resume flag to worker processes
         run_local_parallel(
             config_path=config,
             output_dir=output,
@@ -282,6 +308,7 @@ def generate(
             renderer_mode=renderer_mode,
             verbose=verbose,
             executor_type=executor_type,
+            resume=resume,  # New parameter
         )
         return
 
@@ -297,7 +324,10 @@ def generate(
 
     # Use Sharded Generation
     recipes = generator.generate_shards(
-        total_scenes=num_scenes, shard_index=shard_index, total_shards=total_shards
+        total_scenes=num_scenes,
+        shard_index=shard_index,
+        total_shards=total_shards,
+        exclude_ids=completed_ids,
     )
 
     if not recipes:
