@@ -49,3 +49,28 @@ def test_validator_detects_missing_texture_path():
     validator = RecipeValidator(recipe)
     validator._check_assets()
     assert any("texture" in e.lower() for e in validator.errors)
+
+def test_validator_detects_outside_board():
+    """Verify validator warns about tags outside board boundaries."""
+    # 10cm board
+    board = ObjectRecipe(
+        type="BOARD",
+        name="Board",
+        location=[0, 0, 0],
+        rotation_euler=[0, 0, 0],
+        properties={"cols": 1, "rows": 1, "square_size": 0.1}
+    )
+    # 5cm tag at (0.1, 0) - clearly outside 10cm board centered at 0
+    tag = ObjectRecipe(
+        type="TAG",
+        name="OutTag",
+        location=[0.1, 0, 0],
+        rotation_euler=[0, 0, 0],
+        properties={"tag_size": 0.05}
+    )
+    
+    recipe = SceneRecipe(scene_id=0, objects=[board, tag])
+    validator = RecipeValidator(recipe)
+    validator._check_geometry()
+    
+    assert any("outside board boundaries" in w for w in validator.warnings)

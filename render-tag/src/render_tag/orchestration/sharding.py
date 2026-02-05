@@ -26,22 +26,8 @@ _active_processes: List[subprocess.Popen] = []
 def _signal_handler(sig, frame):
     """Handle termination signals by killing all active worker processes."""
     console.print(f"\n[bold red]Received signal {sig}. Terminating workers...[/bold red]")
-    for p in _active_processes:
-        if p.poll() is None:
-            try:
-                # On Windows, we might need a different approach, but sticking to Unix-like for now
-                p.terminate()
-            except Exception:
-                pass
-    
-    # Wait a moment for graceful termination
-    time.sleep(0.5)
-    for p in _active_processes:
-        if p.poll() is None:
-            try:
-                p.kill()
-            except Exception:
-                pass
+    from .executors import cleanup_render_processes
+    cleanup_render_processes()
     
     console.print("[dim]Workers cleaned up. Exiting.[/dim]")
     sys.exit(1)
@@ -87,7 +73,7 @@ def resolve_shard_index() -> int:
 
 
 def merge_csv_results(output_dir: Path):
-    """Combine tags_shard_*.csv into tags.csv"""
+    """Combine tags_shard_*.csv into tags.csv, preserving existing results."""
     console.print("Merging worker results...")
     shards = list(output_dir.glob("tags_shard_*.csv"))
     if not shards:
@@ -97,10 +83,15 @@ def merge_csv_results(output_dir: Path):
     shards.sort(key=lambda p: p.name)
 
     final_csv = output_dir / "tags.csv"
-    header_written = False
+    
+    # If final_csv exists, we append to it (skipping headers in shards)
+    # If it doesn't, we create it and write the header from the first shard.
+    exists = final_csv.exists()
+    header_written = exists
 
     try:
-        with open(final_csv, "w") as outfile:
+        mode = "a" if exists else "w"
+        with open(final_csv, mode) as outfile:
             for shard_file in shards:
                 with open(shard_file) as infile:
                     header = infile.readline()
@@ -110,9 +101,9 @@ def merge_csv_results(output_dir: Path):
                     # Write the rest
                     for line in infile:
                         outfile.write(line)
-                # Cleanup
+                # Cleanup shard file after successful merge
                 shard_file.unlink()
-        console.print(f"[dim]Merged {len(shards)} shards into[/dim] {final_csv}")
+        console.print(f"[dim]Merged {len(shards)} new shards into[/dim] {final_csv}")
     except Exception as e:
         console.print(f"[bold red]Failed to merge results:[/bold red] {e}")
 
@@ -126,81 +117,128 @@ def run_local_parallel(
     verbose: bool,
     executor_type: str = "local",
     resume: bool = False,
+    batch_size: int = 10,
 ):
-    """Spawns multiple instances of 'render-tag generate' recursively."""
-    cmd_base = [
-        "render-tag",
-        "generate",
-        "--config",
-        str(config_path),
-        "--output",
-        str(output_dir),
-        "--scenes",
-        str(num_scenes),
-        "--renderer-mode",
-        renderer_mode,
-        "--total-shards",
-        str(workers),  # Split work exactly by worker count
-        "--executor",
-        executor_type,
-    ]
-    if verbose:
-        cmd_base.append("--verbose")
-    if resume:
-        cmd_base.append("--resume")
+    """
+    Executes renders in parallel using a dynamic task pool (Batch Stealing).
+    
+    1. Generates all required scene recipes.
+    2. Groups recipes into batches.
+    3. Spawns workers that pull and execute batches until the pool is empty.
+    """
+    from .executors import ExecutorFactory
+    from ..generator import Generator
+    from ..tools.validator import validate_recipe_file
+    from ..config import load_config
 
-    # Install signal handlers
+    # 1. Setup
     signal.signal(signal.SIGINT, _signal_handler)
     signal.signal(signal.SIGTERM, _signal_handler)
-
-    # Load config to get master seed for deterministic sharding
-    try:
-        config = load_config(config_path)
-        master_seed = config.dataset.seeds.global_seed
-    except Exception as e:
-        console.print(f"[yellow]Warning: Could not load config for seed manager: {e}[/yellow]")
-        master_seed = 42
-
-    start_time = time.time()
     _active_processes.clear()
 
+    # 2. Identify completed scenes if resuming
+    completed_ids = set()
+    if resume:
+        completed_ids = get_completed_scene_ids(output_dir)
+
+    # 3. Generate ALL missing recipes
     try:
-        # Launch processes
-        for i in range(workers):
-            cmd = [*cmd_base, "--shard-index", str(i)]
-            # We use Popen instead of ProcessPoolExecutor for more direct control
-            # over the subprocess objects and signal handling.
-            p = subprocess.Popen(
-                cmd,
-                stdout=None if verbose else subprocess.DEVNULL,
-                stderr=None if verbose else subprocess.DEVNULL,
-            )
-            _active_processes.append(p)
+        config = load_config(config_path)
+    except Exception as e:
+        console.print(f"[bold red]Failed to load config:[/bold red] {e}")
+        from typer import Exit
+        raise Exit(1)
 
-        # Wait for all
-        failed = False
-        for p in _active_processes:
-            retcode = p.wait()
-            if retcode != 0:
-                failed = True
-                console.print(f"[bold red]Worker (PID {p.pid}) failed with code {retcode}[/bold red]")
+    # Override num_scenes from CLI argument
+    config.dataset.num_scenes = num_scenes
 
-        if failed:
-            from typer import Exit
-            raise Exit(1)
+    generator = Generator(config, output_dir)
+    all_recipes = generator.generate_all(exclude_ids=completed_ids)
+    
+    if not all_recipes:
+        console.print("[yellow]No new scenes to generate. All tasks complete.[/yellow]")
+        return
 
-    finally:
-        # Final cleanup attempt
-        for p in _active_processes:
-            if p.poll() is None:
-                try:
-                    p.terminate()
-                except Exception:
-                    pass
-        _active_processes.clear()
+    console.print(f"[bold]Orchestrating {len(all_recipes)} scenes across {workers} workers (Batch size: {batch_size})[/bold]")
+
+    # 4. Group into batches
+    batches = []
+    for i in range(0, len(all_recipes), batch_size):
+        batch = all_recipes[i : i + batch_size]
+        batch_id = i // batch_size
+        recipe_filename = f"recipes_batch_{batch_id}.json"
+        recipe_path = generator.save_recipe_json(batch, recipe_filename)
+        batches.append((batch_id, recipe_path))
+
+    start_time = time.time()
+    
+    # 5. Execute batches using a simple work-queue model
+    # We'll use a local executor for each worker
+    executor = ExecutorFactory.get_executor(executor_type)
+    
+    from queue import Queue
+    from threading import Thread
+
+    task_queue = Queue()
+    for b in batches:
+        task_queue.put(b)
+
+    results = []
+
+    def worker_thread(worker_id):
+        while not task_queue.empty():
+            try:
+                batch_id, recipe_path = task_queue.get_nowait()
+            except Exception:
+                break
+
+            console.print(f"[dim]Worker {worker_id} pulling batch {batch_id}...[/dim]")
+            
+            # For subprocess management, we still want to track PIDs
+            # But the executor currently uses subprocess.run (blocking)
+            # We need to monkey-patch or refactor executor to use Popen if we want SIGINT to work perfectly
+            # Actually, since we are in a thread, subprocess.run is fine as long as we can kill the whole group
+            try:
+                # We need a way to track the subprocess inside the executor
+                # For now, let's keep it simple and assume SIGINT hits the whole process group
+                executor.execute(
+                    recipe_path=recipe_path,
+                    output_dir=output_dir,
+                    renderer_mode=renderer_mode,
+                    shard_id=f"batch_{batch_id}",
+                    verbose=verbose
+                )
+                results.append((batch_id, True))
+            except Exception as e:
+                console.print(f"[bold red]Batch {batch_id} failed:[/bold red] {e}")
+                results.append((batch_id, False))
+            finally:
+                task_queue.task_done()
+
+    threads = []
+    for i in range(workers):
+        t = Thread(target=worker_thread, args=(i,), daemon=True)
+        t.start()
+        threads.append(t)
+
+    # Wait for all batches to finish
+    for t in threads:
+        t.join()
 
     elapsed = time.time() - start_time
+    failed_batches = [bid for bid, success in results if not success]
+    
+    if failed_batches:
+        console.print(f"[bold red]Parallel execution finished with {len(failed_batches)} failed batches.[/bold red]")
+        from typer import Exit
+        raise Exit(1)
+    
     console.print(f"[bold green]Parallel execution finished in {elapsed:.2f}s[/bold green]")
+
+    # 6. Cleanup batch files
+    for _, recipe_path in batches:
+        if recipe_path.exists():
+            recipe_path.unlink()
 
     # Merge Results
     merge_csv_results(output_dir)

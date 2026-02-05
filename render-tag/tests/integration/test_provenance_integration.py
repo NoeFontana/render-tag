@@ -7,12 +7,14 @@ from pathlib import Path
 def test_provenance_sidecar_generated(tmp_path):
     """Verify that sidecar JSON files are generated with images."""
     output_dir = tmp_path / "output"
+    config_path = tmp_path / "safe_config.yaml"
+    config_path.write_text("scene:\n  background_hdri: null\n  texture_dir: null\n")
     
     result = subprocess.run([
         "render-tag", "generate", 
         "--output", str(output_dir), 
         "--scenes", "1",
-        "--config", "configs/default.yaml" # Ensure config
+        "--config", str(config_path)
     ], capture_output=True, text=True)
     
     assert result.returncode == 0, f"Generation failed: {result.stderr}"

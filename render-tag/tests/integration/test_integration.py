@@ -48,6 +48,9 @@ camera:
 tag:
   family: tag36h11
   size_meters: 0.05
+scene:
+  background_hdri: null
+  texture_dir: null
 physics:
   drop_height: 0.5
   scatter_radius: 0.1
@@ -199,8 +202,29 @@ physics:
             assert "bbox" in ann
             assert len(ann["bbox"]) == 4
 
+    def test_generate_skip_render(self, temp_output_dir, minimal_config):
+        """Test that --skip-render generates recipes without Blender."""
+        output_dir = temp_output_dir / "fast_output"
 
-@pytest.mark.integration
+        result = subprocess.run(
+            [
+                "render-tag",
+                "generate",
+                "--config",
+                str(minimal_config),
+                "--output",
+                str(output_dir),
+                "--skip-render",
+            ],
+            capture_output=True,
+            text=True,
+        )
+
+        assert result.returncode == 0
+        assert "Skipping Blender launch" in result.stdout
+        assert (output_dir / "recipes_shard_0.json").exists()
+
+
 class TestValidateCommand:
     """Tests for the validate command."""
 
@@ -250,7 +274,6 @@ dataset:
             Path(config_path).unlink(missing_ok=True)
 
 
-@pytest.mark.integration
 class TestInfoCommand:
     """Tests for the info command (doesn't require BlenderProc)."""
 

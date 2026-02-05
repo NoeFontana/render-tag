@@ -350,13 +350,25 @@ class CameraConfig(BaseModel):
     def velocity_mean(self) -> float:
         return self.sensor_dynamics.velocity_mean
 
+    @velocity_mean.setter
+    def velocity_mean(self, value: float) -> None:
+        self.sensor_dynamics.velocity_mean = value
+
     @property
     def velocity_std(self) -> float:
         return self.sensor_dynamics.velocity_std
 
+    @velocity_std.setter
+    def velocity_std(self, value: float) -> None:
+        self.sensor_dynamics.velocity_std = value
+
     @property
     def shutter_time_ms(self) -> float:
         return self.sensor_dynamics.shutter_time_ms
+
+    @shutter_time_ms.setter
+    def shutter_time_ms(self, value: float) -> None:
+        self.sensor_dynamics.shutter_time_ms = value
 
     @property
     def width(self) -> int:

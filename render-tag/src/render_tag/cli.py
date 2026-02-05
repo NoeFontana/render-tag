@@ -190,6 +190,11 @@ def generate(
         "--resume",
         help="Skip already completed scenes by checking sidecar metadata",
     ),
+    batch_size: int = typer.Option(
+        10,
+        "--batch-size",
+        help="Number of scenes per worker batch",
+    ),
 ) -> None:
     """
     Generate synthetic fiducial marker training data.
@@ -309,6 +314,7 @@ def generate(
             verbose=verbose,
             executor_type=executor_type,
             resume=resume,  # New parameter
+            batch_size=batch_size,
         )
         return
 

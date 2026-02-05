@@ -48,10 +48,15 @@ def test_reproducibility_benchmark(tmp_path):
 @pytest.mark.integration
 def test_shard_invariance_fast(tmp_path):
     """Verify that splitting a job into shards does not change recipes (Fast version)."""
+    # Create safe config
+    config_path = tmp_path / "safe_config.yaml"
+    config_path.write_text("scene:\n  background_hdri: null\n  texture_dir: null\n")
+
     # We use --skip-render to only verify the recipe logic
     out_single = tmp_path / "single"
     subprocess.run([
         "render-tag", "generate",
+        "--config", str(config_path),
         "--output", str(out_single),
         "--scenes", "4",
         "--seed", "999",
@@ -64,6 +69,7 @@ def test_shard_invariance_fast(tmp_path):
     
     subprocess.run([
         "render-tag", "generate",
+        "--config", str(config_path),
         "--output", str(out_shard0),
         "--scenes", "4",
         "--seed", "999",
@@ -73,6 +79,7 @@ def test_shard_invariance_fast(tmp_path):
     
     subprocess.run([
         "render-tag", "generate",
+        "--config", str(config_path),
         "--output", str(out_shard1),
         "--scenes", "4",
         "--seed", "999",

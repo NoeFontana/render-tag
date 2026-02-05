@@ -18,13 +18,14 @@ def test_generator_samples_velocity(tmp_path):
     assert len(recipes) > 0
     cam = recipes[0]
 
-    assert cam.velocity is not None
-    assert len(cam.velocity) == 3
+    assert cam.sensor_dynamics is not None
+    assert cam.sensor_dynamics.velocity is not None
+    assert len(cam.sensor_dynamics.velocity) == 3
     # Magnitude should be approx 1.0
-    mag = np.linalg.norm(cam.velocity)
+    mag = np.linalg.norm(cam.sensor_dynamics.velocity)
     assert abs(mag - 1.0) < 1e-6
 
-    assert cam.shutter_time_ms == 10.0
+    assert cam.sensor_dynamics.shutter_time_ms == 10.0
 
 
 def test_generator_passes_dof_and_noise(tmp_path):
@@ -53,5 +54,5 @@ def test_generator_no_velocity_default(tmp_path):
 
     cam = recipes[0]
     # If mean/std are 0, velocity should be None
-    assert cam.velocity is None
+    assert cam.sensor_dynamics.velocity is None
     assert cam.fstop is None  # Default None
