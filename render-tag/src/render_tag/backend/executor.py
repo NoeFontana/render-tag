@@ -43,6 +43,7 @@ from render_tag.backend.scene import (  # noqa: E402
 from render_tag.backend.sensors import apply_parametric_noise  # noqa: E402
 from render_tag.common.git import get_git_hash  # noqa: E402
 from render_tag.data_io.types import DetectionRecord  # noqa: E402
+from render_tag.tools.benchmarking import Benchmarker  # noqa: E402
 from render_tag.data_io.writers import (  # noqa: E402
     COCOWriter,
     CSVWriter,
@@ -285,7 +286,9 @@ def execute_recipe(
             cam_data.dof.use_dof = False
 
         # Enable Segmentation and Render
-        bproc.renderer.enable_segmentation_output(default_values={"category_id": 0})
+        if bpy.context.scene.render.engine != "BLENDER_WORKBENCH":
+            bproc.renderer.enable_segmentation_output(default_values={"category_id": 0})
+        
         data = bproc.renderer.render()
 
         if "colors" in data:
@@ -332,9 +335,11 @@ def execute_recipe(
         )
 
         # Update Blender state for metadata projection
-        frame_pose = bproc.camera.get_camera_pose(cam_idx)
-        bpy.context.scene.camera.matrix_world = mathutils.Matrix(frame_pose)
-        bpy.context.view_layer.update()
+        # We use subframe 0.5 to get the mid-exposure pose for motion-blurred/warped images
+        if bpy:
+            # frame_set(frame, subframe=...) is the correct way to set fractional time
+            bpy.context.scene.frame_set(0, subframe=0.5)
+            bpy.context.view_layer.update()
 
         valid_detections = get_valid_detections(tag_objects)
         segmap = (
@@ -394,10 +399,12 @@ def main() -> None:
     output_dir = args.output
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    with open(args.recipe) as f:
-        recipes = json.load(f)
+    benchmarker = Benchmarker(session_name=f"Shard_{args.shard_id}")
 
-    bproc.init()
+    with benchmarker.measure("Blender_Init"):
+        with open(args.recipe) as f:
+            recipes = json.load(f)
+        bproc.init()
 
     # Initialize writers
     # Initialize writers
@@ -407,20 +414,24 @@ def main() -> None:
     rich_writer = RichTruthWriter(output_dir / "rich_truth.json")
     sidecar_writer = SidecarWriter(output_dir)
 
-    for recipe in recipes:
-        execute_recipe(
-            recipe,
-            output_dir,
-            args.renderer_mode,
-            csv_writer,
-            coco_writer,
-            rich_writer,
-            sidecar_writer,
-        )
+    with benchmarker.measure("Total_Execution"):
+        for recipe in recipes:
+            execute_recipe(
+                recipe,
+                output_dir,
+                args.renderer_mode,
+                csv_writer,
+                coco_writer,
+                rich_writer,
+                sidecar_writer,
+            )
 
     # Save all results
-    coco_writer.save()
-    rich_writer.save()
+    with benchmarker.measure("Save_Results"):
+        coco_writer.save()
+        rich_writer.save()
+
+    benchmarker.report.log_summary()
 
 
 if __name__ == "__main__":
