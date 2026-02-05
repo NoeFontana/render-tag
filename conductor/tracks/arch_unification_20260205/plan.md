@@ -13,17 +13,17 @@ Establishing the "Service Locator" to centralize Blender dependencies and elimin
     - [x] Verify that importing from the bridge in a standard Python environment serves the correct mock objects.
 - [x] **Task: Conductor - User Manual Verification 'Centralized Blender Bridge' (Protocol in workflow.md)** (e1c0cbc)
 
-## Phase 2: Unified Worker Orchestration
+## Phase 2: Unified Worker Orchestration [checkpoint: 126490a]
 Consolidating 'Cold' and 'Hot' execution into a single, ZMQ-driven "Worker" abstraction.
 
 - [x] **Task: Refactor `zmq_server.py` for Dual-Mode Execution** (f7e196b)
     - [x] Implement an "Ephemeral" mode where the server processes a finite list of recipes and then exits.
-- [ ] **Task: Create `UnifiedWorkerOrchestrator`**
-    - [ ] Merge logic from `LocalExecutor` and `WorkerPool` into a single Host-side class.
-    - [ ] Standardize logging and telemetry collection via `TelemetryAuditor`.
-- [ ] **Task: Retirement of Legacy `LocalExecutor`**
-    - [ ] Update CLI to use the new unified orchestrator for all generation tasks.
-- [ ] **Task: Conductor - User Manual Verification 'Unified Worker Orchestration' (Protocol in workflow.md)**
+- [x] **Task: Create `UnifiedWorkerOrchestrator`** (126490a)
+    - [x] Merge logic from `LocalExecutor` and `WorkerPool` into a single Host-side class.
+    - [x] Standardize logging and telemetry collection via `TelemetryAuditor`.
+- [x] **Task: Retirement of Legacy `LocalExecutor`** (126490a)
+    - [x] Update CLI to use the new unified orchestrator for all generation tasks.
+- [x] **Task: Conductor - User Manual Verification 'Unified Worker Orchestration' (Protocol in workflow.md)** (126490a)
 
 ## Phase 3: Geometry & Renderer Facade
 Decoupling the procedural logic from the underlying rendering engine.
