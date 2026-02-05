@@ -36,6 +36,41 @@ CORNER_ORDER = [
 ]
 
 
+class AssetPool:
+    """Manages a pool of Blender objects to avoid creation/deletion overhead."""
+
+    def __init__(self):
+        self._tag_pool: list[Any] = []
+        self._active_count = 0
+
+    def get_tag(self) -> Any:
+        """Get an available tag plane from the pool or create a new one."""
+        if self._active_count < len(self._tag_pool):
+            obj = self._tag_pool[self._active_count]
+            obj.blender_obj.hide_render = False
+            obj.blender_obj.hide_viewport = False
+        else:
+            # Create a new plane primitive
+            obj = bproc.object.create_primitive("PLANE")
+            self._tag_pool.append(obj)
+
+        self._active_count += 1
+        return obj
+
+    def release_all(self):
+        """Reset the pool, hiding all objects for the next scene."""
+        for obj in self._tag_pool:
+            obj.blender_obj.hide_render = True
+            obj.blender_obj.hide_viewport = True
+            # Reset parent if any
+            obj.blender_obj.parent = None
+        self._active_count = 0
+
+
+# Global singleton for the backend session
+global_pool = AssetPool()
+
+
 def get_tag_texture_path(
     tag_family: str,
     custom_path: Path | None = None,
@@ -97,8 +132,8 @@ def create_tag_plane(
     Returns:
         BlenderProc MeshObject with corner coordinates stored as custom properties
     """
-    # Create a plane primitive
-    plane = bproc.object.create_primitive("PLANE")
+    # Retrieve from pool instead of creating new
+    plane = global_pool.get_tag()
     plane.blender_obj.name = f"Tag_{tag_family}_{tag_id}"
 
     # Scale to desired size
@@ -146,21 +181,21 @@ def apply_tag_texture(obj: Any, texture_path: Path, config: dict | None = None) 
     # Load the texture image
     image = bpy.data.images.load(str(texture_path))
 
-    # Create a new material
-    material = bpy.data.materials.new(name=f"TagMaterial_{texture_path.stem}")
-    material.diffuse_color = (1, 1, 1, 1)  # Viewport color for Workbench
-    material.use_nodes = True
+    # Reuse or create material
+    mat_name = f"TagMaterial_Pooled"
+    material = bpy.data.materials.get(mat_name)
+    if not material:
+        material = bpy.data.materials.new(name=mat_name)
+        material.use_nodes = True
 
     nodes = material.node_tree.nodes
     links = material.node_tree.links
 
-    # Clear default nodes
-    nodes.clear()
-
-    # Create nodes
-    output_node = nodes.new("ShaderNodeOutputMaterial")
-    bsdf_node = nodes.new("ShaderNodeBsdfPrincipled")
-    tex_node = nodes.new("ShaderNodeTexImage")
+    # Find or create nodes
+    output_node = nodes.get("Material Output") or nodes.new("ShaderNodeOutputMaterial")
+    bsdf_node = nodes.get("Principled BSDF") or nodes.new("ShaderNodeBsdfPrincipled")
+    tex_node = nodes.get("Image Texture") or nodes.new("ShaderNodeTexImage")
+    tex_node.name = "Image Texture" # Ensure we can find it next time
 
     # Set texture
     tex_node.image = image
@@ -181,13 +216,16 @@ def apply_tag_texture(obj: Any, texture_path: Path, config: dict | None = None) 
     bsdf_node.inputs["Roughness"].default_value = roughness
     bsdf_node.inputs["Specular IOR Level"].default_value = specular
 
-    # Link nodes
-    links.new(tex_node.outputs["Color"], bsdf_node.inputs["Base Color"])
-    links.new(bsdf_node.outputs["BSDF"], output_node.inputs["Surface"])
+    # Link nodes if not already linked
+    if not any(l.to_node == bsdf_node and l.to_socket.name == "Base Color" for l in links):
+        links.new(tex_node.outputs["Color"], bsdf_node.inputs["Base Color"])
+    if not any(l.to_node == output_node for l in links):
+        links.new(bsdf_node.outputs["BSDF"], output_node.inputs["Surface"])
 
-    # Assign material to object
-    obj.blender_obj.data.materials.clear()
-    obj.blender_obj.data.materials.append(material)
+    # Assign material to object (clearing existing ones first)
+    if not obj.blender_obj.data.materials or obj.blender_obj.data.materials[0] != material:
+        obj.blender_obj.data.materials.clear()
+        obj.blender_obj.data.materials.append(material)
 
 
 def apply_default_material(obj: Any) -> None:

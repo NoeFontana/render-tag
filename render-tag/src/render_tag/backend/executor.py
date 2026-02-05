@@ -26,7 +26,7 @@ try:
 except ImportError:
     bpy = None
 
-from render_tag.backend.assets import create_tag_plane, get_tag_texture_path  # noqa: E402
+from render_tag.backend.assets import create_tag_plane, get_tag_texture_path, global_pool  # noqa: E402
 from render_tag.backend.camera import setup_sensor_dynamics  # noqa: E402
 from render_tag.backend.projection import (  # noqa: E402
     check_tag_facing_camera,
@@ -162,7 +162,15 @@ def execute_recipe(
         "seeds": None,  # Or parse from recipe if we added it
     }
 
+    # Reset object pool and basic bproc state
+    global_pool.release_all()
     bproc.clean_up()
+
+    # Periodic Hybrid Garbage Collection (every 50 scenes)
+    if scene_idx > 0 and scene_idx % 50 == 0 and bpy:
+        logger.info(f"Purging orphaned data blocks at scene {scene_idx}")
+        # Purge unused materials, meshes, textures, etc.
+        bpy.ops.outliner.orphans_purge(do_local_ids=True, do_linked_ids=True, do_recursive=True)
 
     # 1. Setup Renderer
     if renderer_mode == "workbench":
