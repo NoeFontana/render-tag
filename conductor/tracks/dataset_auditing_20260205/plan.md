@@ -16,12 +16,12 @@ This plan implements a high-performance auditing system to verify the quality an
 ## Phase 2: Core KPI Engine
 **Goal:** Implement the vectorized math for geometric and environmental metrics.
 
-- [ ] Task: Geometric Metric Calculations
-    - [ ] Write unit tests for incidence angle (vector dot product) and distance calculations.
-    - [ ] Implement `GeometryAuditor` to calculate angles, distances, and 2D frame coverage.
-- [ ] Task: Environmental & Integrity Metrics
-    - [ ] Write unit tests for lighting variance and impossible pose detection (z < 0).
-    - [ ] Implement `IntegrityAuditor` to flag corrupted frames and orphaned tags.
+- [x] Task: Geometric Metric Calculations 42ba178
+    - [x] Write unit tests for incidence angle (vector dot product) and distance calculations.
+    - [x] Implement `GeometryAuditor` to calculate angles, distances, and 2D frame coverage.
+- [x] Task: Environmental & Integrity Metrics 42ba178
+    - [x] Write unit tests for lighting variance and impossible pose detection (z < 0).
+    - [x] Implement `IntegrityAuditor` to flag corrupted frames and orphaned tags.
 - [ ] Task: Conductor - User Manual Verification 'Core KPI Engine' (Protocol in workflow.md)
 
 ## Phase 3: Quality Gates & Outlier Identification
