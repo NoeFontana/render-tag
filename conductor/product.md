@@ -26,6 +26,6 @@ Procedural 3D data generation for AprilTag training (Offline).
 ## Performance & Scalability
 - **Distributed Sharding:** Architecture supports horizontal scaling and sharding across multiple GPUs or compute nodes.
 - **Pluggable Execution:** Support for multiple rendering backends, including local subprocesses and hermetic Docker containers, enabling seamless transition from development to high-performance computing (HPC) environments.
-- **Process Isolation:** Use of the Blender subprocess pattern to ensure stability and prevent memory leaks during long-running generation tasks.
+- **Hot Loop Optimization:** Scene recycling and persistent data management in the rendering backend, minimizing initialization overhead and maximizing throughput for batch generation.
 - **Fast Validation:** A "Shadow Render" capability for rapid prototyping and validation of scene recipes without the overhead of full 3D rendering.
 
