@@ -14,7 +14,7 @@ This plan implements a robust asset management system using Hugging Face as the 
     - [ ] Verify that the manager correctly identifies missing or changed files.
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Core Logic' (Protocol in workflow.md)
 
-## Phase 2: CLI Integration
+## Phase 2: CLI Integration [checkpoint: 86e9518]
 **Goal:** Expose asset management via the CLI.
 
 - [~] Task: Create `assets` Command Group
