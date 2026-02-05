@@ -33,7 +33,12 @@ class ZmqHostClient:
         self.context.term()
         self.connected = False
 
-    def send_command(self, command_type: CommandType, payload: Optional[Dict[str, Any]] = None) -> Response:
+    def send_command(
+        self, 
+        command_type: CommandType, 
+        payload: Optional[Dict[str, Any]] = None,
+        raise_on_failure: bool = False
+    ) -> Response:
         """
         Sends a command and waits for a response.
         """
@@ -53,12 +58,16 @@ class ZmqHostClient:
             return Response.model_validate_json(response_json)
             
         except zmq.Again:
+            if raise_on_failure:
+                raise TimeoutError(f"Timeout waiting for response from {self.address}")
             return Response(
                 status="FAILURE",
                 request_id=request_id,
                 message=f"Timeout waiting for response from {self.address}"
             )
         except Exception as e:
+            if raise_on_failure:
+                raise e
             return Response(
                 status="FAILURE",
                 request_id=request_id,
