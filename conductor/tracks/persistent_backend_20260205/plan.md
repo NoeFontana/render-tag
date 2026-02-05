@@ -14,7 +14,7 @@ This phase establishes the ZeroMQ messaging layer and the JSON protocol that wil
     - [x] Implement basic Loop-back to verify Host-Backend connectivity via `uv run`.
 - [x] **Task: Conductor - User Manual Verification 'Communication & Protocol Foundation' (Protocol in workflow.md)** (14f47fa)
 
-## Phase 2: Persistent Worker Lifecycle
+## Phase 2: Persistent Worker Lifecycle [checkpoint: 3239e0e]
 Implementing the "Resilient Managed Pool" logic to launch, monitor, and recycle Blender processes.
 
 - [x] **Task: Implement `PersistentWorkerProcess` Manager** (521238d)
@@ -23,10 +23,10 @@ Implementing the "Resilient Managed Pool" logic to launch, monitor, and recycle 
 - [x] **Task: Implement `WorkerPool` Orchestrator** (e83fa4f)
     - [x] Dynamic scaling of worker processes.
     - [x] Logic for "Batch Stealing" or task distribution to persistent workers.
-- [ ] **Task: Write Tests for Worker Resilience**
-    - [ ] Test automatic restart after a simulated worker crash.
-    - [ ] Test graceful shutdown of the entire pool.
-- [ ] **Task: Conductor - User Manual Verification 'Persistent Worker Lifecycle' (Protocol in workflow.md)**
+- [x] **Task: Write Tests for Worker Resilience** (eb22302)
+    - [x] Test automatic restart after a simulated worker crash.
+    - [x] Test graceful shutdown of the entire pool.
+- [x] **Task: Conductor - User Manual Verification 'Persistent Worker Lifecycle' (Protocol in workflow.md)** (3239e0e)
 
 ## Phase 3: Hot Loop Rendering & State Management
 Integrating the persistent backend into the Blender/BlenderProc rendering logic.
