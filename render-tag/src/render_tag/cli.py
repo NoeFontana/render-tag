@@ -19,7 +19,9 @@ from rich.panel import Panel
 from .config import GenConfig, load_config
 from .data_io.visualization import visualize_dataset, visualize_recipe
 from .generator import Generator
+from .orchestration.executors import ExecutorFactory
 from .orchestration.sharding import resolve_shard_index, run_local_parallel
+from .tools.validator import validate_recipe_file
 
 app = typer.Typer(
     name="render-tag",
@@ -111,6 +113,12 @@ def generate(
         "--skip-render",
         help="Only generate recipes, skip Blender rendering",
     ),
+    executor_type: str = typer.Option(
+        "local",
+        "--executor",
+        "-e",
+        help="Execution engine: local, docker, mock",
+    ),
 ) -> None:
     """
     Generate synthetic fiducial marker training data.
@@ -125,8 +133,11 @@ def generate(
         )
     )
 
-    # Check for blenderproc installation
-    if not check_blenderproc_installed():
+    # 1. Setup Executor
+    executor = ExecutorFactory.get_executor(executor_type)
+
+    # Check for blenderproc installation (only if local executor)
+    if executor_type == "local" and not check_blenderproc_installed():
         console.print(
             "[bold red]Error:[/bold red] blenderproc is not installed or not in PATH.\n"
             "Install it with: [cyan]pip install blenderproc[/cyan]"
@@ -187,6 +198,7 @@ def generate(
             workers=workers,
             renderer_mode=renderer_mode,
             verbose=verbose,
+            executor_type=executor_type,
         )
         return
 
@@ -216,8 +228,6 @@ def generate(
     console.print(f"[dim]Recipe saved to:[/dim] {recipe_path}")
 
     # Run Pre-Flight Validation
-    from .tools.validator import validate_recipe_file
-
     is_valid, errors, warnings = validate_recipe_file(recipe_path)
 
     if warnings:
@@ -261,37 +271,15 @@ def generate(
         console.print("[yellow]--skip-render provided. Skipping Blender launch.[/yellow]")
         return
 
-    cmd = [
-        "blenderproc",
-        "run",
-        str(script_path),
-        "--recipe",
-        str(recipe_path),
-        "--output",
-        str(output),
-        "--renderer-mode",
-        renderer_mode,
-        "--shard-id",
-        str(shard_index),
-    ]
-
-    console.print("\n[bold]Launching BlenderProc...[/bold]")
-    console.print(f"[dim]Command:[/dim] {' '.join(cmd)}\n")
-
     try:
-        # Run BlenderProc subprocess
-        result = subprocess.run(
-            cmd,
-            check=False,  # Handle exit code ourselves
-            capture_output=not verbose,
-            text=True,
+        # Run the chosen executor
+        executor.execute(
+            recipe_path=recipe_path,
+            output_dir=output,
+            renderer_mode=renderer_mode,
+            shard_id=str(shard_index),
+            verbose=verbose,
         )
-
-        if result.returncode != 0:
-            console.print(f"[bold red]Rendering Failed![/bold red] Exit code: {result.returncode}")
-            if result.stderr:
-                console.print(f"[red]Error output:[/red]\n{result.stderr[:1000]}")
-            raise typer.Exit(code=result.returncode)
 
         console.print("\n[bold green]✓ Dataset generated successfully![/bold green]")
         console.print(f"[dim]Output saved to:[/dim] {output}")

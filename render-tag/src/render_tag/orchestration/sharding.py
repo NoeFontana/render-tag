@@ -69,6 +69,7 @@ def run_local_parallel(
     workers: int,
     renderer_mode: str,
     verbose: bool,
+    executor_type: str = "local",
 ):
     """Spawns multiple instances of 'render-tag generate' recursively."""
     cmd_base = [
@@ -84,6 +85,8 @@ def run_local_parallel(
         renderer_mode,
         "--total-shards",
         str(workers),  # Split work exactly by worker count
+        "--executor",
+        executor_type,
     ]
     if verbose:
         cmd_base.append("--verbose")

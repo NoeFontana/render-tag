@@ -109,23 +109,25 @@ class TestCLIGenerateCommand:
 
         # Mock Generator to avoid actual generation logic
         with patch("render_tag.cli.Generator") as MockGenerator:
-            # Setup mock generator behavior
-            mock_gen_instance = MockGenerator.return_value
-            mock_gen_instance.generate_shards.return_value = [{"some": "recipe"}]
+            # Mock validator to pass
+            with patch("render_tag.cli.validate_recipe_file", return_value=(True, [], [])):
+                # Setup mock generator behavior
+                mock_gen_instance = MockGenerator.return_value
+                mock_gen_instance.generate_shards.return_value = [{"some": "recipe"}]
 
-            config_path = tmp_path / "config.yaml"
-            config_path.write_text("dataset:\n  seed: 42\n")
+                config_path = tmp_path / "config.yaml"
+                config_path.write_text("dataset:\n  seed: 42\n")
 
-            runner.invoke(
-                app,
-                [
-                    "generate",
-                    "--config",
-                    str(config_path),
-                    "--output",
-                    str(tmp_path / "test_output_cmd"),
-                ],
-            )
+                runner.invoke(
+                    app,
+                    [
+                        "generate",
+                        "--config",
+                        str(config_path),
+                        "--output",
+                        str(tmp_path / "test_output_cmd"),
+                    ],
+                )
 
             # Verify subprocess.run was called
             assert mock_run.called, "subprocess.run should have been called"
@@ -158,28 +160,29 @@ class TestCLIGenerateCommand:
         mock_run.return_value = mock.Mock(returncode=0, stdout="", stderr="")
 
         with patch("render_tag.cli.Generator") as MockGenerator:
-            mock_gen_instance = MockGenerator.return_value
-            # return a dummy recipe list
-            mock_gen_instance.generate_shards.return_value = [{"scene_id": 0}]
+            with patch("render_tag.cli.validate_recipe_file", return_value=(True, [], [])):
+                mock_gen_instance = MockGenerator.return_value
+                # return a dummy recipe list
+                mock_gen_instance.generate_shards.return_value = [{"scene_id": 0}]
 
-            config_path = tmp_path / "test_config.yaml"
-            config_path.write_text("""
+                config_path = tmp_path / "test_config.yaml"
+                config_path.write_text("""
 dataset:
   seed: 12345
-""")
+""" )
 
-            runner.invoke(
-                app,
-                [
-                    "generate",
-                    "--config",
-                    str(config_path),
-                    "--output",
-                    str(tmp_path / "test_output_serialization"),
-                    "--scenes",
-                    "5",
-                ],
-            )
+                runner.invoke(
+                    app,
+                    [
+                        "generate",
+                        "--config",
+                        str(config_path),
+                        "--output",
+                        str(tmp_path / "test_output_serialization"),
+                        "--scenes",
+                        "5",
+                    ],
+                )
 
             # Get the command and find the recipe path
             call_args = mock_run.call_args
@@ -204,26 +207,27 @@ dataset:
         mock_run.return_value = mock.Mock(returncode=0, stdout="", stderr="")
 
         with patch("render_tag.cli.Generator") as MockGenerator:
-            # Mock generator to avoid creating real recipes
-            mock_gen_instance = MockGenerator.return_value
-            mock_gen_instance.generate_shards.return_value = [{"scene": 1}]
+            with patch("render_tag.cli.validate_recipe_file", return_value=(True, [], [])):
+                # Mock generator to avoid creating real recipes
+                mock_gen_instance = MockGenerator.return_value
+                mock_gen_instance.generate_shards.return_value = [{"scene": 1}]
 
-            config_path = tmp_path / "config.yaml"
-            config_path.write_text("dataset:\n  seed: 42\n")
+                config_path = tmp_path / "config.yaml"
+                config_path.write_text("dataset:\n  seed: 42\n")
 
-            # Test with workbench mode
-            runner.invoke(
-                app,
-                [
-                    "generate",
-                    "--config",
-                    str(config_path),
-                    "--output",
-                    str(tmp_path / "test_output_renderer"),
-                    "--renderer-mode",
-                    "workbench",
-                ],
-            )
+                # Test with workbench mode
+                runner.invoke(
+                    app,
+                    [
+                        "generate",
+                        "--config",
+                        str(config_path),
+                        "--output",
+                        str(tmp_path / "test_output_renderer"),
+                        "--renderer-mode",
+                        "workbench",
+                    ],
+                )
 
             call_args = mock_run.call_args
             cmd = call_args[0][0]
@@ -231,9 +235,8 @@ dataset:
             # Find renderer-mode in command
             assert "--renderer-mode" in cmd, "Command should include --renderer-mode"
             renderer_idx = cmd.index("--renderer-mode") + 1
-            assert cmd[renderer_idx] == "workbench", (
+            assert cmd[renderer_idx] == "workbench", \
                 f"Expected 'workbench', got '{cmd[renderer_idx]}'"
-            )
 
     @patch("subprocess.run")
     @patch("render_tag.cli.check_blenderproc_installed", return_value=True)
@@ -246,40 +249,71 @@ dataset:
         mock_run.return_value = mock.Mock(returncode=0, stdout="", stderr="")
 
         with patch("render_tag.cli.Generator") as MockGenerator:
-            # Mock generator instance
-            mock_gen_instance = MockGenerator.return_value
-            mock_gen_instance.generate_shards.return_value = [{"scene": 1}]
+            with patch("render_tag.cli.validate_recipe_file", return_value=(True, [], [])):
+                # Mock generator instance
+                mock_gen_instance = MockGenerator.return_value
+                mock_gen_instance.generate_shards.return_value = [{"scene": 1}]
 
-            config_path = tmp_path / "ovr_config.yaml"
-            # Config says 10 scenes
-            config_path.write_text("""
+                config_path = tmp_path / "ovr_config.yaml"
+                # Config says 10 scenes
+                config_path.write_text("""
 dataset:
   seed: 42
   num_scenes: 10
-""")
+""" )
 
-            # Override to 3 scenes via CLI
-            result = runner.invoke(
-                app,
-                [
-                    "generate",
-                    "--config",
-                    str(config_path),
-                    "--output",
-                    str(tmp_path / "test_output_scenes"),
-                    "--scenes",
-                    "3",
-                ],
-            )
+                # Override to 3 scenes via CLI
+                result = runner.invoke(
+                    app,
+                    [
+                        "generate",
+                        "--config",
+                        str(config_path),
+                        "--output",
+                        str(tmp_path / "test_output_scenes"),
+                        "--scenes",
+                        "3",
+                    ],
+                )
 
-            assert result.exit_code == 0, f"Command failed: {result.stdout}"
+                assert result.exit_code == 0, f"Command failed: {result.stdout}"
 
-            # Verify Generator was initialized with correct config (num_scenes=3)
-            assert MockGenerator.called
-            init_args = MockGenerator.call_args[0]
-            config_arg = init_args[0]
-            assert config_arg["dataset"]["num_scenes"] == 3
+                # Verify Generator was initialized with correct config (num_scenes=3)
+                assert MockGenerator.called
+                init_args = MockGenerator.call_args[0]
+                config_arg = init_args[0]
+                assert config_arg["dataset"]["num_scenes"] == 3
 
+    @patch("render_tag.cli.ExecutorFactory")
+    @patch("render_tag.cli.check_blenderproc_installed", return_value=True)
+    def test_generate_with_executor_flag(
+        self, mock_check: MagicMock, mock_factory: MagicMock, tmp_path: Path
+    ) -> None:
+        """Test that --executor flag selects the correct executor."""
+        mock_executor = MagicMock()
+        mock_factory.get_executor.return_value = mock_executor
+        
+        with patch("render_tag.cli.Generator") as MockGenerator:
+            with patch("render_tag.cli.validate_recipe_file", return_value=(True, [], [])):
+                mock_gen_instance = MockGenerator.return_value
+                mock_gen_instance.generate_shards.return_value = [{"scene_id": 0}]
+                
+                config_path = tmp_path / "config.yaml"
+                config_path.write_text("dataset:\n  seed: 42\n")
+                
+                result = runner.invoke(
+                    app,
+                    [
+                        "generate",
+                        "--config", str(config_path),
+                        "--output", str(tmp_path / "/tmp/out"),
+                        "--executor", "mock"
+                    ],
+                )
+                
+                assert result.exit_code == 0
+                mock_factory.get_executor.assert_called_with("mock")
+                assert mock_executor.execute.called
 
 class TestCLIHelp:
     def test_main_help(self) -> None:
