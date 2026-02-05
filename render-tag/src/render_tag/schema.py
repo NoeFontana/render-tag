@@ -38,6 +38,18 @@ class SensorNoiseConfig(BaseModel):
     )
 
 
+class SensorDynamicsRecipe(BaseModel):
+    """Recipe for dynamic sensor artifacts (Motion Blur, Rolling Shutter)."""
+
+    velocity: list[float] | None = Field(
+        default=None, description="[vx, vy, vz] velocity vector in m/s"
+    )
+    shutter_time_ms: float | None = Field(default=None, description="Shutter time in ms")
+    rolling_shutter_duration_ms: float | None = Field(
+        default=None, description="Rolling shutter duration in ms"
+    )
+
+
 class TagSurfaceConfig(BaseModel):
     """Configuration for tag surface imperfections."""
 
@@ -85,11 +97,12 @@ class CameraRecipe(BaseModel):
     )
     intrinsics: CameraIntrinsics
 
-    # Phase 5: Sensor Simulation
-    velocity: list[float] | None = Field(
-        default=None, description="[vx, vy, vz] velocity vector in m/s"
+    # Sensor Dynamics (Motion Blur, Rolling Shutter)
+    sensor_dynamics: SensorDynamicsRecipe | None = Field(
+        default=None, description="Dynamic sensor artifacts recipe"
     )
-    shutter_time_ms: float | None = Field(default=None, description="Shutter time in ms")
+
+    # Depth of Field
     fstop: float | None = Field(default=None, description="Aperture f-stop")
     focus_distance: float | None = Field(default=None, description="Focus distance in meters")
     iso_noise: float | None = Field(default=None, description="ISO noise level (0-1)")

@@ -167,6 +167,21 @@ class SeedConfig(BaseModel):
         return self.noise if self.noise is not None else self.global_seed + 1
 
 
+class SensorDynamicsConfig(BaseModel):
+    """Configuration for dynamic sensor artifacts (Motion Blur, Rolling Shutter)."""
+
+    velocity_mean: float = Field(
+        default=0.0, ge=0, description="Mean camera velocity (m/s) for motion blur"
+    )
+    velocity_std: float = Field(default=0.0, ge=0, description="Std dev of camera velocity")
+    shutter_time_ms: float = Field(
+        default=10.0, ge=0, description="Shutter open time in milliseconds"
+    )
+    rolling_shutter_duration_ms: float = Field(
+        default=0.0, ge=0, description="Rolling shutter scan duration in milliseconds"
+    )
+
+
 class DatasetConfig(BaseModel):
     """Dataset output configuration."""
 
@@ -283,13 +298,10 @@ class CameraConfig(BaseModel):
     elevation: float | None = Field(default=None, description="Fixed elevation")
     azimuth: float | None = Field(default=None, description="Fixed azimuth")
 
-    # Phase 5: Sensor Simulation Configs
-    velocity_mean: float = Field(
-        default=0.0, ge=0, description="Mean camera velocity (m/s) for motion blur"
-    )
-    velocity_std: float = Field(default=0.0, ge=0, description="Std dev of camera velocity")
-    shutter_time_ms: float = Field(
-        default=10.0, ge=0, description="Shutter open time in milliseconds"
+    # Sensor Dynamics (Motion Blur, Rolling Shutter)
+    sensor_dynamics: SensorDynamicsConfig = Field(
+        default_factory=SensorDynamicsConfig,
+        description="Dynamic sensor artifacts configuration",
     )
 
     # Depth of Field
@@ -309,6 +321,42 @@ class CameraConfig(BaseModel):
     sensor_noise: SensorNoiseConfig | None = Field(
         default=None, description="Parametric sensor noise configuration"
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def map_legacy_sensor_dynamics(cls, data: Any) -> Any:
+        """Map top-level legacy sensor dynamics fields to the nested grouping."""
+        if not isinstance(data, dict):
+            return data
+
+        dynamics = data.get("sensor_dynamics", {})
+        if not isinstance(dynamics, dict):
+            # If it's already an object or invalid, let pydantic handle it
+            return data
+
+        # Map legacy fields if they exist at top level and NOT in sensor_dynamics already
+        legacy_fields = ["velocity_mean", "velocity_std", "shutter_time_ms"]
+        for field in legacy_fields:
+            if field in data and field not in dynamics:
+                dynamics[field] = data.pop(field)
+
+        if dynamics:
+            data["sensor_dynamics"] = dynamics
+
+        return data
+
+    # Backwards compatibility properties
+    @property
+    def velocity_mean(self) -> float:
+        return self.sensor_dynamics.velocity_mean
+
+    @property
+    def velocity_std(self) -> float:
+        return self.sensor_dynamics.velocity_std
+
+    @property
+    def shutter_time_ms(self) -> float:
+        return self.sensor_dynamics.shutter_time_ms
 
     @property
     def width(self) -> int:

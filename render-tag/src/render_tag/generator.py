@@ -23,6 +23,7 @@ from render_tag.schema import (
     LightingConfig,
     ObjectRecipe,
     SceneRecipe,
+    SensorDynamicsRecipe,
     WorldRecipe,
 )
 
@@ -276,12 +277,18 @@ class Generator:
                 magnitude = max(0.0, magnitude)  # Assume non-negative speed
                 velocity = (direction * magnitude).tolist()
 
+            # Create Sensor Dynamics Recipe
+            dynamics = SensorDynamicsRecipe(
+                velocity=velocity,
+                shutter_time_ms=camera_config.sensor_dynamics.shutter_time_ms,
+                rolling_shutter_duration_ms=camera_config.sensor_dynamics.rolling_shutter_duration_ms,
+            )
+
             recipes.append(
                 CameraRecipe(
                     transform_matrix=pose.transform_matrix.tolist(),
                     intrinsics=self._get_intrinsics_config(),
-                    velocity=velocity,
-                    shutter_time_ms=camera_config.shutter_time_ms,
+                    sensor_dynamics=dynamics,
                     fstop=camera_config.fstop,
                     focus_distance=camera_config.focus_distance,
                     iso_noise=camera_config.iso_noise,
