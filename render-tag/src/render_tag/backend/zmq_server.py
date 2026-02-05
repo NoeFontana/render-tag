@@ -199,10 +199,19 @@ class ZmqBackendServer:
             message=f"Command {cmd.command_type} not implemented"
         )
 
-    def run(self):
-        """Main server loop."""
+    def run(self, max_renders: Optional[int] = None):
+        """
+        Main server loop.
+        
+        Args:
+            max_renders: If set, the server will shutdown after this many successful RENDER commands.
+                         Used for 'Ephemeral Worker' mode.
+        """
         self.running = True
+        renders_completed = 0
         logger.info(f"Backend ZMQ Server started on port {self.port}")
+        if max_renders:
+            logger.info(f"Running in ephemeral mode (max_renders={max_renders})")
         
         while self.running:
             try:
@@ -211,10 +220,18 @@ class ZmqBackendServer:
                     cmd = Command.model_validate_json(message)
                     resp = self.handle_command(cmd)
                     self.socket.send_string(resp.model_dump_json())
+                    
+                    if cmd.command_type == CommandType.RENDER and resp.status == ResponseStatus.SUCCESS:
+                        renders_completed += 1
+                        if max_renders and renders_completed >= max_renders:
+                            logger.info(f"Reached max_renders ({max_renders}). Shutting down.")
+                            self.running = False
+                            # Finalize writers
+                            if "coco" in self.writers: self.writers["coco"].save()
+                            if "rich" in self.writers: self.writers["rich"].save()
+
             except Exception as e:
                 logger.error(f"Error in server loop: {e}")
-                # We can't always send a response if the socket state is bad
-                # but we'll try to keep it alive
                 pass
 
     def stop(self):
@@ -227,6 +244,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=5555)
     parser.add_argument("--mock", action="store_true")
+    parser.add_argument("--max-renders", type=int, default=None, help="Shutdown after N renders")
     args = parser.parse_args()
     
     bproc_m, bpy_m = None, None
@@ -241,6 +259,6 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     server = ZmqBackendServer(port=args.port, bproc_mock=bproc_m, bpy_mock=bpy_m)
     try:
-        server.run()
+        server.run(max_renders=args.max_renders)
     except KeyboardInterrupt:
         server.stop()
