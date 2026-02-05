@@ -13,7 +13,7 @@ This plan implements a high-performance auditing system to verify the quality an
     - [x] Implement basic `audit` command in `src/render_tag/cli.py` that lists dataset statistics (count).
 - [x] Task: Conductor - User Manual Verification 'Foundation & Data Ingestion' (Protocol in workflow.md) 28d0fc1
 
-## Phase 2: Core KPI Engine
+## Phase 2: Core KPI Engine [checkpoint: 88cc847]
 **Goal:** Implement the vectorized math for geometric and environmental metrics.
 
 - [x] Task: Geometric Metric Calculations 42ba178
@@ -22,17 +22,17 @@ This plan implements a high-performance auditing system to verify the quality an
 - [x] Task: Environmental & Integrity Metrics 42ba178
     - [x] Write unit tests for lighting variance and impossible pose detection (z < 0).
     - [x] Implement `IntegrityAuditor` to flag corrupted frames and orphaned tags.
-- [ ] Task: Conductor - User Manual Verification 'Core KPI Engine' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Core KPI Engine' (Protocol in workflow.md) 88cc847
 
 ## Phase 3: Quality Gates & Outlier Identification
 **Goal:** Implement the enforcement layer for CI/CD and the visual outlier system.
 
-- [ ] Task: Quality Gate Logic
-    - [ ] Write unit tests for `quality_gate.yaml` parsing and threshold evaluation.
-    - [ ] Implement `GateEnforcer` that maps audit results to exit codes based on critical/warning rules.
-- [ ] Task: Outlier Management System
-    - [ ] Write unit tests for identifying statistical outliers (e.g., tags < 5px from border).
-    - [ ] Implement `OutlierExporter` to generate the `outliers/` directory with symlinks.
+- [x] Task: Quality Gate Logic 761dce2
+    - [x] Write unit tests for `quality_gate.yaml` parsing and threshold evaluation.
+    - [x] Implement `GateEnforcer` that maps audit results to exit codes based on critical/warning rules.
+- [x] Task: Outlier Management System 761dce2
+    - [x] Write unit tests for identifying statistical outliers (e.g., tags < 5px from border).
+    - [x] Implement `OutlierExporter` to generate the `outliers/` directory with symlinks.
 - [ ] Task: Conductor - User Manual Verification 'Quality Gates & Outlier Identification' (Protocol in workflow.md)
 
 ## Phase 4: Reporting & Visualization
