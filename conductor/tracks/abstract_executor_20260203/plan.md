@@ -25,7 +25,7 @@ This plan refactors the render execution logic into a pluggable interface to sup
     - [ ] Ensure that sharded parallel runs also respect the chosen executor.
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: CLI & Orchestration Update' (Protocol in workflow.md)
 
-## Phase 3: Docker Implementation
+## Phase 3: Docker Implementation [checkpoint: cbfc683]
 **Goal:** Enable containerized rendering.
 
 - [~] Task: Implement `DockerExecutor`
