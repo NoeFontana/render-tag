@@ -9,7 +9,7 @@ This plan implements a robust asset management system using Hugging Face as the 
     - [ ] Create `src/render_tag/orchestration/assets.py`.
     - [ ] Integrate `huggingface_hub` for `snapshot_download` and `upload_folder`.
     - [ ] Implement local directory contract enforcement (creating subfolders).
-- [ ] Task: Unit Tests for Sync Logic
+- [x] Task: Unit Tests for Sync Logic 0835391
     - [ ] Mock Hugging Face API calls.
     - [ ] Verify that the manager correctly identifies missing or changed files.
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Core Logic' (Protocol in workflow.md)
