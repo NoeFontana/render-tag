@@ -49,6 +49,6 @@ Adding telemetry and fine-tuning performance.
     - [x] Add logic to trigger a full worker restart if VRAM threshold is exceeded.
 - [x] **Task: Structured Logging & Telemetry Dashboard** (d372a9b)
     - [x] Pipe ZMQ telemetry to Polars for throughput analysis.
-- [ ] **Task: Final Performance Benchmarking**
-    - [ ] Compare throughput (images/min) vs. the "Cold" baseline.
+- [x] **Task: Final Performance Benchmarking** (64dc037)
+    - [x] Compare throughput (images/min) vs. the "Cold" baseline.
 - [ ] **Task: Conductor - User Manual Verification 'Observability & Optimization' (Protocol in workflow.md)**
