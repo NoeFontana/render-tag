@@ -2,7 +2,7 @@
 
 This plan implements a robust asset management system using Hugging Face as the remote SSoT, ensuring hermetic reproducibility.
 
-## Phase 1: Core Logic & AssetManager Interface
+## Phase 1: Core Logic [checkpoint: 3ba7e89] & AssetManager Interface
 **Goal:** Implement the bidirectional sync engine and directory enforcement.
 
 - [x] Task: Implement `AssetManager` Class 0835391
