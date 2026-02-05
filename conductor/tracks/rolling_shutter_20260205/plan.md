@@ -26,11 +26,11 @@ This plan implements rolling shutter effects in the Cycles renderer to bridge th
 ## Phase 3: Integration & Physical Validation
 **Goal:** Verify the geometric shearing effect through end-to-end rendering.
 
-- [ ] Task: Create Rolling Shutter Integration Test
+- [x] Task: Create Rolling Shutter Integration Test 0264e97
     - [ ] Implement `tests/integration/test_rolling_shutter_distortion.py`.
     - [ ] Setup a scene with a high-velocity tag and assert geometric shearing in the resulting render (Shadow/Mock verify vs Cycles actual).
-- [ ] Task: Verify Ground Truth Alignment
+- [x] Task: Verify Ground Truth Alignment 0264e97
     - [ ] Ensure that even with warping, corner annotations match the mid-exposure pose.
-- [ ] Task: Run Full Test Suite
+- [x] Task: Run Full Test Suite 0264e97
     - [ ] Ensure no regressions in existing motion blur or camera logic.
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: Integration & Physical Validation' (Protocol in workflow.md)
