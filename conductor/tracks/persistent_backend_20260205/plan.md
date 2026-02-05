@@ -34,9 +34,9 @@ Integrating the persistent backend into the Blender/BlenderProc rendering logic.
 - [x] **Task: Implement Backend "Warm-up" Logic** (c8eb926)
     - [x] Add `load_assets` command to persistent backend to pre-load HDRIs and textures.
     - [x] Implement VRAM monitoring hooks.
-- [ ] **Task: Implement "Partial Reset" in `blender_main.py`**
-    - [ ] Modify rendering loop to clear only volatile objects (tags, camera).
-    - [ ] Implement state validation using `StateHash`.
+- [x] **Task: Implement "Partial Reset" in `blender_main.py`** (a8ba22a)
+    - [x] Modify rendering loop to clear only volatile objects (tags, camera).
+    - [x] Implement state validation using `StateHash`.
 - [ ] **Task: Hot Loop Integration Test**
     - [ ] End-to-end test: Generate 10 images using a single persistent worker.
     - [ ] Verify 3-5s startup cost is only incurred once.
