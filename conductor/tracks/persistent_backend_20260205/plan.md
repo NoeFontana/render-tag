@@ -47,8 +47,8 @@ Adding telemetry and fine-tuning performance.
 
 - [x] **Task: Implement VRAM Guardrails** (41afe76)
     - [x] Add logic to trigger a full worker restart if VRAM threshold is exceeded.
-- [ ] **Task: Structured Logging & Telemetry Dashboard**
-    - [ ] Pipe ZMQ telemetry to Polars for throughput analysis.
+- [x] **Task: Structured Logging & Telemetry Dashboard** (d372a9b)
+    - [x] Pipe ZMQ telemetry to Polars for throughput analysis.
 - [ ] **Task: Final Performance Benchmarking**
     - [ ] Compare throughput (images/min) vs. the "Cold" baseline.
 - [ ] **Task: Conductor - User Manual Verification 'Observability & Optimization' (Protocol in workflow.md)**
