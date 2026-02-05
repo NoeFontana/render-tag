@@ -39,6 +39,6 @@ Removing redundant code and validating the simplified architecture.
 
 - [x] **Task: Codebase-wide Retirement of Boilerplate** (5403fba)
     - [x] Remove `executor.py` and any remaining `setup_mocks` references.
-- [ ] **Task: Comprehensive Integration Benchmark**
-    - [ ] Compare performance of the Unified Orchestrator against the previous benchmarks to ensure zero regression.
+- [x] **Task: Comprehensive Integration Benchmark** (d090a40)
+    - [x] Compare performance of the Unified Orchestrator against the previous benchmarks to ensure zero regression.
 - [ ] **Task: Conductor - User Manual Verification 'Final Cleanup & Validation' (Protocol in workflow.md)**
