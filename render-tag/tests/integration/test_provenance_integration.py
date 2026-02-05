@@ -8,13 +8,14 @@ def test_provenance_sidecar_generated(tmp_path):
     """Verify that sidecar JSON files are generated with images."""
     output_dir = tmp_path / "output"
     config_path = tmp_path / "safe_config.yaml"
-    config_path.write_text("scene:\n  background_hdri: null\n  texture_dir: null\n")
+    config_path.write_text("scene:\n  background_hdri: null\n  texture_dir: null\ncamera:\n  resolution: [128, 128]\n")
     
     result = subprocess.run([
         "render-tag", "generate", 
         "--output", str(output_dir), 
         "--scenes", "1",
-        "--config", str(config_path)
+        "--config", str(config_path),
+        "--renderer-mode", "workbench"
     ], capture_output=True, text=True)
     
     assert result.returncode == 0, f"Generation failed: {result.stderr}"

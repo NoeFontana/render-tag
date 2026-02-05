@@ -28,7 +28,8 @@ def test_reproducibility_benchmark(tmp_path):
         "--config", str(config_path),
         "--output", str(out1),
         "--scenes", "1",
-        "--seed", "12345"
+        "--seed", "12345",
+        "--renderer-mode", "workbench"
     ], check=True)
     
     # Run 2
@@ -37,7 +38,8 @@ def test_reproducibility_benchmark(tmp_path):
         "--config", str(config_path),
         "--output", str(out2),
         "--scenes", "1",
-        "--seed", "12345"
+        "--seed", "12345",
+        "--renderer-mode", "workbench"
     ], check=True)
     
     # Compare image

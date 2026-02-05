@@ -11,7 +11,7 @@ def industrial_config(tmp_path):
             "num_scenes": 1
         },
         "camera": {
-            "resolution": [512, 512],
+            "resolution": [256, 256],
             "sensor_noise": {
                 "model": "salt_and_pepper",
                 "amount": 0.05,
@@ -22,7 +22,7 @@ def industrial_config(tmp_path):
             "shutter_time_ms": 10.0
         },
         "scene": {
-            "lighting_preset": "factory"
+            "background_hdri": None
         },
         "tag": {
             "family": "tag36h11",
@@ -50,7 +50,9 @@ def test_industrial_pipeline(tmp_path, industrial_config):
             "--output",
             str(tmp_path / "output"),
             "--scenes",
-            "1"
+            "1",
+            "--renderer-mode",
+            "workbench"
         ],
         capture_output=True,
         text=True,
