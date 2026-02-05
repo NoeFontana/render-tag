@@ -13,6 +13,7 @@ dependencies = [
     "pillow>=10.0",
     "blenderproc>=2.8.0",
     "opencv-contrib-python>=4.10",
+    "polars>=1.38.0",
 ]
 
 [project.scripts]
@@ -27,7 +28,13 @@ build-backend = "hatchling.build"
 packages = ["src/render_tag"]
 
 [dependency-groups]
-dev = ["pytest", "ruff", "mypy", "ty"]
+dev = [
+    "pytest",
+    "ruff",
+    "mypy",
+    "ty",
+    "pytest-cov>=7.0.0",
+]
 
 [tool.ruff]
 line-length = 100
