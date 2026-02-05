@@ -30,8 +30,8 @@ Decoupling the procedural logic from the underlying rendering engine.
 
 - [x] **Task: Pure-Python Geometry Layer** (71fdc1e)
     - [x] Move coordinate transformations and projection math to a library that accepts standard NumPy arrays/lists instead of Blender objects.
-- [ ] **Task: Renderer Facade Implementation**
-    - [ ] Refactor `render_loop.py` to use a high-level `Renderer` interface, hiding the specifics of `blenderproc` initialization and cleanup.
+- [x] **Task: Renderer Facade Implementation** (3abf18b)
+    - [x] Refactor `render_loop.py` to use a high-level `Renderer` interface, hiding the specifics of `blenderproc` initialization and cleanup.
 - [ ] **Task: Conductor - User Manual Verification 'Geometry & Logic Decoupling' (Protocol in workflow.md)**
 
 ## Phase 4: Final Cleanup & Validation
