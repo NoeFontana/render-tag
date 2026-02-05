@@ -8,9 +8,9 @@ This plan implements a high-performance auditing system to verify the quality an
 - [x] Task: Define Audit Data Models and Polars Ingestion f57e14a
     - [x] Write unit tests for parsing `tags.csv` and `metadata.json` into Polars DataFrames.
     - [x] Implement `DatasetReader` in `src/render_tag/data_io/auditor.py` with schema validation.
-- [ ] Task: CLI Skeleton for Audit Command
-    - [ ] Write integration tests for `render-tag audit` argument parsing and path validation.
-    - [ ] Implement basic `audit` command in `src/render_tag/cli.py` that lists dataset statistics (count).
+- [x] Task: CLI Skeleton for Audit Command 14c884c
+    - [x] Write integration tests for `render-tag audit` argument parsing and path validation.
+    - [x] Implement basic `audit` command in `src/render_tag/cli.py` that lists dataset statistics (count).
 - [ ] Task: Conductor - User Manual Verification 'Foundation & Data Ingestion' (Protocol in workflow.md)
 
 ## Phase 2: Core KPI Engine
