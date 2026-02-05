@@ -26,7 +26,8 @@ class WorkerPool:
         blender_script: Path,
         blender_executable: str = "blenderproc",
         use_blenderproc: bool = True,
-        mock: bool = False
+        mock: bool = False,
+        vram_threshold_mb: Optional[float] = None
     ):
         self.num_workers = num_workers
         self.base_port = base_port
@@ -34,6 +35,7 @@ class WorkerPool:
         self.blender_executable = blender_executable
         self.use_blenderproc = use_blenderproc
         self.mock = mock
+        self.vram_threshold_mb = vram_threshold_mb
         
         self.workers: List[PersistentWorkerProcess] = []
         self.worker_queue = queue.Queue()
@@ -87,24 +89,38 @@ class WorkerPool:
         return self.worker_queue.get(timeout=timeout)
 
     def release_worker(self, worker: PersistentWorkerProcess):
-        """Returns a worker to the pool after use."""
+        """Returns a worker to the pool after use, checking health and VRAM guardrails."""
+        should_restart = False
+        
         if not worker.is_healthy():
-            logger.warning(f"Worker {worker.worker_id} is unhealthy. Restarting...")
+            logger.warning(f"Worker {worker.worker_id} is unhealthy.")
+            should_restart = True
+        
+        elif self.vram_threshold_mb is not None:
+            try:
+                resp = worker.send_command(CommandType.STATUS)
+                if resp.status == ResponseStatus.SUCCESS:
+                    vram_used = resp.data.get("vram_used_mb", 0)
+                    if vram_used > self.vram_threshold_mb:
+                        logger.warning(f"Worker {worker.worker_id} exceeded VRAM threshold ({vram_used:.1f} > {self.vram_threshold_mb} MB).")
+                        should_restart = True
+            except Exception as e:
+                logger.error(f"Failed to check telemetry for worker {worker.worker_id}: {e}")
+                should_restart = True
+
+        if should_restart:
+            logger.info(f"Restarting worker {worker.worker_id}...")
             try:
                 worker.stop()
                 worker.start()
             except Exception as e:
                 logger.error(f"Failed to restart worker {worker.worker_id}: {e}")
-                # We still put it back or do we? 
-                # If it failed to start, it's problematic. 
-                # For now, let's keep trying to put it back so the pool doesn't shrink.
         
         self.worker_queue.put(worker)
 
     def execute_on_all(self, command_type: CommandType, payload: Optional[Dict[str, Any]] = None) -> List[Response]:
         """Executes a command on all workers in the pool (e.g., for INIT)."""
         responses = []
-        # We don't use the queue here because we want to reach ALL specific workers
         for worker in self.workers:
             if worker.is_healthy():
                 responses.append(worker.send_command(command_type, payload))
