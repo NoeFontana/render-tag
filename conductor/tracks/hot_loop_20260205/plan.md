@@ -37,14 +37,14 @@ This plan refactors the rendering backend to maintain a persistent state between
     - [ ] Add logic to `executor.py` to trigger `orphans_purge` every N scenes.
 - [x] Task: Conductor - User Manual Verification 'Phase 3: Resource Pooling' a3bafa2 (Protocol in workflow.md)
 
-## Phase 4: Integration & "Hot Loop" Verification
+## Phase 4: Integration ## Phase 4: Integration & "Hot Loop" Verification "Hot Loop" Verification [checkpoint: 0eb28fe]
 **Goal:** Finalize the end-to-end persistent execution and verify speedup.
 
-- [ ] Task: Finalize Hot Loop in `executor.py`
+- [x] Task: Finalize Hot Loop in `executor.py` 1312357
     - [ ] Ensure the main render loop correctly cycles through recipes without teardown.
-- [ ] Task: Validate Correctness & Benchmarking
+- [x] Task: Validate Correctness - [ ] Task: Validate Correctness & Benchmarking Benchmarking 17b5e82
     - [ ] Compare "Hot" results against "Cold" baseline for pixel consistency.
     - [ ] Produce final performance report (Cold vs. Hot speedup).
-- [ ] Task: Run Full Test Suite
+- [x] Task: Run Full Test Suite 0eb28fe
     - [ ] Ensure no regressions in complex scenarios (Industrial, AprilGrid).
-- [ ] Task: Conductor - User Manual Verification 'Phase 4: Final Integration' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 4: Final Integration' 0eb28fe (Protocol in workflow.md)
