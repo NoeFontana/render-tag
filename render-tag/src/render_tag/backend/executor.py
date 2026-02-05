@@ -27,7 +27,7 @@ except ImportError:
     bpy = None
 
 from render_tag.backend.assets import create_tag_plane, get_tag_texture_path  # noqa: E402
-from render_tag.backend.camera import setup_motion_blur  # noqa: E402
+from render_tag.backend.camera import setup_sensor_dynamics  # noqa: E402
 from render_tag.backend.projection import (  # noqa: E402
     check_tag_facing_camera,
     check_tag_visibility,
@@ -266,12 +266,11 @@ def execute_recipe(
         bproc.camera.add_camera_pose(pose_matrix, frame=0)
 
         # Handle Sensor Simulation
-        velocity = cam_recipe.get("velocity")
-        shutter_time_ms = cam_recipe.get("shutter_time_ms", 0.0)
+        dynamics_recipe = cam_recipe.get("sensor_dynamics")
         iso_noise = cam_recipe.get("iso_noise", 0.0)
 
-        # Motion Blur
-        setup_motion_blur(pose_matrix, velocity, shutter_time_ms)
+        # Motion Blur & Rolling Shutter
+        setup_sensor_dynamics(pose_matrix, dynamics_recipe)
 
         # Depth of Field
         fstop = cam_recipe.get("fstop")

@@ -7,7 +7,10 @@ This module handles camera pose sampling and intrinsics configuration.
 from __future__ import annotations
 
 import math
-from typing import TYPE_CHECKING
+import logging
+from typing import TYPE_CHECKING, Any
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     import numpy as np
@@ -182,44 +185,182 @@ def get_camera_k_matrix() -> np.ndarray:
     return bproc.camera.get_intrinsics_as_K_matrix()
 
 
-def setup_motion_blur(
-    pose_matrix: np.ndarray | list[list[float]],
-    velocity: list[float] | None,
-    shutter_time_ms: float,
-) -> None:
-    """Setup motion blur by adding a second camera keyframe.
+def setup_sensor_dynamics(
 
-    Calculates the end position based on velocity and shutter time,
-    sets a keyframe at frame 1, and enables motion blur in Blender.
+
+    pose_matrix: np.ndarray | list[list[float]],
+
+
+    dynamics_recipe: dict[str, Any] | None,
+
+
+) -> None:
+
+
+    """Setup motion blur and rolling shutter artifacts.
+
+
+
+
 
     Args:
-        pose_matrix: 4x4 camera-to-world transformation matrix
-        velocity: [vx, vy, vz] velocity vector in m/s
-        shutter_time_ms: Shutter open time in milliseconds
+
+
+        pose_matrix: 4x4 camera-to-world transformation matrix at t=0
+
+
+        dynamics_recipe: Dictionary containing velocity, shutter_time_ms, 
+
+
+                        and rolling_shutter_duration_ms.
+
+
     """
-    if not (velocity and shutter_time_ms > 0):
-        if bpy:
-            bpy.context.scene.render.use_motion_blur = False
+
+
+    if not dynamics_recipe or not bpy:
+
+
         return
 
-    if not (bpy and bproc and mathutils):
-        return
 
-    vx, vy, vz = velocity
-    dt = shutter_time_ms / 1000.0
 
-    # Ensure pose_matrix is suitable for mathutils
-    start_matrix = mathutils.Matrix(pose_matrix)
 
-    # Calculate end location: start_loc + velocity * dt
-    # Note: We translate in WORLD space assuming velocity is in world space
-    end_loc = start_matrix.to_translation() + mathutils.Vector((vx * dt, vy * dt, vz * dt))
 
-    end_matrix = start_matrix.copy()
-    end_matrix.translation = end_loc
+    velocity = dynamics_recipe.get("velocity")
 
-    bproc.camera.add_camera_pose(end_matrix, frame=1)
-    bpy.context.scene.render.use_motion_blur = True
 
-    # Blender's motion blur factor. 1.0 means the blur covers the entire frame duration.
-    bpy.context.scene.render.motion_blur_shutter = 1.0
+    shutter_time_ms = dynamics_recipe.get("shutter_time_ms", 0.0)
+
+
+    rolling_shutter_ms = dynamics_recipe.get("rolling_shutter_duration_ms", 0.0)
+
+
+
+
+
+    # 1. Handle Motion Blur (Keyframing)
+
+
+    if velocity and shutter_time_ms > 0 and bproc and mathutils:
+
+
+        vx, vy, vz = velocity
+
+
+        dt = shutter_time_ms / 1000.0
+
+
+
+
+
+        # Ensure pose_matrix is suitable for mathutils
+
+
+        start_matrix = mathutils.Matrix(pose_matrix)
+
+
+
+
+
+        # Calculate end location: start_loc + velocity * dt
+
+
+        end_loc = start_matrix.to_translation() + mathutils.Vector((vx * dt, vy * dt, vz * dt))
+
+
+
+
+
+        end_matrix = start_matrix.copy()
+
+
+        end_matrix.translation = end_loc
+
+
+
+
+
+        # Frame 0 is the start pose, Frame 1 is the end pose
+
+
+        bproc.camera.add_camera_pose(end_matrix, frame=1)
+
+
+        bpy.context.scene.render.use_motion_blur = True
+
+
+        bpy.context.scene.render.motion_blur_shutter = 1.0
+
+
+    else:
+
+
+        bpy.context.scene.render.use_motion_blur = False
+
+
+
+
+
+    # 2. Handle Rolling Shutter (Cycles only)
+
+
+    if rolling_shutter_ms > 0:
+
+
+        engine = bpy.context.scene.render.engine
+
+
+        if engine == "CYCLES":
+
+
+            bpy.context.scene.render.rolling_shutter_type = "TOP_BOTTOM"
+
+
+            
+
+
+            # Map ms to Blender's 'duration' factor (0.0 to 1.0)
+
+
+            # In our pipeline, we assume 1.0 corresponds to the entire exposure 
+
+
+            # (which we defined as 1 frame duration in the motion blur setup above).
+
+
+            # So duration = rolling_shutter_ms / shutter_time_ms
+
+
+            if shutter_time_ms > 0:
+
+
+                duration = min(1.0, rolling_shutter_ms / shutter_time_ms)
+
+
+                bpy.context.scene.render.rolling_shutter_duration = duration
+
+
+            else:
+
+
+                # Fallback if shutter time is 0 but rolling shutter is set
+
+
+                bpy.context.scene.render.rolling_shutter_duration = 0.1
+
+
+        else:
+
+
+            logger.warning(
+
+
+                f"Rolling shutter simulation requested for {engine}, but it is only "
+
+
+                "supported natively in CYCLES. Effect will be ignored."
+
+
+            )
+
