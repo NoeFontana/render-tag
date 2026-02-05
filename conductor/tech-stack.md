@@ -18,6 +18,8 @@
 - **Polars:** High-performance, multi-threaded DataFrame library used for vectorized dataset auditing and KPI calculation.
 - **Plotly:** Used for generating interactive HTML dashboards for dataset visualization and manual quality review.
 - **Docker:** Supported as a pluggable execution engine for hermetic and reproducible rendering environments.
+- **ZeroMQ (pyzmq):** High-performance messaging library used for the structured Host-to-Backend command channel.
+- **GPUtil:** Utilized for real-time VRAM monitoring and health-check guardrails within the rendering pool.
 - **PyYAML:** Used for handling configuration files and experiment definitions.
 - **Pillow:** Utilized for basic image manipulation and processing within the pipeline.
 
