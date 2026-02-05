@@ -256,8 +256,11 @@ def execute_recipe(
             tag_objects.append(tag_obj)
 
         elif obj_recipe["type"] == "BOARD":
-            props = obj_recipe["properties"]
-            create_board(props["cols"], props["rows"], props["square_size"], props["mode"])
+            # Check if board already exists in scene to avoid re-creation
+            existing_board = bproc.object.get_all_mesh_objects("Board_Background.*")
+            if not existing_board:
+                props = obj_recipe["properties"]
+                create_board(props["cols"], props["rows"], props["square_size"], props["mode"])
 
     # Update categories in COCO writer
     for tag_obj in tag_objects:
