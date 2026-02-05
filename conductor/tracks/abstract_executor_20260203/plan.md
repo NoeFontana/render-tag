@@ -39,8 +39,8 @@ This plan refactors the render execution logic into a pluggable interface to sup
 ## Phase 4: Verification & Documentation
 **Goal:** Ensure full system integrity and user awareness.
 
-- [ ] Task: Run Full Test Suite
+- [x] Task: Run Full Test Suite e363c27
     - [ ] Verify that reorganization didn't break existing local rendering.
-- [ ] Task: Document Executor Usage
+- [x] Task: Document Executor Usage e363c27
     - [ ] Update `README.md` or CLI help text with examples of how to use different executors.
 - [ ] Task: Conductor - User Manual Verification 'Phase 4: Verification & Documentation' (Protocol in workflow.md)
