@@ -15,7 +15,7 @@ This plan refactors the render execution logic into a pluggable interface to sup
     - [ ] Create a `MockExecutor` that simply logs the execution command and returns success.
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Infrastructure Foundations' (Protocol in workflow.md)
 
-## Phase 2: CLI & Orchestration Update
+## Phase 2: CLI ## Phase 2: CLI & Orchestration Update Orchestration Update [checkpoint: 100c6c0]
 **Goal:** Integrate the new executor system into the main pipeline.
 
 - [x] Task: Update `render-tag generate` Command 4f69372
