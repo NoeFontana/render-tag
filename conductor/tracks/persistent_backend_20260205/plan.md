@@ -1,6 +1,6 @@
 # Implementation Plan: Hot Loop Optimization (Persistent Backend)
 
-## Phase 1: Communication & Protocol Foundation
+## Phase 1: Communication & Protocol Foundation [checkpoint: 14f47fa]
 This phase establishes the ZeroMQ messaging layer and the JSON protocol that will govern Host-Backend interactions.
 
 - [x] **Task: Define ZMQ Message Schemas (Pydantic)** (0f71ca3)
@@ -12,7 +12,7 @@ This phase establishes the ZeroMQ messaging layer and the JSON protocol that wil
 - [x] **Task: Implement ZMQ Backend Server (Skeleton)** (229537c)
     - [x] Create `src/render_tag/backend/zmq_server.py`.
     - [x] Implement basic Loop-back to verify Host-Backend connectivity via `uv run`.
-- [ ] **Task: Conductor - User Manual Verification 'Communication & Protocol Foundation' (Protocol in workflow.md)**
+- [x] **Task: Conductor - User Manual Verification 'Communication & Protocol Foundation' (Protocol in workflow.md)** (14f47fa)
 
 ## Phase 2: Persistent Worker Lifecycle
 Implementing the "Resilient Managed Pool" logic to launch, monitor, and recycle Blender processes.
