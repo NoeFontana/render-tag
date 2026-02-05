@@ -1,0 +1,29 @@
+# Initial Concept
+Procedural 3D data generation for AprilTag training (Offline).
+
+# Product Definition
+
+## Target Users
+- **Computer Vision Researchers:** Utilizing synthetic datasets to train, fine-tune, and validate tag detection and localization models.
+- **Robotics Engineers:** Benchmarking tag tracking performance and visual odometry in simulated environments that mimic real-world deployment.
+
+## Core Goals & Features
+- **High-Fidelity Rendering:** Generate photorealistic scenes with complex lighting, varied textures, and realistic shadows to minimize the sim-to-real gap.
+- **Sensor Simulation:** Accurately model camera sensor characteristics, including noise profiles, lens distortion, and motion blur.
+- **Automated Annotations:** Produce pixel-perfect ground-truth data, including 2D/3D bounding boxes, segmentation masks, and standard formats like COCO.
+
+## Supported Environments
+- **Controlled Indoor:** Lab and office settings with consistent lighting for baseline testing.
+- **Dynamic Outdoor/Industrial:** Complex environments with varied lighting, weather effects, and potential occlusions for robustness testing.
+- **Abstract/Geometric:** Minimalist scenes focused on isolating variables like tag geometry and visibility.
+
+## User Interaction
+- **CLI-First Workflow:** A robust Command Line Interface designed for batch generation and seamless integration into automated pipelines.
+- **Config-Driven Experiments:** Flexible YAML or JSON configuration files for defining parameters, scene distributions, and experiment variations.
+
+## Performance & Scalability
+- **Distributed Sharding:** Architecture supports horizontal scaling and sharding across multiple GPUs or compute nodes.
+- **Pluggable Execution:** Support for multiple rendering backends, including local subprocesses and hermetic Docker containers, enabling seamless transition from development to high-performance computing (HPC) environments.
+- **Process Isolation:** Use of the Blender subprocess pattern to ensure stability and prevent memory leaks during long-running generation tasks.
+- **Fast Validation:** A "Shadow Render" capability for rapid prototyping and validation of scene recipes without the overhead of full 3D rendering.
+
