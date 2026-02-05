@@ -31,9 +31,9 @@ Implementing the "Resilient Managed Pool" logic to launch, monitor, and recycle 
 ## Phase 3: Hot Loop Rendering & State Management
 Integrating the persistent backend into the Blender/BlenderProc rendering logic.
 
-- [ ] **Task: Implement Backend "Warm-up" Logic**
-    - [ ] Add `load_assets` command to persistent backend to pre-load HDRIs and textures.
-    - [ ] Implement VRAM monitoring hooks.
+- [x] **Task: Implement Backend "Warm-up" Logic** (c8eb926)
+    - [x] Add `load_assets` command to persistent backend to pre-load HDRIs and textures.
+    - [x] Implement VRAM monitoring hooks.
 - [ ] **Task: Implement "Partial Reset" in `blender_main.py`**
     - [ ] Modify rendering loop to clear only volatile objects (tags, camera).
     - [ ] Implement state validation using `StateHash`.
