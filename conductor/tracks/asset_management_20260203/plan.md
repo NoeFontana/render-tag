@@ -23,7 +23,7 @@ This plan implements a robust asset management system using Hugging Face as the 
     - [ ] Implement `push` command with `--force` and authentication checks.
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: CLI Integration' (Protocol in workflow.md)
 
-## Phase 3: Runtime Safety & Pre-Flight Checks
+## Phase 3: Runtime Safety ## Phase 3: Runtime Safety & Pre-Flight Checks Pre-Flight Checks [checkpoint: ac672c9]
 **Goal:** Integrate asset verification into the generation pipeline.
 
 - [~] Task: Implement Pre-Flight Check
