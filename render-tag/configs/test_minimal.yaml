@@ -1,0 +1,7 @@
+dataset:
+  num_scenes: 1
+scene:
+  background_hdri: null
+  texture_dir: null
+camera:
+  samples_per_scene: 1
