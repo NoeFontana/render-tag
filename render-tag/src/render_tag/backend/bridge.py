@@ -62,6 +62,13 @@ class BlenderBridge:
         except (ImportError, RuntimeError):
             # Fallback to Mocks
             logger.info("Blender environment not detected. Serving mock objects.")
+            
+            # Ensure project root is in path so we can find tests.mocks
+            from pathlib import Path
+            project_root = str(Path(__file__).resolve().parents[3])
+            if project_root not in sys.path:
+                sys.path.append(project_root)
+                
             from tests.mocks import blender_api as bpy_mock
             from tests.mocks import blenderproc_api as bproc_mock
             

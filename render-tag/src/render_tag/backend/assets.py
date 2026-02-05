@@ -10,29 +10,10 @@ import random
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from render_tag.backend.bridge import bproc, bpy, mathutils, np
+
 if TYPE_CHECKING:
-    import blenderproc as bproc
-
-try:
-    import numpy as np
-except ImportError:
-    np = None
-
-# BlenderProc imports (only available inside Blender)
-try:
-    import blenderproc as bproc
-    import bpy
-    import mathutils
-except (ImportError, RuntimeError):
-    bproc = None  # type: ignore
-    bpy = None  # type: ignore
-    mathutils = None  # type: ignore
-
-def setup_mocks(bproc_mock, bpy_mock):
-    """Inject mocks for testing."""
-    global bproc, bpy
-    bproc = bproc_mock
-    bpy = bpy_mock
+    pass
 
 
 # Corner order: Counter-Clockwise from Bottom-Left

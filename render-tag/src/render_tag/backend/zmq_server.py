@@ -12,24 +12,10 @@ import GPUtil
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
-# Ensure project root is in sys.path
-sys.path.append(str(Path(__file__).resolve().parents[2]))
-
-try:
-    import numpy as np
-except ImportError:
-    np = None
-
-try:
-    import bpy
-    import blenderproc as bproc
-except (ImportError, RuntimeError):
-    bpy = None
-    bproc = None
-
+from render_tag.backend.bridge import bproc, bpy, np, bridge
 from render_tag.schema.hot_loop import Command, Response, ResponseStatus, CommandType, Telemetry, calculate_state_hash
 from render_tag.backend.scene import setup_background
-from render_tag.backend.render_loop import execute_recipe, setup_mocks as setup_render_loop_mocks
+from render_tag.backend.render_loop import execute_recipe
 from render_tag.backend.assets import global_pool
 from render_tag.data_io.writers import (
     COCOWriter,
@@ -55,23 +41,17 @@ class ZmqBackendServer:
         self.parameters = {}
         self.start_time = time.time()
         
-        global bproc, bpy
-        if bproc_mock: 
-            bproc = bproc_mock
-        if bpy_mock: 
-            bpy = bpy_mock
-        
         if bproc_mock or bpy_mock:
-            setup_render_loop_mocks(bproc_mock, bpy_mock)
+            bridge.inject_mocks(bproc_mock, bpy_mock)
 
         # Persistent writers to avoid file handle overhead
         self.current_output_dir: Optional[Path] = None
         self.writers: Dict[str, Any] = {}
         
-        if bproc and bpy:
+        if bridge.bproc and bridge.bpy:
             try:
-                bproc.init()
-                bproc.clean_up()
+                bridge.bproc.init()
+                bridge.bproc.clean_up()
             except Exception:
                 pass
 
@@ -147,7 +127,7 @@ class ZmqBackendServer:
                     if asset_path not in self.assets_loaded:
                         p = Path(asset_path)
                         if p.exists() and p.suffix.lower() in [".exr", ".hdr"]:
-                            if bpy: setup_background(p)
+                            if bridge.bpy: setup_background(p)
                             new_assets.append(asset_path)
                 
                 self.assets_loaded.extend(new_assets)

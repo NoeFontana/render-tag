@@ -11,24 +11,10 @@ import math
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-try:
-    import numpy as np
-except ImportError:
-    np = None
+from render_tag.backend.bridge import bproc, bpy, np
 
-# BlenderProc imports (only available inside Blender)
-try:
-    import blenderproc as bproc
-    import bpy
-except (ImportError, RuntimeError):
-    bproc = None  # type: ignore
-    bpy = None  # type: ignore
-
-def setup_mocks(bproc_mock, bpy_mock):
-    """Inject mocks for testing."""
-    global bproc, bpy
-    bproc = bproc_mock
-    bpy = bpy_mock
+if TYPE_CHECKING:
+    pass
 
 
 def setup_background(hdri_path: Path) -> None:

@@ -8,27 +8,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from render_tag.backend.bridge import bproc, bpy, np
+
 if TYPE_CHECKING:
-    import numpy as np
-
-try:
-    import numpy as np
-except ImportError:
-    np = None
-
-# BlenderProc imports (only available inside Blender)
-try:
-    import blenderproc as bproc
-    import bpy
-except (ImportError, RuntimeError):
-    bproc = None  # type: ignore
-    bpy = None  # type: ignore
-
-def setup_mocks(bproc_mock, bpy_mock):
-    """Inject mocks for testing."""
-    global bproc, bpy
-    bproc = bproc_mock
-    bpy = bpy_mock
+    pass
 
 from render_tag.geometry.visibility import (
     is_facing_camera,

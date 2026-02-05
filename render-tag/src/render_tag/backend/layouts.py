@@ -15,18 +15,7 @@ from __future__ import annotations
 import math
 from typing import TYPE_CHECKING
 
-try:
-    import blenderproc as bproc
-    import bpy
-except (ImportError, RuntimeError):
-    bproc = None
-    bpy = None
-
-def setup_mocks(bproc_mock, bpy_mock):
-    """Inject mocks for testing."""
-    global bproc, bpy
-    bproc = bproc_mock
-    bpy = bpy_mock
+from render_tag.backend.bridge import bproc, bpy
 
 from render_tag.geometry.board import (
     BoardSpec,
