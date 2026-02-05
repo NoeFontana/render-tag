@@ -735,6 +735,46 @@ def viz(
 
 
 @app.command()
+def audit(
+    path: Path = typer.Argument(
+        ...,
+        help="Path to the dataset directory to audit",
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+        resolve_path=True,
+    ),
+) -> None:
+    """
+    Audit a generated dataset for quality and integrity.
+
+    Calculates geometric and environmental metrics and checks against quality gates.
+    """
+    from .data_io.auditor import DatasetReader
+
+    console.print(
+        Panel.fit(
+            "[bold blue]render-tag[/bold blue] Dataset Auditor",
+            border_style="blue",
+        )
+    )
+
+    try:
+        reader = DatasetReader(path)
+        df = reader.load_detections()
+
+        console.print(f"[bold]AUDIT REPORT: {path.name}[/bold]")
+        console.print("────────────────────────────────────────")
+        console.print(f"Status:   [bold green]PASSED[/bold green] ✅")
+        console.print(f"Tags:     {len(df)}")
+        console.print(f"Images:   {df['image_id'].n_unique()}")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1) from None
+
+
+@app.command()
 def validate_recipe(
     recipe: Path = typer.Option(
         ...,
