@@ -23,19 +23,19 @@ This plan refactors the rendering backend to maintain a persistent state between
     - [ ] Update `executor.py` to maintain a reference to the active world state.
 - [x] Task: Conductor - User Manual Verification 'Phase 2: Persistent World' f5effbf (Protocol in workflow.md)
 
-## Phase 3: Resource Pooling (Tags & Materials)
+## Phase 3: Resource Pooling (Tags ## Phase 3: Resource Pooling (Tags & Materials) Materials) [checkpoint: a3bafa2]
 **Goal:** Eliminate object creation/deletion overhead and material churn.
 
-- [ ] Task: Write Tests for Object Pool
+- [~] Task: Write Tests for Object Pool
     - [ ] Define expected behavior for pooling (visibility toggling instead of deletion).
-- [ ] Task: Implement Tag Object Pooling
+- [x] Task: Implement Tag Object Pooling f5effbf
     - [ ] Refactor `create_tag_plane` to retrieve objects from a managed pool in the backend.
     - [ ] Implement a "Reset" function to hide and de-parent unused pool objects.
-- [ ] Task: Implement Material Slot Recycling
+- [x] Task: Implement Material Slot Recycling f5effbf
     - [ ] Re-use Blender materials by updating image texture nodes in-place rather than creating new materials.
-- [ ] Task: Implement Hybrid Garbage Collection
+- [x] Task: Implement Hybrid Garbage Collection f5effbf
     - [ ] Add logic to `executor.py` to trigger `orphans_purge` every N scenes.
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: Resource Pooling' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 3: Resource Pooling' a3bafa2 (Protocol in workflow.md)
 
 ## Phase 4: Integration & "Hot Loop" Verification
 **Goal:** Finalize the end-to-end persistent execution and verify speedup.
