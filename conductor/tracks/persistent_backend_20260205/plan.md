@@ -45,8 +45,8 @@ Integrating the persistent backend into the Blender/BlenderProc rendering logic.
 ## Phase 4: Observability & Optimization
 Adding telemetry and fine-tuning performance.
 
-- [ ] **Task: Implement VRAM Guardrails**
-    - [ ] Add logic to trigger a full worker restart if VRAM threshold is exceeded.
+- [x] **Task: Implement VRAM Guardrails** (41afe76)
+    - [x] Add logic to trigger a full worker restart if VRAM threshold is exceeded.
 - [ ] **Task: Structured Logging & Telemetry Dashboard**
     - [ ] Pipe ZMQ telemetry to Polars for throughput analysis.
 - [ ] **Task: Final Performance Benchmarking**
