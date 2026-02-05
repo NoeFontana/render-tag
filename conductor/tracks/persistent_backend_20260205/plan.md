@@ -6,9 +6,9 @@ This phase establishes the ZeroMQ messaging layer and the JSON protocol that wil
 - [x] **Task: Define ZMQ Message Schemas (Pydantic)** (0f71ca3)
     - [x] Create `src/render_tag/schema/hot_loop.py` for `Command`, `Response`, and `Telemetry` models.
     - [x] Implement `StateHash` calculation logic.
-- [ ] **Task: Implement ZMQ Host Client**
-    - [ ] Create `src/render_tag/orchestration/zmq_client.py`.
-    - [ ] Write tests for connection handling and message serialization.
+- [x] **Task: Implement ZMQ Host Client** (795197b)
+    - [x] Create `src/render_tag/orchestration/zmq_client.py`.
+    - [x] Write tests for connection handling and message serialization.
 - [ ] **Task: Implement ZMQ Backend Server (Skeleton)**
     - [ ] Create `src/render_tag/backend/zmq_server.py`.
     - [ ] Implement basic Loop-back to verify Host-Backend connectivity via `uv run`.
