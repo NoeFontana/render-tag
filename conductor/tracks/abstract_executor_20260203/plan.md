@@ -18,10 +18,10 @@ This plan refactors the render execution logic into a pluggable interface to sup
 ## Phase 2: CLI & Orchestration Update
 **Goal:** Integrate the new executor system into the main pipeline.
 
-- [ ] Task: Update `render-tag generate` Command
+- [x] Task: Update `render-tag generate` Command 4f69372
     - [ ] Add the `--executor` flag to the Typer command.
     - [ ] Refactor the `generate` function to use the `ExecutorFactory` instead of hardcoded subprocess calls.
-- [ ] Task: Update `run_local_parallel`
+- [x] Task: Update `run_local_parallel` 4f69372
     - [ ] Ensure that sharded parallel runs also respect the chosen executor.
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: CLI & Orchestration Update' (Protocol in workflow.md)
 
