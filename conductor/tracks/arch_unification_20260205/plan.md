@@ -16,8 +16,8 @@ Establishing the "Service Locator" to centralize Blender dependencies and elimin
 ## Phase 2: Unified Worker Orchestration
 Consolidating 'Cold' and 'Hot' execution into a single, ZMQ-driven "Worker" abstraction.
 
-- [ ] **Task: Refactor `zmq_server.py` for Dual-Mode Execution**
-    - [ ] Implement an "Ephemeral" mode where the server processes a finite list of recipes and then exits.
+- [x] **Task: Refactor `zmq_server.py` for Dual-Mode Execution** (f7e196b)
+    - [x] Implement an "Ephemeral" mode where the server processes a finite list of recipes and then exits.
 - [ ] **Task: Create `UnifiedWorkerOrchestrator`**
     - [ ] Merge logic from `LocalExecutor` and `WorkerPool` into a single Host-side class.
     - [ ] Standardize logging and telemetry collection via `TelemetryAuditor`.
