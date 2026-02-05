@@ -28,8 +28,8 @@ Consolidating 'Cold' and 'Hot' execution into a single, ZMQ-driven "Worker" abst
 ## Phase 3: Geometry & Renderer Facade
 Decoupling the procedural logic from the underlying rendering engine.
 
-- [ ] **Task: Pure-Python Geometry Layer**
-    - [ ] Move coordinate transformations and projection math to a library that accepts standard NumPy arrays/lists instead of Blender objects.
+- [x] **Task: Pure-Python Geometry Layer** (71fdc1e)
+    - [x] Move coordinate transformations and projection math to a library that accepts standard NumPy arrays/lists instead of Blender objects.
 - [ ] **Task: Renderer Facade Implementation**
     - [ ] Refactor `render_loop.py` to use a high-level `Renderer` interface, hiding the specifics of `blenderproc` initialization and cleanup.
 - [ ] **Task: Conductor - User Manual Verification 'Geometry & Logic Decoupling' (Protocol in workflow.md)**
