@@ -13,10 +13,3 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 
 
----
-
-
-
-- [x] **Track: Dataset Auditing & Quality Gates**
-
-*Link: [./tracks/dataset_auditing_20260205/](./tracks/dataset_auditing_20260205/)*
