@@ -28,7 +28,7 @@ This plan refactors the render execution logic into a pluggable interface to sup
 ## Phase 3: Docker Implementation
 **Goal:** Enable containerized rendering.
 
-- [ ] Task: Implement `DockerExecutor`
+- [~] Task: Implement `DockerExecutor`
     - [ ] Add `DockerExecutor` class to `executors.py`.
     - [ ] Implement volume mapping logic (mounting `output` directory).
     - [ ] Construct the `docker run` command using the pre-built image.
