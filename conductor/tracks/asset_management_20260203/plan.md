@@ -36,8 +36,8 @@ This plan implements a robust asset management system using Hugging Face as the 
 ## Phase 4: Final Verification & Documentation
 **Goal:** Ensure zero-config onboarding and full system integrity.
 
-- [ ] Task: Run Full Test Suite
+- [x] Task: Run Full Test Suite ac672c9
     - [ ] Verify that no regressions were introduced in existing rendering paths.
-- [ ] Task: Update Onboarding Guide
+- [x] Task: Update Onboarding Guide ac672c9
     - [ ] Add `render-tag assets pull` instructions to the `README.md`.
 - [ ] Task: Conductor - User Manual Verification 'Phase 4: Final Verification' (Protocol in workflow.md)
