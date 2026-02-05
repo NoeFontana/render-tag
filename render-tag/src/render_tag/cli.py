@@ -750,7 +750,8 @@ def audit(
 
     Calculates geometric and environmental metrics and checks against quality gates.
     """
-    from .data_io.auditor import DatasetReader
+    from .data_io.auditor import DatasetAuditor
+    from rich.table import Table
 
     console.print(
         Panel.fit(
@@ -760,14 +761,58 @@ def audit(
     )
 
     try:
-        reader = DatasetReader(path)
-        df = reader.load_detections()
+        auditor = DatasetAuditor(path)
+        report = auditor.run_audit()
 
         console.print(f"[bold]AUDIT REPORT: {path.name}[/bold]")
         console.print("────────────────────────────────────────")
-        console.print(f"Status:   [bold green]PASSED[/bold green] ✅")
-        console.print(f"Tags:     {len(df)}")
-        console.print(f"Images:   {df['image_id'].n_unique()}")
+        
+        status_str = "[bold green]PASSED[/bold green] ✅" if report.score > 70 else "[bold red]FAILED[/bold red] ❌"
+        console.print(f"Status:   {status_str}")
+        console.print(f"Score:    [bold]{report.score:.1f}/100[/bold]")
+        console.print(f"Tags:     {report.geometric.tag_count}")
+        console.print(f"Images:   {report.geometric.image_count}")
+        console.print("")
+
+        # Geometric Table
+        geom_table = Table(title="Geometric Distributions", box=None)
+        geom_table.add_column("Metric", style="cyan")
+        geom_table.add_column("Min", justify="right")
+        geom_table.add_column("Max", justify="right")
+        geom_table.add_column("Mean", justify="right")
+        geom_table.add_column("Std", justify="right")
+
+        g = report.geometric
+        geom_table.add_row(
+            "Distance (m)", 
+            f"{g.distance.min:.2f}", f"{g.distance.max:.2f}", 
+            f"{g.distance.mean:.2f}", f"{g.distance.std:.2f}"
+        )
+        geom_table.add_row(
+            "Angle (deg)", 
+            f"{g.incidence_angle.min:.1f}", f"{g.incidence_angle.max:.1f}", 
+            f"{g.incidence_angle.mean:.1f}", f"{g.incidence_angle.std:.1f}"
+        )
+        console.print(geom_table)
+
+        # Environmental
+        env_table = Table(title="Environmental Variance", box=None)
+        env_table.add_column("Metric", style="cyan")
+        env_table.add_column("Min", justify="right")
+        env_table.add_column("Max", justify="right")
+        env_table.add_column("Mean", justify="right")
+
+        e = report.environmental
+        env_table.add_row(
+            "Lighting Int.", 
+            f"{e.lighting_intensity.min:.1f}", f"{e.lighting_intensity.max:.1f}", 
+            f"{e.lighting_intensity.mean:.1f}"
+        )
+        console.print(env_table)
+
+        # Integrity
+        if report.integrity.impossible_poses > 0:
+            console.print(f"[bold red]⚠ Found {report.integrity.impossible_poses} impossible poses (distance < 0)[/bold red]")
 
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
