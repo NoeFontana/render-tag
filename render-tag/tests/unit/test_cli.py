@@ -74,8 +74,12 @@ class TestCLIInfoCommand:
         assert "Tag Families" in result.stdout
 
 
+@patch("render_tag.cli.AssetValidator")
 class TestCLIGenerateCommand:
-    def test_generate_without_blenderproc(self, tmp_path: Path) -> None:
+    def test_generate_without_blenderproc(self, mock_validator: MagicMock, tmp_path: Path) -> None:
+        # Mock assets as hydrated
+        mock_validator.return_value.is_hydrated.return_value = True
+        
         # Mock blenderproc as not installed
         with patch("render_tag.cli.check_blenderproc_installed", return_value=False):
             config_path = tmp_path / "config.yaml"
@@ -96,16 +100,20 @@ class TestCLIGenerateCommand:
             assert result.exit_code == 1
             assert "blenderproc" in result.stdout.lower()
 
-    @patch("subprocess.run")
+    @patch("subprocess.Popen")
     @patch("render_tag.cli.check_blenderproc_installed", return_value=True)
     def test_generate_command_structure(
-        self, mock_check: MagicMock, mock_run: MagicMock, tmp_path: Path
+        self, mock_check: MagicMock, mock_popen: MagicMock, mock_validator: MagicMock, tmp_path: Path
     ) -> None:
         """Test that the blenderproc command is well-formed without actually running it."""
         import unittest.mock as mock
+        mock_validator.return_value.is_hydrated.return_value = True
 
         # Mock successful subprocess execution
-        mock_run.return_value = mock.Mock(returncode=0, stdout="", stderr="")
+        mock_process = mock.Mock()
+        mock_process.communicate.return_value = ("", "")
+        mock_process.returncode = 0
+        mock_popen.return_value = mock_process
 
         # Mock Generator to avoid actual generation logic
         with patch("render_tag.cli.Generator") as MockGenerator:
@@ -114,9 +122,16 @@ class TestCLIGenerateCommand:
                 # Setup mock generator behavior
                 mock_gen_instance = MockGenerator.return_value
                 mock_gen_instance.generate_shards.return_value = [{"some": "recipe"}]
-
+                
+                # We need to make sure the recipe file exists because LocalExecutor checks it indirectly if we don't mock it
+                # Actually LocalExecutor uses script_path.exists()
+                
                 config_path = tmp_path / "config.yaml"
                 config_path.write_text("dataset:\n  seed: 42\n")
+                
+                output_dir = tmp_path / "test_output_cmd"
+                output_dir.mkdir()
+                (output_dir / "recipes_shard_0.json").write_text("[]")
 
                 runner.invoke(
                     app,
@@ -125,15 +140,15 @@ class TestCLIGenerateCommand:
                         "--config",
                         str(config_path),
                         "--output",
-                        str(tmp_path / "test_output_cmd"),
+                        str(output_dir),
                     ],
                 )
 
-            # Verify subprocess.run was called
-            assert mock_run.called, "subprocess.run should have been called"
+            # Verify subprocess.Popen was called (via LocalExecutor.execute)
+            assert mock_popen.called, "subprocess.Popen should have been called"
 
-            # Get the command that was passed to subprocess.run
-            call_args = mock_run.call_args
+            # Get the command that was passed to subprocess.Popen
+            call_args = mock_popen.call_args
             cmd = call_args[0][0]  # First positional arg is the command list
 
             # Verify command structure
@@ -149,15 +164,19 @@ class TestCLIGenerateCommand:
             cmd_str = " ".join(cmd)
             assert "backend/executor.py" in cmd_str, "Command should reference backend/executor.py"
 
-    @patch("subprocess.run")
+    @patch("subprocess.Popen")
     @patch("render_tag.cli.check_blenderproc_installed", return_value=True)
     def test_generate_config_serialization(
-        self, mock_check: MagicMock, mock_run: MagicMock, tmp_path: Path
+        self, mock_check: MagicMock, mock_popen: MagicMock, mock_validator: MagicMock, tmp_path: Path
     ) -> None:
         """Test that recipe JSON is generated and passed to subprocess."""
         import unittest.mock as mock
+        mock_validator.return_value.is_hydrated.return_value = True
 
-        mock_run.return_value = mock.Mock(returncode=0, stdout="", stderr="")
+        mock_process = mock.Mock()
+        mock_process.communicate.return_value = ("", "")
+        mock_process.returncode = 0
+        mock_popen.return_value = mock_process
 
         with patch("render_tag.cli.Generator") as MockGenerator:
             with patch("render_tag.cli.validate_recipe_file", return_value=(True, [], [])):
@@ -170,6 +189,9 @@ class TestCLIGenerateCommand:
 dataset:
   seed: 12345
 """ )
+                output_dir = tmp_path / "test_output_serialization"
+                output_dir.mkdir()
+                (output_dir / "recipes_shard_0.json").write_text("[]")
 
                 runner.invoke(
                     app,
@@ -178,14 +200,14 @@ dataset:
                         "--config",
                         str(config_path),
                         "--output",
-                        str(tmp_path / "test_output_serialization"),
+                        str(output_dir),
                         "--scenes",
                         "5",
                     ],
                 )
 
             # Get the command and find the recipe path
-            call_args = mock_run.call_args
+            call_args = mock_popen.call_args
             cmd = call_args[0][0]
 
             # Find the JSON recipe path in the command
@@ -196,15 +218,19 @@ dataset:
             assert "recipes_shard_" in str(json_recipe_path.name)
             assert json_recipe_path.suffix == ".json"
 
-    @patch("subprocess.run")
+    @patch("subprocess.Popen")
     @patch("render_tag.cli.check_blenderproc_installed", return_value=True)
     def test_generate_with_renderer_mode(
-        self, mock_check: MagicMock, mock_run: MagicMock, tmp_path: Path
+        self, mock_check: MagicMock, mock_popen: MagicMock, mock_validator: MagicMock, tmp_path: Path
     ) -> None:
         """Test that --renderer-mode flag is passed to subprocess."""
         import unittest.mock as mock
+        mock_validator.return_value.is_hydrated.return_value = True
 
-        mock_run.return_value = mock.Mock(returncode=0, stdout="", stderr="")
+        mock_process = mock.Mock()
+        mock_process.communicate.return_value = ("", "")
+        mock_process.returncode = 0
+        mock_popen.return_value = mock_process
 
         with patch("render_tag.cli.Generator") as MockGenerator:
             with patch("render_tag.cli.validate_recipe_file", return_value=(True, [], [])):
@@ -215,6 +241,10 @@ dataset:
                 config_path = tmp_path / "config.yaml"
                 config_path.write_text("dataset:\n  seed: 42\n")
 
+                output_dir = tmp_path / "test_output_renderer"
+                output_dir.mkdir()
+                (output_dir / "recipes_shard_0.json").write_text("[]")
+
                 # Test with workbench mode
                 runner.invoke(
                     app,
@@ -223,13 +253,13 @@ dataset:
                         "--config",
                         str(config_path),
                         "--output",
-                        str(tmp_path / "test_output_renderer"),
+                        str(output_dir),
                         "--renderer-mode",
                         "workbench",
                     ],
                 )
 
-            call_args = mock_run.call_args
+            call_args = mock_popen.call_args
             cmd = call_args[0][0]
 
             # Find renderer-mode in command
@@ -238,15 +268,19 @@ dataset:
             assert cmd[renderer_idx] == "workbench", \
                 f"Expected 'workbench', got '{cmd[renderer_idx]}'"
 
-    @patch("subprocess.run")
+    @patch("subprocess.Popen")
     @patch("render_tag.cli.check_blenderproc_installed", return_value=True)
     def test_generate_scenes_override(
-        self, mock_check: MagicMock, mock_run: MagicMock, tmp_path: Path
+        self, mock_check: MagicMock, mock_popen: MagicMock, mock_validator: MagicMock, tmp_path: Path
     ) -> None:
         """Test that --scenes flag overrides config value."""
         import unittest.mock as mock
+        mock_validator.return_value.is_hydrated.return_value = True
 
-        mock_run.return_value = mock.Mock(returncode=0, stdout="", stderr="")
+        mock_process = mock.Mock()
+        mock_process.communicate.return_value = ("", "")
+        mock_process.returncode = 0
+        mock_popen.return_value = mock_process
 
         with patch("render_tag.cli.Generator") as MockGenerator:
             with patch("render_tag.cli.validate_recipe_file", return_value=(True, [], [])):
@@ -261,6 +295,9 @@ dataset:
   seed: 42
   num_scenes: 10
 """ )
+                output_dir = tmp_path / "test_output_scenes"
+                output_dir.mkdir()
+                (output_dir / "recipes_shard_0.json").write_text("[]")
 
                 # Override to 3 scenes via CLI
                 result = runner.invoke(
@@ -270,7 +307,7 @@ dataset:
                         "--config",
                         str(config_path),
                         "--output",
-                        str(tmp_path / "test_output_scenes"),
+                        str(output_dir),
                         "--scenes",
                         "3",
                     ],
@@ -287,12 +324,13 @@ dataset:
     @patch("render_tag.cli.ExecutorFactory")
     @patch("render_tag.cli.check_blenderproc_installed", return_value=True)
     def test_generate_with_executor_flag(
-        self, mock_check: MagicMock, mock_factory: MagicMock, tmp_path: Path
+        self, mock_check: MagicMock, mock_factory: MagicMock, mock_validator: MagicMock, tmp_path: Path
     ) -> None:
         """Test that --executor flag selects the correct executor."""
+        mock_validator.return_value.is_hydrated.return_value = True
         mock_executor = MagicMock()
         mock_factory.get_executor.return_value = mock_executor
-        
+
         with patch("render_tag.cli.Generator") as MockGenerator:
             with patch("render_tag.cli.validate_recipe_file", return_value=(True, [], [])):
                 mock_gen_instance = MockGenerator.return_value
@@ -314,6 +352,7 @@ dataset:
                 assert result.exit_code == 0
                 mock_factory.get_executor.assert_called_with("mock")
                 assert mock_executor.execute.called
+
 
 class TestCLIHelp:
     def test_main_help(self) -> None:

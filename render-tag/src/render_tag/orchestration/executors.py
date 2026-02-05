@@ -5,13 +5,34 @@ Provides a pluggable interface for running BlenderProc locally,
 in containers, or via cloud batch systems.
 """
 
-from typing import Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable, List
 from pathlib import Path
 import logging
 import subprocess
 import sys
+import time
 
 logger = logging.getLogger(__name__)
+
+# Global list for tracking active render processes
+_active_render_processes: List[subprocess.Popen] = []
+
+def cleanup_render_processes():
+    """Kill all tracked render processes."""
+    for p in _active_render_processes:
+        if p.poll() is None:
+            try:
+                p.terminate()
+            except Exception:
+                pass
+    time.sleep(0.2)
+    for p in _active_render_processes:
+        if p.poll() is None:
+            try:
+                p.kill()
+            except Exception:
+                pass
+    _active_render_processes.clear()
 
 @runtime_checkable
 class RenderExecutor(Protocol):
@@ -70,20 +91,24 @@ class LocalExecutor:
 
         logger.info(f"Launching local BlenderProc: {' '.join(cmd)}")
         
-        result = subprocess.run(
+        p = subprocess.Popen(
             cmd,
-            check=False,
-            capture_output=not verbose,
+            stdout=None if verbose else subprocess.PIPE,
+            stderr=None if verbose else subprocess.PIPE,
             text=True,
         )
+        _active_render_processes.append(p)
 
-        if result.returncode != 0:
-            logger.error(f"Local rendering failed with exit code {result.returncode}")
-            if result.stderr:
-                logger.error(f"Error output:\n{result.stderr[:1000]}")
-            
-            # We raise an exception to signal failure to the orchestrator
-            raise RuntimeError(f"BlenderProc failed (exit {result.returncode})")
+        try:
+            stdout, stderr = p.communicate()
+            if p.returncode != 0:
+                logger.error(f"Local rendering failed with exit code {p.returncode}")
+                if stderr:
+                    logger.error(f"Error output:\n{stderr[:1000]}")
+                raise RuntimeError(f"BlenderProc failed (exit {p.returncode})")
+        finally:
+            if p in _active_render_processes:
+                _active_render_processes.remove(p)
 
 class DockerExecutor:
     """Executes renders inside a Docker container."""

@@ -1,55 +1,51 @@
+import pytest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
-import pytest
 from render_tag.orchestration.sharding import run_local_parallel
 from render_tag.config import GenConfig
 
-def test_run_local_parallel_passes_seeds():
-    # Mock subprocess.run
-    with patch("subprocess.run") as mock_run:
-        # Mock load_config
-        with patch("render_tag.orchestration.sharding.load_config", create=True) as mock_load:
-            # Mock config
-            config = GenConfig()
-            config.dataset.seeds.global_seed = 12345
-            mock_load.return_value = config
-            
-            # Mock ProcessPoolExecutor to avoid pickling issues
-            with patch("render_tag.orchestration.sharding.concurrent.futures.ProcessPoolExecutor") as mock_executor_cls:
-                with patch("render_tag.orchestration.sharding.concurrent.futures.as_completed") as mock_as_completed:
-                    mock_executor = mock_executor_cls.return_value
-                    mock_executor.__enter__.return_value = mock_executor
+def test_run_local_parallel_flow(tmp_path):
+    """
+    Test the high-level flow of run_local_parallel:
+    - Load config
+    - Generate recipes
+    - Batching
+    - Threaded execution
+    """
+    dummy_yaml = tmp_path / "dummy.yaml"
+    dummy_yaml.write_text("dataset: {seed: 42}")
+    
+    with patch("render_tag.orchestration.sharding.load_config") as mock_load:
+        with patch("render_tag.generator.Generator") as mock_gen_cls:
+            with patch("render_tag.orchestration.executors.ExecutorFactory") as mock_exec_factory:
+                with patch("threading.Thread") as mock_thread:
+                    # Setup config mock
+                    config = GenConfig()
+                    mock_load.return_value = config
                     
-                    # Mock future
-                    mock_future = MagicMock()
-                    mock_future.result.return_value = None
-                    mock_executor.submit.return_value = mock_future
+                    # Setup generator mock
+                    mock_gen = mock_gen_cls.return_value
+                    mock_gen.generate_all.return_value = [{"scene_id": i} for i in range(5)]
+                    mock_gen.save_recipe_json.return_value = Path("dummy_recipe.json")
                     
-                    # as_completed yields futures immediately
-                    mock_as_completed.return_value = [mock_future] * 2
-
-                    # Verify submit calls
+                    # Setup executor mock
+                    mock_executor = MagicMock()
+                    mock_exec_factory.get_executor.return_value = mock_executor
+                    
+                    # Run it with 2 workers and batch size 2 (should create 3 batches: 2, 2, 1)
                     run_local_parallel(
-                    config_path=Path("dummy.yaml"),
-                    output_dir=Path("out"),
-                    num_scenes=10,
-                    workers=2,
-                    renderer_mode="cycles",
-                    verbose=False
-                )
-                
-                # submit is called 2 times
-                assert mock_executor.submit.call_count == 2
-                
-                # Check args passed to submit
-                # submit(subprocess.run, cmd, check=True)
-                args0 = mock_executor.submit.call_args_list[0][0][1] # cmd is second arg
-                args1 = mock_executor.submit.call_args_list[1][0][1]
-                
-                # Expecting something like ... --seed <val> ...
-                # We reverted passing --seed to ensure global invariance
-                assert "--seed" not in args0
-                assert "--seed" not in args1
-                
-                # Check shard index IS passed
-                assert "--shard-index" in args0
+                        config_path=dummy_yaml,
+                        output_dir=tmp_path / "out",
+                        num_scenes=5,
+                        workers=2,
+                        renderer_mode="cycles",
+                        verbose=False,
+                        batch_size=2
+                    )
+                    
+                    # Check calls
+                    assert mock_gen.generate_all.called
+                    # 5 scenes, batch size 2 => 3 batches
+                    assert mock_gen.save_recipe_json.call_count == 3
+                    # 2 worker threads should be started
+                    assert mock_thread.call_count == 2

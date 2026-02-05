@@ -38,21 +38,15 @@ def test_run_local_parallel_installs_signal_handlers():
 
 def test_signal_handler_terminates_processes():
     """
-    Test that the _signal_handler function terminates active processes.
+    Test that the _signal_handler function calls cleanup_render_processes.
     """
-    from render_tag.orchestration.sharding import _signal_handler, _active_processes
+    from render_tag.orchestration.sharding import _signal_handler
     
-    mock_p1 = MagicMock()
-    mock_p1.poll.return_value = None # Process is still running
-    
-    _active_processes.clear()
-    _active_processes.append(mock_p1)
-    
-    with patch("sys.exit") as mock_exit:
-        with patch("time.sleep"): # Don't actually sleep
+    with patch("render_tag.orchestration.executors.cleanup_render_processes") as mock_cleanup:
+        with patch("sys.exit") as mock_exit:
             _signal_handler(signal.SIGINT, None)
             
-    assert mock_p1.terminate.called
+    assert mock_cleanup.called
     assert mock_exit.called
 
 def test_run_local_parallel_reports_failure():
@@ -80,3 +74,25 @@ def test_run_local_parallel_reports_failure():
                     renderer_mode="cycles",
                     verbose=False
                 )
+
+def test_get_completed_scene_ids(tmp_path):
+    """
+    Test that get_completed_scene_ids identifies completed scenes based on sidecars.
+    """
+    from render_tag.orchestration.sharding import get_completed_scene_ids
+    
+    # Create a mock output directory
+    output_dir = tmp_path / "output"
+    images_dir = output_dir / "images"
+    images_dir.mkdir(parents=True)
+    
+    # Create some "completed" sidecars
+    (images_dir / "scene_0001_meta.json").write_text("{}")
+    (images_dir / "scene_0005_meta.json").write_text("{}")
+    (images_dir / "other_file.txt").write_text("not a sidecar")
+    
+    completed = get_completed_scene_ids(output_dir)
+    
+    assert 1 in completed
+    assert 5 in completed
+    assert len(completed) == 2

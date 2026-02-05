@@ -28,21 +28,21 @@ This plan refactors the parallel execution layer to handle crashes, implement sc
 ## Phase 3: Dynamic Load Balancing (Batch Stealing)
 **Goal:** Optimize throughput by moving from static ranges to dynamic task distribution.
 
-- [ ] Task: Implement Task Batching Engine
-    - [ ] Refactor the orchestration loop to divide the total scene count into smaller batches (e.g., 10 scenes).
-    - [ ] Workers pull batches from a synchronized task pool.
+- [x] Task: Implement Task Batching Engine
+    - [x] Refactor the orchestration loop to divide the total scene count into smaller batches (e.g., 10 scenes).
+    - [x] Workers pull batches from a synchronized task pool.
 - [ ] Task: Resource Telemetry (Optional/Stretch)
     - [ ] Implement a basic `ResourceMonitor` that logs system RAM/VRAM usage.
-- [ ] Task: Benchmarking - Static vs. Dynamic
-    - [ ] Compare throughput between the old static sharding and the new dynamic model using variable-complexity scenes.
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: Dynamic Distribution' (Protocol in workflow.md)
+- [x] Task: Benchmarking - Static vs. Dynamic
+    - [x] Compare throughput between the old static sharding and the new dynamic model using variable-complexity scenes.
+- [x] Task: Conductor - User Manual Verification 'Phase 3: Dynamic Distribution' (Protocol in workflow.md)
 
 ## Phase 4: Final Verification & Reliability Testing
 **Goal:** Ensure 100% data integrity and system stability.
 
-- [ ] Task: Run Stress Tests
-    - [ ] Execute a 1,000-scene run with intentional "chaos" (randomly killing workers).
-    - [ ] Verify that final CSV/COCO merge is consistent and has no duplicates.
-- [ ] Task: Run Full Test Suite
-    - [ ] Ensure no regressions in existing camera or shader logic.
-- [ ] Task: Conductor - User Manual Verification 'Phase 4: Final Integration' (Protocol in workflow.md)
+- [x] Task: Run Stress Tests
+    - [x] Execute a 1,000-scene run with intentional "chaos" (randomly killing workers).
+    - [x] Verify that final CSV/COCO merge is consistent and has no duplicates.
+- [x] Task: Run Full Test Suite
+    - [x] Ensure no regressions in existing camera or shader logic.
+- [x] Task: Conductor - User Manual Verification 'Phase 4: Final Integration' (Protocol in workflow.md)
