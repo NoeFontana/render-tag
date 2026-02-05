@@ -17,7 +17,7 @@ This plan implements a robust asset management system using Hugging Face as the 
 ## Phase 2: CLI Integration
 **Goal:** Expose asset management via the CLI.
 
-- [ ] Task: Create `assets` Command Group
+- [~] Task: Create `assets` Command Group
     - [ ] Update `src/render_tag/cli.py` to add `assets` subcommand.
     - [ ] Implement `pull` command using `AssetManager.pull()`.
     - [ ] Implement `push` command with `--force` and authentication checks.
