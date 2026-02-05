@@ -734,8 +734,12 @@ def viz(
     )
 
 
-@app.command()
-def audit(
+audit_app = typer.Typer(help="Audit and compare datasets.")
+app.add_typer(audit_app, name="audit")
+
+
+@audit_app.command(name="run")
+def audit_run(
     path: Path = typer.Argument(
         ...,
         help="Path to the dataset directory to audit",
@@ -756,8 +760,6 @@ def audit(
 ) -> None:
     """
     Audit a generated dataset for quality and integrity.
-
-    Calculates geometric and environmental metrics and checks against quality gates.
     """
     from .data_io.auditor import DatasetAuditor
     from .data_io.auditor_schema import QualityGateConfig
@@ -858,6 +860,71 @@ def audit(
         # Exit with error if gate failed
         if gate and not result.gate_passed:
             raise typer.Exit(code=1)
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1) from None
+
+
+@audit_app.command(name="diff")
+def audit_diff(
+    path_a: Path = typer.Argument(..., help="Path to the first (baseline) dataset"),
+    path_b: Path = typer.Argument(..., help="Path to the second (new) dataset"),
+) -> None:
+    """
+    Compare two datasets and detect statistical drift.
+    """
+    from .data_io.auditor import DatasetAuditor, AuditDiff
+    from .data_io.auditor_schema import AuditResult
+    from rich.table import Table
+
+    console.print(
+        Panel.fit(
+            "[bold blue]render-tag[/bold blue] Dataset Drift Detector",
+            border_style="blue",
+        )
+    )
+
+    try:
+        # Load reports
+        reports = []
+        for p in [path_a, path_b]:
+            report_file = p / "audit_report.json"
+            if not report_file.exists():
+                console.print(f"[dim]Generating audit for {p.name}...[/dim]")
+                auditor = DatasetAuditor(p)
+                res = auditor.run_audit()
+                reports.append(res.report)
+            else:
+                with open(report_file) as f:
+                    res_data = json.load(f)
+                reports.append(AuditResult(**res_data).report)
+
+        # Calculate Diff
+        diff = AuditDiff(reports[0], reports[1])
+        deltas = diff.calculate()
+
+        # Display results
+        console.print(f"Comparing [cyan]{path_a.name}[/cyan] vs [cyan]{path_b.name}[/cyan]")
+        console.print("────────────────────────────────────────")
+
+        diff_table = Table(title="Statistical Drift (B - A)", box=None)
+        diff_table.add_column("Metric", style="cyan")
+        diff_table.add_column("Delta", justify="right")
+
+        def fmt_delta(val, inverse=False):
+            color = "green" if (val >= 0 if not inverse else val <= 0) else "red"
+            prefix = "+" if val >= 0 else ""
+            return f"[{color}]{prefix}{val:.2f}[/{color}]"
+
+        diff_table.add_row("Tag Count", fmt_delta(deltas["tag_count"]))
+        diff_table.add_row("Image Count", fmt_delta(deltas["image_count"]))
+        diff_table.add_row("Distance Mean", fmt_delta(deltas["distance_mean_diff"]))
+        diff_table.add_row("Max Angle", fmt_delta(deltas["incidence_angle_max_diff"]))
+        diff_table.add_row("Impossible Poses", fmt_delta(deltas["impossible_poses_diff"], inverse=True))
+        diff_table.add_row("Quality Score", fmt_delta(deltas["score_diff"]))
+
+        console.print(diff_table)
 
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {e}")

@@ -77,10 +77,27 @@ class DatasetReader:
                 metadata_records.append(record)
         
         if not metadata_records:
+            # Ensure columns exist even if no metadata
+            if "distance" not in df.columns:
+                df = df.with_columns(pl.lit(0.0).alias("distance"))
+            if "angle_of_incidence" not in df.columns:
+                df = df.with_columns(pl.lit(0.0).alias("angle_of_incidence"))
+            if "lighting_intensity" not in df.columns:
+                df = df.with_columns(pl.lit(0.0).alias("lighting_intensity"))
             return df
             
         meta_df = pl.DataFrame(metadata_records)
-        return df.join(meta_df, on="image_id", how="left")
+        df = df.join(meta_df, on="image_id", how="left")
+        
+        # Fill missing columns after join
+        if "distance" not in df.columns:
+            df = df.with_columns(pl.lit(0.0).alias("distance"))
+        if "angle_of_incidence" not in df.columns:
+            df = df.with_columns(pl.lit(0.0).alias("angle_of_incidence"))
+        if "lighting_intensity" not in df.columns:
+            df = df.with_columns(pl.lit(0.0).alias("lighting_intensity"))
+            
+        return df
 
     def load_rich_detections(self) -> pl.DataFrame:
         """Load rich_truth.json into a Polars DataFrame.
@@ -350,3 +367,30 @@ class OutlierExporter:
                 dst.symlink_to(Path("..") / "images" / f"{img_id}.png")
 
         return self.outlier_dir
+
+
+class AuditDiff:
+    """Detects statistical drift between two audit reports."""
+
+    def __init__(self, report_a: AuditReport, report_b: AuditReport) -> None:
+        self.report_a = report_a
+        self.report_b = report_b
+
+    def calculate(self) -> dict[str, Any]:
+        """Calculate deltas between reports (B - A).
+
+        Returns:
+            Dictionary of deltas.
+        """
+        ga = self.report_a.geometric
+        gb = self.report_b.geometric
+
+        return {
+            "tag_count": gb.tag_count - ga.tag_count,
+            "image_count": gb.image_count - ga.image_count,
+            "distance_mean_diff": gb.distance.mean - ga.distance.mean,
+            "incidence_angle_max_diff": gb.incidence_angle.max - ga.incidence_angle.max,
+            "impossible_poses_diff": self.report_b.integrity.impossible_poses
+            - self.report_a.integrity.impossible_poses,
+            "score_diff": self.report_b.score - self.report_a.score,
+        }
