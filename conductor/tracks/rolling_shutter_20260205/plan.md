@@ -16,9 +16,9 @@ This plan implements rolling shutter effects in the Cycles renderer to bridge th
 ## Phase 2: Blender Backend Implementation
 **Goal:** Map the configuration to Blender's rendering engine settings.
 
-- [ ] Task: Write Backend Mapping Tests (Mocks)
+- [~] Task: Write Backend Mapping Tests (Mocks)
     - [ ] Create tests in `tests/unit/test_geometry_camera.py` verifying the value propagation.
-- [ ] Task: Implement Rolling Shutter in `backend/camera.py`
+- [x] Task: Implement Rolling Shutter in `backend/camera.py` 0264e97
     - [ ] Update camera setup logic to set `bpy.context.scene.render.rolling_shutter_duration`.
     - [ ] Implement engine check logic to issue warnings for Eevee/Workbench.
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Blender Backend Implementation' (Protocol in workflow.md)
