@@ -6,9 +6,9 @@ Establishing the "Service Locator" to centralize Blender dependencies and elimin
 - [x] **Task: Create `src/render_tag/backend/bridge.py` (The Provider)** (4888ec8)
     - [x] Implement a singleton-based provider that automatically serves mocks when `blenderproc` is unavailable.
     - [x] Centralize `bpy`, `bproc`, and `mathutils` imports.
-- [ ] **Task: Refactor Backend Modules to use Bridge**
-    - [ ] Update `scene.py`, `assets.py`, `camera.py`, `projection.py`, and `layouts.py`.
-    - [ ] Remove all `try/except ImportError` blocks and `setup_mocks` functions.
+- [x] **Task: Refactor Backend Modules to use Bridge** (946e054)
+    - [x] Update `scene.py`, `assets.py`, `camera.py`, `projection.py`, and `layouts.py`.
+    - [x] Remove all `try/except ImportError` blocks and `setup_mocks` functions.
 - [ ] **Task: Write Tests for Bridge Auto-Mocking**
     - [ ] Verify that importing from the bridge in a standard Python environment serves the correct mock objects.
 - [ ] **Task: Conductor - User Manual Verification 'Centralized Blender Bridge' (Protocol in workflow.md)**
