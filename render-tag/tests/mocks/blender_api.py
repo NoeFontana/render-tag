@@ -26,6 +26,10 @@ class MockObject:
     def __setitem__(self, key, value):
         self._properties[key] = value
 
+    @property
+    def matrix_world(self):
+        return [[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]]
+
     def get(self, key, default=None):
         return self._properties.get(key, default)
 
@@ -86,18 +90,40 @@ class MockContext:
         self.selected_objects = []
 
 
+class MockCycles:
+    def __init__(self):
+        self.seed = 0
+        self.use_animated_seed = False
+
+
+class MockDof:
+    def __init__(self):
+        self.use_dof = False
+        self.aperture_fstop = 2.8
+        self.focus_distance = 1.0
+
+class MockCameraData:
+    def __init__(self):
+        self.dof = MockDof()
+
 class MockScene:
     def __init__(self):
         self.camera = MockObject(name="Camera")
+        self.camera.data = MockCameraData()
         self.render = MockRender()
         self.collection = MockCollection()
         self.world = MockWorld()
+        self.cycles = MockCycles()
+
+    def frame_set(self, frame, subframe=0.0):
+        pass
 
 
 class MockRender:
     def __init__(self):
         self.resolution_x = 640
         self.resolution_y = 480
+        self.engine = "CYCLES"
 
 
 class MockViewLayer:

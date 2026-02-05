@@ -70,15 +70,18 @@ class MockCamera:
     def get_intrinsics_as_K_matrix(self):  # noqa: N802
         return np.eye(3)
 
-    def add_camera_pose(self, transform):
+    def add_camera_pose(self, transform, frame=0):
         pass
 
 
 class MockRenderer:
     def render(self):
-        return {"colors": [np.zeros((480, 640, 3))], "depth": []}
+        return {"colors": [np.zeros((480, 640, 3))], "segmentation": [np.zeros((480, 640))]}
 
     def enable_depth_output(self, **kwargs):
+        pass
+
+    def enable_segmentation_output(self, **kwargs):
         pass
 
 
@@ -90,6 +93,26 @@ def clean_up():
     pass
 
 
+class MockLight:
+    def set_type(self, type_name: str):
+        pass
+    def set_location(self, loc: list):
+        pass
+    def set_energy(self, energy: float):
+        pass
+    def set_color(self, color: list):
+        pass
+    def set_radius(self, radius: float):
+        pass
+
+class MockUtilityModule:
+    def reset_keyframes(self):
+        pass
+
+class MockTypesModule:
+    def __init__(self):
+        self.Light = MockLight
+
 class MockWorldModule:
     def set_world_background_hdr_img(self, filepath: str):
         pass
@@ -100,3 +123,5 @@ loader = MockLoader()
 camera = MockCamera()
 renderer = MockRenderer()
 world = MockWorldModule()
+types = MockTypesModule()
+utility = MockUtilityModule()
