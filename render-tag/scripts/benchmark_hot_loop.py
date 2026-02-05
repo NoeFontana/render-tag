@@ -1,5 +1,5 @@
 """
-Benchmark script comparing Cold startup vs Hot Loop throughput.
+Benchmark script comparing Cold startup vs Hot Loop throughput using Unified Orchestrator.
 """
 
 import sys
@@ -12,7 +12,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parents[1] / "src"))
 
 from render_tag.orchestration.executors import LocalExecutor
-from render_tag.orchestration.worker_pool import WorkerPool
+from render_tag.orchestration.unified_orchestrator import UnifiedWorkerOrchestrator
 from render_tag.schema.hot_loop import CommandType
 
 logging.basicConfig(level=logging.ERROR)
@@ -21,7 +21,7 @@ def run_benchmark():
     project_root = Path(__file__).resolve().parents[1]
     src_path = project_root / "src"
     backend_script = src_path / "render_tag" / "backend" / "zmq_server.py"
-    output_dir = project_root / "output" / "benchmark_hot_loop"
+    output_dir = project_root / "output" / "benchmark_unified"
     output_dir.mkdir(parents=True, exist_ok=True)
     
     recipe = {
@@ -34,39 +34,44 @@ def run_benchmark():
     }
 
     count = 5
-    print(f"--- Benchmarking {count} renders ---")
+    print(f"--- Benchmarking {count} renders via Unified Orchestrator ---")
 
-    # 1. Cold Baseline (Simulated)
-    print("\n[COLD] Starting Cold Baseline...")
-    cold_time = (3.0 * count) + 0.5 
-    print(f"COLD (Simulated): {cold_time:.2f}s total ({60/(cold_time/count):.2f} img/min)")
+    # 1. Cold (Ephemeral) mode
+    print("\n[COLD/EPHEMERAL] Starting...")
+    start_cold = time.time()
+    for i in range(count):
+        # Ephemeral mode: 1 pool per render (simulates legacy behavior but unified)
+        with UnifiedWorkerOrchestrator(
+            num_workers=1,
+            base_port=7300 + i,
+            use_blenderproc=False,
+            mock=True,
+            ephemeral=True,
+            max_renders_per_worker=1
+        ) as orch:
+            orch.execute_recipe(recipe, output_dir)
+    cold_time = time.time() - start_cold
+    print(f"COLD/EPHEMERAL: {cold_time:.2f}s total ({60/(cold_time/count):.2f} img/min)")
 
-    # 2. Hot Loop
-    print("\n[HOT] Starting Hot Loop...")
-    with WorkerPool(
+    # 2. Hot Loop (Persistent)
+    print("\n[HOT/PERSISTENT] Starting...")
+    with UnifiedWorkerOrchestrator(
         num_workers=1,
-        base_port=7200,
-        blender_script=backend_script,
-        blender_executable=sys.executable,
+        base_port=7400,
         use_blenderproc=False,
-        mock=True
-    ) as pool:
-        worker = pool.get_worker()
+        mock=True,
+        ephemeral=False
+    ) as orch:
         loop_start = time.time()
         for i in range(count):
-            worker.send_command(CommandType.RENDER, payload={
-                "recipe": recipe, 
-                "output_dir": str(output_dir), 
-                "skip_visibility": True
-            })
+            orch.execute_recipe(recipe, output_dir)
         loop_end = time.time()
-        pool.release_worker(worker)
     
     hot_time = loop_end - loop_start
-    print(f"HOT (Measured): {hot_time:.2f}s total ({60/(hot_time/count):.2f} img/min)")
+    print(f"HOT/PERSISTENT: {hot_time:.2f}s total ({60/(hot_time/count):.2f} img/min)")
     
     improvement = cold_time / hot_time
-    print(f"\nSpeedup (Mock): {improvement:.1f}x")
+    print(f"\nInternal Hot-Loop Speedup: {improvement:.1f}x")
 
 if __name__ == "__main__":
     run_benchmark()
