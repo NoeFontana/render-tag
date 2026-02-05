@@ -133,7 +133,8 @@ class ZmqBackendServer:
                     if asset_path not in self.assets_loaded:
                         p = Path(asset_path)
                         if p.exists() and p.suffix.lower() in [".exr", ".hdr"]:
-                            if bridge.bpy: setup_background(p)
+                            if bridge.bpy:
+                                setup_background(p)
                             new_assets.append(asset_path)
                 
                 self.assets_loaded.extend(new_assets)
@@ -209,9 +210,9 @@ class ZmqBackendServer:
     def run(self, max_renders: int | None = None):
         """
         Main server loop.
-        
+
         Args:
-            max_renders: If set, the server will shutdown after this many successful RENDER commands.
+            max_renders: If set, the server will shutdown after N successful RENDER commands.
                          Used for 'Ephemeral Worker' mode.
         """
         self.running = True
@@ -219,7 +220,7 @@ class ZmqBackendServer:
         logger.info(f"Backend ZMQ Server started on port {self.port}")
         if max_renders:
             logger.info(f"Running in ephemeral mode (max_renders={max_renders})")
-        
+
         while self.running:
             try:
                 if self.socket.poll(1000):
@@ -227,8 +228,9 @@ class ZmqBackendServer:
                     cmd = Command.model_validate_json(message)
                     resp = self.handle_command(cmd)
                     self.socket.send_string(resp.model_dump_json())
-                    
-                    if cmd.command_type == CommandType.RENDER and resp.status == ResponseStatus.SUCCESS:
+
+                    is_success = resp.status == ResponseStatus.SUCCESS
+                    if cmd.command_type == CommandType.RENDER and is_success:
                         renders_completed += 1
                         if max_renders and renders_completed >= max_renders:
                             logger.info(f"Reached max_renders ({max_renders}). Shutting down soon.")
@@ -236,8 +238,10 @@ class ZmqBackendServer:
                             time.sleep(1.0)
                             self.running = False
                             # Finalize writers
-                            if "coco" in self.writers: self.writers["coco"].save()
-                            if "rich" in self.writers: self.writers["rich"].save()
+                            if "coco" in self.writers:
+                                self.writers["coco"].save()
+                            if "rich" in self.writers:
+                                self.writers["rich"].save()
 
             except Exception as e:
                 logger.error(f"Error in server loop: {e}")

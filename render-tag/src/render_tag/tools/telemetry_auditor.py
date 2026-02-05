@@ -51,13 +51,17 @@ class TelemetryAuditor:
 
     def analyze_throughput(self) -> dict[str, Any]:
         """Calculates throughput statistics."""
+        from typing import cast
+        
         df = self.get_dataframe()
         if df.is_empty():
             return {}
 
         # Filter for render completion events if we had them
         # For now, just analyze general activity
-        duration = (df["timestamp"].max() - df["timestamp"].min()).total_seconds()
+        min_ts = cast(datetime, df["timestamp"].min())
+        max_ts = cast(datetime, df["timestamp"].max())
+        duration = (max_ts - min_ts).total_seconds()
         total_events = len(df)
         
         return {

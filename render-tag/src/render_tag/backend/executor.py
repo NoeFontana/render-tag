@@ -24,7 +24,9 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--recipe", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--renderer-mode", choices=["cycles", "workbench", "eevee"], default="cycles")
+    parser.add_argument(
+        "--renderer-mode", choices=["cycles", "workbench", "eevee"], default="cycles"
+    )
     parser.add_argument("--shard-id", type=str, default="main")
     return parser.parse_args()
 

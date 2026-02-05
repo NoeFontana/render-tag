@@ -15,7 +15,13 @@ class ZmqHostClient:
     Client for sending commands to a persistent Blender backend via ZeroMQ.
     """
 
-    def __init__(self, host: str = "localhost", port: int = 5555, timeout_ms: int = 10000, context: zmq.Context | None = None):
+    def __init__(
+        self,
+        host: str = "localhost",
+        port: int = 5555,
+        timeout_ms: int = 10000,
+        context: zmq.Context | None = None,
+    ):
         self.address = f"tcp://{host}:{port}"
         self.timeout_ms = timeout_ms
         self.context = context or zmq.Context()
@@ -78,7 +84,7 @@ class ZmqHostClient:
             # REQ/REP synchronization is broken on timeout. Must reset socket.
             self._create_socket()
             if raise_on_failure:
-                raise TimeoutError(f"Timeout waiting for response from {self.address}")
+                raise TimeoutError(f"Timeout waiting for response from {self.address}") from None
             return Response(
                 status="FAILURE",
                 request_id=request_id,

@@ -141,7 +141,9 @@ class PersistentWorkerProcess:
         resp = self.client.send_command(CommandType.STATUS)
         return resp.status == ResponseStatus.SUCCESS
 
-    def send_command(self, command_type: CommandType, payload: dict[str, Any] | None = None) -> Response:
+    def send_command(
+        self, command_type: CommandType, payload: dict[str, Any] | None = None
+    ) -> Response:
         """Sends a command to the worker."""
         if not self.is_healthy():
             raise RuntimeError(f"Worker {self.worker_id} is not healthy or not running.")

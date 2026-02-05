@@ -8,19 +8,15 @@ from __future__ import annotations
 
 import logging
 import math
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from render_tag.backend.bridge import bproc, bpy, mathutils, np
-
-logger = logging.getLogger(__name__)
-
-if TYPE_CHECKING:
-    pass
-
 from render_tag.geometry.camera import (
     sample_camera_pose,
     validate_camera_pose,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def set_camera_intrinsics(camera_config: dict) -> None:

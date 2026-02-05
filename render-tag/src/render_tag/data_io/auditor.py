@@ -314,7 +314,10 @@ class GateEnforcer:
                 rule_failed = True
 
             if rule_failed:
-                msg = rule.error_msg or f"Rule failed: {rule.metric}={val} (expected min={rule.min}, max={rule.max})"
+                msg = rule.error_msg or (
+                    f"Rule failed: {rule.metric}={val} "
+                    f"(expected min={rule.min}, max={rule.max})"
+                )
                 failures.append(msg)
                 if rule.critical:
                     is_success = False

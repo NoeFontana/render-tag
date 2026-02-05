@@ -91,9 +91,12 @@ def test_shard_invariance_fast(tmp_path):
     ], check=True)
     
     # Load and compare scene recipes
-    with open(out_single / "recipes_shard_0.json") as f: recipes_s = json.load(f)
-    with open(out_shard0 / "recipes_shard_0.json") as f: recipes_m0 = json.load(f)
-    with open(out_shard1 / "recipes_shard_1.json") as f: recipes_m1 = json.load(f)
+    with open(out_single / "recipes_shard_0.json") as f:
+        recipes_s = json.load(f)
+    with open(out_shard0 / "recipes_shard_0.json") as f:
+        recipes_m0 = json.load(f)
+    with open(out_shard1 / "recipes_shard_1.json") as f:
+        recipes_m1 = json.load(f)
     
     # Scene 0 (in shard 0)
     assert recipes_s[0]["scene_id"] == 0

@@ -57,7 +57,7 @@ def test_local_executor_handoff_to_orchestrator(tmp_path):
         
         # Verify Orchestrator configuration
         mock_orch_cls.assert_called_once()
-        args, kwargs = mock_orch_cls.call_args
+        _args, kwargs = mock_orch_cls.call_args
         assert kwargs["num_workers"] == 1
         assert kwargs["ephemeral"] is True
         

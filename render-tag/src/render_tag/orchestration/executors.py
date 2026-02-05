@@ -56,15 +56,18 @@ class LocalExecutor:
         
         # Check if blenderproc is available, otherwise use mock mode
         # Staff Engineer: Also allow forced mock via environment variable for CI/Testing
-        import shutil
         import os
+        import shutil
         force_mock = os.environ.get("RENDER_TAG_FORCE_MOCK") == "1"
         use_bproc = (shutil.which("blenderproc") is not None) and not force_mock
         
         if force_mock:
             logger.info("Forcing MOCK mode via RENDER_TAG_FORCE_MOCK.")
         elif not use_bproc:
-            logger.warning("blenderproc not found in PATH. Falling back to MOCK mode for LocalExecutor.")
+            logger.warning(
+                "blenderproc not found in PATH. "
+                "Falling back to MOCK mode for LocalExecutor."
+            )
 
         with UnifiedWorkerOrchestrator(
             num_workers=1,

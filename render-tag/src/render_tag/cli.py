@@ -239,7 +239,9 @@ def generate(
                 console.print("Please run [cyan]render-tag assets pull[/cyan] manually.")
                 raise typer.Exit(code=1) from None
         else:
-            console.print("[bold red]Error:[/bold red] Required assets missing. Generation may fail.")
+            console.print(
+                "[bold red]Error:[/bold red] Required assets missing. Generation may fail."
+            )
             raise typer.Exit(code=1) from None
 
     # Check for blenderproc installation (only if local executor)
@@ -287,7 +289,6 @@ def generate(
         job_config_path = Path(tmp_file.name)
 
     serialize_config_to_json(gen_config, job_config_path)
-    serialize_config_to_json(gen_config, job_config_path)
     console.print(f"[dim]Job config:[/dim] {job_config_path}")
 
     # 1. Resolve Shard Index (Cloud Auto-detect)
@@ -299,7 +300,10 @@ def generate(
     if resume:
         completed_ids = get_completed_scene_ids(output)
         if completed_ids:
-            console.print(f"[bold yellow]Resuming run. Found {len(completed_ids)} completed scenes.[/bold yellow]")
+            console.print(
+                f"[bold yellow]Resuming run. Found {len(completed_ids)} "
+                "completed scenes.[/bold yellow]"
+            )
 
     # 3. Local Parallel (Manager Mode)
     if workers > 1 and total_shards == 1:
@@ -313,7 +317,7 @@ def generate(
             renderer_mode=renderer_mode,
             verbose=verbose,
             executor_type=executor_type,
-            resume=resume,  # New parameter
+            resume=resume,
             batch_size=batch_size,
         )
         return
@@ -804,10 +808,11 @@ def audit_run(
         console.print("────────────────────────────────────────")
         
         # Determine status based on gates if present, otherwise heuristic score
-        if gate:
-            status_str = "[bold green]PASSED[/bold green] ✅" if result.gate_passed else "[bold red]FAILED[/bold red] ❌"
+        is_passed = result.gate_passed if gate else report.score > 70
+        if is_passed:
+            status_str = "[bold green]PASSED[/bold green] ✅"
         else:
-            status_str = "[bold green]PASSED[/bold green] ✅" if report.score > 70 else "[bold red]FAILED[/bold red] ❌"
+            status_str = "[bold red]FAILED[/bold red] ❌"
         
         console.print(f"Status:   {status_str}")
         console.print(f"Score:    [bold]{report.score:.1f}/100[/bold]")
@@ -859,7 +864,11 @@ def audit_run(
 
         # Integrity
         if report.integrity.impossible_poses > 0:
-            console.print(f"[bold red]⚠ Found {report.integrity.impossible_poses} impossible poses (distance < 0)[/bold red]")
+            msg = (
+                "[bold red]⚠ Found "
+                f"{report.integrity.impossible_poses} impossible poses[/bold red]"
+            )
+            console.print(msg)
 
         # Exit with error if gate failed
         if gate and not result.gate_passed:
@@ -926,7 +935,9 @@ def audit_diff(
         diff_table.add_row("Image Count", fmt_delta(deltas["image_count"]))
         diff_table.add_row("Distance Mean", fmt_delta(deltas["distance_mean_diff"]))
         diff_table.add_row("Max Angle", fmt_delta(deltas["incidence_angle_max_diff"]))
-        diff_table.add_row("Impossible Poses", fmt_delta(deltas["impossible_poses_diff"], inverse=True))
+        diff_table.add_row(
+            "Impossible Poses", fmt_delta(deltas["impossible_poses_diff"], inverse=True)
+        )
         diff_table.add_row("Quality Score", fmt_delta(deltas["score_diff"]))
 
         console.print(diff_table)

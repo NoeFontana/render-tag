@@ -7,7 +7,7 @@ import queue
 import sys
 import threading
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 import zmq
 
@@ -23,7 +23,7 @@ class UnifiedWorkerOrchestrator:
     Standardizes the rendering execution across all 프로젝트 flows.
     """
     
-    _instances: list['UnifiedWorkerOrchestrator'] = []
+    _instances: ClassVar[list['UnifiedWorkerOrchestrator']] = []
 
     def __init__(
         self,
@@ -84,7 +84,10 @@ class UnifiedWorkerOrchestrator:
             if self.running:
                 return
             
-            logger.info(f"Starting UnifiedWorkerOrchestrator with {self.num_workers} workers (ephemeral={self.ephemeral}).")
+            logger.info(
+                f"Starting UnifiedWorkerOrchestrator with {self.num_workers} workers "
+                f"(ephemeral={self.ephemeral})."
+            )
             for i in range(self.num_workers):
                 worker = PersistentWorkerProcess(
                     worker_id=f"worker-{i}",
@@ -115,8 +118,10 @@ class UnifiedWorkerOrchestrator:
             
             self.workers.clear()
             while not self.worker_queue.empty():
-                try: self.worker_queue.get_nowait()
-                except queue.Empty: break
+                try:
+                    self.worker_queue.get_nowait()
+                except queue.Empty:
+                    break
             
             # self.context.term() # Removed to avoid hangs
             self.running = False
@@ -132,7 +137,13 @@ class UnifiedWorkerOrchestrator:
         # 1. Always record a baseline activity entry to ensure auditor is not empty
         # We use a dummy telemetry if we can't get real one
         from render_tag.schema.hot_loop import Telemetry
-        baseline_tel = Telemetry(vram_used_mb=0, vram_total_mb=0, cpu_usage_percent=0, state_hash="unknown", uptime_seconds=0)
+        baseline_tel = Telemetry(
+            vram_used_mb=0, 
+            vram_total_mb=0, 
+            cpu_usage_percent=0, 
+            state_hash="unknown", 
+            uptime_seconds=0
+        )
         
         # 2. Check health and collect real telemetry
         is_healthy = False
@@ -159,7 +170,9 @@ class UnifiedWorkerOrchestrator:
         if not is_healthy:
             should_restart = True
             # Add the baseline entry if we couldn't get a real one
-            self.auditor.add_entry(worker.worker_id, baseline_tel, event_type="render_complete_fallback")
+            self.auditor.add_entry(
+                worker.worker_id, baseline_tel, event_type="render_complete_fallback"
+            )
 
         if should_restart and self.running:
             if self.ephemeral:

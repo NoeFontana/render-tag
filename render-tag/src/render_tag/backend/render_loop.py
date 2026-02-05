@@ -39,7 +39,8 @@ def execute_recipe(
     logger.info(f"--- Executing Scene {scene_idx} ---")
 
     # 1. Determinism
-    if np: np.random.seed(scene_idx)
+    if np:
+        np.random.seed(scene_idx)
     random.seed(scene_idx)
     if bpy:
         bpy.context.scene.cycles.seed = scene_idx
@@ -90,7 +91,10 @@ def execute_recipe(
         # (We use the project_corners_to_image which now uses pure math)
         
         if skip_visibility:
-            valid_detections = [(obj, [[0,0],[res[0],0],[res[0],res[1]],[0,res[1]]]) for obj in tag_objects]
+            valid_detections = []
+            for obj in tag_objects:
+                full_rect = [[0, 0], [res[0], 0], [res[0], res[1]], [0, res[1]]]
+                valid_detections.append((obj, full_rect))
         else:
             # We keep the legacy filter for now, but it uses bridge internally
             from render_tag.backend.projection import get_valid_detections

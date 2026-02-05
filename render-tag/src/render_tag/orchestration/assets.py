@@ -7,6 +7,7 @@ Enforces strict directory structure for binary assets.
 
 import logging
 from pathlib import Path
+from typing import ClassVar
 
 try:
     from huggingface_hub import snapshot_download, upload_folder
@@ -20,7 +21,7 @@ logger = logging.getLogger(__name__)
 class AssetManager:
     """Manages local asset cache and remote synchronization."""
     
-    REQUIRED_SUBDIRS = ["hdri", "textures", "tags", "models"]
+    REQUIRED_SUBDIRS: ClassVar[list[str]] = ["hdri", "textures", "tags", "models"]
     
     def __init__(self, local_dir: Path, repo_id: str = "NoeFontana/render-tag-assets"):
         self.local_dir = Path(local_dir)

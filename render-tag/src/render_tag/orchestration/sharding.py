@@ -33,8 +33,9 @@ def _signal_handler(sig, frame):
 def get_completed_scene_ids(output_dir: Path) -> set[int]:
     """
     Identify completed scene IDs by scanning for sidecar JSON files.
-    
-    Assumes sidecar files follow the pattern 'scene_{id}_meta.json' or 'scene_{id}_cam_{cid}_meta.json'.
+
+    Assumes sidecar files follow the pattern 'scene_{id}_meta.json' 
+    or 'scene_{id}_cam_{cid}_meta.json'.
     """
     completed_ids = set()
     images_dir = output_dir / "images"
@@ -142,7 +143,7 @@ def run_local_parallel(
     except Exception as e:
         console.print(f"[bold red]Failed to load config:[/bold red] {e}")
         from typer import Exit
-        raise Exit(1)
+        raise Exit(1) from None
 
     # Override num_scenes from CLI argument
     config.dataset.num_scenes = num_scenes
@@ -154,7 +155,10 @@ def run_local_parallel(
         console.print("[yellow]No new scenes to generate. All tasks complete.[/yellow]")
         return
 
-    console.print(f"[bold]Orchestrating {len(all_recipes)} scenes across {workers} workers (Batch size: {batch_size})[/bold]")
+    console.print(
+        f"[bold]Orchestrating {len(all_recipes)} scenes across {workers} workers "
+        f"(Batch size: {batch_size})[/bold]"
+    )
 
     # 4. Group into batches
     batches = []
@@ -191,8 +195,10 @@ def run_local_parallel(
             
             # For subprocess management, we still want to track PIDs
             # But the executor currently uses subprocess.run (blocking)
-            # We need to monkey-patch or refactor executor to use Popen if we want SIGINT to work perfectly
-            # Actually, since we are in a thread, subprocess.run is fine as long as we can kill the whole group
+            # We need to monkey-patch or refactor executor to use Popen 
+            # if we want SIGINT to work perfectly
+            # Actually, since we are in a thread, subprocess.run is fine 
+            # as long as we can kill the whole group
             try:
                 # We need a way to track the subprocess inside the executor
                 # For now, let's keep it simple and assume SIGINT hits the whole process group
@@ -224,9 +230,12 @@ def run_local_parallel(
     failed_batches = [bid for bid, success in results if not success]
     
     if failed_batches:
-        console.print(f"[bold red]Parallel execution finished with {len(failed_batches)} failed batches.[/bold red]")
+        console.print(
+            f"[bold red]Parallel execution finished with {len(failed_batches)} "
+            "failed batches.[/bold red]"
+        )
         from typer import Exit
-        raise Exit(1)
+        raise Exit(1) from None
     
     console.print(f"[bold green]Parallel execution finished in {elapsed:.2f}s[/bold green]")
 

@@ -106,7 +106,12 @@ physics:
             rows = list(reader)
         
         assert len(rows) >= 1
-        expected_fields = ["image_id", "tag_id", "tag_family", "x1", "y1", "x2", "y2", "x3", "y3", "x4", "y4"]
+        expected_fields = [
+            "image_id", "tag_id", "tag_family", 
+            "x1", "y1", "x2", "y2", 
+            "x3", "y3", "x4", "y4"
+        ]
+        assert reader.fieldnames is not None
         assert all(f in reader.fieldnames for f in expected_fields)
 
         # 4. Check COCO format

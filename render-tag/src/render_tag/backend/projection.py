@@ -34,7 +34,11 @@ def project_corners_to_image(
     if not corners_world or len(corners_world) != 4:
         return None
 
-    k_matrix = camera_matrix if camera_matrix is not None else bproc.camera.get_intrinsics_as_K_matrix()
+    k_matrix = (
+        camera_matrix
+        if camera_matrix is not None
+        else bproc.camera.get_intrinsics_as_K_matrix()
+    )
     
     # Use bridge/math logic for matrix conversion
     blender_cam_mat = np.array(bpy.context.scene.camera.matrix_world)

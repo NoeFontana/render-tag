@@ -16,6 +16,7 @@ def test_command_schema():
     )
     assert cmd.command_type == CommandType.INIT
     assert cmd.request_id == "req-123"
+    assert cmd.payload is not None
     assert cmd.payload["assets"] == ["hdri1.exr"]
 
 def test_response_schema():
@@ -27,6 +28,7 @@ def test_response_schema():
     )
     assert resp.status == ResponseStatus.SUCCESS
     assert resp.request_id == "req-123"
+    assert resp.data is not None
     assert resp.data["vram"] == 1024
 
 def test_telemetry_schema():

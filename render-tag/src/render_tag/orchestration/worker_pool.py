@@ -102,7 +102,10 @@ class WorkerPool:
                 if resp.status == ResponseStatus.SUCCESS:
                     vram_used = resp.data.get("vram_used_mb", 0)
                     if vram_used > self.vram_threshold_mb:
-                        logger.warning(f"Worker {worker.worker_id} exceeded VRAM threshold ({vram_used:.1f} > {self.vram_threshold_mb} MB).")
+                        logger.warning(
+                            f"Worker {worker.worker_id} exceeded VRAM threshold "
+                            f"({vram_used:.1f} > {self.vram_threshold_mb} MB)."
+                        )
                         should_restart = True
             except Exception as e:
                 logger.error(f"Failed to check telemetry for worker {worker.worker_id}: {e}")
@@ -118,7 +121,9 @@ class WorkerPool:
         
         self.worker_queue.put(worker)
 
-    def execute_on_all(self, command_type: CommandType, payload: dict[str, Any] | None = None) -> list[Response]:
+    def execute_on_all(
+        self, command_type: CommandType, payload: dict[str, Any] | None = None
+    ) -> list[Response]:
         """Executes a command on all workers in the pool (e.g., for INIT)."""
         responses = []
         for worker in self.workers:

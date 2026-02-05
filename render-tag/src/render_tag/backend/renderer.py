@@ -32,13 +32,16 @@ class RenderFacade:
 
     def _configure_engine(self):
         """Standardizes engine-specific settings."""
-        if not bpy: return
-        
+        if not bpy:
+            return
+
         if self.renderer_mode == "workbench":
             bpy.context.scene.render.engine = "BLENDER_WORKBENCH"
         elif self.renderer_mode == "eevee":
-            try: bpy.context.scene.render.engine = "BLENDER_EEVEE_NEXT"
-            except: bpy.context.scene.render.engine = "BLENDER_EEVEE"
+            try:
+                bpy.context.scene.render.engine = "BLENDER_EEVEE_NEXT"
+            except Exception:
+                bpy.context.scene.render.engine = "BLENDER_EEVEE"
         else:
             bpy.context.scene.render.engine = "CYCLES"
 
@@ -50,8 +53,9 @@ class RenderFacade:
 
     def setup_world(self, world_recipe: dict[str, Any]):
         """Sets up HDRI, lighting, and floor."""
-        if not bproc: return
-        
+        if not bproc:
+            return
+
         hdri_path = world_recipe.get("background_hdri")
         if hdri_path and Path(hdri_path).is_file():
             setup_background(Path(hdri_path))
@@ -71,13 +75,15 @@ class RenderFacade:
             if obj_recipe["type"] == "TAG":
                 props = obj_recipe["properties"]
                 texture_path = get_tag_texture_path(props["tag_family"], tag_id=props["tag_id"])
-                tag_obj = create_tag_plane(props["tag_size"], texture_path, props["tag_family"], tag_id=props["tag_id"])
-                
+                tag_obj = create_tag_plane(
+                    props["tag_size"], texture_path, props["tag_family"], tag_id=props["tag_id"]
+                )
+
                 tag_obj.blender_obj.pass_index = props["tag_id"] + 1
                 tag_obj.set_location(obj_recipe["location"])
                 tag_obj.set_rotation_euler(obj_recipe["rotation_euler"])
                 tag_objects.append(tag_obj)
-                
+
             elif obj_recipe["type"] == "BOARD":
                 props = obj_recipe["properties"]
                 create_board(props["cols"], props["rows"], props["square_size"], props["mode"])
@@ -85,12 +91,13 @@ class RenderFacade:
 
     def render_camera(self, camera_recipe: dict[str, Any]) -> dict[str, Any]:
         """Configures a camera and renders the image."""
-        if not bproc: return {"colors": [], "segmentation": []}
-        
+        if not bproc:
+            return {"colors": [], "segmentation": []}
+
         pose_matrix = np.array(camera_recipe["transform_matrix"])
         bproc.camera.add_camera_pose(pose_matrix, frame=0)
         setup_sensor_dynamics(pose_matrix, camera_recipe.get("sensor_dynamics"))
-        
+
         if bpy:
             cam_data = bpy.context.scene.camera.data
             fstop = camera_recipe.get("fstop")
@@ -98,7 +105,8 @@ class RenderFacade:
                 cam_data.dof.use_dof = True
                 cam_data.dof.aperture_fstop = fstop
                 focus_dist = camera_recipe.get("focus_distance")
-                if focus_dist: cam_data.dof.focus_distance = focus_dist
+                if focus_dist:
+                    cam_data.dof.focus_distance = focus_dist
             else:
                 cam_data.dof.use_dof = False
 
