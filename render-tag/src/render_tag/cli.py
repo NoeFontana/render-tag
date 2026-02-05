@@ -761,6 +761,7 @@ def audit(
     """
     from .data_io.auditor import DatasetAuditor
     from .data_io.auditor_schema import QualityGateConfig
+    from .data_io.auditor_viz import DashboardGenerator
     from rich.table import Table
     import yaml
 
@@ -782,6 +783,16 @@ def audit(
         auditor = DatasetAuditor(path)
         result = auditor.run_audit(gate_config=gate_config)
         report = result.report
+
+        # Save JSON Report
+        report_path = path / "audit_report.json"
+        with open(report_path, "w") as f:
+            f.write(result.model_dump_json(indent=2))
+        console.print(f"[dim]Audit report saved to:[/dim] {report_path}")
+
+        # Generate Dashboard
+        viz_path = DashboardGenerator(path, result).generate()
+        console.print(f"[dim]Audit dashboard saved to:[/dim] {viz_path}")
 
         console.print(f"[bold]AUDIT REPORT: {path.name}[/bold]")
         console.print("────────────────────────────────────────")

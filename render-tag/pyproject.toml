@@ -14,6 +14,7 @@ dependencies = [
     "blenderproc>=2.8.0",
     "opencv-contrib-python>=4.10",
     "polars>=1.38.0",
+    "plotly>=6.5.2",
 ]
 
 [project.scripts]
