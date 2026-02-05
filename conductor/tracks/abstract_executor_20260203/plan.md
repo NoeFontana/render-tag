@@ -2,7 +2,7 @@
 
 This plan refactors the render execution logic into a pluggable interface to support local, containerized, and future cloud-based rendering.
 
-## Phase 1: Infrastructure Foundations
+## Phase 1: Infrastructure Foundations [checkpoint: 8343047]
 **Goal:** Define the interface and implement the core abstraction.
 
 - [x] Task: Define `RenderExecutor` Protocol 6e8d864
