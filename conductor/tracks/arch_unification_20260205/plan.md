@@ -25,14 +25,14 @@ Consolidating 'Cold' and 'Hot' execution into a single, ZMQ-driven "Worker" abst
     - [x] Update CLI to use the new unified orchestrator for all generation tasks.
 - [x] **Task: Conductor - User Manual Verification 'Unified Worker Orchestration' (Protocol in workflow.md)** (126490a)
 
-## Phase 3: Geometry & Renderer Facade
+## Phase 3: Geometry & Renderer Facade [checkpoint: 8919614]
 Decoupling the procedural logic from the underlying rendering engine.
 
 - [x] **Task: Pure-Python Geometry Layer** (71fdc1e)
     - [x] Move coordinate transformations and projection math to a library that accepts standard NumPy arrays/lists instead of Blender objects.
 - [x] **Task: Renderer Facade Implementation** (3abf18b)
     - [x] Refactor `render_loop.py` to use a high-level `Renderer` interface, hiding the specifics of `blenderproc` initialization and cleanup.
-- [ ] **Task: Conductor - User Manual Verification 'Geometry & Logic Decoupling' (Protocol in workflow.md)**
+- [x] **Task: Conductor - User Manual Verification 'Geometry & Logic Decoupling' (Protocol in workflow.md)** (8919614)
 
 ## Phase 4: Final Cleanup & Validation
 Removing redundant code and validating the simplified architecture.
