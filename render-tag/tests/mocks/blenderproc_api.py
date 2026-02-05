@@ -86,8 +86,17 @@ def init():
     pass
 
 
+def clean_up():
+    pass
+
+
+class MockWorldModule:
+    def set_world_background_hdr_img(self, filepath: str):
+        pass
+
 # Singleton instances
 object = MockObjectModule()  # noqa: A001
 loader = MockLoader()
 camera = MockCamera()
 renderer = MockRenderer()
+world = MockWorldModule()

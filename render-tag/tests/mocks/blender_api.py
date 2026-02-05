@@ -15,6 +15,7 @@ class MockObject:
     dimensions: list[float] = field(default_factory=lambda: [1.0, 1.0, 1.0])
     data: Any = None
     pass_index: int = 0
+    filepath: str = "" # Added for Image objects
 
     # Custom properties simulation
     _properties: dict[str, Any] = field(default_factory=dict)
@@ -90,6 +91,7 @@ class MockScene:
         self.camera = MockObject(name="Camera")
         self.render = MockRender()
         self.collection = MockCollection()
+        self.world = MockWorld()
 
 
 class MockRender:
@@ -114,7 +116,9 @@ class MockOps:
 
 class MockImages(MockCollection):
     def load(self, filepath: str):
-        return MockObject(name="LoadedImage")
+        img = MockObject(name="LoadedImage")
+        img.filepath = filepath
+        return img
 
 
 class MockCollections(MockCollection):
@@ -124,7 +128,9 @@ class MockCollections(MockCollection):
 
 
 class MockSocket(MockObject):
-    pass
+    def __init__(self, name="MockSocket"):
+        super().__init__(name=name)
+        self.default_value = [0.0, 0.0, 0.0, 1.0]
 
 
 class MockNode(MockObject):
@@ -169,12 +175,15 @@ class MockNodes(MockCollection):
             # Override for Output node
             default_inputs = ["Surface", "Volume", "Displacement"]
             default_outputs = []
-        elif type_name == "ShaderNodeTexImage":
+        elif type_name == "ShaderNodeTexImage" or type_name == "ShaderNodeTexEnvironment":
             default_inputs = ["Vector"]
             default_outputs = ["Color", "Alpha"]
         elif type_name == "ShaderNodeEmission":
             default_inputs = ["Color", "Strength"]
             default_outputs = ["Emission"]
+        elif type_name == "Background":
+             default_inputs = ["Color", "Strength"]
+             default_outputs = ["Background"]
 
         # Clear generic defaults from __init__ if any (MockNode creates some)
         node.inputs._objects.clear()
@@ -216,6 +225,17 @@ class MockMaterials(MockCollection):
         self._objects[name] = mat
         return mat
 
+class MockWorld(MockObject):
+    def __init__(self, name="MockWorld"):
+        super().__init__(name=name)
+        self.use_nodes = False
+        self.node_tree = MockNodeTree()
+
+class MockWorlds(MockCollection):
+    def new(self, name: str):
+        world = MockWorld(name=name)
+        self._objects[name] = world
+        return world
 
 class MockUVLayers(MockCollection):
     def new(self, name: str = "UVLayer", **kwargs: Any) -> Any:
@@ -237,6 +257,7 @@ class MockData:
         self.materials = MockMaterials()
         self.images = MockImages()
         self.meshes = MockCollection()
+        self.worlds = MockWorlds()
 
 
 # Singleton instances

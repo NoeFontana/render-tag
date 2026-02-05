@@ -16,6 +16,7 @@ dependencies = [
     "polars>=1.38.0",
     "plotly>=6.5.2",
     "pyzmq>=27.1.0",
+    "gputil>=1.4.0",
 ]
 
 [project.scripts]

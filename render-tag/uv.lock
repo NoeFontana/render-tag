@@ -365,6 +365,12 @@ wheels = [
 ]
 
 [[package]]
+name = "gputil"
+version = "1.4.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ed/0e/5c61eedde9f6c87713e89d794f01e378cfd9565847d4576fa627d758c554/GPUtil-1.4.0.tar.gz", hash = "sha256:099e52c65e512cdfa8c8763fca67f5a5c2afb63469602d5dcb4d296b3661efb9", size = 5545, upload-time = "2018-12-18T09:12:13.63Z" }
+
+[[package]]
 name = "h5py"
 version = "3.15.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1163,6 +1169,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "blenderproc" },
+    { name = "gputil" },
     { name = "opencv-contrib-python" },
     { name = "pillow" },
     { name = "plotly" },
@@ -1187,6 +1194,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "blenderproc", specifier = ">=2.8.0" },
+    { name = "gputil", specifier = ">=1.4.0" },
     { name = "opencv-contrib-python", specifier = ">=4.10" },
     { name = "pillow", specifier = ">=10.0" },
     { name = "plotly", specifier = ">=6.5.2" },
