@@ -28,7 +28,7 @@ Implementing the "Resilient Managed Pool" logic to launch, monitor, and recycle 
     - [x] Test graceful shutdown of the entire pool.
 - [x] **Task: Conductor - User Manual Verification 'Persistent Worker Lifecycle' (Protocol in workflow.md)** (3239e0e)
 
-## Phase 3: Hot Loop Rendering & State Management
+## Phase 3: Hot Loop Rendering & State Management [checkpoint: 27c1bc7]
 Integrating the persistent backend into the Blender/BlenderProc rendering logic.
 
 - [x] **Task: Implement Backend "Warm-up" Logic** (c8eb926)
@@ -40,7 +40,7 @@ Integrating the persistent backend into the Blender/BlenderProc rendering logic.
 - [x] **Task: Hot Loop Integration Test** (93b4a0b)
     - [x] End-to-end test: Generate 10 images using a single persistent worker.
     - [x] Verify 3-5s startup cost is only incurred once.
-- [ ] **Task: Conductor - User Manual Verification 'Hot Loop Rendering & State Management' (Protocol in workflow.md)**
+- [x] **Task: Conductor - User Manual Verification 'Hot Loop Rendering & State Management' (Protocol in workflow.md)** (27c1bc7)
 
 ## Phase 4: Observability & Optimization
 Adding telemetry and fine-tuning performance.
