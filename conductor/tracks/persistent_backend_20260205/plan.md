@@ -20,9 +20,9 @@ Implementing the "Resilient Managed Pool" logic to launch, monitor, and recycle 
 - [x] **Task: Implement `PersistentWorkerProcess` Manager** (521238d)
     - [x] Logic for spawning Blender subprocesses with ZMQ arguments.
     - [x] Implement heartbeat monitoring and timeout handling.
-- [ ] **Task: Implement `WorkerPool` Orchestrator**
-    - [ ] Dynamic scaling of worker processes.
-    - [ ] Logic for "Batch Stealing" or task distribution to persistent workers.
+- [x] **Task: Implement `WorkerPool` Orchestrator** (e83fa4f)
+    - [x] Dynamic scaling of worker processes.
+    - [x] Logic for "Batch Stealing" or task distribution to persistent workers.
 - [ ] **Task: Write Tests for Worker Resilience**
     - [ ] Test automatic restart after a simulated worker crash.
     - [ ] Test graceful shutdown of the entire pool.
