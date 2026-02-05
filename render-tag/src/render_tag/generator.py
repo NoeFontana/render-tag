@@ -43,6 +43,16 @@ class Generator:
         self.output_dir = output_dir
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
+        # Cache textures
+        self.textures = []
+        if self.config.scene.texture_dir and self.config.scene.texture_dir.exists():
+            valid_exts = {".png", ".jpg", ".jpeg", ".tif", ".tiff"}
+            self.textures = [
+                p
+                for p in self.config.scene.texture_dir.iterdir()
+                if p.suffix.lower() in valid_exts
+            ]
+
     def _seed_everything(self, seed: int):
         random.seed(seed)
         np.random.seed(seed)
@@ -123,19 +133,13 @@ class Generator:
         texture_scale = 1.0
         texture_rotation = 0.0
 
-        if scene_config.texture_dir and scene_config.texture_dir.exists():
-            # Filter for valid image extensions
-            valid_exts = {".png", ".jpg", ".jpeg", ".tif", ".tiff"}
-            textures = [
-                p for p in scene_config.texture_dir.iterdir() if p.suffix.lower() in valid_exts
-            ]
-            if textures:
-                texture_path = str(random.choice(textures))
-                texture_scale = random.uniform(
-                    scene_config.texture_scale_min, scene_config.texture_scale_max
-                )
-                if scene_config.random_texture_rotation:
-                    texture_rotation = random.uniform(0, 2 * np.pi)
+        if self.textures:
+            texture_path = str(random.choice(self.textures))
+            texture_scale = random.uniform(
+                scene_config.texture_scale_min, scene_config.texture_scale_max
+            )
+            if scene_config.random_texture_rotation:
+                texture_rotation = random.uniform(0, 2 * np.pi)
 
         return WorldRecipe(
             background_hdri=str(scene_config.background_hdri)

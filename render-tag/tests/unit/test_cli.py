@@ -8,7 +8,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from typer.testing import CliRunner
 
-from render_tag.cli import app, check_blenderproc_installed, serialize_config_to_json
+from render_tag.cli import app
+from render_tag.cli.tools import check_blenderproc_installed, serialize_config_to_json
 from render_tag.config import GenConfig
 
 runner = CliRunner()
@@ -76,7 +77,7 @@ class TestCLIInfoCommand:
 @pytest.fixture
 def mock_executor_factory():
     """Mocks the ExecutorFactory to return a mock executor."""
-    with patch("render_tag.cli.ExecutorFactory") as mock_factory:
+    with patch("render_tag.cli.generate.ExecutorFactory") as mock_factory:
         mock_executor = MagicMock()
         mock_factory.get_executor.return_value = mock_executor
         yield mock_factory, mock_executor
@@ -84,22 +85,22 @@ def mock_executor_factory():
 @pytest.fixture
 def mock_generator():
     """Mocks the Generator to return dummy recipes and pass validation."""
-    with patch("render_tag.cli.Generator") as mock_gen_cls:
+    with patch("render_tag.cli.generate.Generator") as mock_gen_cls:
         mock_gen = mock_gen_cls.return_value
         mock_gen.generate_shards.return_value = [{"scene_id": 0}]
         
-        with patch("render_tag.cli.validate_recipe_file", return_value=(True, [], [])):
+        with patch("render_tag.cli.generate.validate_recipe_file", return_value=(True, [], [])):
             yield mock_gen_cls, mock_gen
 
 @pytest.fixture
 def mock_hydrated_assets():
     """Mocks AssetValidator to report that assets are present."""
-    with patch("render_tag.cli.AssetValidator") as mock_val_cls:
+    with patch("render_tag.cli.generate.AssetValidator") as mock_val_cls:
         mock_val = mock_val_cls.return_value
         mock_val.is_hydrated.return_value = True
         yield mock_val
 
-@patch("render_tag.cli.check_blenderproc_installed", return_value=True)
+@patch("render_tag.cli.generate.check_blenderproc_installed", return_value=True)
 def test_generate_handoff_to_executor(
     mock_check,
     mock_executor_factory,
@@ -138,7 +139,7 @@ def test_generate_handoff_to_executor(
     assert call_args["output_dir"] == output_dir
     assert call_args["renderer_mode"] == "eevee"
 
-@patch("render_tag.cli.check_blenderproc_installed", return_value=True)
+@patch("render_tag.cli.generate.check_blenderproc_installed", return_value=True)
 def test_generate_scenes_override_logic(
     mock_check,
     mock_executor_factory,

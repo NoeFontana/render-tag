@@ -169,7 +169,15 @@ def apply_tag_texture(obj: Any, texture_path: Path, config: dict | None = None) 
         config: Material configuration dictionary
     """
     # Load the texture image
-    image = bpy.data.images.load(str(texture_path))
+    # Check if already loaded
+    img_name = texture_path.name
+    image = bpy.data.images.get(img_name)
+    if not image:
+        try:
+            image = bpy.data.images.load(str(texture_path))
+        except RuntimeError:
+            # Fallback if load fails
+            return
 
     # Reuse or create material
     mat_name = "TagMaterial_Pooled"

@@ -1,0 +1,45 @@
+"""
+Shared CLI utilities.
+"""
+
+import json
+import os
+import shutil
+from pathlib import Path
+
+from rich.console import Console
+
+from render_tag.config import GenConfig
+from render_tag.orchestration.assets import AssetManager
+
+console = Console()
+
+
+def get_asset_manager() -> AssetManager:
+    """Helper to initialize AssetManager with local directory."""
+    # Assets folder is at the root of the project by default
+    # but can be overridden by environment variable
+    # We assume this code is in src/render_tag/cli_pkg/tools.py
+    # So parents[3] gets to project root
+    default_dir = Path(__file__).resolve().parents[3] / "assets"
+    local_dir = Path(os.environ.get("RENDER_TAG_ASSETS_DIR", default_dir))
+    return AssetManager(local_dir=local_dir)
+
+
+def check_blenderproc_installed() -> bool:
+    """Check if blenderproc is available in the system."""
+    return shutil.which("blenderproc") is not None
+
+
+def serialize_config_to_json(config: GenConfig, output_path: Path) -> None:
+    """Serialize the validated config to JSON for the Blender subprocess.
+
+    Args:
+        config: Validated GenConfig instance
+        output_path: Path to write the JSON file
+    """
+    # Convert Pydantic model to dict, handling Path objects
+    config_dict = config.model_dump(mode="json")
+
+    with open(output_path, "w") as f:
+        json.dump(config_dict, f, indent=2, default=str)
