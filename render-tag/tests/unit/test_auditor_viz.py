@@ -1,8 +1,10 @@
+import json
+
 import pytest
-from pathlib import Path
+
 from render_tag.data_io.auditor import DatasetAuditor
 from render_tag.data_io.auditor_viz import DashboardGenerator
-import json
+
 
 @pytest.fixture
 def rich_dataset(tmp_path):

@@ -1,10 +1,10 @@
-import pytest
 import threading
 import time
-from pathlib import Path
-from render_tag.orchestration.zmq_client import ZmqHostClient
+
 from render_tag.backend.zmq_server import ZmqBackendServer
+from render_tag.orchestration.zmq_client import ZmqHostClient
 from render_tag.schema.hot_loop import CommandType, ResponseStatus
+
 
 def test_backend_warmup(tmp_path):
     port = 5585

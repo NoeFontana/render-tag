@@ -1,6 +1,7 @@
-import pytest
 import polars as pl
+
 from render_tag.data_io.auditor import EnvironmentalAuditor, IntegrityAuditor
+
 
 def test_environmental_auditor_stats():
     """Verify that EnvironmentalAuditor calculates lighting stats."""

@@ -1,6 +1,5 @@
-import pytest
-from unittest.mock import MagicMock
 import sys
+from unittest.mock import MagicMock
 
 # Mock modules before importing backend.camera
 # We must do this because backend.camera imports these

@@ -1,6 +1,14 @@
 import pytest
+
 from render_tag.data_io.auditor import AuditDiff
-from render_tag.data_io.auditor_schema import AuditReport, GeometricAudit, EnvironmentalAudit, IntegrityAudit, DistributionStats
+from render_tag.data_io.auditor_schema import (
+    AuditReport,
+    DistributionStats,
+    EnvironmentalAudit,
+    GeometricAudit,
+    IntegrityAudit,
+)
+
 
 @pytest.fixture
 def report_v1():

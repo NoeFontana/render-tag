@@ -1,10 +1,10 @@
-import pytest
 import threading
 import time
-from pathlib import Path
-from render_tag.orchestration.zmq_client import ZmqHostClient
+
 from render_tag.backend.zmq_server import ZmqBackendServer
+from render_tag.orchestration.zmq_client import ZmqHostClient
 from render_tag.schema.hot_loop import CommandType, ResponseStatus
+
 
 def test_hot_loop_render_command(tmp_path):
     port = 5590
@@ -63,8 +63,8 @@ def test_hot_loop_render_command(tmp_path):
             
             # Verify some output exists
             assert (output_dir / "images" / "scene_0042_cam_0000.png").exists()
-            assert (output_dir / "tags_hot_loop.csv").exists()
-            
+            assert (output_dir / "tags_shard_main.csv").exists()
+
             # 3. Test SHUTDOWN
             client.send_command(CommandType.SHUTDOWN)
             

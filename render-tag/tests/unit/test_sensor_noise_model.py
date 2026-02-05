@@ -2,7 +2,8 @@ import pytest
 from pydantic import ValidationError
 
 # We expect these imports to fail or the classes to not have these fields yet
-from render_tag.schema import SensorNoiseConfig, NoiseType
+from render_tag.schema import NoiseType, SensorNoiseConfig
+
 
 def test_sensor_noise_config_validation():
     """Test validation of SensorNoiseConfig."""
@@ -44,7 +45,9 @@ def test_invalid_noise_params():
         SensorNoiseConfig(model=NoiseType.SALT_AND_PEPPER, amount=1.5) # Amount > 1
 
 import numpy as np
+
 from render_tag.backend.sensors import apply_parametric_noise
+
 
 def test_apply_gaussian_noise():
     """Test application of Gaussian noise."""

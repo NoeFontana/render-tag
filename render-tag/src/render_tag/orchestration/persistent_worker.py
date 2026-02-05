@@ -2,15 +2,16 @@
 Manager for a single persistent Blender worker process.
 """
 
-import subprocess
 import logging
+import subprocess
 import time
-import zmq
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Any
+
+import zmq
 
 from render_tag.orchestration.zmq_client import ZmqHostClient
-from render_tag.schema.hot_loop import CommandType, ResponseStatus, Response
+from render_tag.schema.hot_loop import CommandType, Response, ResponseStatus
 
 logger = logging.getLogger(__name__)
 
@@ -28,8 +29,8 @@ class PersistentWorkerProcess:
         startup_timeout: int = 30,
         use_blenderproc: bool = True,
         mock: bool = False,
-        max_renders: Optional[int] = None,
-        context: Optional[zmq.Context] = None
+        max_renders: int | None = None,
+        context: zmq.Context | None = None
     ):
         self.worker_id = worker_id
         self.port = port
@@ -41,8 +42,8 @@ class PersistentWorkerProcess:
         self.max_renders = max_renders
         self.context = context
         
-        self.process: Optional[subprocess.Popen] = None
-        self.client: Optional[ZmqHostClient] = None
+        self.process: subprocess.Popen | None = None
+        self.client: ZmqHostClient | None = None
 
     def _get_process_output(self) -> str:
         """Helper to get process output safely if it has exited."""
@@ -62,7 +63,7 @@ class PersistentWorkerProcess:
             # just run the script directly.
             base_cmd = [self.blender_executable, str(self.blender_script)]
         
-        cmd = base_cmd + ["--port", str(self.port)]
+        cmd = [*base_cmd, "--port", str(self.port)]
         if self.mock:
             cmd.append("--mock")
         if self.max_renders:
@@ -140,7 +141,7 @@ class PersistentWorkerProcess:
         resp = self.client.send_command(CommandType.STATUS)
         return resp.status == ResponseStatus.SUCCESS
 
-    def send_command(self, command_type: CommandType, payload: Optional[Dict[str, Any]] = None) -> Response:
+    def send_command(self, command_type: CommandType, payload: dict[str, Any] | None = None) -> Response:
         """Sends a command to the worker."""
         if not self.is_healthy():
             raise RuntimeError(f"Worker {self.worker_id} is not healthy or not running.")

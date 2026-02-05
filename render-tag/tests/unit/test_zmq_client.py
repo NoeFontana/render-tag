@@ -1,10 +1,12 @@
-import pytest
-import zmq
-import threading
 import json
+import threading
 import time
+
+import zmq
+
 from render_tag.orchestration.zmq_client import ZmqHostClient
-from render_tag.schema.hot_loop import CommandType, ResponseStatus, Response
+from render_tag.schema.hot_loop import CommandType, Response, ResponseStatus
+
 
 def mock_zmq_server(port, response_delay=0):
     context = zmq.Context()

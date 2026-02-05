@@ -1,9 +1,11 @@
-import pytest
-import time
 import sys
 from pathlib import Path
+
+import pytest
+
 from render_tag.orchestration.persistent_worker import PersistentWorkerProcess
 from render_tag.schema.hot_loop import CommandType, ResponseStatus
+
 
 def test_persistent_worker_lifecycle(tmp_path):
     # Create a dummy python script that acts as our "blender" backend

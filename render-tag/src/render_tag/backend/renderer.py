@@ -5,19 +5,18 @@ Provides a simplified interface for scene construction and image generation,
 abstracting away the details of BlenderProc and Blender internals.
 """
 
-from pathlib import Path
-from typing import Any, Dict, List, Optional
 import logging
+from pathlib import Path
+from typing import Any
 
+from render_tag.backend.assets import create_tag_plane, get_tag_texture_path, global_pool
 from render_tag.backend.bridge import bproc, bpy, np
-from render_tag.backend.assets import global_pool, create_tag_plane, get_tag_texture_path
+from render_tag.backend.camera import setup_sensor_dynamics
 from render_tag.backend.scene import (
+    create_board,
     setup_background,
     setup_lighting,
-    create_board,
-    randomize_floor_material
 )
-from render_tag.backend.camera import setup_sensor_dynamics
 from render_tag.backend.sensors import apply_parametric_noise
 
 logger = logging.getLogger(__name__)
@@ -49,7 +48,7 @@ class RenderFacade:
         if bproc:
             bproc.utility.reset_keyframes()
 
-    def setup_world(self, world_recipe: Dict[str, Any]):
+    def setup_world(self, world_recipe: dict[str, Any]):
         """Sets up HDRI, lighting, and floor."""
         if not bproc: return
         
@@ -65,7 +64,7 @@ class RenderFacade:
             radius_max=lighting.get("radius", 0.0)
         )
 
-    def spawn_objects(self, object_recipes: List[Dict[str, Any]]):
+    def spawn_objects(self, object_recipes: list[dict[str, Any]]):
         """Creates tags and boards in the scene."""
         tag_objects = []
         for obj_recipe in object_recipes:
@@ -84,7 +83,7 @@ class RenderFacade:
                 create_board(props["cols"], props["rows"], props["square_size"], props["mode"])
         return tag_objects
 
-    def render_camera(self, camera_recipe: Dict[str, Any]) -> Dict[str, Any]:
+    def render_camera(self, camera_recipe: dict[str, Any]) -> dict[str, Any]:
         """Configures a camera and renders the image."""
         if not bproc: return {"colors": [], "segmentation": []}
         

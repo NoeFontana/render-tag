@@ -3,7 +3,6 @@ Minimal one-shot executor for render-tag.
 Acts as a wrapper around render_loop for non-ZMQ contexts (e.g. Docker).
 """
 
-import sys
 import argparse
 import json
 import logging

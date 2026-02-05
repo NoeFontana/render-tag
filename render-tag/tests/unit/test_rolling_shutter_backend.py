@@ -1,6 +1,5 @@
-import pytest
 from unittest.mock import MagicMock, patch
-from pathlib import Path
+
 import numpy as np
 
 # We mock bpy and bproc since they are not available in the host environment

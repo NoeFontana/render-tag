@@ -1,7 +1,7 @@
-import pytest
 import polars as pl
-from pathlib import Path
+
 from render_tag.data_io.auditor import OutlierExporter
+
 
 def test_outlier_exporter_identifies_and_links(tmp_path):
     """Verify that OutlierExporter identifies outliers and creates symlinks."""

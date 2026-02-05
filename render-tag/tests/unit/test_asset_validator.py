@@ -1,6 +1,5 @@
-import pytest
-from pathlib import Path
 from render_tag.tools.validator import AssetValidator
+
 
 def test_asset_validator_not_hydrated(tmp_path):
     """Verify that validator detects empty or missing assets folder."""

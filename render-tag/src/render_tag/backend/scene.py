@@ -6,8 +6,8 @@ This module handles background setup, lighting, floor creation, and physics.
 
 from __future__ import annotations
 
-import random
 import math
+import random
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 

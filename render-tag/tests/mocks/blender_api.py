@@ -16,6 +16,10 @@ class MockObject:
     data: Any = None
     pass_index: int = 0
     filepath: str = "" # Added for Image objects
+    
+    # Node attributes for shader node simulation
+    to_node: Any = None
+    to_socket: Any = None
 
     # Custom properties simulation
     _properties: dict[str, Any] = field(default_factory=dict)
@@ -227,6 +231,8 @@ class MockNodes(MockCollection):
 class MockLinks(MockCollection):
     def new(self, input_socket: Any, output_socket: Any) -> Any:
         link = MockObject(name="Link")
+        link.to_node = getattr(input_socket, "node", None)
+        link.to_socket = input_socket
         self._objects["Link"] = link
         return link
 

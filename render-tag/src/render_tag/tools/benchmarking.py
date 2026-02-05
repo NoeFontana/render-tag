@@ -5,11 +5,10 @@ Provides a context manager and logging helpers to track execution time
 and resource usage across different stages of the generation pipeline.
 """
 
-import time
 import logging
-from dataclasses import dataclass, field
+import time
 from contextlib import contextmanager
-from typing import Dict, List
+from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +23,7 @@ class StageMetrics:
 class PerformanceReport:
     """Aggregated performance report for a generation session."""
     session_name: str
-    stages: Dict[str, StageMetrics] = field(default_factory=dict)
+    stages: dict[str, StageMetrics] = field(default_factory=dict)
     
     def add_stage(self, name: str, duration: float):
         self.stages[name] = StageMetrics(name=name, duration_sec=duration)

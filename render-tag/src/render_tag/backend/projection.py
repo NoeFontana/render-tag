@@ -6,20 +6,22 @@ Now uses pure-Python geometry math for core calculations.
 """
 
 from __future__ import annotations
-from typing import TYPE_CHECKING, Any
+
+from typing import Any
 
 from render_tag.backend.bridge import bproc, bpy, np
 from render_tag.geometry.projection_math import (
-    calculate_distance,
     calculate_angle_of_incidence,
+    calculate_distance,
     get_opencv_camera_matrix,
-    get_world_normal
+    get_world_normal,
 )
 from render_tag.geometry.visibility import (
     is_facing_camera,
     project_points,
     validate_visibility_metrics,
 )
+
 
 def project_corners_to_image(
     tag_obj: Any,

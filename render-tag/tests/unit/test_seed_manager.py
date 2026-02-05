@@ -1,5 +1,5 @@
-import pytest
 from render_tag.common.math import SeedManager
+
 
 def test_seed_manager_init():
     sm = SeedManager(42)

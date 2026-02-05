@@ -20,10 +20,10 @@ from rich.panel import Panel
 from .config import GenConfig, load_config
 from .data_io.visualization import visualize_dataset, visualize_recipe
 from .generator import Generator
-from .orchestration.executors import ExecutorFactory
-from .orchestration.sharding import resolve_shard_index, run_local_parallel, get_completed_scene_ids
-from .tools.validator import validate_recipe_file, AssetValidator
 from .orchestration.assets import AssetManager
+from .orchestration.executors import ExecutorFactory
+from .orchestration.sharding import get_completed_scene_ids, resolve_shard_index, run_local_parallel
+from .tools.validator import AssetValidator, validate_recipe_file
 
 app = typer.Typer(
     name="render-tag",
@@ -260,7 +260,7 @@ def generate(
     except ValidationError as e:
         console.print("[bold red]Validation Error:[/bold red]")
         for err in e.errors():
-            loc = ".".join(str(l) for l in err["loc"])
+            loc = ".".join(str(loc_part) for loc_part in err["loc"])
             msg = err["msg"]
             console.print(f"  [cyan]{loc}[/cyan]: {msg}")
         raise typer.Exit(code=1) from None
@@ -384,7 +384,7 @@ def generate(
                 console.print(f"  [dim]Checked asset:[/dim] {asset_path.name}")
 
     # Build the blenderproc command
-    script_path = Path(__file__).parent / "backend" / "executor.py"
+    Path(__file__).parent / "backend" / "executor.py"
 
     if skip_render:
         console.print("[yellow]--skip-render provided. Skipping Blender launch.[/yellow]")
@@ -437,14 +437,17 @@ def generate(
 
     # Merge Results
     if total_shards == 1:
-        # In single shard mode, executor might have output tags_shard_0.csv
-        # We handle this in the executor or here?
-        # Actually executor.py in single-shard mode outputs tags_shard_0.csv
-        # CLI expects tags.csv.
-        shard_csv = output / "tags_shard_0.csv"
-        if shard_csv.exists() and not (output / "tags.csv").exists():
-            shard_csv.rename(output / "tags.csv")
-            console.print("[dim]Renamed tags_shard_0.csv -> tags.csv[/dim]")
+        # 1. Handle CSV (Find any shard CSV and rename it to tags.csv)
+        shard_csvs = list(output.glob("tags_shard_*.csv"))
+        if shard_csvs and not (output / "tags.csv").exists():
+            shard_csvs[0].rename(output / "tags.csv")
+            console.print(f"[dim]Renamed {shard_csvs[0].name} -> tags.csv[/dim]")
+            
+        # 2. Handle COCO (annotations.json)
+        shard_cocos = list(output.glob("coco_shard_*.json"))
+        if shard_cocos and not (output / "annotations.json").exists():
+            shard_cocos[0].rename(output / "annotations.json")
+            console.print(f"[dim]Renamed {shard_cocos[0].name} -> annotations.json[/dim]")
 
     console.print("[bold green]✓ Generation session complete[/bold green]")
 
@@ -761,11 +764,12 @@ def audit_run(
     """
     Audit a generated dataset for quality and integrity.
     """
+    import yaml
+    from rich.table import Table
+
     from .data_io.auditor import DatasetAuditor
     from .data_io.auditor_schema import QualityGateConfig
     from .data_io.auditor_viz import DashboardGenerator
-    from rich.table import Table
-    import yaml
 
     console.print(
         Panel.fit(
@@ -874,9 +878,10 @@ def audit_diff(
     """
     Compare two datasets and detect statistical drift.
     """
-    from .data_io.auditor import DatasetAuditor, AuditDiff
-    from .data_io.auditor_schema import AuditResult
     from rich.table import Table
+
+    from .data_io.auditor import AuditDiff, DatasetAuditor
+    from .data_io.auditor_schema import AuditResult
 
     console.print(
         Panel.fit(

@@ -1,7 +1,6 @@
-import pytest
-from pathlib import Path
+from render_tag.schema import ObjectRecipe, SceneRecipe, WorldRecipe
 from render_tag.tools.validator import RecipeValidator
-from render_tag.schema import SceneRecipe, ObjectRecipe, WorldRecipe, LightingConfig
+
 
 def test_validator_detects_missing_hdri():
     """Verify validator catches missing HDRI background."""

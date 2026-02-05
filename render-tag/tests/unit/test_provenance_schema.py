@@ -1,5 +1,5 @@
-import pytest
 from render_tag.schema import SceneProvenance
+
 
 def test_provenance_schema_validation():
     prov = SceneProvenance(

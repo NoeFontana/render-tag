@@ -2,25 +2,22 @@
 Benchmark script comparing Cold startup vs Hot Loop throughput using Unified Orchestrator.
 """
 
+import logging
 import sys
 import time
-import json
-import logging
 from pathlib import Path
 
 # Add src to path
 sys.path.append(str(Path(__file__).resolve().parents[1] / "src"))
 
-from render_tag.orchestration.executors import LocalExecutor
 from render_tag.orchestration.unified_orchestrator import UnifiedWorkerOrchestrator
-from render_tag.schema.hot_loop import CommandType
 
 logging.basicConfig(level=logging.ERROR)
 
 def run_benchmark():
     project_root = Path(__file__).resolve().parents[1]
     src_path = project_root / "src"
-    backend_script = src_path / "render_tag" / "backend" / "zmq_server.py"
+    src_path / "render_tag" / "backend" / "zmq_server.py"
     output_dir = project_root / "output" / "benchmark_unified"
     output_dir.mkdir(parents=True, exist_ok=True)
     
@@ -39,11 +36,11 @@ def run_benchmark():
     # 1. Cold (Ephemeral) mode
     print("\n[COLD/EPHEMERAL] Starting...")
     start_cold = time.time()
-    for i in range(count):
+    for _i in range(count):
         # Ephemeral mode: 1 pool per render (simulates legacy behavior but unified)
         with UnifiedWorkerOrchestrator(
             num_workers=1,
-            base_port=7300 + i,
+            base_port=7300 + _i,
             use_blenderproc=False,
             mock=True,
             ephemeral=True,
@@ -63,7 +60,7 @@ def run_benchmark():
         ephemeral=False
     ) as orch:
         loop_start = time.time()
-        for i in range(count):
+        for _i in range(count):
             orch.execute_recipe(recipe, output_dir)
         loop_end = time.time()
     

@@ -1,8 +1,9 @@
-import pytest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
-from render_tag.orchestration.sharding import run_local_parallel
+
 from render_tag.config import GenConfig
+from render_tag.orchestration.sharding import run_local_parallel
+
 
 def test_run_local_parallel_flow(tmp_path):
     """

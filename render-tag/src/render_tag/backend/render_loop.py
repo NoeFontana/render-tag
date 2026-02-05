@@ -4,14 +4,15 @@ Core rendering loop logic, refactored to use RenderFacade and pure geometry math
 
 import logging
 import random
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict
-from datetime import datetime, timezone
+from typing import Any
 
 from PIL import Image
+
 from render_tag.backend.bridge import bpy, np
-from render_tag.backend.renderer import RenderFacade
 from render_tag.backend.projection import compute_geometric_metadata
+from render_tag.backend.renderer import RenderFacade
 from render_tag.common.git import get_git_hash
 from render_tag.data_io.types import DetectionRecord
 from render_tag.data_io.writers import (
@@ -62,7 +63,7 @@ def execute_recipe(
     
     provenance = {
         "git_hash": get_git_hash(),
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "recipe_snapshot": recipe,
     }
 
@@ -87,7 +88,6 @@ def execute_recipe(
 
         # 5. Metadata Projection & Export
         # (We use the project_corners_to_image which now uses pure math)
-        from render_tag.backend.projection import project_corners_to_image
         
         if skip_visibility:
             valid_detections = [(obj, [[0,0],[res[0],0],[res[0],res[1]],[0,res[1]]]) for obj in tag_objects]

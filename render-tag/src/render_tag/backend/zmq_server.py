@@ -2,26 +2,32 @@
 ZeroMQ Server running inside Blender for Hot Loop optimization.
 """
 
-import os
+import logging
 import sys
 import time
-import json
-import logging
-import zmq
-import GPUtil
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Any
 
-from render_tag.backend.bridge import bproc, bpy, np, bridge
-from render_tag.schema.hot_loop import Command, Response, ResponseStatus, CommandType, Telemetry, calculate_state_hash
-from render_tag.backend.scene import setup_background
-from render_tag.backend.render_loop import execute_recipe
+import GPUtil
+import zmq
+
 from render_tag.backend.assets import global_pool
+from render_tag.backend.bridge import bridge
+from render_tag.backend.render_loop import execute_recipe
+from render_tag.backend.scene import setup_background
 from render_tag.data_io.writers import (
     COCOWriter,
     CSVWriter,
     RichTruthWriter,
     SidecarWriter,
+)
+from render_tag.schema.hot_loop import (
+    Command,
+    CommandType,
+    Response,
+    ResponseStatus,
+    Telemetry,
+    calculate_state_hash,
 )
 
 logger = logging.getLogger(__name__)
@@ -45,8 +51,8 @@ class ZmqBackendServer:
             bridge.inject_mocks(bproc_mock, bpy_mock)
 
         # Persistent writers to avoid file handle overhead
-        self.current_output_dir: Optional[Path] = None
-        self.writers: Dict[str, Any] = {}
+        self.current_output_dir: Path | None = None
+        self.writers: dict[str, Any] = {}
         
         if bridge.bproc and bridge.bpy:
             try:
@@ -76,7 +82,7 @@ class ZmqBackendServer:
             uptime_seconds=time.time() - self.start_time
         )
 
-    def _setup_writers(self, output_dir: Path):
+    def _setup_writers(self, output_dir: Path, shard_id: str = "main"):
         """Initializes or updates persistent writers for an output directory."""
         if self.current_output_dir == output_dir:
             return
@@ -85,7 +91,7 @@ class ZmqBackendServer:
         output_dir.mkdir(parents=True, exist_ok=True)
         
         self.writers = {
-            "csv": CSVWriter(output_dir / "tags_hot_loop.csv"),
+            "csv": CSVWriter(output_dir / f"tags_shard_{shard_id}.csv"),
             "coco": COCOWriter(output_dir),
             "rich": RichTruthWriter(output_dir / "rich_truth.json"),
             "sidecar": SidecarWriter(output_dir)
@@ -145,6 +151,7 @@ class ZmqBackendServer:
                 recipe = payload.get("recipe")
                 output_dir = payload.get("output_dir")
                 renderer_mode = payload.get("renderer_mode", "cycles")
+                shard_id = payload.get("shard_id", "main")
                 skip_visibility = payload.get("skip_visibility", False)
                 
                 if not recipe or not output_dir:
@@ -154,7 +161,7 @@ class ZmqBackendServer:
                         message="Missing recipe or output_dir in RENDER payload"
                     )
 
-                self._setup_writers(Path(output_dir))
+                self._setup_writers(Path(output_dir), shard_id=shard_id)
                 
                 # Execute the recipe using our reusable loop
                 execute_recipe(
@@ -199,7 +206,7 @@ class ZmqBackendServer:
             message=f"Command {cmd.command_type} not implemented"
         )
 
-    def run(self, max_renders: Optional[int] = None):
+    def run(self, max_renders: int | None = None):
         """
         Main server loop.
         
@@ -255,8 +262,8 @@ if __name__ == "__main__":
         project_root = str(Path(__file__).resolve().parents[3])
         if project_root not in sys.path:
             sys.path.append(project_root)
-        from tests.mocks import blenderproc_api as bproc_m
         from tests.mocks import blender_api as bpy_m
+        from tests.mocks import blenderproc_api as bproc_m
 
     logging.basicConfig(level=logging.INFO)
     server = ZmqBackendServer(port=args.port, bproc_mock=bproc_m, bpy_mock=bpy_m)

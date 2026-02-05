@@ -3,10 +3,11 @@ Telemetry auditing and analysis tool using Polars.
 """
 
 import logging
-import polars as pl
-from pathlib import Path
 from datetime import datetime
-from typing import List, Dict, Any
+from pathlib import Path
+from typing import Any
+
+import polars as pl
 
 from render_tag.schema.hot_loop import Telemetry
 
@@ -18,7 +19,7 @@ class TelemetryAuditor:
     """
 
     def __init__(self):
-        self.records: List[Dict[str, Any]] = []
+        self.records: list[dict[str, Any]] = []
 
     def add_entry(self, worker_id: str, telemetry: Telemetry, event_type: str = "heartbeat"):
         """Adds a telemetry record."""
@@ -48,7 +49,7 @@ class TelemetryAuditor:
             df.write_csv(output_path)
             logger.info(f"Telemetry saved to {output_path}")
 
-    def analyze_throughput(self) -> Dict[str, Any]:
+    def analyze_throughput(self) -> dict[str, Any]:
         """Calculates throughput statistics."""
         df = self.get_dataframe()
         if df.is_empty():

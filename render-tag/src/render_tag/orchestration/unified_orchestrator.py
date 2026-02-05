@@ -2,14 +2,14 @@
 Unified orchestration logic for managing both ephemeral and persistent Blender workers.
 """
 
-import sys
 import logging
 import queue
+import sys
 import threading
-import time
-import zmq
 from pathlib import Path
-from typing import List, Dict, Optional, Any
+from typing import Any
+
+import zmq
 
 from render_tag.orchestration.persistent_worker import PersistentWorkerProcess
 from render_tag.schema.hot_loop import CommandType, Response, ResponseStatus
@@ -22,18 +22,20 @@ class UnifiedWorkerOrchestrator:
     Manages a pool of workers that can be either persistent or ephemeral.
     Standardizes the rendering execution across all 프로젝트 flows.
     """
+    
+    _instances: list['UnifiedWorkerOrchestrator'] = []
 
     def __init__(
         self,
         num_workers: int,
         base_port: int,
-        blender_script: Optional[Path] = None,
-        blender_executable: Optional[str] = None,
+        blender_script: Path | None = None,
+        blender_executable: str | None = None,
         use_blenderproc: bool = True,
         mock: bool = False,
-        vram_threshold_mb: Optional[float] = None,
+        vram_threshold_mb: float | None = None,
         ephemeral: bool = False,
-        max_renders_per_worker: Optional[int] = None
+        max_renders_per_worker: int | None = None
     ):
         self.num_workers = num_workers
         self.base_port = base_port
@@ -61,11 +63,20 @@ class UnifiedWorkerOrchestrator:
         self.max_renders_per_worker = max_renders_per_worker
         
         self.context = zmq.Context()
-        self.workers: List[PersistentWorkerProcess] = []
+        self.workers: list[PersistentWorkerProcess] = []
         self.worker_queue = queue.Queue()
         self.auditor = TelemetryAuditor()
         self._lock = threading.Lock()
         self.running = False
+        
+        UnifiedWorkerOrchestrator._instances.append(self)
+
+    @classmethod
+    def cleanup_all(cls):
+        """Global cleanup for all active orchestrators."""
+        for instance in list(cls._instances):
+            instance.stop()
+        cls._instances.clear()
 
     def start(self):
         """Starts the worker pool."""
@@ -110,7 +121,7 @@ class UnifiedWorkerOrchestrator:
             # self.context.term() # Removed to avoid hangs
             self.running = False
 
-    def get_worker(self, timeout: Optional[float] = None) -> PersistentWorkerProcess:
+    def get_worker(self, timeout: float | None = None) -> PersistentWorkerProcess:
         """Acquires a worker."""
         return self.worker_queue.get(timeout=timeout)
 
@@ -163,7 +174,13 @@ class UnifiedWorkerOrchestrator:
         
         self.worker_queue.put(worker)
 
-    def execute_recipe(self, recipe: Dict[str, Any], output_dir: Path, renderer_mode: str = "cycles") -> Response:
+    def execute_recipe(
+        self, 
+        recipe: dict[str, Any], 
+        output_dir: Path, 
+        renderer_mode: str = "cycles",
+        shard_id: str = "main"
+    ) -> Response:
         """Helper to execute a single recipe using an available worker."""
         worker = self.get_worker()
         try:
@@ -173,6 +190,7 @@ class UnifiedWorkerOrchestrator:
                     "recipe": recipe,
                     "output_dir": str(output_dir),
                     "renderer_mode": renderer_mode,
+                    "shard_id": shard_id,
                     "skip_visibility": self.mock # Auto-skip visibility in mock mode
                 }
             )

@@ -1,5 +1,5 @@
-import pytest
-from render_tag.backend.bridge import bridge, bpy, bproc, np
+from render_tag.backend.bridge import bproc, bpy, bridge, np
+
 
 def test_bridge_singleton():
     from render_tag.backend.bridge import BlenderBridge

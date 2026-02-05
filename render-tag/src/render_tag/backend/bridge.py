@@ -5,9 +5,8 @@ This module acts as a Service Locator/Bridge that automatically serves
 either the real Blender APIs or high-fidelity mocks based on the environment.
 """
 
-import os
-import sys
 import logging
+import sys
 from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
@@ -20,7 +19,7 @@ class BlenderBridge:
     
     def __new__(cls):
         if cls._instance is None:
-            cls._instance = super(BlenderBridge, cls).__new__(cls)
+            cls._instance = super().__new__(cls)
             cls._instance._initialized = False
         return cls._instance
 

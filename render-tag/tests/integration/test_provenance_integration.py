@@ -1,7 +1,8 @@
-import subprocess
-import pytest
 import json
-from pathlib import Path
+import subprocess
+
+import pytest
+
 
 @pytest.mark.integration
 def test_provenance_sidecar_generated(tmp_path):

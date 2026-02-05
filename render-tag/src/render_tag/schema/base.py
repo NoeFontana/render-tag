@@ -6,8 +6,8 @@ This ensures that the "Generator" (Python logic) produces valid, typed data
 that the "Executor" (Blender) or "Shadow Renderer" (Visualization) can consume safely.
 """
 
-from typing import Any
 from enum import Enum
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 

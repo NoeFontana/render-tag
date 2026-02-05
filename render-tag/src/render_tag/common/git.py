@@ -1,5 +1,6 @@
 import subprocess
 
+
 def get_git_hash() -> str:
     """Get the current git commit hash.
     

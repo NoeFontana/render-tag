@@ -1,5 +1,12 @@
-import pytest
-from render_tag.schema.hot_loop import Command, CommandType, Response, ResponseStatus, Telemetry, calculate_state_hash
+from render_tag.schema.hot_loop import (
+    Command,
+    CommandType,
+    Response,
+    ResponseStatus,
+    Telemetry,
+    calculate_state_hash,
+)
+
 
 def test_command_schema():
     cmd = Command(

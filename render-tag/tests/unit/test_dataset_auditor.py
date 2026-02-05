@@ -1,8 +1,10 @@
-import pytest
 import json
-import polars as pl
 from pathlib import Path
+
+import pytest
+
 from render_tag.data_io.auditor import DatasetAuditor
+
 
 @pytest.fixture
 def rich_dataset(tmp_path):
@@ -35,17 +37,23 @@ def rich_dataset(tmp_path):
 def test_dataset_auditor_full_run(rich_dataset):
     """Test the full audit orchestration."""
     auditor = DatasetAuditor(rich_dataset)
-    report = auditor.run_audit()
+    result = auditor.run_audit()
     
-    assert report.dataset_name == "rich_dataset"
-    assert report.geometric.tag_count == 2
-    assert report.geometric.distance.max == 5.0
-    assert report.environmental.lighting_intensity.mean == 90.0
-    assert report.score > 0
+    assert result.report.dataset_name == "rich_dataset"
+    assert result.report.geometric.tag_count == 2
+    assert result.report.geometric.distance.max == 5.0
+    assert result.report.environmental.lighting_intensity.mean == 90.0
+    assert result.report.score > 0
     
 def test_calculate_score_penalties():
     """Test the heuristic scoring logic."""
-    from render_tag.data_io.auditor import GeometricAudit, EnvironmentalAudit, IntegrityAudit, DistributionStats, DatasetAuditor
+    from render_tag.data_io.auditor import (
+        DatasetAuditor,
+        DistributionStats,
+        EnvironmentalAudit,
+        GeometricAudit,
+        IntegrityAudit,
+    )
     
     auditor = DatasetAuditor(Path("."))
     

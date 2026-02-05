@@ -5,10 +5,8 @@ Handles bidirectional sync between local file system and Hugging Face Hub.
 Enforces strict directory structure for binary assets.
 """
 
-import os
-from pathlib import Path
-from typing import Optional
 import logging
+from pathlib import Path
 
 try:
     from huggingface_hub import snapshot_download, upload_folder
@@ -35,7 +33,7 @@ class AssetManager:
         for sub in self.REQUIRED_SUBDIRS:
             (self.local_dir / sub).mkdir(exist_ok=True)
             
-    def pull(self, token: Optional[str] = None):
+    def pull(self, token: str | None = None):
         """Download the latest assets from the remote repository.
         
         Args:

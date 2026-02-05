@@ -4,7 +4,9 @@ No Blender dependencies.
 """
 
 from __future__ import annotations
+
 import numpy as np
+
 
 def calculate_distance(point1: np.ndarray, point2: np.ndarray) -> float:
     """Calculates Euclidean distance between two 3D points."""
@@ -24,11 +26,17 @@ def calculate_angle_of_incidence(
         camera_location: 3D position of the camera.
     """
     # Normalize normal
-    normal = target_normal / np.linalg.norm(target_normal)
+    norm = np.linalg.norm(target_normal)
+    if norm < 1e-10:
+        return 0.0
+    normal = target_normal / norm
     
     # Vector from target to camera
     to_cam = camera_location - target_location
-    to_cam /= np.linalg.norm(to_cam)
+    to_cam_norm = np.linalg.norm(to_cam)
+    if to_cam_norm < 1e-10:
+        return 0.0
+    to_cam /= to_cam_norm
     
     # Cosine of angle is dot product
     cos_theta = np.clip(np.dot(normal, to_cam), -1.0, 1.0)
@@ -58,4 +66,7 @@ def get_world_normal(world_matrix: np.ndarray, local_normal: np.ndarray = None) 
         local_normal = np.array([0, 0, 1, 0]) # Default Z-up
         
     world_normal = (world_matrix @ local_normal)[:3]
-    return world_normal / np.linalg.norm(world_normal)
+    norm = np.linalg.norm(world_normal)
+    if norm < 1e-10:
+        return np.array([0.0, 0.0, 1.0])
+    return world_normal / norm

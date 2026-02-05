@@ -85,10 +85,15 @@ physics:
         )
 
         # 1. Check command succeeded
+        if result.returncode != 0:
+            print(result.stdout)
         assert result.returncode == 0, f"Generation failed: {result.stderr}"
-
+    
         # 2. Check output structure
+        print(result.stdout)
         assert output_dir.exists()
+
+        
         assert (output_dir / "images").exists()
         assert (output_dir / "tags.csv").exists()
         assert (output_dir / "annotations.json").exists()

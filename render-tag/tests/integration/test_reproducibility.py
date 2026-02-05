@@ -1,9 +1,10 @@
-import subprocess
-import pytest
 import filecmp
 import json
+import subprocess
+
+import pytest
 import yaml
-from pathlib import Path
+
 
 @pytest.mark.integration
 def test_reproducibility_benchmark(tmp_path):

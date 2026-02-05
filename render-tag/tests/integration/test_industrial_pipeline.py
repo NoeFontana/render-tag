@@ -1,7 +1,8 @@
 import subprocess
+
 import pytest
 import yaml
-from pathlib import Path
+
 
 @pytest.fixture
 def industrial_config(tmp_path):

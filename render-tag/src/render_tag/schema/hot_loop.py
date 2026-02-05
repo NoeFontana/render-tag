@@ -5,7 +5,8 @@ ZeroMQ Protocol Schemas for Hot Loop Optimization.
 import hashlib
 import json
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -21,7 +22,7 @@ class CommandType(str, Enum):
 class Command(BaseModel):
     """A command sent from Host to Backend."""
     command_type: CommandType
-    payload: Optional[Dict[str, Any]] = None
+    payload: dict[str, Any] | None = None
     request_id: str = Field(description="Unique ID for tracking the request/response pair")
 
 
@@ -35,8 +36,8 @@ class Response(BaseModel):
     """A response sent from Backend to Host."""
     status: ResponseStatus
     request_id: str
-    message: Optional[str] = None
-    data: Optional[Dict[str, Any]] = None
+    message: str | None = None
+    data: dict[str, Any] | None = None
 
 
 class Telemetry(BaseModel):
@@ -48,7 +49,7 @@ class Telemetry(BaseModel):
     uptime_seconds: float
 
 
-def calculate_state_hash(assets: List[str], parameters: Dict[str, Any]) -> str:
+def calculate_state_hash(assets: list[str], parameters: dict[str, Any]) -> str:
     """
     Calculates a deterministic hash representing the current resident state of the backend.
     

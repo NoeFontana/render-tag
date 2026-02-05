@@ -1,8 +1,8 @@
-import pytest
 from unittest.mock import patch
+
 from typer.testing import CliRunner
+
 from render_tag.cli import app
-from pathlib import Path
 
 runner = CliRunner()
 

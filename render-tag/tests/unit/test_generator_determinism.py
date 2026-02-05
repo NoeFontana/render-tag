@@ -1,6 +1,7 @@
-from render_tag.generator import Generator
+
 from render_tag.config import GenConfig
-from pathlib import Path
+from render_tag.generator import Generator
+
 
 def test_generator_determinism(tmp_path):
     config = GenConfig()

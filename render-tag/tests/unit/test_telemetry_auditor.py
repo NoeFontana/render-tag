@@ -1,7 +1,6 @@
-import pytest
-from pathlib import Path
-from render_tag.tools.telemetry_auditor import TelemetryAuditor
 from render_tag.schema.hot_loop import Telemetry
+from render_tag.tools.telemetry_auditor import TelemetryAuditor
+
 
 def test_telemetry_auditor_collection():
     auditor = TelemetryAuditor()

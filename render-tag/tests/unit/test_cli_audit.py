@@ -1,9 +1,9 @@
+import csv
+
 import pytest
 from typer.testing import CliRunner
+
 from render_tag.cli import app
-from pathlib import Path
-import csv
-import json
 
 runner = CliRunner()
 

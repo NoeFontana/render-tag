@@ -1,6 +1,5 @@
-import pytest
-from unittest.mock import MagicMock
 import sys
+from unittest.mock import MagicMock
 
 # Mock Blender
 sys.modules["bpy"] = MagicMock()

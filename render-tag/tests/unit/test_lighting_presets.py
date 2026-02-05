@@ -1,5 +1,5 @@
-import pytest
-from render_tag.config import get_lighting_preset, LightingPreset, LightingConfig
+from render_tag.config import LightingConfig, LightingPreset, get_lighting_preset
+
 
 def test_lighting_presets_exist():
     """Verify lighting presets are defined."""
@@ -21,6 +21,7 @@ def test_lighting_presets_exist():
     assert outdoor.radius_max <= 0.05 # Sun is small/hard source relative to sky
 
 from render_tag.config import SceneConfig
+
 
 def test_scene_config_applies_preset():
     """Verify SceneConfig applies lighting preset."""

@@ -10,7 +10,7 @@ import random
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from render_tag.backend.bridge import bproc, bpy, mathutils, np
+from render_tag.backend.bridge import bproc, bpy, np
 
 if TYPE_CHECKING:
     pass
@@ -172,7 +172,7 @@ def apply_tag_texture(obj: Any, texture_path: Path, config: dict | None = None) 
     image = bpy.data.images.load(str(texture_path))
 
     # Reuse or create material
-    mat_name = f"TagMaterial_Pooled"
+    mat_name = "TagMaterial_Pooled"
     material = bpy.data.materials.get(mat_name)
     if not material:
         material = bpy.data.materials.new(name=mat_name)
@@ -207,9 +207,9 @@ def apply_tag_texture(obj: Any, texture_path: Path, config: dict | None = None) 
     bsdf_node.inputs["Specular IOR Level"].default_value = specular
 
     # Link nodes if not already linked
-    if not any(l.to_node == bsdf_node and l.to_socket.name == "Base Color" for l in links):
+    if not any(link.to_node == bsdf_node and link.to_socket.name == "Base Color" for link in links):
         links.new(tex_node.outputs["Color"], bsdf_node.inputs["Base Color"])
-    if not any(l.to_node == output_node for l in links):
+    if not any(link.to_node == output_node for link in links):
         links.new(bsdf_node.outputs["BSDF"], output_node.inputs["Surface"])
 
     # Assign material to object (clearing existing ones first)

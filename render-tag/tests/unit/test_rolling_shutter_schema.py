@@ -1,6 +1,8 @@
 import pytest
 from pydantic import ValidationError
+
 from render_tag.config import CameraConfig, GenConfig
+
 
 def test_camera_config_rolling_shutter_valid():
     """Verify that valid rolling shutter duration is accepted."""

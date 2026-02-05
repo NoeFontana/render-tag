@@ -1,9 +1,10 @@
-import pytest
-from unittest.mock import patch, MagicMock
 import json
+from unittest.mock import patch
+
+import pytest
 import yaml
-from pathlib import Path
 from typer.testing import CliRunner
+
 from render_tag.cli import app
 
 runner = CliRunner()

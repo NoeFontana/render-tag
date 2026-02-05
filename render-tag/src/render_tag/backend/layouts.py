@@ -16,7 +16,6 @@ import math
 from typing import TYPE_CHECKING
 
 from render_tag.backend.bridge import bproc, bpy
-
 from render_tag.geometry.board import (
     BoardSpec,
     BoardType,
@@ -25,9 +24,8 @@ from render_tag.geometry.board import (
 )
 
 if TYPE_CHECKING:
-    import blenderproc.types as bproc_types
-
-    MeshObject = bproc_types.MeshObject
+    from typing import Any
+    MeshObject = Any
 
 
 # =============================================================================

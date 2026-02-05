@@ -3,12 +3,13 @@ Interactive HTML Dashboard Generator for Dataset Auditing.
 """
 
 from pathlib import Path
+
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import polars as pl
 
-from .auditor_schema import AuditResult
 from .auditor import DatasetReader
+from .auditor_schema import AuditResult
+
 
 class DashboardGenerator:
     """Generates a standalone HTML dashboard from an AuditResult."""
@@ -65,10 +66,10 @@ class DashboardGenerator:
         report = self.result.report
         fig.add_trace(
             go.Table(
-                header=dict(values=['Metric', 'Value'],
-                            fill_color='paleturquoise',
-                            align='left'),
-                cells=dict(values=[
+                header={"values": ['Metric', 'Value'],
+                            "fill_color": 'paleturquoise',
+                            "align": 'left'},
+                cells={"values": [
                     ['Score', 'Status', 'Tags', 'Images', 'Impossible Poses'],
                     [f"{report.score:.1f}/100", 
                      "PASSED" if self.result.gate_passed else "FAILED",
@@ -76,8 +77,8 @@ class DashboardGenerator:
                      report.geometric.image_count,
                      report.integrity.impossible_poses]
                 ],
-                fill_color='lavender',
-                align='left')
+                "fill_color": 'lavender',
+                "align": 'left'}
             ),
             row=2, col=2
         )

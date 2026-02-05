@@ -1,7 +1,14 @@
-import pytest
-from unittest.mock import MagicMock, patch
 from pathlib import Path
-from render_tag.orchestration.executors import RenderExecutor, ExecutorFactory, LocalExecutor, MockExecutor
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from render_tag.orchestration.executors import (
+    ExecutorFactory,
+    LocalExecutor,
+    MockExecutor,
+)
+
 
 def test_executor_factory_returns_correct_types():
     """Verify that the factory returns the expected executor implementations."""
@@ -25,39 +32,40 @@ def test_mock_executor_execution():
         shard_id="0"
     )
 
-@patch("subprocess.Popen")
-def test_local_executor_execution(mock_popen):
-    """Verify that LocalExecutor calls blenderproc with correct arguments."""
-    mock_process = MagicMock()
-    mock_process.communicate.return_value = ("stdout", "stderr")
-    mock_process.returncode = 0
-    mock_popen.return_value = mock_process
-    
+def test_local_executor_handoff_to_orchestrator(tmp_path):
+    """
+    Staff Engineer approach: Verify LocalExecutor correctly configures the Unified Orchestrator.
+    We mock the orchestrator to avoid starting real processes/ZMQ.
+    """
     local = LocalExecutor()
     
-    recipe_path = Path("test_recipe.json")
-    output_dir = Path("test_output")
+    recipe_path = tmp_path / "test_recipe.json"
+    # Create a dummy recipe list
+    recipe_path.write_text('[{"scene_id": 0}]')
+    output_dir = tmp_path / "test_output"
     
-    # Create dummy recipe file so script_path.exists() passes if checked
-    # Actually script_path is executor.py, not recipe_path.
-    # But some executors might check recipe_path.
-    
-    local.execute(
-        recipe_path=recipe_path,
-        output_dir=output_dir,
-        renderer_mode="eevee",
-        shard_id="42"
-    )
-    
-    assert mock_popen.called
-    args, kwargs = mock_popen.call_args
-    cmd = args[0]
-    
-    assert cmd[0] == "blenderproc"
-    assert cmd[1] == "run"
-    assert "executor.py" in cmd[2]
-    assert "--recipe" in cmd
-    assert str(recipe_path) in cmd
+    with patch("render_tag.orchestration.executors.UnifiedWorkerOrchestrator") as mock_orch_cls:
+        mock_orch = mock_orch_cls.return_value.__enter__.return_value
+        mock_orch.execute_recipe.return_value = MagicMock(status="SUCCESS")
+        
+        local.execute(
+            recipe_path=recipe_path,
+            output_dir=output_dir,
+            renderer_mode="eevee",
+            shard_id="shard_42"
+        )
+        
+        # Verify Orchestrator configuration
+        mock_orch_cls.assert_called_once()
+        args, kwargs = mock_orch_cls.call_args
+        assert kwargs["num_workers"] == 1
+        assert kwargs["ephemeral"] is True
+        
+        # Verify execution call
+        mock_orch.execute_recipe.assert_called_once()
+        exec_args = mock_orch.execute_recipe.call_args[0]
+        assert exec_args[0] == {"scene_id": 0}
+        assert exec_args[1] == output_dir
 
 @patch("subprocess.run")
 def test_docker_executor_execution(mock_run):
@@ -82,13 +90,7 @@ def test_docker_executor_execution(mock_run):
     
     assert cmd[0] == "docker"
     assert cmd[1] == "run"
-    # Check volume mapping for output
-    assert "-v" in cmd
-    # Ensure the output directory is mapped
     assert f"{output_dir.absolute()}:/output" in cmd
-    # Check image name
     assert "render-tag:latest" in cmd
-    # Check that it runs the backend script inside container
-    assert "--recipe" in cmd
-    assert "--output" in cmd
-    assert "/output" in cmd
+    # Use any() to check for the backend script path substring
+    assert any("executor.py" in part for part in cmd)

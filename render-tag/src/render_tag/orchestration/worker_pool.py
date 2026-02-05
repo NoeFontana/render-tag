@@ -6,7 +6,7 @@ import logging
 import queue
 import threading
 from pathlib import Path
-from typing import List, Dict, Optional, Any
+from typing import Any
 
 from render_tag.orchestration.persistent_worker import PersistentWorkerProcess
 from render_tag.schema.hot_loop import CommandType, Response, ResponseStatus
@@ -27,7 +27,7 @@ class WorkerPool:
         blender_executable: str = "blenderproc",
         use_blenderproc: bool = True,
         mock: bool = False,
-        vram_threshold_mb: Optional[float] = None
+        vram_threshold_mb: float | None = None
     ):
         self.num_workers = num_workers
         self.base_port = base_port
@@ -37,7 +37,7 @@ class WorkerPool:
         self.mock = mock
         self.vram_threshold_mb = vram_threshold_mb
         
-        self.workers: List[PersistentWorkerProcess] = []
+        self.workers: list[PersistentWorkerProcess] = []
         self.worker_queue = queue.Queue()
         self._lock = threading.Lock()
         self.running = False
@@ -84,7 +84,7 @@ class WorkerPool:
             
             self.running = False
 
-    def get_worker(self, timeout: Optional[float] = None) -> PersistentWorkerProcess:
+    def get_worker(self, timeout: float | None = None) -> PersistentWorkerProcess:
         """Acquires a worker from the pool. Blocks until one is available."""
         return self.worker_queue.get(timeout=timeout)
 
@@ -118,7 +118,7 @@ class WorkerPool:
         
         self.worker_queue.put(worker)
 
-    def execute_on_all(self, command_type: CommandType, payload: Optional[Dict[str, Any]] = None) -> List[Response]:
+    def execute_on_all(self, command_type: CommandType, payload: dict[str, Any] | None = None) -> list[Response]:
         """Executes a command on all workers in the pool (e.g., for INIT)."""
         responses = []
         for worker in self.workers:

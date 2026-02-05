@@ -1,7 +1,8 @@
-import pytest
 import json
+
 from render_tag.data_io.writers import SidecarWriter
 from render_tag.schema import SceneProvenance
+
 
 def test_sidecar_writer(tmp_path):
     prov = SceneProvenance(

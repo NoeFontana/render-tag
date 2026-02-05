@@ -3,16 +3,19 @@ ZeroMQ Client for Host-to-Backend communication.
 """
 
 import time
+from typing import Any
+
 import zmq
-from typing import Any, Dict, Optional
-from render_tag.schema.hot_loop import Command, Response, CommandType
+
+from render_tag.schema.hot_loop import Command, CommandType, Response
+
 
 class ZmqHostClient:
     """
     Client for sending commands to a persistent Blender backend via ZeroMQ.
     """
 
-    def __init__(self, host: str = "localhost", port: int = 5555, timeout_ms: int = 10000, context: Optional[zmq.Context] = None):
+    def __init__(self, host: str = "localhost", port: int = 5555, timeout_ms: int = 10000, context: zmq.Context | None = None):
         self.address = f"tcp://{host}:{port}"
         self.timeout_ms = timeout_ms
         self.context = context or zmq.Context()
@@ -46,7 +49,7 @@ class ZmqHostClient:
     def send_command(
         self, 
         command_type: CommandType, 
-        payload: Optional[Dict[str, Any]] = None,
+        payload: dict[str, Any] | None = None,
         raise_on_failure: bool = False
     ) -> Response:
         """

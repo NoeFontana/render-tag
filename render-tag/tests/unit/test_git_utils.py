@@ -1,6 +1,7 @@
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
+
 from render_tag.common.git import get_git_hash
+
 
 def test_get_git_hash_returns_string():
     # Assuming we are in a git repo (we are)

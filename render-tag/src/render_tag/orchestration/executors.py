@@ -54,23 +54,38 @@ class LocalExecutor:
         import hashlib
         port_offset = int(hashlib.md5(shard_id.encode()).hexdigest(), 16) % 1000
         
+        # Check if blenderproc is available, otherwise use mock mode
+        # Staff Engineer: Also allow forced mock via environment variable for CI/Testing
+        import shutil
+        import os
+        force_mock = os.environ.get("RENDER_TAG_FORCE_MOCK") == "1"
+        use_bproc = (shutil.which("blenderproc") is not None) and not force_mock
+        
+        if force_mock:
+            logger.info("Forcing MOCK mode via RENDER_TAG_FORCE_MOCK.")
+        elif not use_bproc:
+            logger.warning("blenderproc not found in PATH. Falling back to MOCK mode for LocalExecutor.")
+
         with UnifiedWorkerOrchestrator(
             num_workers=1,
             base_port=8000 + port_offset,
             ephemeral=True,
-            max_renders_per_worker=len(recipes)
+            max_renders_per_worker=len(recipes),
+            use_blenderproc=use_bproc,
+            mock=not use_bproc
         ) as orchestrator:
             for recipe in recipes:
-                resp = orchestrator.execute_recipe(recipe, output_dir, renderer_mode)
+                # Staff Engineer: Pass shard_id to ensure artifacts are named correctly
+                # so the CLI can find and aggregate them.
+                resp = orchestrator.execute_recipe(
+                    recipe, 
+                    output_dir, 
+                    renderer_mode,
+                    shard_id=shard_id
+                )
                 if resp.status != ResponseStatus.SUCCESS:
                     raise RuntimeError(f"Render failed: {resp.message}")
 
-class DockerExecutor:
-    """Executes renders inside a Docker container."""
-    
-    def __init__(self, image: str = "render-tag:latest"):
-        self.image = image
-        
 class DockerExecutor:
     """Executes renders inside a Docker container."""
     

@@ -1,6 +1,5 @@
-import pytest
-from unittest.mock import MagicMock, patch
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 # Mock bpy/bproc for host-side tests
 with patch("render_tag.backend.scene.bpy", create=True) as mock_bpy:

@@ -1,6 +1,7 @@
-import pytest
 import polars as pl
+
 from render_tag.data_io.auditor import GeometryAuditor
+
 
 def test_geometry_auditor_calculates_stats():
     """Verify that GeometryAuditor calculates basic stats for distance and angle."""

@@ -2,7 +2,6 @@
 Orchestration logic for sharding and parallel execution in render-tag.
 """
 
-import concurrent.futures
 import os
 import re
 import signal
@@ -10,30 +9,28 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import List, Set
 
 from rich.console import Console
 
-from ..common.math import SeedManager
 from ..config import load_config
 
 console = Console()
 
 # Global list to track active subprocesses for signal handling cleanup
-_active_processes: List[subprocess.Popen] = []
+_active_processes: list[subprocess.Popen] = []
 
 
 def _signal_handler(sig, frame):
     """Handle termination signals by killing all active worker processes."""
     console.print(f"\n[bold red]Received signal {sig}. Terminating workers...[/bold red]")
-    from .executors import cleanup_render_processes
-    cleanup_render_processes()
+    from .unified_orchestrator import UnifiedWorkerOrchestrator
+    UnifiedWorkerOrchestrator.cleanup_all()
     
     console.print("[dim]Workers cleaned up. Exiting.[/dim]")
     sys.exit(1)
 
 
-def get_completed_scene_ids(output_dir: Path) -> Set[int]:
+def get_completed_scene_ids(output_dir: Path) -> set[int]:
     """
     Identify completed scene IDs by scanning for sidecar JSON files.
     
@@ -126,10 +123,8 @@ def run_local_parallel(
     2. Groups recipes into batches.
     3. Spawns workers that pull and execute batches until the pool is empty.
     """
-    from .executors import ExecutorFactory
     from ..generator import Generator
-    from ..tools.validator import validate_recipe_file
-    from ..config import load_config
+    from .executors import ExecutorFactory
 
     # 1. Setup
     signal.signal(signal.SIGINT, _signal_handler)

@@ -1,7 +1,7 @@
-import subprocess
-import pytest
 import os
+import subprocess
 from pathlib import Path
+
 
 def test_generate_with_mock_executor(tmp_path):
     """Verify that the CLI correctly uses the mock executor and exits successfully."""
