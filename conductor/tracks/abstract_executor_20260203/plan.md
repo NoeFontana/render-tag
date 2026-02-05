@@ -32,7 +32,7 @@ This plan refactors the render execution logic into a pluggable interface to sup
     - [ ] Add `DockerExecutor` class to `executors.py`.
     - [ ] Implement volume mapping logic (mounting `output` directory).
     - [ ] Construct the `docker run` command using the pre-built image.
-- [ ] Task: Integration Test - Docker Execution
+- [x] Task: Integration Test - Docker Execution 32f8ff5
     - [ ] Add a test case that attempts to run with the `mock` executor and verifies the flow. (Full Docker testing may be skipped if environment lacks Docker daemon).
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: Docker Implementation' (Protocol in workflow.md)
 
