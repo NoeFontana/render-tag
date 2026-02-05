@@ -8,8 +8,3 @@ This file tracks all major tracks for the project. Each track has its own detail
 ---
 
 *Link: [./tracks/hot_loop_20260205/](./tracks/hot_loop_20260205/)*
-
----
-
-- [x] **Track: Infrastructure: Resilient Orchestration & Fault Tolerance**
-*Link: [./tracks/resilient_orchestration_20260205/](./tracks/resilient_orchestration_20260205/)*
