@@ -1,10 +1,19 @@
 ---
-description: lint and format code using ruff
+description: Lint and format code using Ruff
 ---
 
-// turbo
-1. Run ruff to lint and format the code
-   ```bash
-   uv run ruff check --fix .
-   uv run ruff format .
-   ```
+# Lint & Format
+
+Ensure code quality and adherence to style guides.
+
+1.  **Check & Fix**
+    Run linter with auto-fix enabled.
+    ```bash
+    uv run ruff check --fix .
+    ```
+
+2.  **Format**
+    Apply code formatting.
+    ```bash
+    uv run ruff format .
+    ```
