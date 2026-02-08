@@ -14,6 +14,7 @@ import typer
 from pydantic import ValidationError
 
 from render_tag.config import GenConfig, load_config
+from render_tag.data_io.manifest import DatasetManifest
 from render_tag.generator import Generator
 from render_tag.orchestration.executors import ExecutorFactory
 from render_tag.orchestration.sharding import (
@@ -182,8 +183,8 @@ def run(
             )
             raise typer.Exit(code=1) from None
 
-    # Check for blenderproc installation (only if local executor)
-    if executor_type == "local" and not check_blenderproc_installed():
+    # Check for blenderproc installation (only if local executor and NOT skipping render)
+    if executor_type == "local" and not skip_render and not check_blenderproc_installed():
         console.print(
             "[bold red]Error:[/bold red] blenderproc is not installed or not in PATH.\n"
             "Install it with: [cyan]pip install blenderproc[/cyan]"
@@ -379,49 +380,48 @@ def run(
 
     if skip_render:
         console.print("[yellow]--skip-render provided. Skipping Blender launch.[/yellow]")
-        return
+    else:
+        try:
+            # Run the chosen executor
+            executor.execute(
+                recipe_path=recipe_path,
+                output_dir=output,
+                renderer_mode=renderer_mode,
+                shard_id=str(shard_index),
+                verbose=verbose,
+            )
 
-    try:
-        # Run the chosen executor
-        executor.execute(
-            recipe_path=recipe_path,
-            output_dir=output,
-            renderer_mode=renderer_mode,
-            shard_id=str(shard_index),
-            verbose=verbose,
-        )
+            console.print("\n[bold green]✓ Dataset generated successfully![/bold green]")
+            console.print(f"[dim]Output saved to:[/dim] {output}")
 
-        console.print("\n[bold green]✓ Dataset generated successfully![/bold green]")
-        console.print(f"[dim]Output saved to:[/dim] {output}")
+            # If running in single-shard mode (standard), rename the shard CSV to tags.csv
+            # for simpler usability.
+            if total_shards == 1:
+                shard_csv = output / f"tags_shard_{shard_index}.csv"
+                final_csv = output / "tags.csv"
+                if shard_csv.exists():
+                    shard_csv.rename(final_csv)
 
-        # If running in single-shard mode (standard), rename the shard CSV to tags.csv
-        # for simpler usability.
-        if total_shards == 1:
-            shard_csv = output / f"tags_shard_{shard_index}.csv"
-            final_csv = output / "tags.csv"
-            if shard_csv.exists():
-                shard_csv.rename(final_csv)
+            # Show summary of generated files
+            images_dir = output / "images"
+            if images_dir.exists():
+                num_images = len(list(images_dir.glob("*.png")))
+                console.print(f"[dim]Generated:[/dim] {num_images} images")
 
-        # Show summary of generated files
-        images_dir = output / "images"
-        if images_dir.exists():
-            num_images = len(list(images_dir.glob("*.png")))
-            console.print(f"[dim]Generated:[/dim] {num_images} images")
+            csv_path = output / "tags.csv"
+            if csv_path.exists():
+                with open(csv_path) as f:
+                    num_annotations = sum(1 for _ in f) - 1  # Subtract header
+                console.print(f"[dim]Annotations:[/dim] {num_annotations} tag detections")
 
-        csv_path = output / "tags.csv"
-        if csv_path.exists():
-            with open(csv_path) as f:
-                num_annotations = sum(1 for _ in f) - 1  # Subtract header
-            console.print(f"[dim]Annotations:[/dim] {num_annotations} tag detections")
+        except subprocess.SubprocessError as e:
+            console.print(f"[bold red]Error:[/bold red] Failed to run BlenderProc: {e}")
+            raise typer.Exit(code=1) from None
 
-    except subprocess.SubprocessError as e:
-        console.print(f"[bold red]Error:[/bold red] Failed to run BlenderProc: {e}")
-        raise typer.Exit(code=1) from None
-
-    finally:
-        # Clean up temporary config file
-        if job_config_path.exists():
-            job_config_path.unlink()
+        finally:
+            # Clean up temporary config file
+            if job_config_path.exists():
+                job_config_path.unlink()
 
     # Merge Results
     if total_shards == 1:
@@ -436,6 +436,44 @@ def run(
         if shard_cocos and not (output / "annotations.json").exists():
             shard_cocos[0].rename(output / "annotations.json")
             console.print(f"[dim]Renamed {shard_cocos[0].name} -> annotations.json[/dim]")
+
+    # 3. Generate Manifest (Provenance)
+    if job:
+        # job_spec is already loaded in job mode
+        from render_tag.schema.job import calculate_job_id
+        final_job_id = calculate_job_id(job_spec)
+    else:
+        # Calculate a virtual Job ID for this ad-hoc run
+        from render_tag.schema.job import JobSpec, calculate_job_id, get_env_fingerprint
+        am = get_asset_manager()
+        env_hash, blender_ver = get_env_fingerprint()
+        
+        with open(config, "rb") as f:
+            cfg_hash = hashlib.sha256(f.read()).hexdigest()
+            
+        adhoc_spec = JobSpec(
+            env_hash=env_hash,
+            blender_version=blender_ver,
+            assets_hash=am.get_assets_hash(),
+            config_hash=cfg_hash,
+            seed=seed,
+            shard_index=shard_index,
+            shard_size=num_scenes
+        )
+        final_job_id = calculate_job_id(adhoc_spec)
+
+    console.print(f"\n[bold blue]Generating dataset manifest...[/bold blue]")
+    manifest = DatasetManifest(job_id=final_job_id, output_dir=output)
+    
+    # Add key files
+    manifest.add_directory(output / "images", pattern="*.png")
+    if (output / "tags.csv").exists():
+        manifest.add_file(output / "tags.csv")
+    if (output / "annotations.json").exists():
+        manifest.add_file(output / "annotations.json")
+    
+    manifest_path = manifest.save()
+    console.print(f"[dim]Manifest saved to:[/dim] {manifest_path}")
 
     console.print("[bold green]✓ Generation session complete[/bold green]")
 
