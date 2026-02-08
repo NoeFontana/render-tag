@@ -1,5 +1,5 @@
-import pytest
 from typer.testing import CliRunner
+
 from render_tag.cli.main import app
 
 runner = CliRunner()

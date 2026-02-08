@@ -1,9 +1,9 @@
-import pytest
 import hashlib
+
 from typer.testing import CliRunner
+
 from render_tag.cli.main import app
 from render_tag.schema.job import JobSpec
-from pathlib import Path
 
 runner = CliRunner()
 

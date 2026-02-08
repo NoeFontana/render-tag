@@ -17,18 +17,23 @@ from render_tag.geometry.board import (
 from render_tag.schema import ObjectRecipe
 
 
-def apply_flying_layout(objects: list[ObjectRecipe], radius: float):
+def apply_flying_layout(
+    objects: list[ObjectRecipe], radius: float, rng: random.Random | None = None
+):
     """Apply a random 3D distribution to objects."""
+    if rng is None:
+        rng = random.Random()
+
     for obj in objects:
         obj.location = [
-            random.uniform(-radius, radius),
-            random.uniform(-radius, radius),
-            random.uniform(0.1, radius * 2),
+            rng.uniform(-radius, radius),
+            rng.uniform(-radius, radius),
+            rng.uniform(0.1, radius * 2),
         ]
         obj.rotation_euler = [
-            random.uniform(0, 2 * np.pi),
-            random.uniform(0, 2 * np.pi),
-            random.uniform(0, 2 * np.pi),
+            rng.uniform(0, 2 * np.pi),
+            rng.uniform(0, 2 * np.pi),
+            rng.uniform(0, 2 * np.pi),
         ]
 
 

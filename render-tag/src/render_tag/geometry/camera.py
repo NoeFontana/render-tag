@@ -32,6 +32,7 @@ def sample_camera_pose(
     distance: float | None = None,
     elevation: float | None = None,
     inplane_rot: float = 0.0,
+    rng: np.random.Generator | None = None,
 ) -> CameraPose:
     """Sample a single camera pose looking at a point.
 
@@ -45,16 +46,19 @@ def sample_camera_pose(
         distance: Optional fixed distance (meters).
         elevation: Optional fixed elevation [0, 1].
         inplane_rot: Optional roll rotation (radians).
+        rng: Optional NumPy random generator for isolation.
 
     Returns:
         A CameraPose object.
     """
     look_at_point = np.asarray(look_at_point)
+    if rng is None:
+        rng = np.random.default_rng()
 
     # 1. Sample spherical coordinates
-    dist = distance if distance is not None else np.random.uniform(min_distance, max_distance)
-    elev = elevation if elevation is not None else np.random.uniform(min_elevation, max_elevation)
-    azim = azimuth if azimuth is not None else np.random.uniform(0, 2 * np.pi)
+    dist = distance if distance is not None else rng.uniform(min_distance, max_distance)
+    elev = elevation if elevation is not None else rng.uniform(min_elevation, max_elevation)
+    azim = azimuth if azimuth is not None else rng.uniform(0, 2 * np.pi)
 
     # 2. Convert elevation to spherical phi (angle from vertical Z)
     # elev=1 is directly above (phi=0), elev=0 is horizontal (phi=pi/2)

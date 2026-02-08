@@ -20,7 +20,7 @@ dependencies = [
 ]
 
 [project.scripts]
-render-tag = "render_tag.cli:app"
+render-tag = "render_tag.cli:main"
 
 
 [build-system]

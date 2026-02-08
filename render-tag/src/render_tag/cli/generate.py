@@ -8,12 +8,11 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import Any
 
 import typer
 from pydantic import ValidationError
 
-from render_tag.config import GenConfig, load_config
+from render_tag.config import load_config
 from render_tag.data_io.manifest import DatasetManifest
 from render_tag.generator import Generator
 from render_tag.orchestration.executors import ExecutorFactory
@@ -22,7 +21,7 @@ from render_tag.orchestration.sharding import (
     resolve_shard_index,
     run_local_parallel,
 )
-from render_tag.schema.job import JobSpec, get_env_fingerprint
+from render_tag.schema.job import JobSpec, calculate_job_id, get_env_fingerprint
 from render_tag.tools.validator import AssetValidator, validate_recipe_file
 
 from .tools import (
@@ -42,13 +41,13 @@ def pre_execution_guard(job_spec: JobSpec) -> None:
     curr_env_hash, curr_blender_ver = get_env_fingerprint()
     
     if curr_env_hash != job_spec.env_hash:
-        console.print(f"[bold red]Error:[/bold red] Environment mismatch (uv.lock hash).")
+        console.print("[bold red]Error:[/bold red] Environment mismatch (uv.lock hash).")
         console.print(f"  Expected: {job_spec.env_hash}")
         console.print(f"  Actual:   {curr_env_hash}")
         raise typer.Exit(code=1)
         
     if curr_blender_ver != job_spec.blender_version:
-        console.print(f"[bold red]Error:[/bold red] Blender version mismatch.")
+        console.print("[bold red]Error:[/bold red] Blender version mismatch.")
         console.print(f"  Expected: {job_spec.blender_version}")
         console.print(f"  Actual:   {curr_blender_ver}")
         raise typer.Exit(code=1)
@@ -212,7 +211,7 @@ def run(
                 actual_config_hash = hashlib.sha256(f.read()).hexdigest()
             
             if actual_config_hash != job_spec.config_hash:
-                console.print(f"[bold red]Error:[/bold red] Config hash mismatch.")
+                console.print("[bold red]Error:[/bold red] Config hash mismatch.")
                 console.print(f"  Spec expected: {job_spec.config_hash}")
                 console.print(f"  Actual:        {actual_config_hash}")
                 raise typer.Exit(code=1)
@@ -222,11 +221,20 @@ def run(
             
             # Warn if CLI overrides are provided but will be ignored
             if num_scenes != 1 and num_scenes != job_spec.shard_size:
-                console.print(f"[bold yellow]Warning:[/bold yellow] --scenes={num_scenes} ignored. Using job spec value: {job_spec.shard_size}")
+                console.print(
+                    f"[bold yellow]Warning:[/bold yellow] --scenes={num_scenes} ignored. "
+                    f"Using job spec value: {job_spec.shard_size}"
+                )
             if seed != -1 and seed != job_spec.seed:
-                console.print(f"[bold yellow]Warning:[/bold yellow] --seed={seed} ignored. Using job spec value: {job_spec.seed}")
+                console.print(
+                    f"[bold yellow]Warning:[/bold yellow] --seed={seed} ignored. "
+                    f"Using job spec value: {job_spec.seed}"
+                )
             if shard_index != -1 and shard_index != job_spec.shard_index:
-                console.print(f"[bold yellow]Warning:[/bold yellow] --shard-index={shard_index} ignored. Using job spec value: {job_spec.shard_index}")
+                console.print(
+                    f"[bold yellow]Warning:[/bold yellow] --shard-index={shard_index} ignored. "
+                    f"Using job spec value: {job_spec.shard_index}"
+                )
 
             gen_config.dataset.num_scenes = job_spec.shard_size
             gen_config.dataset.seeds.global_seed = job_spec.seed
@@ -240,7 +248,7 @@ def run(
             
         except Exception as e:
             console.print(f"[bold red]Error loading job spec:[/bold red] {e}")
-            raise typer.Exit(code=1)
+            raise typer.Exit(code=1) from e
     else:
         if config is None:
             config = Path("configs/default.yaml")
@@ -440,11 +448,9 @@ def run(
     # 3. Generate Manifest (Provenance)
     if job:
         # job_spec is already loaded in job mode
-        from render_tag.schema.job import calculate_job_id
         final_job_id = calculate_job_id(job_spec)
     else:
         # Calculate a virtual Job ID for this ad-hoc run
-        from render_tag.schema.job import JobSpec, calculate_job_id, get_env_fingerprint
         am = get_asset_manager()
         env_hash, blender_ver = get_env_fingerprint()
         
@@ -462,7 +468,7 @@ def run(
         )
         final_job_id = calculate_job_id(adhoc_spec)
 
-    console.print(f"\n[bold blue]Generating dataset manifest...[/bold blue]")
+    console.print("\n[bold blue]Generating dataset manifest...[/bold blue]")
     manifest = DatasetManifest(job_id=final_job_id, output_dir=output)
     
     # Add key files

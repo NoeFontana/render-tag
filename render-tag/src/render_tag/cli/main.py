@@ -5,6 +5,7 @@ CLI Entry Point.
 import typer
 from rich.panel import Panel
 
+from ..common.logging import setup_logging
 from . import assets, audit, experiment, generate, job, viz
 from .tools import console
 
@@ -37,6 +38,7 @@ app.command(name="info")(viz.info)
 
 def main() -> None:
     """Entry point for the CLI."""
+    setup_logging()
     console.print(
         Panel.fit(
             "[bold blue]render-tag[/bold blue] Synthetic Data Generator",

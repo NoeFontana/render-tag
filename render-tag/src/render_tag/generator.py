@@ -13,6 +13,7 @@ from typing import Any
 import numpy as np
 
 from render_tag.common import TAG_GRID_SIZES
+from render_tag.common.logging import get_logger
 from render_tag.common.math import SeedManager
 from render_tag.config import GenConfig
 from render_tag.geometry.camera import sample_camera_pose
@@ -27,13 +28,24 @@ from render_tag.schema import (
     WorldRecipe,
 )
 
-# Removed dataclasses as they are replaced by schema.py imports
+logger = get_logger(__name__)
 
 
 class Generator:
-    """Generates scene recipes based on configuration."""
+    """Generates scene recipes based on configuration.
+    
+    This class handles the procedural generation of scene definitions (recipes)
+    that are later executed by the Blender backend. It ensures logical
+    reproducibility by isolating RNG states for different scene components.
+    """
 
     def __init__(self, config: dict[str, Any] | GenConfig, output_dir: Path):
+        """Initializes the generator with a configuration and output directory.
+        
+        Args:
+            config: Either a dictionary or a GenConfig object.
+            output_dir: Path where recipes and generated data will be stored.
+        """
         if isinstance(config, dict):
             # Try to validate/convert to GenConfig
             self.config = GenConfig.model_validate(config)
@@ -58,7 +70,14 @@ class Generator:
         np.random.seed(seed)
 
     def generate_all(self, exclude_ids: set[int] | None = None) -> list[SceneRecipe]:
-        """Generate all scene recipes requested in the config."""
+        """Generate all scene recipes requested in the config.
+        
+        Args:
+            exclude_ids: Optional set of scene IDs to skip (e.g., if already completed).
+            
+        Returns:
+            List of generated SceneRecipe objects.
+        """
         num_scenes = self.config.dataset.num_scenes
         exclude_ids = exclude_ids or set()
         recipes = []
@@ -75,7 +94,17 @@ class Generator:
         total_shards: int,
         exclude_ids: set[int] | None = None,
     ) -> list[SceneRecipe]:
-        """Generate a deterministic slice of the dataset."""
+        """Generate a deterministic slice of the dataset.
+        
+        Args:
+            total_scenes: Total number of scenes in the full dataset.
+            shard_index: 0-based index of the current shard.
+            total_shards: Total number of shards being generated.
+            exclude_ids: Optional set of scene IDs to skip.
+            
+        Returns:
+            List of SceneRecipe objects for the requested shard.
+        """
         exclude_ids = exclude_ids or set()
         if total_shards > total_scenes:
             total_shards = total_scenes
@@ -88,7 +117,10 @@ class Generator:
         # Ensure the last shard picks up any remainder
         end_idx = total_scenes if shard_index == total_shards - 1 else start_idx + scenes_per_shard
 
-        print(f"Generating Shard {shard_index + 1}/{total_shards} (Scenes {start_idx}-{end_idx})")
+        logger.info(
+            f"Generating Shard {shard_index + 1}/{total_shards} "
+            f"(Scenes {start_idx}-{end_idx})"
+        )
 
         recipes = []
         for i in range(start_idx, end_idx):
@@ -99,32 +131,57 @@ class Generator:
         return recipes
 
     def generate_scene(self, scene_id: int) -> SceneRecipe:
-        """Generate a single scene recipe."""
+        """Generate a single scene recipe.
+        
+        This method manages the orchestration of lighting, layout, and camera
+        generation, ensuring each component uses its own isolated RNG state
+        derived from the scene ID and component-specific seeds.
+        
+        Args:
+            scene_id: Unique ID for the scene being generated.
+            
+        Returns:
+            A complete SceneRecipe object.
+        """
         recipe = SceneRecipe(scene_id=scene_id)
 
         # 1. Setup World/Environment (Lighting)
-        # Use lighting seed
+        # Use lighting seed to create isolated RNG
         seed_lighting = SeedManager(self.config.dataset.seeds.lighting_seed).get_shard_seed(
             scene_id
         )
-        self._seed_everything(seed_lighting)
-        recipe.world = self._generate_world_config()
+        rng_lighting = random.Random(seed_lighting)
+        np_rng_lighting = np.random.default_rng(seed_lighting)
+        recipe.world = self._generate_world_config(rng_lighting, np_rng_lighting)
 
         # 2. Setup Tags and Layout
-        # Use layout seed
+        # Use layout seed to create isolated RNG
         seed_layout = SeedManager(self.config.dataset.seeds.layout_seed).get_shard_seed(scene_id)
-        self._seed_everything(seed_layout)
-        recipe.objects = self._generate_layout_objects(scene_id)
+        rng_layout = random.Random(seed_layout)
+        np_rng_layout = np.random.default_rng(seed_layout)
+        recipe.objects = self._generate_layout_objects(scene_id, rng_layout, np_rng_layout)
 
         # 3. Setup Cameras
-        # Use camera seed
+        # Use camera seed to create isolated RNG
         seed_camera = SeedManager(self.config.dataset.seeds.camera_seed).get_shard_seed(scene_id)
-        self._seed_everything(seed_camera)
-        recipe.cameras = self._generate_camera_recipes()
+        rng_camera = random.Random(seed_camera)
+        np_rng_camera = np.random.default_rng(seed_camera)
+        recipe.cameras = self._generate_camera_recipes(rng_camera, np_rng_camera)
 
         return recipe
 
-    def _generate_world_config(self) -> WorldRecipe:
+    def _generate_world_config(
+        self, rng: random.Random, np_rng: np.random.Generator
+    ) -> WorldRecipe:
+        """Generates random world environment parameters.
+        
+        Args:
+            rng: Isolated Python random generator.
+            np_rng: Isolated NumPy random generator.
+            
+        Returns:
+            A WorldRecipe containing lighting and background configuration.
+        """
         scene_config = self.config.scene
         lighting_config = scene_config.lighting
 
@@ -134,29 +191,41 @@ class Generator:
         texture_rotation = 0.0
 
         if self.textures:
-            texture_path = str(random.choice(self.textures))
-            texture_scale = random.uniform(
+            texture_path = str(rng.choice(self.textures))
+            texture_scale = rng.uniform(
                 scene_config.texture_scale_min, scene_config.texture_scale_max
             )
             if scene_config.random_texture_rotation:
-                texture_rotation = random.uniform(0, 2 * np.pi)
+                texture_rotation = rng.uniform(0, 2 * np.pi)
 
         return WorldRecipe(
             background_hdri=str(scene_config.background_hdri)
             if scene_config.background_hdri
             else None,
             lighting=LightingConfig(
-                intensity=random.uniform(
+                intensity=rng.uniform(
                     lighting_config.intensity_min, lighting_config.intensity_max
                 ),
-                radius=random.uniform(lighting_config.radius_min, lighting_config.radius_max),
+                radius=rng.uniform(lighting_config.radius_min, lighting_config.radius_max),
             ),
             texture_path=texture_path,
             texture_scale=texture_scale,
             texture_rotation=texture_rotation,
         )
 
-    def _generate_layout_objects(self, scene_id: int) -> list[ObjectRecipe]:
+    def _generate_layout_objects(
+        self, scene_id: int, rng: random.Random, np_rng: np.random.Generator
+    ) -> list[ObjectRecipe]:
+        """Generates and places tag objects within the scene.
+        
+        Args:
+            scene_id: ID of the current scene.
+            rng: Isolated Python random generator.
+            np_rng: Isolated NumPy random generator.
+            
+        Returns:
+            List of ObjectRecipe objects representing tags and background boards.
+        """
         tag_config = self.config.tag
         scenario_config = self.config.scenario
         # scene_config = self.config.scene # Not used for layout list?
@@ -179,10 +248,6 @@ class Generator:
         tag_size = tag_config.size_meters
         tag_families = [f.value for f in scenario_config.tag_families]
 
-        # Check if single tag family forced in config (backwards compat?)
-        # tag_config.family is an enum
-        # But scenario typically overrides
-
         # Logic for tag count
         if layout_mode == "cb":
             num_tags = (cols * rows + 1) // 2
@@ -190,11 +255,11 @@ class Generator:
             num_tags = cols * rows
         else:
             tags_range = scenario_config.tags_per_scene
-            num_tags = random.randint(tags_range[0], tags_range[1])
+            num_tags = rng.randint(tags_range[0], tags_range[1])
 
         # Generate Tag Objects
         for i in range(num_tags):
-            family = random.choice(tag_families)
+            family = rng.choice(tag_families)
             texture_base_path = str(tag_config.texture_path) if tag_config.texture_path else None
 
             tag_obj = ObjectRecipe(
@@ -214,7 +279,7 @@ class Generator:
 
         # Apply Layout (Math only)
         if is_flying:
-            apply_flying_layout(objects, self.config.physics.scatter_radius)
+            apply_flying_layout(objects, self.config.physics.scatter_radius, rng=rng)
         else:
             # Layout math...
             apply_grid_layout(
@@ -256,7 +321,18 @@ class Generator:
 
         return objects
 
-    def _generate_camera_recipes(self) -> list[CameraRecipe]:
+    def _generate_camera_recipes(
+        self, rng: random.Random, np_rng: np.random.Generator
+    ) -> list[CameraRecipe]:
+        """Generates multiple camera poses and sensor configurations for the scene.
+        
+        Args:
+            rng: Isolated Python random generator.
+            np_rng: Isolated NumPy random generator.
+            
+        Returns:
+            List of CameraRecipe objects.
+        """
         camera_config = self.config.camera
         samples_per_scene = camera_config.samples_per_scene
 
@@ -271,13 +347,14 @@ class Generator:
                 max_elevation=camera_config.max_elevation,
                 azimuth=camera_config.azimuth,
                 elevation=camera_config.elevation,
+                rng=np_rng,
             )
 
             # Sample velocity if configured
             velocity = None
             if camera_config.velocity_mean > 0 or camera_config.velocity_std > 0:
                 # Random direction
-                direction = np.random.normal(size=3)
+                direction = np_rng.normal(size=3)
                 norm = np.linalg.norm(direction)
                 if norm > 1e-6:
                     direction /= norm
@@ -285,9 +362,7 @@ class Generator:
                     direction = np.array([0.0, 0.0, 1.0])
 
                 # Random magnitude
-                magnitude = np.random.normal(
-                    camera_config.velocity_mean, camera_config.velocity_std
-                )
+                magnitude = np_rng.normal(camera_config.velocity_mean, camera_config.velocity_std)
                 magnitude = max(0.0, magnitude)  # Assume non-negative speed
                 velocity = (direction * magnitude).tolist()
 
@@ -312,6 +387,11 @@ class Generator:
         return recipes
 
     def _get_intrinsics_config(self) -> CameraIntrinsics:
+        """Helper to package camera intrinsics from config.
+        
+        Returns:
+            CameraIntrinsics object.
+        """
         camera_config = self.config.camera
         return CameraIntrinsics(
             resolution=list(camera_config.resolution),
@@ -320,9 +400,18 @@ class Generator:
         )
 
     def save_recipe_json(self, recipes: list[SceneRecipe], filename: str = "scene_recipes.json"):
+        """Saves a list of scene recipes to a JSON file.
+        
+        Args:
+            recipes: List of SceneRecipe objects to serialize.
+            filename: Name of the output file.
+            
+        Returns:
+            Path to the saved JSON file.
+        """
         path = self.output_dir / filename
-        # Pydantic serialization
-        data = [json.loads(r.model_dump_json()) for r in recipes]
+        # Pydantic V2: mode="json" produces a JSON-compatible dict directly
+        data = [r.model_dump(mode="json") for r in recipes]
         with open(path, "w") as f:
             json.dump(data, f, indent=2)
         return path

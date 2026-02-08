@@ -1,9 +1,9 @@
-import pytest
 import hashlib
 import json
+
 from typer.testing import CliRunner
+
 from render_tag.cli.main import app
-from pathlib import Path
 
 runner = CliRunner()
 

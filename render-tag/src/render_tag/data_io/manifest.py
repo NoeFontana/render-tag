@@ -1,8 +1,8 @@
 import hashlib
 import json
 import logging
+from datetime import UTC, datetime
 from pathlib import Path
-from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +16,7 @@ class DatasetManifest:
         self.job_id = job_id
         self.output_dir = Path(output_dir)
         self.files: dict[str, str] = {}
-        self.created_at = datetime.now(timezone.utc).isoformat()
+        self.created_at = datetime.now(UTC).isoformat()
         
     def add_file(self, file_path: Path):
         """Calculates hash for a file and adds it to the manifest."""

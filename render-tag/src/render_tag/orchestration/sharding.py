@@ -12,9 +12,11 @@ from pathlib import Path
 
 from rich.console import Console
 
+from ..common.logging import get_logger
 from ..config import load_config
 
 console = Console()
+logger = get_logger(__name__)
 
 # Global list to track active subprocesses for signal handling cleanup
 _active_processes: list[subprocess.Popen] = []
@@ -72,7 +74,7 @@ def resolve_shard_index() -> int:
 
 def merge_csv_results(output_dir: Path):
     """Combine tags_shard_*.csv into tags.csv, preserving existing results."""
-    console.print("Merging worker results...")
+    logger.info("Merging worker results...")
     shards = list(output_dir.glob("tags_shard_*.csv"))
     if not shards:
         return
@@ -191,7 +193,7 @@ def run_local_parallel(
             except Exception:
                 break
 
-            console.print(f"[dim]Worker {worker_id} pulling batch {batch_id}...[/dim]")
+            logger.info(f"Worker {worker_id} pulling batch {batch_id}...")
             
             # For subprocess management, we still want to track PIDs
             # But the executor currently uses subprocess.run (blocking)
@@ -237,7 +239,7 @@ def run_local_parallel(
         from typer import Exit
         raise Exit(1) from None
     
-    console.print(f"[bold green]Parallel execution finished in {elapsed:.2f}s[/bold green]")
+    logger.info(f"Parallel execution finished in {elapsed:.2f}s")
 
     # 6. Cleanup batch files
     for _, recipe_path in batches:
