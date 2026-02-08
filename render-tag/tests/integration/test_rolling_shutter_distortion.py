@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from render_tag.cli import check_blenderproc_installed
+from render_tag.cli.tools import check_blenderproc_installed
 
 # Skip if blenderproc not available
 pytestmark = pytest.mark.skipif(

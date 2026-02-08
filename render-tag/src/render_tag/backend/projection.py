@@ -106,3 +106,26 @@ def compute_geometric_metadata(tag_obj: Any) -> dict[str, float]:
         "angle_of_incidence": angle_deg,
         "pixel_area": pixel_area,
     }
+
+
+def get_valid_detections(tag_objects: list[Any]) -> list[tuple[Any, list[tuple[float, float]]]]:
+    """
+    Filter visible tags and return their projected corners.
+    
+    Args:
+        tag_objects: List of tag objects (BlenderProc wrappers or similar).
+        
+    Returns:
+        List of (tag_obj, corners_2d) tuples for visible tags.
+    """
+    valid_detections = []
+    
+    for tag_obj in tag_objects:
+        corners_2d = project_corners_to_image(tag_obj)
+        
+        if corners_2d is not None:
+            # Using existing check_tag_visibility for robust check
+            if check_tag_visibility(tag_obj):
+                valid_detections.append((tag_obj, corners_2d))
+                
+    return valid_detections

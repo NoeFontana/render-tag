@@ -5,8 +5,14 @@ from render_tag.tools.telemetry_auditor import TelemetryAuditor
 def test_telemetry_auditor_collection():
     auditor = TelemetryAuditor()
     
-    tel1 = Telemetry(vram_used_mb=100, vram_total_mb=8000, cpu_usage_percent=10, state_hash="h1", uptime_seconds=10)
-    tel2 = Telemetry(vram_used_mb=200, vram_total_mb=8000, cpu_usage_percent=20, state_hash="h1", uptime_seconds=20)
+    tel1 = Telemetry(
+        vram_used_mb=100, vram_total_mb=8000,
+        cpu_usage_percent=10, state_hash="h1", uptime_seconds=10
+    )
+    tel2 = Telemetry(
+        vram_used_mb=200, vram_total_mb=8000,
+        cpu_usage_percent=20, state_hash="h1", uptime_seconds=20
+    )
     
     auditor.add_entry("w1", tel1)
     auditor.add_entry("w1", tel2)
@@ -18,7 +24,10 @@ def test_telemetry_auditor_collection():
 
 def test_telemetry_analysis():
     auditor = TelemetryAuditor()
-    tel = Telemetry(vram_used_mb=500, vram_total_mb=8000, cpu_usage_percent=50, state_hash="h1", uptime_seconds=100)
+    tel = Telemetry(
+        vram_used_mb=500, vram_total_mb=8000,
+        cpu_usage_percent=50, state_hash="h1", uptime_seconds=100
+    )
     auditor.add_entry("w1", tel)
     
     stats = auditor.analyze_throughput()
@@ -27,7 +36,10 @@ def test_telemetry_analysis():
 
 def test_telemetry_save(tmp_path):
     auditor = TelemetryAuditor()
-    tel = Telemetry(vram_used_mb=500, vram_total_mb=8000, cpu_usage_percent=50, state_hash="h1", uptime_seconds=100)
+    tel = Telemetry(
+        vram_used_mb=500, vram_total_mb=8000,
+        cpu_usage_percent=50, state_hash="h1", uptime_seconds=100
+    )
     auditor.add_entry("w1", tel)
     
     csv_path = tmp_path / "telemetry.csv"

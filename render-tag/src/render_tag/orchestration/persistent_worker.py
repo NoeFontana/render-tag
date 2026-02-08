@@ -3,6 +3,7 @@ Manager for a single persistent Blender worker process.
 """
 
 import logging
+import os
 import subprocess
 import time
 from pathlib import Path
@@ -71,19 +72,29 @@ class PersistentWorkerProcess:
     
         logger.info(f"Starting persistent worker {self.worker_id}: {' '.join(cmd)}")
         
-        # Start the process. Redirect output to DEVNULL to avoid pipe buffer deadlocks
-        # unless we specifically need to capture it for debugging.
+        # Clean environment to prevent Blender from picking up host venv packages
+        env = os.environ.copy()
+        env.pop("PYTHONPATH", None)
+        
+        # Add project src to PYTHONPATH so render_tag package can be imported
+        # Assuming script is at src/render_tag/backend/zmq_server.py
+        # We want to add 'src' to path.
+        project_src = self.blender_script.resolve().parents[2]
+        if project_src.name == "src":
+            env["PYTHONPATH"] = str(project_src)
+        
+        # Start the process. Inherit stdout/stderr so it propagates to parent (and pytest captures it)
         self.process = subprocess.Popen(
             cmd,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            env=env,
+            stdout=None,
+            stderr=None,
             text=True
         )
 
         # Initialize ZMQ client with short timeout for startup phase
         self.client = ZmqHostClient(port=self.port, timeout_ms=1000, context=self.context)
         self.client.connect()
-
         # Wait for heartbeat/status success
         start_time = time.time()
         while time.time() - start_time < self.startup_timeout:
@@ -98,7 +109,10 @@ class PersistentWorkerProcess:
                     # Restore default timeout for normal operation
                     self.client.socket.setsockopt(zmq.RCVTIMEO, 10000)
                     return
-            except Exception:
+                else:
+                    logger.warning(f"Worker {self.worker_id} replied but status is {resp.status}: {resp.message}")
+            except Exception as e:
+                logger.warning(f"Worker {self.worker_id} not ready yet (attempt): {e}")
                 pass
                 
             time.sleep(0.5)

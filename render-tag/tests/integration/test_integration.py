@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from render_tag.cli import check_blenderproc_installed
+from render_tag.cli.tools import check_blenderproc_installed
 
 # Skip all tests in this file if blenderproc is not installed
 pytestmark = pytest.mark.skipif(
@@ -75,7 +75,7 @@ physics:
                 "--output",
                 str(output_dir),
                 "--scenes",
-                "1",
+                "5",
                 "--renderer-mode",
                 "workbench"
             ],

@@ -21,11 +21,12 @@ def test_sidecar_writer(tmp_path):
     assert path.parent == tmp_path / "images" # Assuming writer handles structure? Or just flat.
     
     # Actually, writers usually take the output directory.
-    # If I pass output_dir=tmp_path, writer typically writes to output_dir/images if it's image meta?
+    # If I pass output_dir=tmp_path, writer typically writes to output_dir/images if it's
+    # image meta?
     # Or just alongside the image.
     
-    # Let's assume write_sidecar takes just the name, and writes to tmp_path (flat) or configured structure.
-    # Existing writers like CSVWriter take full path.
+    # Let's assume write_sidecar takes just the name, and writes to tmp_path (flat) or configured
+    # structure. Existing writers like CSVWriter take full path.
     # COCOWriter takes output_dir.
     
     # Let's say SidecarWriter takes output_dir.

@@ -16,7 +16,10 @@ def dummy_dataset(tmp_path):
     tags_path = dataset_dir / "tags.csv"
     with open(tags_path, "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["image_id", "tag_id", "tag_family", "x1", "y1", "x2", "y2", "x3", "y3", "x4", "y4"])
+        writer.writerow([
+            "image_id", "tag_id", "tag_family",
+            "x1", "y1", "x2", "y2", "x3", "y3", "x4", "y4"
+        ])
         writer.writerow(["img1", "0", "family", "0", "0", "1", "0", "1", "1", "0", "1"])
         
     # No manifest or images yet, just minimal tags.csv

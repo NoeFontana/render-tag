@@ -1,5 +1,8 @@
+import numpy as np
 import pytest
 from pydantic import ValidationError
+
+from render_tag.backend.sensors import apply_parametric_noise
 
 # We expect these imports to fail or the classes to not have these fields yet
 from render_tag.schema import NoiseType, SensorNoiseConfig
@@ -43,10 +46,6 @@ def test_invalid_noise_params():
     """Test invalid parameters raise ValidationError."""
     with pytest.raises(ValidationError):
         SensorNoiseConfig(model=NoiseType.SALT_AND_PEPPER, amount=1.5) # Amount > 1
-
-import numpy as np
-
-from render_tag.backend.sensors import apply_parametric_noise
 
 
 def test_apply_gaussian_noise():

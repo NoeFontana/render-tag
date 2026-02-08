@@ -22,7 +22,9 @@ def test_cli_run_generates_manifest(tmp_path, monkeypatch):
     monkeypatch.setattr(shutil, "which", lambda x: None)
     
     # Run command with --skip-render
-    result = runner.invoke(app, ["run", "--config", str(config_file), "--output", str(output_dir), "--skip-render"])
+    result = runner.invoke(app, [
+        "generate", "--config", str(config_file), "--output", str(output_dir), "--skip-render"
+    ])
     
     print(result.output)
     assert result.exit_code == 0

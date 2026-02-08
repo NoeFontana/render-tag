@@ -15,10 +15,22 @@ def dummy_dataset(tmp_path):
     # Create tags.csv
     tags_path = dataset_dir / "tags.csv"
     tags_content = [
-        ["image_id", "tag_id", "tag_family", "x1", "y1", "x2", "y2", "x3", "y3", "x4", "y4"],
-        ["scene_0000_cam_0000", "0", "apriltag_36h11", "100", "100", "200", "100", "200", "200", "100", "200"],
-        ["scene_0000_cam_0000", "1", "apriltag_36h11", "300", "300", "400", "300", "400", "400", "300", "400"],
-        ["scene_0001_cam_0000", "0", "apriltag_36h11", "150", "150", "250", "150", "250", "250", "150", "250"],
+        [
+            "image_id", "tag_id", "tag_family",
+            "x1", "y1", "x2", "y2", "x3", "y3", "x4", "y4"
+        ],
+        [
+            "scene_0000_cam_0000", "0", "apriltag_36h11",
+            "100", "100", "200", "100", "200", "200", "100", "200"
+        ],
+        [
+            "scene_0000_cam_0000", "1", "apriltag_36h11",
+            "300", "300", "400", "300", "400", "400", "300", "400"
+        ],
+        [
+            "scene_0001_cam_0000", "0", "apriltag_36h11",
+            "150", "150", "250", "150", "250", "250", "150", "250"
+        ],
     ]
     import csv
     with open(tags_path, "w", newline="") as f:

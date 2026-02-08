@@ -8,8 +8,42 @@ import time
 from pathlib import Path
 from typing import Any
 
-import GPUtil
+# DEBUG: Trace path
+try:
+    with open("/tmp/debug_backend.log", "a") as f:
+        f.write(f"--- PROCESS START ---\n")
+        f.write(f"EXE: {sys.executable}\n")
+        f.write(f"FILE: {__file__}\n")
+        f.write(f"ARGV: {sys.argv}\n")
+        f.write(f"PATH PRE-CLEAN: {sys.path}\n")
+except Exception:
+    pass
+
+# HACK: Reorder sys.path to prioritize Blender's internal packages over host .venv
+# This ensures 'import zmq' picks the one compatible with Blender's Python (3.11),
+# while still allowing 'import blenderproc' from the host .venv if needed.
+if "blender" in sys.executable.lower():
+    venv_paths = [p for p in sys.path if ".venv" in p]
+    clean_paths = [p for p in sys.path if ".venv" not in p]
+    sys.path[:] = clean_paths + venv_paths
+    
+    # Ensure src is in sys.path so we can import render_tag
+    src_path = Path(__file__).resolve().parents[2]
+    if str(src_path) not in sys.path:
+        sys.path.insert(0, str(src_path)) # Insert at start for priority
+
+try:
+    with open("/tmp/debug_backend.log", "a") as f:
+        f.write(f"PATH POST-CLEAN: {sys.path}\n")
+except Exception:
+    pass
+
 import zmq
+
+try:
+    import GPUtil
+except ImportError:
+    GPUtil = None
 
 from render_tag.backend.assets import global_pool
 from render_tag.backend.bridge import bridge
@@ -41,7 +75,7 @@ class ZmqBackendServer:
         self.port = port
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.REP)
-        self.socket.bind(f"tcp://*:{port}")
+        self.socket.bind(f"tcp://127.0.0.1:{port}")
         self.running = False
         self.assets_loaded = []
         self.parameters = {}
@@ -96,6 +130,8 @@ class ZmqBackendServer:
             "rich": RichTruthWriter(output_dir / "rich_truth.json"),
             "sidecar": SidecarWriter(output_dir)
         }
+        # Force initialization of CSV to ensure file exists even if no detections
+        self.writers["csv"]._ensure_initialized()
 
     def handle_command(self, cmd: Command) -> Response:
         """Processes a single command."""
@@ -258,7 +294,18 @@ if __name__ == "__main__":
     parser.add_argument("--port", type=int, default=5555)
     parser.add_argument("--mock", action="store_true")
     parser.add_argument("--max-renders", type=int, default=None, help="Shutdown after N renders")
-    args = parser.parse_args()
+    
+    # Only parse arguments after '--' to avoid Blender args
+    if "--" in sys.argv:
+        argv = sys.argv[sys.argv.index("--") + 1:]
+    else:
+        argv = sys.argv[1:]
+    
+    # Use parse_known_args to ignore Blender arguments if they leak into sys.argv
+    args, unknown = parser.parse_known_args(argv)
+    
+    if unknown:
+        logger.warning(f"Ignored unknown arguments: {unknown}")
     
     bproc_m, bpy_m = None, None
     if args.mock:
@@ -269,9 +316,15 @@ if __name__ == "__main__":
         from tests.mocks import blender_api as bpy_m
         from tests.mocks import blenderproc_api as bproc_m
 
-    logging.basicConfig(level=logging.INFO)
+    logger.info(f"Initializing ZmqBackendServer on port {args.port}")
+    
     server = ZmqBackendServer(port=args.port, bproc_mock=bproc_m, bpy_mock=bpy_m)
     try:
+        logger.info("Entering server run loop...")
         server.run(max_renders=args.max_renders)
     except KeyboardInterrupt:
+        logger.info("KeyboardInterrupt received, stopping...")
         server.stop()
+    except Exception as e:
+        logger.exception(f"Server crashed: {e}")
+        raise

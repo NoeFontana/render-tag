@@ -22,8 +22,11 @@ def test_bridge_provides_numpy():
     assert hasattr(np, "array")
 
 def test_bridge_injection():
-    class FakeBproc: pass
-    class FakeBpy: pass
+    class FakeBproc:
+        pass
+
+    class FakeBpy:
+        pass
     
     bridge.inject_mocks(FakeBproc(), FakeBpy())
     

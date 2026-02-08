@@ -2,9 +2,11 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 # Mock bpy/bproc for host-side tests
-with patch("render_tag.backend.assets.bpy", create=True) as mock_bpy:
-    with patch("render_tag.backend.assets.bproc", create=True) as mock_bproc:
-        from render_tag.backend.assets import AssetPool, create_tag_plane
+with (
+    patch("render_tag.backend.assets.bpy", create=True) as mock_bpy,
+    patch("render_tag.backend.assets.bproc", create=True) as mock_bproc
+):
+    from render_tag.backend.assets import AssetPool, create_tag_plane
 
 def test_asset_pool_retrieval():
     """Verify that AssetPool reuses objects."""
@@ -45,9 +47,11 @@ def test_create_tag_plane_uses_global_pool():
     mock_tag = MagicMock()
     mock_pool.get_tag.return_value = mock_tag
     
-    with patch("render_tag.backend.assets.global_pool", mock_pool):
-        with patch("render_tag.backend.assets.apply_tag_texture"):
-            # Should not call create_primitive directly
-            tag = create_tag_plane(0.1, Path("tex.png"), "tag36h11")
-            assert mock_pool.get_tag.called
-            assert tag == mock_tag
+    with (
+        patch("render_tag.backend.assets.global_pool", mock_pool),
+        patch("render_tag.backend.assets.apply_tag_texture")
+    ):
+        # Should not call create_primitive directly
+        tag = create_tag_plane(0.1, Path("tex.png"), "tag36h11")
+        assert mock_pool.get_tag.called
+        assert tag == mock_tag

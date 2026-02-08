@@ -43,9 +43,9 @@ def test_cli_run_with_job_mismatch(tmp_path, monkeypatch):
             self.returncode = 0
     monkeypatch.setattr(subprocess, "run", lambda *args, **kwargs: MockCompletedProcess())
     
-    # 4. Run 'render-tag run --job job.json'
-    result = runner.invoke(app, ["run", "--job", str(job_file)])
-    
+    # 4. Run 'render-tag generate --job job.json'
+    result = runner.invoke(app, ["generate", "--job", str(job_file)])
+
     assert result.exit_code != 0
     assert "Environment mismatch" in result.output
 
@@ -82,11 +82,10 @@ def test_cli_run_with_job_config_mismatch(tmp_path, monkeypatch):
             self.returncode = 0
     monkeypatch.setattr(subprocess, "run", lambda *args, **kwargs: MockCompletedProcess())
 
-    result = runner.invoke(app, ["run", "--job", str(job_file)])
-    
+    result = runner.invoke(app, ["generate", "--job", str(job_file)])
+
     assert result.exit_code != 0
     assert "Config hash mismatch" in result.output
-
 def test_cli_run_with_job_overrides_warning(tmp_path, monkeypatch):
     # Setup valid job and config
     config_dir = tmp_path / "configs"
@@ -120,8 +119,8 @@ def test_cli_run_with_job_overrides_warning(tmp_path, monkeypatch):
     monkeypatch.setattr(subprocess, "run", lambda *args, **kwargs: MockCompletedProcess())
 
     # Run with conflicting CLI flags
-    result = runner.invoke(app, ["run", "--job", str(job_file), "--scenes", "5", "--seed", "100"])
-    
+    result = runner.invoke(app, ["generate", "--job", str(job_file), "--scenes", "5", "--seed", "100"])
+
     # It should still run (or at least pass the guard) and show warnings
     assert "Warning" in result.output
     assert "ignored" in result.output
@@ -129,6 +128,6 @@ def test_cli_run_with_job_overrides_warning(tmp_path, monkeypatch):
     assert "Using job spec value: 42" in result.output
 
 def test_cli_run_with_job_not_found():
-    result = runner.invoke(app, ["run", "--job", "non_existent.json"])
+    result = runner.invoke(app, ["generate", "--job", "non_existent.json"])
     assert result.exit_code != 0
     assert "does not exist" in result.output.lower()

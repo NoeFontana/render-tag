@@ -17,7 +17,9 @@ def sample_report():
     return AuditReport(
         dataset_name="test",
         timestamp="now",
-        geometric=GeometricAudit(distance=stats, incidence_angle=stats, tag_count=1000, image_count=100),
+        geometric=GeometricAudit(
+            distance=stats, incidence_angle=stats, tag_count=1000, image_count=100
+        ),
         environmental=EnvironmentalAudit(lighting_intensity=stats),
         integrity=IntegrityAudit()
     )

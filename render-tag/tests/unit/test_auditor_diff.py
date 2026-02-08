@@ -16,7 +16,9 @@ def report_v1():
     return AuditReport(
         dataset_name="v1",
         timestamp="t1",
-        geometric=GeometricAudit(distance=stats, incidence_angle=stats, tag_count=100, image_count=10),
+        geometric=GeometricAudit(
+            distance=stats, incidence_angle=stats, tag_count=100, image_count=10
+        ),
         environmental=EnvironmentalAudit(lighting_intensity=stats),
         integrity=IntegrityAudit()
     )
@@ -27,7 +29,9 @@ def report_v2():
     return AuditReport(
         dataset_name="v2",
         timestamp="t2",
-        geometric=GeometricAudit(distance=stats, incidence_angle=stats, tag_count=200, image_count=20),
+        geometric=GeometricAudit(
+            distance=stats, incidence_angle=stats, tag_count=200, image_count=20
+        ),
         environmental=EnvironmentalAudit(lighting_intensity=stats),
         integrity=IntegrityAudit(impossible_poses=5)
     )

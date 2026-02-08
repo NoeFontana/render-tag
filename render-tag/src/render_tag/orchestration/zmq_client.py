@@ -17,7 +17,7 @@ class ZmqHostClient:
 
     def __init__(
         self,
-        host: str = "localhost",
+        host: str = "127.0.0.1",
         port: int = 5555,
         timeout_ms: int = 10000,
         context: zmq.Context | None = None,

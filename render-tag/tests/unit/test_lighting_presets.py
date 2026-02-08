@@ -1,4 +1,4 @@
-from render_tag.config import LightingConfig, LightingPreset, get_lighting_preset
+from render_tag.config import LightingConfig, LightingPreset, SceneConfig, get_lighting_preset
 
 
 def test_lighting_presets_exist():
@@ -19,8 +19,6 @@ def test_lighting_presets_exist():
     assert isinstance(outdoor, LightingConfig)
     assert outdoor.intensity_min >= 800
     assert outdoor.radius_max <= 0.05 # Sun is small/hard source relative to sky
-
-from render_tag.config import SceneConfig
 
 
 def test_scene_config_applies_preset():

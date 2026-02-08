@@ -40,5 +40,5 @@ def test_get_env_fingerprint_no_blenderproc(tmp_path, monkeypatch):
     
     monkeypatch.setattr(shutil, "which", lambda x: None)
     
-    env_hash, version = get_env_fingerprint(root_dir=tmp_path)
+    _, version = get_env_fingerprint(root_dir=tmp_path)
     assert version == "unknown"
