@@ -5,6 +5,7 @@ Handles bidirectional sync between local file system and Hugging Face Hub.
 Enforces strict directory structure for binary assets.
 """
 
+import hashlib
 import logging
 from pathlib import Path
 from typing import ClassVar
@@ -75,3 +76,28 @@ class AssetManager:
             commit_message=commit_message,
             repo_type="dataset"
         )
+
+    def get_assets_hash(self) -> str:
+        """
+        Calculates a deterministic SHA256 hash of all files in the asset directory.
+        Used for the 'Asset Lock' in JobSpec.
+        """
+        hasher = hashlib.sha256()
+        
+        # Walk the directory in a deterministic order
+        paths = sorted(
+            [p for p in self.local_dir.rglob("*") if p.is_file()],
+            key=lambda x: str(x.relative_to(self.local_dir))
+        )
+        
+        for path in paths:
+            # Hash path (relative) to handle renames/moves
+            rel_path = str(path.relative_to(self.local_dir))
+            hasher.update(rel_path.encode())
+            
+            # Hash content
+            with open(path, "rb") as f:
+                while chunk := f.read(8192):
+                    hasher.update(chunk)
+                    
+        return hasher.hexdigest()

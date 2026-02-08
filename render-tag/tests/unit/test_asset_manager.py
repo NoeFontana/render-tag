@@ -47,3 +47,27 @@ def test_asset_manager_push(mock_upload, temp_assets_dir):
     assert kwargs["folder_path"] == str(temp_assets_dir)
     assert kwargs["token"] == "test_token"
     assert kwargs["commit_message"] == "Update assets"
+
+def test_asset_manager_get_assets_hash(temp_assets_dir):
+    """Verify that get_assets_hash is deterministic and changes with content."""
+    manager = AssetManager(local_dir=temp_assets_dir)
+    
+    # Create some dummy assets
+    (temp_assets_dir / "hdri" / "test.exr").write_text("content1")
+    (temp_assets_dir / "models" / "box.obj").write_text("content2")
+    
+    hash1 = manager.get_assets_hash()
+    hash2 = manager.get_assets_hash()
+    
+    assert hash1 == hash2
+    assert len(hash1) == 64
+    
+    # Change content
+    (temp_assets_dir / "hdri" / "test.exr").write_text("content_changed")
+    hash3 = manager.get_assets_hash()
+    assert hash1 != hash3
+    
+    # Add file
+    (temp_assets_dir / "textures" / "tex.png").write_text("content3")
+    hash4 = manager.get_assets_hash()
+    assert hash3 != hash4
