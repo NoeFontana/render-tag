@@ -18,14 +18,14 @@
     - [x] Ensure `job.json` contains full context (Env, Assets, Config, Shard)
 - [x] Task: Conductor - User Manual Verification 'Phase 2: CLI Command - lock' (Protocol in workflow.md)
 
-## Phase 3: Job-Driven Execution Engine
-- [ ] Task: Update Execution Logic
-    - [ ] Write failing tests for job-based execution and environment validation
-    - [ ] Extend `render-tag run` (or similar) to accept a `--job` path
-    - [ ] Implement pre-execution guard: Fail if current `uv.lock` hash != `job.json` hash
-- [ ] Task: Config Override Logic
-    - [ ] Ensure CLI flags are ignored or validated against the `job.json` when running in job mode
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: Job-Driven Execution Engine' (Protocol in workflow.md)
+## Phase 3: Job-Driven Execution Engine [checkpoint: ab87ac5]
+- [x] Task: Update Execution Logic (b4dde8e)
+    - [x] Write failing tests for job-based execution and environment validation
+    - [x] Extend `render-tag run` (or similar) to accept a `--job` path
+    - [x] Implement pre-execution guard: Fail if current `uv.lock` hash != `job.json` hash
+- [x] Task: Config Override Logic (cd46eeb)
+    - [x] Ensure CLI flags are ignored or validated against the `job.json` when running in job mode
+- [x] Task: Conductor - User Manual Verification 'Phase 3: Job-Driven Execution Engine' (Protocol in workflow.md)
 
 ## Phase 4: Provenance & Verification
 - [ ] Task: Automatic Manifest Generation
