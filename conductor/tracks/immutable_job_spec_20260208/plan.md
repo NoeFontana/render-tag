@@ -11,12 +11,12 @@
     - [x] Integrate with existing `AssetManager` to pull the current `assets.lock` hash
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Core Schema & Identity' (Protocol in workflow.md)
 
-## Phase 2: CLI Command - `render-tag lock`
-- [ ] Task: Implement `lock` Command
-    - [ ] Write integration tests for `render-tag lock` CLI behavior
-    - [ ] Create `lock` command in `src/render_tag/cli/` to generate `job.json`
-    - [ ] Ensure `job.json` contains full context (Env, Assets, Config, Shard)
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: CLI Command - lock' (Protocol in workflow.md)
+## Phase 2: CLI Command - `render-tag lock` [checkpoint: a66bb43]
+- [x] Task: Implement `lock` Command (0203e35)
+    - [x] Write integration tests for `render-tag lock` CLI behavior
+    - [x] Create `lock` command in `src/render_tag/cli/` to generate `job.json`
+    - [x] Ensure `job.json` contains full context (Env, Assets, Config, Shard)
+- [x] Task: Conductor - User Manual Verification 'Phase 2: CLI Command - lock' (Protocol in workflow.md)
 
 ## Phase 3: Job-Driven Execution Engine
 - [ ] Task: Update Execution Logic
