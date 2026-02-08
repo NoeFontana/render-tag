@@ -2,16 +2,18 @@
 Generation commands.
 """
 
+import hashlib
 import os
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from typing import Any
 
 import typer
 from pydantic import ValidationError
 
-from render_tag.config import load_config
+from render_tag.config import GenConfig, load_config
 from render_tag.generator import Generator
 from render_tag.orchestration.executors import ExecutorFactory
 from render_tag.orchestration.sharding import (
@@ -19,6 +21,7 @@ from render_tag.orchestration.sharding import (
     resolve_shard_index,
     run_local_parallel,
 )
+from render_tag.schema.job import JobSpec, get_env_fingerprint
 from render_tag.tools.validator import AssetValidator, validate_recipe_file
 
 from .tools import (
@@ -30,14 +33,42 @@ from .tools import (
 
 app = typer.Typer(help="Generate synthetic data.")
 
+def pre_execution_guard(job_spec: JobSpec) -> None:
+    """
+    Validates that the current environment matches the JobSpec requirements.
+    """
+    console.print("[bold blue]Running pre-execution guard...[/bold blue]")
+    curr_env_hash, curr_blender_ver = get_env_fingerprint()
+    
+    if curr_env_hash != job_spec.env_hash:
+        console.print(f"[bold red]Error:[/bold red] Environment mismatch (uv.lock hash).")
+        console.print(f"  Expected: {job_spec.env_hash}")
+        console.print(f"  Actual:   {curr_env_hash}")
+        raise typer.Exit(code=1)
+        
+    if curr_blender_ver != job_spec.blender_version:
+        console.print(f"[bold red]Error:[/bold red] Blender version mismatch.")
+        console.print(f"  Expected: {job_spec.blender_version}")
+        console.print(f"  Actual:   {curr_blender_ver}")
+        raise typer.Exit(code=1)
+    
+    console.print("[green]✓ Environment validation passed[/green]")
 
 @app.command()
 def run(
     config: Path = typer.Option(
-        "configs/default.yaml",
+        None,
         "--config",
         "-c",
         help="Path to the generation config YAML file",
+        exists=False,
+        dir_okay=False,
+        resolve_path=True,
+    ),
+    job: Path = typer.Option(
+        None,
+        "--job",
+        help="Path to an immutable job.json spec. If provided, overrides most other flags.",
         exists=True,
         dir_okay=False,
         resolve_path=True,
@@ -160,27 +191,71 @@ def run(
         raise typer.Exit(code=1) from None
 
     # Load and validate configuration
-    console.print(f"[dim]Loading config from[/dim] {config}")
-    try:
-        gen_config = load_config(config)
-    except FileNotFoundError:
-        console.print(f"[bold red]Error:[/bold red] Config file not found: {config}")
-        raise typer.Exit(code=1) from None
-    except ValidationError as e:
-        console.print("[bold red]Validation Error:[/bold red]")
-        for err in e.errors():
-            loc = ".".join(str(loc_part) for loc_part in err["loc"])
-            msg = err["msg"]
-            console.print(f"  [cyan]{loc}[/cyan]: {msg}")
-        raise typer.Exit(code=1) from None
-    except ValueError as e:
-        console.print(f"[bold red]Error:[/bold red] Invalid config: {e}")
-        raise typer.Exit(code=1) from None
+    if job:
+        # If job is provided, config is REQUIRED to match the hash in the spec.
+        # However, the user might not have provided it via --config, 
+        # so we might need a default or error if it's missing.
+        if config is None:
+            config = Path("configs/default.yaml")
 
-    # Apply CLI Overrides
-    gen_config.dataset.num_scenes = num_scenes
-    if seed != -1:
-        gen_config.dataset.seeds.global_seed = seed
+        console.print(f"[bold blue]Loading Job Spec:[/bold blue] {job}")
+        try:
+            with open(job) as f:
+                job_spec = JobSpec.model_validate_json(f.read())
+            
+            # 1. Environment Guard
+            pre_execution_guard(job_spec)
+            
+            # 2. Config validation (ensure the YAML hasn't changed since lock)
+            with open(config, "rb") as f:
+                actual_config_hash = hashlib.sha256(f.read()).hexdigest()
+            
+            if actual_config_hash != job_spec.config_hash:
+                console.print(f"[bold red]Error:[/bold red] Config hash mismatch.")
+                console.print(f"  Spec expected: {job_spec.config_hash}")
+                console.print(f"  Actual:        {actual_config_hash}")
+                raise typer.Exit(code=1)
+            
+            # 3. Load config and override from job
+            gen_config = load_config(config)
+            gen_config.dataset.num_scenes = job_spec.shard_size
+            gen_config.dataset.seeds.global_seed = job_spec.seed
+            shard_index = job_spec.shard_index
+            
+            # Update local variables to match spec
+            num_scenes = job_spec.shard_size
+            seed = job_spec.seed
+            
+            console.print("[green]✓ Job Spec loaded and validated[/green]")
+            
+        except Exception as e:
+            console.print(f"[bold red]Error loading job spec:[/bold red] {e}")
+            raise typer.Exit(code=1)
+    else:
+        if config is None:
+            config = Path("configs/default.yaml")
+
+        console.print(f"[dim]Loading config from[/dim] {config}")
+        try:
+            gen_config = load_config(config)
+        except FileNotFoundError:
+            console.print(f"[bold red]Error:[/bold red] Config file not found: {config}")
+            raise typer.Exit(code=1) from None
+        except ValidationError as e:
+            console.print("[bold red]Validation Error:[/bold red]")
+            for err in e.errors():
+                loc = ".".join(str(loc_part) for loc_part in err["loc"])
+                msg = err["msg"]
+                console.print(f"  [cyan]{loc}[/cyan]: {msg}")
+            raise typer.Exit(code=1) from None
+        except ValueError as e:
+            console.print(f"[bold red]Error:[/bold red] Invalid config: {e}")
+            raise typer.Exit(code=1) from None
+
+        # Apply CLI Overrides (only if NOT in job mode)
+        gen_config.dataset.num_scenes = num_scenes
+        if seed != -1:
+            gen_config.dataset.seeds.global_seed = seed
 
     # Create output directory
     output.mkdir(parents=True, exist_ok=True)
