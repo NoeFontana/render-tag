@@ -27,11 +27,11 @@
     - [x] Ensure CLI flags are ignored or validated against the `job.json` when running in job mode
 - [x] Task: Conductor - User Manual Verification 'Phase 3: Job-Driven Execution Engine' (Protocol in workflow.md)
 
-## Phase 4: Provenance & Verification
-- [ ] Task: Automatic Manifest Generation
-    - [ ] Write tests for post-render manifest creation
-    - [ ] Implement `manifest.json` output in the results directory (links Output Files -> Job ID)
-- [ ] Task: Verification Utility
-    - [ ] Write tests for `render-tag verify-output`
-    - [ ] Implement `verify-output` command to check file integrity and job provenance
-- [ ] Task: Conductor - User Manual Verification 'Phase 4: Provenance & Verification' (Protocol in workflow.md)
+## Phase 4: Provenance & Verification [checkpoint: 209ed65]
+- [x] Task: Automatic Manifest Generation (fe84d3f)
+    - [x] Write tests for post-render manifest creation
+    - [x] Implement `manifest.json` output in the results directory (links Output Files -> Job ID)
+- [x] Task: Verification Utility (15e8649)
+    - [x] Write tests for `render-tag verify-output`
+    - [x] Implement `verify-output` command to check file integrity and job provenance
+- [x] Task: Conductor - User Manual Verification 'Phase 4: Provenance & Verification' (Protocol in workflow.md)
