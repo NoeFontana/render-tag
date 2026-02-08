@@ -218,6 +218,15 @@ def run(
             
             # 3. Load config and override from job
             gen_config = load_config(config)
+            
+            # Warn if CLI overrides are provided but will be ignored
+            if num_scenes != 1 and num_scenes != job_spec.shard_size:
+                console.print(f"[bold yellow]Warning:[/bold yellow] --scenes={num_scenes} ignored. Using job spec value: {job_spec.shard_size}")
+            if seed != -1 and seed != job_spec.seed:
+                console.print(f"[bold yellow]Warning:[/bold yellow] --seed={seed} ignored. Using job spec value: {job_spec.seed}")
+            if shard_index != -1 and shard_index != job_spec.shard_index:
+                console.print(f"[bold yellow]Warning:[/bold yellow] --shard-index={shard_index} ignored. Using job spec value: {job_spec.shard_index}")
+
             gen_config.dataset.num_scenes = job_spec.shard_size
             gen_config.dataset.seeds.global_seed = job_spec.seed
             shard_index = job_spec.shard_index

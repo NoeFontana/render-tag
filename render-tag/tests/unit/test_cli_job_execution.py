@@ -87,6 +87,47 @@ def test_cli_run_with_job_config_mismatch(tmp_path, monkeypatch):
     assert result.exit_code != 0
     assert "Config hash mismatch" in result.output
 
+def test_cli_run_with_job_overrides_warning(tmp_path, monkeypatch):
+    # Setup valid job and config
+    config_dir = tmp_path / "configs"
+    config_dir.mkdir()
+    config_file = config_dir / "default.yaml"
+    config_file.write_text("dummy: content")
+    config_hash = hashlib.sha256(b"dummy: content").hexdigest()
+
+    job_file = tmp_path / "job.json"
+    spec = JobSpec(
+        env_hash=hashlib.sha256(b"uv").hexdigest(),
+        blender_version="4.2.0",
+        assets_hash="abc",
+        config_hash=config_hash,
+        seed=42,
+        shard_index=0,
+        shard_size=1
+    )
+    job_file.write_text(spec.model_dump_json())
+    
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "uv.lock").write_text("uv")
+    
+    import shutil
+    import subprocess
+    monkeypatch.setattr(shutil, "which", lambda x: "/usr/bin/blenderproc")
+    class MockCompletedProcess:
+        def __init__(self):
+            self.stdout = "BlenderProc 4.2.0\n"
+            self.returncode = 0
+    monkeypatch.setattr(subprocess, "run", lambda *args, **kwargs: MockCompletedProcess())
+
+    # Run with conflicting CLI flags
+    result = runner.invoke(app, ["run", "--job", str(job_file), "--scenes", "5", "--seed", "100"])
+    
+    # It should still run (or at least pass the guard) and show warnings
+    assert "Warning" in result.output
+    assert "ignored" in result.output
+    assert "Using job spec value: 1" in result.output
+    assert "Using job spec value: 42" in result.output
+
 def test_cli_run_with_job_not_found():
     result = runner.invoke(app, ["run", "--job", "non_existent.json"])
     assert result.exit_code != 0
