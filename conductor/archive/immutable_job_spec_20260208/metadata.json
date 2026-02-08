@@ -1,0 +1,8 @@
+{
+  "track_id": "immutable_job_spec_20260208",
+  "type": "feature",
+  "status": "new",
+  "created_at": "2026-02-08T15:00:00Z",
+  "updated_at": "2026-02-08T15:00:00Z",
+  "description": "Define a rigid JSON Schema that represents a 'Unit of Work' for hermetic and reproducible rendering."
+}

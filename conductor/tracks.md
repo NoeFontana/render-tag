@@ -8,8 +8,3 @@ This file tracks all major tracks for the project. Each track has its own detail
 ---
 
 *Link: [./tracks/hot_loop_20260205/](./tracks/hot_loop_20260205/)*
-
----
-
-- [x] **Track: Immutable Job Spec (The Contract)**
-*Link: [./tracks/immutable_job_spec_20260208/](./tracks/immutable_job_spec_20260208/)*
