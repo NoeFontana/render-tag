@@ -5,7 +5,7 @@ CLI Entry Point.
 import typer
 from rich.panel import Panel
 
-from . import assets, audit, experiment, generate, viz
+from . import assets, audit, experiment, generate, job, viz
 from .tools import console
 
 app = typer.Typer(
@@ -19,11 +19,15 @@ app.add_typer(assets.app, name="assets")
 app.add_typer(audit.app, name="audit")
 app.add_typer(experiment.app, name="experiment")
 app.add_typer(viz.app, name="viz")
+app.add_typer(job.app, name="job")
 
 # Register top-level commands from generate.py
 app.command(name="generate")(generate.run)
 app.command(name="validate-config")(generate.validate_config)
 app.command(name="validate-recipe")(generate.validate_recipe)
+
+# Register top-level commands from job.py
+app.command(name="lock")(job.lock)
 
 # Register top-level commands from viz.py (shortcuts)
 app.command(name="viz")(viz.viz_dataset)
