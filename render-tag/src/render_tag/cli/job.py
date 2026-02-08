@@ -1,4 +1,5 @@
 import hashlib
+import json
 from pathlib import Path
 from typing import Annotated
 
@@ -61,6 +62,68 @@ def lock(
         title="Success",
         border_style="green"
     ))
+
+@app.command(name="verify")
+def verify_output(
+    dataset_dir: Annotated[Path, typer.Argument(help="Path to the generated dataset directory.")]
+):
+    """Verify the integrity and provenance of a generated dataset."""
+    console.print(f"[bold blue]Verifying dataset at:[/bold blue] {dataset_dir}")
+    
+    manifest_path = dataset_dir / "manifest.json"
+    if not manifest_path.exists():
+        console.print(f"[bold red]Error:[/bold red] manifest.json not found in {dataset_dir}")
+        raise typer.Exit(code=1)
+        
+    try:
+        with open(manifest_path) as f:
+            manifest = json.load(f)
+            
+        job_id = manifest.get("job_id", "unknown")
+        files = manifest.get("files", {})
+        
+        console.print(f"[dim]Job ID:[/dim] [cyan]{job_id}[/cyan]")
+        console.print(f"[dim]Checking {len(files)} files...[/dim]")
+        
+        failed_files = []
+        for rel_path, expected_hash in files.items():
+            abs_path = dataset_dir / rel_path
+            if not abs_path.exists():
+                console.print(f"  [red]✗[/red] Missing: {rel_path}")
+                failed_files.append(rel_path)
+                continue
+                
+            hasher = hashlib.sha256()
+            with open(abs_path, "rb") as f:
+                while chunk := f.read(8192):
+                    hasher.update(chunk)
+            
+            actual_hash = hasher.hexdigest()
+            if actual_hash != expected_hash:
+                console.print(f"  [red]✗[/red] Tampered: {rel_path}")
+                failed_files.append(rel_path)
+            else:
+                # console.print(f"  [green]✓[/green] {rel_path}")
+                pass
+                
+        if failed_files:
+            console.print(Panel(
+                f"Integrity check [bold red]FAILED[/bold red] for {len(failed_files)} files.",
+                title="Error",
+                border_style="red"
+            ))
+            raise typer.Exit(code=1)
+        else:
+            console.print(Panel(
+                f"Integrity check [bold green]passed[/bold green] for all files.\n"
+                f"Provenance verified against Job ID: [cyan]{job_id}[/cyan]",
+                title="Success",
+                border_style="green"
+            ))
+            
+    except Exception as e:
+        console.print(f"[bold red]Error during verification:[/bold red] {e}")
+        raise typer.Exit(code=1)
 
 if __name__ == "__main__":
     app.command()(lock)
