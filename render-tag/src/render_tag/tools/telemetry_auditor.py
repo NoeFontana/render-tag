@@ -13,6 +13,7 @@ from render_tag.schema.hot_loop import Telemetry
 
 logger = logging.getLogger(__name__)
 
+
 class TelemetryAuditor:
     """
     Collects and analyzes worker telemetry using Polars DataFrames.
@@ -31,7 +32,7 @@ class TelemetryAuditor:
             "vram_total_mb": telemetry.vram_total_mb,
             "cpu_usage": telemetry.cpu_usage_percent,
             "uptime": telemetry.uptime_seconds,
-            "state_hash": telemetry.state_hash
+            "state_hash": telemetry.state_hash,
         }
         self.records.append(entry)
 
@@ -52,7 +53,7 @@ class TelemetryAuditor:
     def analyze_throughput(self) -> dict[str, Any]:
         """Calculates throughput statistics."""
         from typing import cast
-        
+
         df = self.get_dataframe()
         if df.is_empty():
             return {}
@@ -63,7 +64,7 @@ class TelemetryAuditor:
         max_ts = cast(datetime, df["timestamp"].max())
         duration = (max_ts - min_ts).total_seconds()
         total_events = len(df)
-        
+
         return {
             "total_duration_sec": duration,
             "event_count": total_events,

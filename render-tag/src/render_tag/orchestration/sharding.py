@@ -13,7 +13,7 @@ from pathlib import Path
 from rich.console import Console
 
 from ..common.logging import get_logger
-from ..config import load_config
+from ..core.config import load_config
 
 console = Console()
 logger = get_logger(__name__)
@@ -26,8 +26,9 @@ def _signal_handler(sig, frame):
     """Handle termination signals by killing all active worker processes."""
     console.print(f"\n[bold red]Received signal {sig}. Terminating workers...[/bold red]")
     from .unified_orchestrator import UnifiedWorkerOrchestrator
+
     UnifiedWorkerOrchestrator.cleanup_all()
-    
+
     console.print("[dim]Workers cleaned up. Exiting.[/dim]")
     sys.exit(1)
 
@@ -36,7 +37,7 @@ def get_completed_scene_ids(output_dir: Path) -> set[int]:
     """
     Identify completed scene IDs by scanning for sidecar JSON files.
 
-    Assumes sidecar files follow the pattern 'scene_{id}_meta.json' 
+    Assumes sidecar files follow the pattern 'scene_{id}_meta.json'
     or 'scene_{id}_cam_{cid}_meta.json'.
     """
     completed_ids = set()
@@ -83,7 +84,7 @@ def merge_csv_results(output_dir: Path):
     shards.sort(key=lambda p: p.name)
 
     final_csv = output_dir / "tags.csv"
-    
+
     # If final_csv exists, we append to it (skipping headers in shards)
     # If it doesn't, we create it and write the header from the first shard.
     exists = final_csv.exists()
@@ -121,12 +122,12 @@ def run_local_parallel(
 ):
     """
     Executes renders in parallel using a dynamic task pool (Batch Stealing).
-    
+
     1. Generates all required scene recipes.
     2. Groups recipes into batches.
     3. Spawns workers that pull and execute batches until the pool is empty.
     """
-    from ..generator import Generator
+    from ..generation.scene import Generator
     from .executors import ExecutorFactory
 
     # 1. Setup
@@ -145,6 +146,7 @@ def run_local_parallel(
     except Exception as e:
         console.print(f"[bold red]Failed to load config:[/bold red] {e}")
         from typer import Exit
+
         raise Exit(1) from None
 
     # Override num_scenes from CLI argument
@@ -152,7 +154,7 @@ def run_local_parallel(
 
     generator = Generator(config, output_dir)
     all_recipes = generator.generate_all(exclude_ids=completed_ids)
-    
+
     if not all_recipes:
         console.print("[yellow]No new scenes to generate. All tasks complete.[/yellow]")
         return
@@ -172,11 +174,11 @@ def run_local_parallel(
         batches.append((batch_id, recipe_path))
 
     start_time = time.time()
-    
+
     # 5. Execute batches using a simple work-queue model
     # We'll use a local executor for each worker
     executor = ExecutorFactory.get_executor(executor_type)
-    
+
     from queue import Queue
     from threading import Thread
 
@@ -194,12 +196,12 @@ def run_local_parallel(
                 break
 
             logger.info(f"Worker {worker_id} pulling batch {batch_id}...")
-            
+
             # For subprocess management, we still want to track PIDs
             # But the executor currently uses subprocess.run (blocking)
-            # We need to monkey-patch or refactor executor to use Popen 
+            # We need to monkey-patch or refactor executor to use Popen
             # if we want SIGINT to work perfectly
-            # Actually, since we are in a thread, subprocess.run is fine 
+            # Actually, since we are in a thread, subprocess.run is fine
             # as long as we can kill the whole group
             try:
                 # We need a way to track the subprocess inside the executor
@@ -209,7 +211,7 @@ def run_local_parallel(
                     output_dir=output_dir,
                     renderer_mode=renderer_mode,
                     shard_id=f"batch_{batch_id}",
-                    verbose=verbose
+                    verbose=verbose,
                 )
                 results.append((batch_id, True))
             except Exception as e:
@@ -230,15 +232,16 @@ def run_local_parallel(
 
     elapsed = time.time() - start_time
     failed_batches = [bid for bid, success in results if not success]
-    
+
     if failed_batches:
         console.print(
             f"[bold red]Parallel execution finished with {len(failed_batches)} "
             "failed batches.[/bold red]"
         )
         from typer import Exit
+
         raise Exit(1) from None
-    
+
     logger.info(f"Parallel execution finished in {elapsed:.2f}s")
 
     # 6. Cleanup batch files

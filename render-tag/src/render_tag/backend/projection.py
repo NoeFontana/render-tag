@@ -35,11 +35,9 @@ def project_corners_to_image(
         return None
 
     k_matrix = (
-        camera_matrix
-        if camera_matrix is not None
-        else bproc.camera.get_intrinsics_as_K_matrix()
+        camera_matrix if camera_matrix is not None else bproc.camera.get_intrinsics_as_K_matrix()
     )
-    
+
     # Use bridge/math logic for matrix conversion
     blender_cam_mat = np.array(bpy.context.scene.camera.matrix_world)
     cam2world = get_opencv_camera_matrix(blender_cam_mat)
@@ -91,10 +89,10 @@ def compute_geometric_metadata(tag_obj: Any) -> dict[str, float]:
     tag_location = np.array(tag_obj.get_location())
     cam_location = np.array(bpy.context.scene.camera.location)
     world_matrix = np.array(tag_obj.get_local2world_mat())
-    
+
     # Use pure math layer
     distance = calculate_distance(tag_location, cam_location)
-    
+
     world_normal = get_world_normal(world_matrix)
     angle_deg = calculate_angle_of_incidence(tag_location, world_normal, cam_location)
 
@@ -111,21 +109,19 @@ def compute_geometric_metadata(tag_obj: Any) -> dict[str, float]:
 def get_valid_detections(tag_objects: list[Any]) -> list[tuple[Any, list[tuple[float, float]]]]:
     """
     Filter visible tags and return their projected corners.
-    
+
     Args:
         tag_objects: List of tag objects (BlenderProc wrappers or similar).
-        
+
     Returns:
         List of (tag_obj, corners_2d) tuples for visible tags.
     """
     valid_detections = []
-    
+
     for tag_obj in tag_objects:
         corners_2d = project_corners_to_image(tag_obj)
-        
-        if corners_2d is not None:
-            # Using existing check_tag_visibility for robust check
-            if check_tag_visibility(tag_obj):
-                valid_detections.append((tag_obj, corners_2d))
-                
+
+        if corners_2d is not None and check_tag_visibility(tag_obj):
+            valid_detections.append((tag_obj, corners_2d))
+
     return valid_detections

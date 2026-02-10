@@ -14,15 +14,16 @@ def rich_dataset(tmp_path):
         json.dump(rich_truth, f)
     return dataset_dir
 
+
 def test_audit_report_json_serialization(rich_dataset):
     """Verify that AuditResult can be serialized to JSON."""
     auditor = DatasetAuditor(rich_dataset)
     result = auditor.run_audit()
-    
+
     # Check serialization
     json_data = result.model_dump_json()
     parsed = json.loads(json_data)
-    
+
     assert parsed["report"]["dataset_name"] == "report_dataset"
     assert "geometric" in parsed["report"]
     assert "environmental" in parsed["report"]

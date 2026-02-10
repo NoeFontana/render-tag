@@ -21,6 +21,7 @@ from render_tag.backend.sensors import apply_parametric_noise
 
 logger = logging.getLogger(__name__)
 
+
 class RenderFacade:
     """
     High-level interface for rendering fiducial tag scenes.
@@ -65,7 +66,7 @@ class RenderFacade:
             intensity_min=lighting.get("intensity", 100),
             intensity_max=lighting.get("intensity", 100),
             radius_min=lighting.get("radius", 0.0),
-            radius_max=lighting.get("radius", 0.0)
+            radius_max=lighting.get("radius", 0.0),
         )
 
     def spawn_objects(self, object_recipes: list[dict[str, Any]]):
@@ -112,15 +113,12 @@ class RenderFacade:
 
         if bpy and bpy.context.scene.render.engine != "BLENDER_WORKBENCH":
             bproc.renderer.enable_segmentation_output(default_values={"category_id": 0})
-        
+
         data = bproc.renderer.render()
         img = data["colors"][0]
-        
+
         # Apply noise post-processing
         if camera_recipe.get("sensor_noise"):
             img = apply_parametric_noise(img, camera_recipe["sensor_noise"])
-            
-        return {
-            "img": img,
-            "segmap": data.get("segmentation", [None])[0]
-        }
+
+        return {"img": img, "segmap": data.get("segmentation", [None])[0]}

@@ -2,8 +2,8 @@ import random
 
 import numpy as np
 
-from render_tag.config import GenConfig
-from render_tag.generator import Generator
+from render_tag.core.config import GenConfig
+from render_tag.generation.scene import Generator
 
 
 def test_generator_samples_velocity(tmp_path):
@@ -40,7 +40,7 @@ def test_generator_passes_dof_and_noise(tmp_path):
     config.camera.iso_noise = 0.5
 
     gen = Generator(config, output_dir=tmp_path)
-    
+
     rng = random.Random(42)
     np_rng = np.random.default_rng(42)
     recipes = gen._generate_camera_recipes(rng, np_rng)
@@ -57,7 +57,7 @@ def test_generator_no_velocity_default(tmp_path):
     # Defaults are 0.0
 
     gen = Generator(config, output_dir=tmp_path)
-    
+
     rng = random.Random(42)
     np_rng = np.random.default_rng(42)
     recipes = gen._generate_camera_recipes(rng, np_rng)

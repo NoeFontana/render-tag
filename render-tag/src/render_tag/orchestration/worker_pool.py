@@ -13,6 +13,7 @@ from render_tag.schema.hot_loop import CommandType, Response, ResponseStatus
 
 logger = logging.getLogger(__name__)
 
+
 class WorkerPool:
     """
     Manages a pool of persistent Blender worker processes.
@@ -27,7 +28,7 @@ class WorkerPool:
         blender_executable: str = "blenderproc",
         use_blenderproc: bool = True,
         mock: bool = False,
-        vram_threshold_mb: float | None = None
+        vram_threshold_mb: float | None = None,
     ):
         self.num_workers = num_workers
         self.base_port = base_port
@@ -36,7 +37,7 @@ class WorkerPool:
         self.use_blenderproc = use_blenderproc
         self.mock = mock
         self.vram_threshold_mb = vram_threshold_mb
-        
+
         self.workers: list[PersistentWorkerProcess] = []
         self.worker_queue = queue.Queue()
         self._lock = threading.Lock()
@@ -47,7 +48,7 @@ class WorkerPool:
         with self._lock:
             if self.running:
                 return
-            
+
             logger.info(f"Starting WorkerPool with {self.num_workers} workers.")
             for i in range(self.num_workers):
                 worker = PersistentWorkerProcess(
@@ -56,12 +57,12 @@ class WorkerPool:
                     blender_script=self.blender_script,
                     blender_executable=self.blender_executable,
                     use_blenderproc=self.use_blenderproc,
-                    mock=self.mock
+                    mock=self.mock,
                 )
                 worker.start()
                 self.workers.append(worker)
                 self.worker_queue.put(worker)
-            
+
             self.running = True
 
     def stop(self):
@@ -69,11 +70,11 @@ class WorkerPool:
         with self._lock:
             if not self.running:
                 return
-            
+
             logger.info("Stopping WorkerPool.")
             for worker in self.workers:
                 worker.stop()
-            
+
             self.workers.clear()
             # Clear the queue
             while not self.worker_queue.empty():
@@ -81,7 +82,7 @@ class WorkerPool:
                     self.worker_queue.get_nowait()
                 except queue.Empty:
                     break
-            
+
             self.running = False
 
     def get_worker(self, timeout: float | None = None) -> PersistentWorkerProcess:
@@ -91,11 +92,11 @@ class WorkerPool:
     def release_worker(self, worker: PersistentWorkerProcess):
         """Returns a worker to the pool after use, checking health and VRAM guardrails."""
         should_restart = False
-        
+
         if not worker.is_healthy():
             logger.warning(f"Worker {worker.worker_id} is unhealthy.")
             should_restart = True
-        
+
         elif self.vram_threshold_mb is not None:
             try:
                 resp = worker.send_command(CommandType.STATUS)
@@ -118,7 +119,7 @@ class WorkerPool:
                 worker.start()
             except Exception as e:
                 logger.error(f"Failed to restart worker {worker.worker_id}: {e}")
-        
+
         self.worker_queue.put(worker)
 
     def execute_on_all(
@@ -130,11 +131,13 @@ class WorkerPool:
             if worker.is_healthy():
                 responses.append(worker.send_command(command_type, payload))
             else:
-                responses.append(Response(
-                    status=ResponseStatus.FAILURE,
-                    request_id="pool-broadcast",
-                    message=f"Worker {worker.worker_id} is unhealthy"
-                ))
+                responses.append(
+                    Response(
+                        status=ResponseStatus.FAILURE,
+                        request_id="pool-broadcast",
+                        message=f"Worker {worker.worker_id} is unhealthy",
+                    )
+                )
         return responses
 
     def __enter__(self):

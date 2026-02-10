@@ -12,7 +12,7 @@ from typing import Any
 
 import numpy as np
 
-from render_tag.config import GenConfig
+from render_tag.core.config import GenConfig
 
 from .experiment_schema import Experiment, ExperimentVariant, Sweep, SweepType
 

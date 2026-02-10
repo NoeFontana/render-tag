@@ -12,15 +12,17 @@ from pydantic import BaseModel, Field
 
 class CommandType(str, Enum):
     """Types of commands that can be sent to the Backend."""
-    INIT = "INIT"       # Pre-load heavy assets
-    RENDER = "RENDER"   # Execute a scene recipe
-    RESET = "RESET"     # Partial reset of volatile state
-    STATUS = "STATUS"   # Heartbeat and telemetry request
+
+    INIT = "INIT"  # Pre-load heavy assets
+    RENDER = "RENDER"  # Execute a scene recipe
+    RESET = "RESET"  # Partial reset of volatile state
+    STATUS = "STATUS"  # Heartbeat and telemetry request
     SHUTDOWN = "SHUTDOWN"
 
 
 class Command(BaseModel):
     """A command sent from Host to Backend."""
+
     command_type: CommandType
     payload: dict[str, Any] | None = None
     request_id: str = Field(description="Unique ID for tracking the request/response pair")
@@ -28,12 +30,14 @@ class Command(BaseModel):
 
 class ResponseStatus(str, Enum):
     """Status of a command execution."""
+
     SUCCESS = "SUCCESS"
     FAILURE = "FAILURE"
 
 
 class Response(BaseModel):
     """A response sent from Backend to Host."""
+
     status: ResponseStatus
     request_id: str
     message: str | None = None
@@ -42,6 +46,7 @@ class Response(BaseModel):
 
 class Telemetry(BaseModel):
     """Telemetry data reported by the Backend."""
+
     vram_used_mb: float
     vram_total_mb: float
     cpu_usage_percent: float
@@ -52,12 +57,9 @@ class Telemetry(BaseModel):
 def calculate_state_hash(assets: list[str], parameters: dict[str, Any]) -> str:
     """
     Calculates a deterministic hash representing the current resident state of the backend.
-    
+
     Includes loaded assets (HDRIs, textures) and semi-persistent parameters.
     """
-    state_data = {
-        "assets": sorted(assets),
-        "parameters": parameters
-    }
+    state_data = {"assets": sorted(assets), "parameters": parameters}
     state_json = json.dumps(state_data, sort_keys=True)
     return hashlib.sha256(state_json.encode()).hexdigest()

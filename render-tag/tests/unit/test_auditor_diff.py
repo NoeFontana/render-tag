@@ -20,8 +20,9 @@ def report_v1():
             distance=stats, incidence_angle=stats, tag_count=100, image_count=10
         ),
         environmental=EnvironmentalAudit(lighting_intensity=stats),
-        integrity=IntegrityAudit()
+        integrity=IntegrityAudit(),
     )
+
 
 @pytest.fixture
 def report_v2():
@@ -33,14 +34,15 @@ def report_v2():
             distance=stats, incidence_angle=stats, tag_count=200, image_count=20
         ),
         environmental=EnvironmentalAudit(lighting_intensity=stats),
-        integrity=IntegrityAudit(impossible_poses=5)
+        integrity=IntegrityAudit(impossible_poses=5),
     )
+
 
 def test_audit_diff_calculates_deltas(report_v1, report_v2):
     """Verify that AuditDiff calculates correct deltas between two reports."""
     diff = AuditDiff(report_v1, report_v2)
     delta = diff.calculate()
-    
+
     assert delta["tag_count"] == 100
     assert delta["image_count"] == 10
     assert delta["distance_mean_diff"] == 5.0

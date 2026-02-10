@@ -16,6 +16,7 @@ from render_tag.schema.hot_loop import CommandType, Response, ResponseStatus
 
 logger = logging.getLogger(__name__)
 
+
 class PersistentWorkerProcess:
     """
     Manages the lifecycle of a persistent Blender subprocess with ZMQ communication.
@@ -31,7 +32,7 @@ class PersistentWorkerProcess:
         use_blenderproc: bool = True,
         mock: bool = False,
         max_renders: int | None = None,
-        context: zmq.Context | None = None
+        context: zmq.Context | None = None,
     ):
         self.worker_id = worker_id
         self.port = port
@@ -42,7 +43,7 @@ class PersistentWorkerProcess:
         self.mock = mock
         self.max_renders = max_renders
         self.context = context
-        
+
         self.process: subprocess.Popen | None = None
         self.client: ZmqHostClient | None = None
 
@@ -63,34 +64,29 @@ class PersistentWorkerProcess:
             # If not using blenderproc (e.g. standard python for mocks),
             # just run the script directly.
             base_cmd = [self.blender_executable, str(self.blender_script)]
-        
+
         cmd = [*base_cmd, "--port", str(self.port)]
         if self.mock:
             cmd.append("--mock")
         if self.max_renders:
             cmd.extend(["--max-renders", str(self.max_renders)])
-    
+
         logger.info(f"Starting persistent worker {self.worker_id}: {' '.join(cmd)}")
-        
+
         # Clean environment to prevent Blender from picking up host venv packages
         env = os.environ.copy()
         env.pop("PYTHONPATH", None)
-        
+
         # Add project src to PYTHONPATH so render_tag package can be imported
         # Assuming script is at src/render_tag/backend/zmq_server.py
         # We want to add 'src' to path.
         project_src = self.blender_script.resolve().parents[2]
         if project_src.name == "src":
             env["PYTHONPATH"] = str(project_src)
-        
-        # Start the process. Inherit stdout/stderr so it propagates to parent (and pytest captures it)
-        self.process = subprocess.Popen(
-            cmd,
-            env=env,
-            stdout=None,
-            stderr=None,
-            text=True
-        )
+
+        # Start the process. Inherit stdout/stderr so it propagates to parent
+        # (and pytest captures it)
+        self.process = subprocess.Popen(cmd, env=env, stdout=None, stderr=None, text=True)
 
         # Initialize ZMQ client with short timeout for startup phase
         self.client = ZmqHostClient(port=self.port, timeout_ms=1000, context=self.context)
@@ -110,11 +106,14 @@ class PersistentWorkerProcess:
                     self.client.socket.setsockopt(zmq.RCVTIMEO, 10000)
                     return
                 else:
-                    logger.warning(f"Worker {self.worker_id} replied but status is {resp.status}: {resp.message}")
+                    logger.warning(
+                        f"Worker {self.worker_id} replied but status is {resp.status}: "
+                        f"{resp.message}"
+                    )
             except Exception as e:
                 logger.warning(f"Worker {self.worker_id} not ready yet (attempt): {e}")
                 pass
-                
+
             time.sleep(0.5)
 
         self.stop()
@@ -129,7 +128,7 @@ class PersistentWorkerProcess:
                     # Use a very short timeout for shutdown command
                     self.client.socket.setsockopt(zmq.RCVTIMEO, 500)
                     self.client.send_command(CommandType.SHUTDOWN)
-                
+
                 self.client.disconnect()
             except Exception:
                 pass
@@ -148,7 +147,7 @@ class PersistentWorkerProcess:
         """Checks if the worker is still alive and responsive."""
         if not self.process or self.process.poll() is not None:
             return False
-        
+
         if not self.client:
             return False
 
@@ -161,7 +160,7 @@ class PersistentWorkerProcess:
         """Sends a command to the worker."""
         if not self.is_healthy():
             raise RuntimeError(f"Worker {self.worker_id} is not healthy or not running.")
-        
+
         return self.client.send_command(command_type, payload)
 
     def __enter__(self):

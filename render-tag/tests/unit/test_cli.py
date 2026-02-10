@@ -10,7 +10,7 @@ from typer.testing import CliRunner
 
 from render_tag.cli import app
 from render_tag.cli.tools import check_blenderproc_installed, serialize_config_to_json
-from render_tag.config import GenConfig
+from render_tag.core.config import GenConfig
 
 runner = CliRunner()
 
@@ -82,15 +82,17 @@ def mock_executor_factory():
         mock_factory.get_executor.return_value = mock_executor
         yield mock_factory, mock_executor
 
+
 @pytest.fixture
 def mock_generator():
     """Mocks the Generator to return dummy recipes and pass validation."""
     with patch("render_tag.cli.generate.Generator") as mock_gen_cls:
         mock_gen = mock_gen_cls.return_value
         mock_gen.generate_shards.return_value = [{"scene_id": 0}]
-        
+
         with patch("render_tag.cli.generate.validate_recipe_file", return_value=(True, [], [])):
             yield mock_gen_cls, mock_gen
+
 
 @pytest.fixture
 def mock_hydrated_assets():
@@ -100,13 +102,10 @@ def mock_hydrated_assets():
         mock_val.is_hydrated.return_value = True
         yield mock_val
 
+
 @patch("render_tag.cli.generate.check_blenderproc_installed", return_value=True)
 def test_generate_handoff_to_executor(
-    mock_check,
-    mock_executor_factory,
-    mock_generator,
-    mock_hydrated_assets,
-    tmp_path: Path
+    mock_check, mock_executor_factory, mock_generator, mock_hydrated_assets, tmp_path: Path
 ) -> None:
     """
     Staff Engineer approach: Verify CLI correctly HANDS OFF to the orchestration layer.
@@ -121,10 +120,14 @@ def test_generate_handoff_to_executor(
         app,
         [
             "generate",
-            "--config", str(config_path),
-            "--output", str(output_dir),
-            "--renderer-mode", "eevee",
-            "--executor", "mock"
+            "--config",
+            str(config_path),
+            "--output",
+            str(output_dir),
+            "--renderer-mode",
+            "eevee",
+            "--executor",
+            "mock",
         ],
     )
 
@@ -132,20 +135,17 @@ def test_generate_handoff_to_executor(
     # Verify handoff
     mock_factory.get_executor.assert_called_with("mock")
     assert mock_executor.execute.called
-    
+
     # Verify arguments passed to executor
     call_args = mock_executor.execute.call_args.kwargs
     assert "recipe_path" in call_args
     assert call_args["output_dir"] == output_dir
     assert call_args["renderer_mode"] == "eevee"
 
+
 @patch("render_tag.cli.generate.check_blenderproc_installed", return_value=True)
 def test_generate_scenes_override_logic(
-    mock_check,
-    mock_executor_factory,
-    mock_generator,
-    mock_hydrated_assets,
-    tmp_path: Path
+    mock_check, mock_executor_factory, mock_generator, mock_hydrated_assets, tmp_path: Path
 ) -> None:
     """Verify that CLI overrides are correctly processed before generation."""
     mock_gen_cls, _ = mock_generator
@@ -156,9 +156,12 @@ def test_generate_scenes_override_logic(
         app,
         [
             "generate",
-            "--config", str(config_path),
-            "--output", str(tmp_path / "out"),
-            "--scenes", "3",
+            "--config",
+            str(config_path),
+            "--output",
+            str(tmp_path / "out"),
+            "--scenes",
+            "3",
         ],
     )
 

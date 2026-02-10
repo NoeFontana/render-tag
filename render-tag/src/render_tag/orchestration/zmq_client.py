@@ -53,10 +53,10 @@ class ZmqHostClient:
         self.connected = False
 
     def send_command(
-        self, 
-        command_type: CommandType, 
+        self,
+        command_type: CommandType,
         payload: dict[str, Any] | None = None,
-        raise_on_failure: bool = False
+        raise_on_failure: bool = False,
     ) -> Response:
         """
         Sends a command and waits for a response.
@@ -66,20 +66,16 @@ class ZmqHostClient:
             self.connect()
 
         request_id = f"req-{int(time.time() * 1000)}"
-        command = Command(
-            command_type=command_type,
-            payload=payload,
-            request_id=request_id
-        )
-        
+        command = Command(command_type=command_type, payload=payload, request_id=request_id)
+
         try:
             # Send JSON-serialized command
             self.socket.send_string(command.model_dump_json())
-            
+
             # Wait for response
             response_json = self.socket.recv_string()
             return Response.model_validate_json(response_json)
-            
+
         except zmq.Again:
             # REQ/REP synchronization is broken on timeout. Must reset socket.
             self._create_socket()
@@ -88,18 +84,14 @@ class ZmqHostClient:
             return Response(
                 status="FAILURE",
                 request_id=request_id,
-                message=f"Timeout waiting for response from {self.address}"
+                message=f"Timeout waiting for response from {self.address}",
             )
         except Exception as e:
             # Reset socket on any major error to be safe
             self._create_socket()
             if raise_on_failure:
                 raise e
-            return Response(
-                status="FAILURE",
-                request_id=request_id,
-                message=str(e)
-            )
+            return Response(status="FAILURE", request_id=request_id, message=str(e))
 
     def __enter__(self):
         self.connect()

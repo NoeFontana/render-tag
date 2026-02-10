@@ -10,7 +10,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field, model_validator
 
-from render_tag.config import GenConfig
+from render_tag.core.config import GenConfig
 
 
 class SweepType(str, Enum):

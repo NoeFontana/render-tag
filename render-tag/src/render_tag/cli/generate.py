@@ -12,9 +12,9 @@ from pathlib import Path
 import typer
 from pydantic import ValidationError
 
-from render_tag.config import load_config
+from render_tag.core.config import load_config
 from render_tag.data_io.manifest import DatasetManifest
-from render_tag.generator import Generator
+from render_tag.generation.scene import Generator
 from render_tag.orchestration.executors import ExecutorFactory
 from render_tag.orchestration.sharding import (
     get_completed_scene_ids,
@@ -33,26 +33,28 @@ from .tools import (
 
 app = typer.Typer(help="Generate synthetic data.")
 
+
 def pre_execution_guard(job_spec: JobSpec) -> None:
     """
     Validates that the current environment matches the JobSpec requirements.
     """
     console.print("[bold blue]Running pre-execution guard...[/bold blue]")
     curr_env_hash, curr_blender_ver = get_env_fingerprint()
-    
+
     if curr_env_hash != job_spec.env_hash:
         console.print("[bold red]Error:[/bold red] Environment mismatch (uv.lock hash).")
         console.print(f"  Expected: {job_spec.env_hash}")
         console.print(f"  Actual:   {curr_env_hash}")
         raise typer.Exit(code=1)
-        
+
     if curr_blender_ver != job_spec.blender_version:
         console.print("[bold red]Error:[/bold red] Blender version mismatch.")
         console.print(f"  Expected: {job_spec.blender_version}")
         console.print(f"  Actual:   {curr_blender_ver}")
         raise typer.Exit(code=1)
-    
+
     console.print("[green]✓ Environment validation passed[/green]")
+
 
 @app.command()
 def run(
@@ -193,7 +195,7 @@ def run(
     # Load and validate configuration
     if job:
         # If job is provided, config is REQUIRED to match the hash in the spec.
-        # However, the user might not have provided it via --config, 
+        # However, the user might not have provided it via --config,
         # so we might need a default or error if it's missing.
         if config is None:
             config = Path("configs/default.yaml")
@@ -202,23 +204,23 @@ def run(
         try:
             with open(job) as f:
                 job_spec = JobSpec.model_validate_json(f.read())
-            
+
             # 1. Environment Guard
             pre_execution_guard(job_spec)
-            
+
             # 2. Config validation (ensure the YAML hasn't changed since lock)
             with open(config, "rb") as f:
                 actual_config_hash = hashlib.sha256(f.read()).hexdigest()
-            
+
             if actual_config_hash != job_spec.config_hash:
                 console.print("[bold red]Error:[/bold red] Config hash mismatch.")
                 console.print(f"  Spec expected: {job_spec.config_hash}")
                 console.print(f"  Actual:        {actual_config_hash}")
                 raise typer.Exit(code=1)
-            
+
             # 3. Load config and override from job
             gen_config = load_config(config)
-            
+
             # Warn if CLI overrides are provided but will be ignored
             if num_scenes != 1 and num_scenes != job_spec.shard_size:
                 console.print(
@@ -239,13 +241,13 @@ def run(
             gen_config.dataset.num_scenes = job_spec.shard_size
             gen_config.dataset.seeds.global_seed = job_spec.seed
             shard_index = job_spec.shard_index
-            
+
             # Update local variables to match spec
             num_scenes = job_spec.shard_size
             seed = job_spec.seed
-            
+
             console.print("[green]✓ Job Spec loaded and validated[/green]")
-            
+
         except Exception as e:
             console.print(f"[bold red]Error loading job spec:[/bold red] {e}")
             raise typer.Exit(code=1) from e
@@ -366,7 +368,7 @@ def run(
     console.print("[green]✓ Pre-flight validation passed[/green]")
 
     # 2. Ensure tag assets
-    from render_tag.tag_gen import ensure_tag_asset
+    from render_tag.generation.tags import ensure_tag_asset
 
     assets_dir = Path("assets/tags")
     assets_dir.mkdir(parents=True, exist_ok=True)
@@ -453,10 +455,10 @@ def run(
         # Calculate a virtual Job ID for this ad-hoc run
         am = get_asset_manager()
         env_hash, blender_ver = get_env_fingerprint()
-        
+
         with open(config, "rb") as f:
             cfg_hash = hashlib.sha256(f.read()).hexdigest()
-            
+
         adhoc_spec = JobSpec(
             env_hash=env_hash,
             blender_version=blender_ver,
@@ -464,20 +466,20 @@ def run(
             config_hash=cfg_hash,
             seed=seed,
             shard_index=shard_index,
-            shard_size=num_scenes
+            shard_size=num_scenes,
         )
         final_job_id = calculate_job_id(adhoc_spec)
 
     console.print("\n[bold blue]Generating dataset manifest...[/bold blue]")
     manifest = DatasetManifest(job_id=final_job_id, output_dir=output)
-    
+
     # Add key files
     manifest.add_directory(output / "images", pattern="*.png")
     if (output / "tags.csv").exists():
         manifest.add_file(output / "tags.csv")
     if (output / "annotations.json").exists():
         manifest.add_file(output / "annotations.json")
-    
+
     manifest_path = manifest.save()
     console.print(f"[dim]Manifest saved to:[/dim] {manifest_path}")
 

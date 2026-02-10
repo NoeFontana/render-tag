@@ -9,6 +9,7 @@ def test_get_git_hash_returns_string():
     assert isinstance(h, str)
     assert len(h) >= 7
 
+
 def test_get_git_hash_fallback():
     with patch("subprocess.check_output") as mock_run:
         mock_run.side_effect = Exception("No git")

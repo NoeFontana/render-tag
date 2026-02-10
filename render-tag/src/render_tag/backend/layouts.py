@@ -25,6 +25,7 @@ from render_tag.geometry.board import (
 
 if TYPE_CHECKING:
     from typing import Any
+
     MeshObject = Any
 
 

@@ -7,7 +7,7 @@ from render_tag.orchestration.worker_pool import WorkerPool
 def test_vram_guardrail_restart(tmp_path):
     project_root = Path(__file__).resolve().parents[3]
     src_path = project_root / "render-tag" / "src"
-    
+
     # Create a backend that reports HIGH VRAM
     dummy_script = tmp_path / "high_vram_backend.py"
     dummy_script.write_text(f"""
@@ -40,14 +40,14 @@ if __name__ == "__main__":
         blender_script=dummy_script,
         blender_executable=sys.executable,
         use_blenderproc=False,
-        vram_threshold_mb=1000.0
+        vram_threshold_mb=1000.0,
     ) as pool:
         worker = pool.get_worker()
         original_pid = worker.process.pid
-        
+
         # Releasing should trigger restart due to 5000MB > 1000MB
         pool.release_worker(worker)
-        
+
         reborn = pool.get_worker()
         assert reborn.process.pid != original_pid
         assert reborn.is_healthy()

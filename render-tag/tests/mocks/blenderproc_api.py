@@ -96,26 +96,34 @@ def clean_up():
 class MockLight:
     def set_type(self, type_name: str):
         pass
+
     def set_location(self, loc: list):
         pass
+
     def set_energy(self, energy: float):
         pass
+
     def set_color(self, color: list):
         pass
+
     def set_radius(self, radius: float):
         pass
+
 
 class MockUtilityModule:
     def reset_keyframes(self):
         pass
 
+
 class MockTypesModule:
     def __init__(self):
         self.Light = MockLight
 
+
 class MockWorldModule:
     def set_world_background_hdr_img(self, filepath: str):
         pass
+
 
 # Singleton instances
 object = MockObjectModule()  # noqa: A001

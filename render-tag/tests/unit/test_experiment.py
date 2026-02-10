@@ -1,4 +1,4 @@
-from render_tag.config import GenConfig
+from render_tag.core.config import GenConfig
 from render_tag.orchestration.experiment import expand_experiment
 from render_tag.orchestration.experiment_schema import Experiment, Sweep, SweepType
 

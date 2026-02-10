@@ -9,7 +9,7 @@ from pathlib import Path
 
 from rich.console import Console
 
-from render_tag.config import GenConfig
+from render_tag.core.config import GenConfig
 from render_tag.orchestration.assets import AssetManager
 
 console = Console()

@@ -30,10 +30,10 @@ if __name__ == "__main__":
         base_port=5570,
         blender_script=dummy_script,
         blender_executable=sys.executable,
-        use_blenderproc=False
+        use_blenderproc=False,
     ) as pool:
         assert len(pool.workers) == 2
-        
+
         # Test broadcast
         responses = pool.execute_on_all(CommandType.STATUS)
         assert len(responses) == 2
@@ -44,9 +44,10 @@ if __name__ == "__main__":
         w1 = pool.get_worker()
         w2 = pool.get_worker()
         assert w1.worker_id != w2.worker_id
-        
+
         pool.release_worker(w1)
         pool.release_worker(w2)
+
 
 def test_worker_pool_resilience(tmp_path):
     project_root = Path(__file__).resolve().parents[3]
@@ -72,19 +73,19 @@ if __name__ == "__main__":
         base_port=5580,
         blender_script=dummy_script,
         blender_executable=sys.executable,
-        use_blenderproc=False
+        use_blenderproc=False,
     ) as pool:
         worker = pool.get_worker()
         assert worker.is_healthy()
-        
+
         # Kill the process manually
         worker.process.kill()
         time.sleep(0.1)
         assert not worker.is_healthy()
-        
+
         # Releasing should trigger restart
         pool.release_worker(worker)
-        
+
         # Get it back and check health
         worker_reborn = pool.get_worker()
         assert worker_reborn.is_healthy()

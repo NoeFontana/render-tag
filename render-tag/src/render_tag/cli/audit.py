@@ -129,8 +129,7 @@ def run(
         # Integrity
         if report.integrity.impossible_poses > 0:
             msg = (
-                "[bold red]⚠ Found "
-                f"{report.integrity.impossible_poses} impossible poses[/bold red]"
+                f"[bold red]⚠ Found {report.integrity.impossible_poses} impossible poses[/bold red]"
             )
             console.print(msg)
 

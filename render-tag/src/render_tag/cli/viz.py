@@ -7,7 +7,7 @@ from pathlib import Path
 
 import typer
 
-from render_tag.config import TagFamily
+from render_tag.core.config import TagFamily
 from render_tag.data_io.visualization import visualize_dataset, visualize_recipe
 
 from .tools import check_blenderproc_installed, console

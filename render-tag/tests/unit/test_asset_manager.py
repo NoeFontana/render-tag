@@ -12,22 +12,24 @@ def temp_assets_dir(tmp_path):
     assets_dir.mkdir()
     return assets_dir
 
+
 def test_asset_manager_init_creates_directories(temp_assets_dir):
     """Verify that AssetManager initializes the required subdirectories."""
     AssetManager(local_dir=temp_assets_dir)
-    
+
     # Expected subdirectories
     expected = ["hdri", "textures", "tags", "models"]
     for sub in expected:
         assert (temp_assets_dir / sub).exists()
         assert (temp_assets_dir / sub).is_dir()
 
+
 @patch("render_tag.orchestration.assets.snapshot_download")
 def test_asset_manager_pull(mock_download, temp_assets_dir):
     """Verify that pull calls snapshot_download with correct parameters."""
     manager = AssetManager(local_dir=temp_assets_dir, repo_id="test/repo")
     manager.pull(token="test_token")
-    
+
     mock_download.assert_called_once()
     _args, kwargs = mock_download.call_args
     assert kwargs["repo_id"] == "test/repo"
@@ -35,12 +37,13 @@ def test_asset_manager_pull(mock_download, temp_assets_dir):
     assert kwargs["token"] == "test_token"
     assert kwargs["repo_type"] == "dataset"
 
+
 @patch("render_tag.orchestration.assets.upload_folder")
 def test_asset_manager_push(mock_upload, temp_assets_dir):
     """Verify that push calls upload_folder with correct parameters."""
     manager = AssetManager(local_dir=temp_assets_dir, repo_id="test/repo")
     manager.push(token="test_token", commit_message="Update assets")
-    
+
     mock_upload.assert_called_once()
     _args, kwargs = mock_upload.call_args
     assert kwargs["repo_id"] == "test/repo"
@@ -48,25 +51,26 @@ def test_asset_manager_push(mock_upload, temp_assets_dir):
     assert kwargs["token"] == "test_token"
     assert kwargs["commit_message"] == "Update assets"
 
+
 def test_asset_manager_get_assets_hash(temp_assets_dir):
     """Verify that get_assets_hash is deterministic and changes with content."""
     manager = AssetManager(local_dir=temp_assets_dir)
-    
+
     # Create some dummy assets
     (temp_assets_dir / "hdri" / "test.exr").write_text("content1")
     (temp_assets_dir / "models" / "box.obj").write_text("content2")
-    
+
     hash1 = manager.get_assets_hash()
     hash2 = manager.get_assets_hash()
-    
+
     assert hash1 == hash2
     assert len(hash1) == 64
-    
+
     # Change content
     (temp_assets_dir / "hdri" / "test.exr").write_text("content_changed")
     hash3 = manager.get_assets_hash()
     assert hash1 != hash3
-    
+
     # Add file
     (temp_assets_dir / "textures" / "tex.png").write_text("content3")
     hash4 = manager.get_assets_hash()

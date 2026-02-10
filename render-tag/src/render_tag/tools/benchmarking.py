@@ -12,22 +12,26 @@ from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 
+
 @dataclass
 class StageMetrics:
     """Performance metrics for a specific pipeline stage."""
+
     name: str
     duration_sec: float = 0.0
     start_time: float = 0.0
 
+
 @dataclass
 class PerformanceReport:
     """Aggregated performance report for a generation session."""
+
     session_name: str
     stages: dict[str, StageMetrics] = field(default_factory=dict)
-    
+
     def add_stage(self, name: str, duration: float):
         self.stages[name] = StageMetrics(name=name, duration_sec=duration)
-        
+
     def log_summary(self):
         """Log a human-readable summary of the performance metrics."""
         total_time = sum(s.duration_sec for s in self.stages.values())
@@ -38,12 +42,13 @@ class PerformanceReport:
             logger.info(f"  - {name:20}: {metrics.duration_sec:8.3f}s ({percentage:5.1f}%)")
         logger.info("==========================================")
 
+
 class Benchmarker:
     """Manages performance tracking for a generation run."""
-    
+
     def __init__(self, session_name: str = "Generation"):
         self.report = PerformanceReport(session_name=session_name)
-        
+
     @contextmanager
     def measure(self, stage_name: str):
         """Context manager to measure the duration of a code block."""
@@ -53,6 +58,6 @@ class Benchmarker:
         finally:
             end = time.perf_counter()
             self.report.add_stage(stage_name, end - start)
-            
+
     def get_report(self) -> PerformanceReport:
         return self.report

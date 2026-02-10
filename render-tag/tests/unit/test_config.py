@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from render_tag.config import (
+from render_tag.core.config import (
     CameraConfig,
     CameraIntrinsics,
     DatasetConfig,

@@ -193,7 +193,7 @@ def apply_tag_texture(obj: Any, texture_path: Path, config: dict | None = None) 
     output_node = nodes.get("Material Output") or nodes.new("ShaderNodeOutputMaterial")
     bsdf_node = nodes.get("Principled BSDF") or nodes.new("ShaderNodeBsdfPrincipled")
     tex_node = nodes.get("Image Texture") or nodes.new("ShaderNodeTexImage")
-    tex_node.name = "Image Texture" # Ensure we can find it next time
+    tex_node.name = "Image Texture"  # Ensure we can find it next time
 
     # Set texture
     tex_node.image = image

@@ -24,6 +24,7 @@ from render_tag.data_io.writers import (
 
 logger = logging.getLogger(__name__)
 
+
 def execute_recipe(
     recipe: dict[str, Any],
     output_dir: Path,
@@ -49,11 +50,11 @@ def execute_recipe(
     # 2. Setup Facade
     renderer = RenderFacade(renderer_mode=renderer_mode)
     renderer.reset_volatile_state()
-    
+
     # 3. Build Scene
     renderer.setup_world(recipe.get("world", {}))
     tag_objects = renderer.spawn_objects(recipe.get("objects", []))
-    
+
     # Update COCO categories
     for tag in tag_objects:
         coco_writer.add_category(tag.blender_obj["tag_family"])
@@ -61,7 +62,7 @@ def execute_recipe(
     # 4. Render Cameras
     cam_recipes = recipe["cameras"]
     res = cam_recipes[0]["intrinsics"].get("resolution", [640, 480])
-    
+
     provenance = {
         "git_hash": get_git_hash(),
         "timestamp": datetime.now(UTC).isoformat(),
@@ -70,15 +71,15 @@ def execute_recipe(
 
     for cam_idx, cam_recipe in enumerate(cam_recipes):
         render_out = renderer.render_camera(cam_recipe)
-        
+
         image_name = f"scene_{scene_idx:04d}_cam_{cam_idx:04d}"
         image_path = output_dir / "images" / f"{image_name}.png"
         image_path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         # Save Image
         if len(render_out["img"]) > 0:
             Image.fromarray(render_out["img"].astype(np.uint8)).save(str(image_path))
-            
+
         sidecar_writer.write_sidecar(image_name, provenance)
         coco_img_id = coco_writer.add_image(f"images/{image_path.name}", res[0], res[1])
 
@@ -89,7 +90,7 @@ def execute_recipe(
 
         # 5. Metadata Projection & Export
         # (We use the project_corners_to_image which now uses pure math)
-        
+
         if skip_visibility:
             valid_detections = []
             for obj in tag_objects:
@@ -98,6 +99,7 @@ def execute_recipe(
         else:
             # We keep the legacy filter for now, but it uses bridge internally
             from render_tag.backend.projection import get_valid_detections
+
             valid_detections = get_valid_detections(tag_objects)
 
         segmap = render_out["segmap"]
@@ -105,7 +107,7 @@ def execute_recipe(
         for tag_obj, corners_2d in valid_detections:
             blender_obj = tag_obj.blender_obj
             geom = compute_geometric_metadata(tag_obj)
-            
+
             occlusion = 0.0
             if segmap is not None:
                 vis_pixels = np.sum(segmap == blender_obj.pass_index)
@@ -122,7 +124,7 @@ def execute_recipe(
                 pixel_area=geom["pixel_area"],
                 occlusion_ratio=occlusion,
             )
-            
+
             csv_writer.write_detection(det, res[0], res[1])
             coco_writer.add_annotation(
                 image_id=coco_img_id,
@@ -130,7 +132,7 @@ def execute_recipe(
                 corners=corners_2d,
                 width=res[0],
                 height=res[1],
-                detection=det
+                detection=det,
             )
             rich_writer.add_detection(det)
 

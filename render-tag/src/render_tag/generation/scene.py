@@ -15,7 +15,7 @@ import numpy as np
 from render_tag.common import TAG_GRID_SIZES
 from render_tag.common.logging import get_logger
 from render_tag.common.math import SeedManager
-from render_tag.config import GenConfig
+from render_tag.core.config import GenConfig
 from render_tag.geometry.camera import sample_camera_pose
 from render_tag.geometry.layouts import apply_flying_layout, apply_grid_layout
 from render_tag.schema import (
@@ -33,7 +33,7 @@ logger = get_logger(__name__)
 
 class Generator:
     """Generates scene recipes based on configuration.
-    
+
     This class handles the procedural generation of scene definitions (recipes)
     that are later executed by the Blender backend. It ensures logical
     reproducibility by isolating RNG states for different scene components.
@@ -41,7 +41,7 @@ class Generator:
 
     def __init__(self, config: dict[str, Any] | GenConfig, output_dir: Path):
         """Initializes the generator with a configuration and output directory.
-        
+
         Args:
             config: Either a dictionary or a GenConfig object.
             output_dir: Path where recipes and generated data will be stored.
@@ -60,9 +60,7 @@ class Generator:
         if self.config.scene.texture_dir and self.config.scene.texture_dir.exists():
             valid_exts = {".png", ".jpg", ".jpeg", ".tif", ".tiff"}
             self.textures = [
-                p
-                for p in self.config.scene.texture_dir.iterdir()
-                if p.suffix.lower() in valid_exts
+                p for p in self.config.scene.texture_dir.iterdir() if p.suffix.lower() in valid_exts
             ]
 
     def _seed_everything(self, seed: int):
@@ -71,10 +69,10 @@ class Generator:
 
     def generate_all(self, exclude_ids: set[int] | None = None) -> list[SceneRecipe]:
         """Generate all scene recipes requested in the config.
-        
+
         Args:
             exclude_ids: Optional set of scene IDs to skip (e.g., if already completed).
-            
+
         Returns:
             List of generated SceneRecipe objects.
         """
@@ -95,13 +93,13 @@ class Generator:
         exclude_ids: set[int] | None = None,
     ) -> list[SceneRecipe]:
         """Generate a deterministic slice of the dataset.
-        
+
         Args:
             total_scenes: Total number of scenes in the full dataset.
             shard_index: 0-based index of the current shard.
             total_shards: Total number of shards being generated.
             exclude_ids: Optional set of scene IDs to skip.
-            
+
         Returns:
             List of SceneRecipe objects for the requested shard.
         """
@@ -118,8 +116,7 @@ class Generator:
         end_idx = total_scenes if shard_index == total_shards - 1 else start_idx + scenes_per_shard
 
         logger.info(
-            f"Generating Shard {shard_index + 1}/{total_shards} "
-            f"(Scenes {start_idx}-{end_idx})"
+            f"Generating Shard {shard_index + 1}/{total_shards} (Scenes {start_idx}-{end_idx})"
         )
 
         recipes = []
@@ -132,14 +129,14 @@ class Generator:
 
     def generate_scene(self, scene_id: int) -> SceneRecipe:
         """Generate a single scene recipe.
-        
+
         This method manages the orchestration of lighting, layout, and camera
         generation, ensuring each component uses its own isolated RNG state
         derived from the scene ID and component-specific seeds.
-        
+
         Args:
             scene_id: Unique ID for the scene being generated.
-            
+
         Returns:
             A complete SceneRecipe object.
         """
@@ -174,11 +171,11 @@ class Generator:
         self, rng: random.Random, np_rng: np.random.Generator
     ) -> WorldRecipe:
         """Generates random world environment parameters.
-        
+
         Args:
             rng: Isolated Python random generator.
             np_rng: Isolated NumPy random generator.
-            
+
         Returns:
             A WorldRecipe containing lighting and background configuration.
         """
@@ -203,9 +200,7 @@ class Generator:
             if scene_config.background_hdri
             else None,
             lighting=LightingConfig(
-                intensity=rng.uniform(
-                    lighting_config.intensity_min, lighting_config.intensity_max
-                ),
+                intensity=rng.uniform(lighting_config.intensity_min, lighting_config.intensity_max),
                 radius=rng.uniform(lighting_config.radius_min, lighting_config.radius_max),
             ),
             texture_path=texture_path,
@@ -217,12 +212,12 @@ class Generator:
         self, scene_id: int, rng: random.Random, np_rng: np.random.Generator
     ) -> list[ObjectRecipe]:
         """Generates and places tag objects within the scene.
-        
+
         Args:
             scene_id: ID of the current scene.
             rng: Isolated Python random generator.
             np_rng: Isolated NumPy random generator.
-            
+
         Returns:
             List of ObjectRecipe objects representing tags and background boards.
         """
@@ -325,11 +320,11 @@ class Generator:
         self, rng: random.Random, np_rng: np.random.Generator
     ) -> list[CameraRecipe]:
         """Generates multiple camera poses and sensor configurations for the scene.
-        
+
         Args:
             rng: Isolated Python random generator.
             np_rng: Isolated NumPy random generator.
-            
+
         Returns:
             List of CameraRecipe objects.
         """
@@ -388,7 +383,7 @@ class Generator:
 
     def _get_intrinsics_config(self) -> CameraIntrinsics:
         """Helper to package camera intrinsics from config.
-        
+
         Returns:
             CameraIntrinsics object.
         """
@@ -401,11 +396,11 @@ class Generator:
 
     def save_recipe_json(self, recipes: list[SceneRecipe], filename: str = "scene_recipes.json"):
         """Saves a list of scene recipes to a JSON file.
-        
+
         Args:
             recipes: List of SceneRecipe objects to serialize.
             filename: Name of the output file.
-            
+
         Returns:
             Path to the saved JSON file.
         """

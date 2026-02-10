@@ -1,6 +1,6 @@
 import cv2
 
-from render_tag.tag_gen import ensure_tag_asset, generate_tag_image
+from render_tag.generation.tags import ensure_tag_asset, generate_tag_image
 
 
 def test_generate_apriltag():

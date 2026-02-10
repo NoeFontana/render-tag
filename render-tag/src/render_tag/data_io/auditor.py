@@ -53,17 +53,17 @@ class DatasetReader:
             DataFrame containing detections and per-image metadata.
         """
         df = self.load_detections()
-        
+
         # Identify unique image IDs
         image_ids = df["image_id"].unique().to_list()
-        
+
         metadata_records = []
         for img_id in image_ids:
             meta_path = self.images_dir / f"{img_id}_meta.json"
             if meta_path.exists():
                 with open(meta_path) as f:
                     meta_data = json.load(f)
-                
+
                 # Flatten the metadata we care about
                 # For now, we extract lighting intensity as a proof of concept
                 # In the future, this can be more generic
@@ -75,7 +75,7 @@ class DatasetReader:
                     .get("intensity", 0.0),
                 }
                 metadata_records.append(record)
-        
+
         if not metadata_records:
             # Ensure columns exist even if no metadata
             if "distance" not in df.columns:
@@ -85,10 +85,10 @@ class DatasetReader:
             if "lighting_intensity" not in df.columns:
                 df = df.with_columns(pl.lit(0.0).alias("lighting_intensity"))
             return df
-            
+
         meta_df = pl.DataFrame(metadata_records)
         df = df.join(meta_df, on="image_id", how="left")
-        
+
         # Fill missing columns after join
         if "distance" not in df.columns:
             df = df.with_columns(pl.lit(0.0).alias("distance"))
@@ -96,7 +96,7 @@ class DatasetReader:
             df = df.with_columns(pl.lit(0.0).alias("angle_of_incidence"))
         if "lighting_intensity" not in df.columns:
             df = df.with_columns(pl.lit(0.0).alias("lighting_intensity"))
-            
+
         return df
 
     def load_rich_detections(self) -> pl.DataFrame:
@@ -315,8 +315,7 @@ class GateEnforcer:
 
             if rule_failed:
                 msg = rule.error_msg or (
-                    f"Rule failed: {rule.metric}={val} "
-                    f"(expected min={rule.min}, max={rule.max})"
+                    f"Rule failed: {rule.metric}={val} (expected min={rule.min}, max={rule.max})"
                 )
                 failures.append(msg)
                 if rule.critical:
@@ -364,7 +363,7 @@ class OutlierExporter:
         for img_id in outlier_ids:
             src = self.dataset_path / "images" / f"{img_id}.png"
             dst = self.outlier_dir / f"{img_id}.png"
-            
+
             if src.exists() and not dst.exists():
                 # Create relative symlink
                 dst.symlink_to(Path("..") / "images" / f"{img_id}.png")

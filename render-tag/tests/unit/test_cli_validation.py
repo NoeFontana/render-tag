@@ -6,6 +6,7 @@ from render_tag.cli import app
 
 runner = CliRunner()
 
+
 @patch("render_tag.cli.generate.AssetValidator")
 def test_cli_catches_validation_error(mock_validator, tmp_path):
     mock_validator.return_value.is_hydrated.return_value = True
@@ -15,6 +16,7 @@ def test_cli_catches_validation_error(mock_validator, tmp_path):
     assert result.exit_code == 1
     assert "Validation Error" in result.stdout
     assert "Input should be greater than 0" in result.stdout
+
 
 @patch("render_tag.cli.generate.AssetValidator")
 def test_cli_detects_missing_asset_preflight(mock_validator, tmp_path):

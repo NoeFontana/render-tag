@@ -61,7 +61,7 @@ physics:
 
     def test_full_pipeline_consistency(self, temp_output_dir, minimal_config):
         """
-        Consolidated test that verifies output structure, CSV format, and COCO format 
+        Consolidated test that verifies output structure, CSV format, and COCO format
         in a single render run using the fast Workbench renderer.
         """
         output_dir = temp_output_dir / "output"
@@ -77,7 +77,7 @@ physics:
                 "--scenes",
                 "5",
                 "--renderer-mode",
-                "workbench"
+                "workbench",
             ],
             capture_output=True,
             text=True,
@@ -88,12 +88,11 @@ physics:
         if result.returncode != 0:
             print(result.stdout)
         assert result.returncode == 0, f"Generation failed: {result.stderr}"
-    
+
         # 2. Check output structure
         print(result.stdout)
         assert output_dir.exists()
 
-        
         assert (output_dir / "images").exists()
         assert (output_dir / "tags.csv").exists()
         assert (output_dir / "annotations.json").exists()
@@ -104,12 +103,20 @@ physics:
         with open(csv_path, newline="") as f:
             reader = csv.DictReader(f)
             rows = list(reader)
-        
+
         assert len(rows) >= 1
         expected_fields = [
-            "image_id", "tag_id", "tag_family", 
-            "x1", "y1", "x2", "y2", 
-            "x3", "y3", "x4", "y4"
+            "image_id",
+            "tag_id",
+            "tag_family",
+            "x1",
+            "y1",
+            "x2",
+            "y2",
+            "x3",
+            "y3",
+            "x4",
+            "y4",
         ]
         assert reader.fieldnames is not None
         assert all(f in reader.fieldnames for f in expected_fields)
@@ -118,7 +125,7 @@ physics:
         coco_path = output_dir / "annotations.json"
         with open(coco_path) as f:
             coco_data = json.load(f)
-        
+
         assert "images" in coco_data
         assert "annotations" in coco_data
         assert len(coco_data["images"]) >= 1

@@ -11,7 +11,7 @@ from typing import Any
 # DEBUG: Trace path
 try:
     with open("/tmp/debug_backend.log", "a") as f:
-        f.write(f"--- PROCESS START ---\n")
+        f.write("--- PROCESS START ---\n")
         f.write(f"EXE: {sys.executable}\n")
         f.write(f"FILE: {__file__}\n")
         f.write(f"ARGV: {sys.argv}\n")
@@ -26,11 +26,11 @@ if "blender" in sys.executable.lower():
     venv_paths = [p for p in sys.path if ".venv" in p]
     clean_paths = [p for p in sys.path if ".venv" not in p]
     sys.path[:] = clean_paths + venv_paths
-    
+
     # Ensure src is in sys.path so we can import render_tag
     src_path = Path(__file__).resolve().parents[2]
     if str(src_path) not in sys.path:
-        sys.path.insert(0, str(src_path)) # Insert at start for priority
+        sys.path.insert(0, str(src_path))  # Insert at start for priority
 
 try:
     with open("/tmp/debug_backend.log", "a") as f:
@@ -66,6 +66,7 @@ from render_tag.schema.hot_loop import (
 
 logger = logging.getLogger(__name__)
 
+
 class ZmqBackendServer:
     """
     Persistent backend server running inside Blender.
@@ -80,14 +81,14 @@ class ZmqBackendServer:
         self.assets_loaded = []
         self.parameters = {}
         self.start_time = time.time()
-        
+
         if bproc_mock or bpy_mock:
             bridge.inject_mocks(bproc_mock, bpy_mock)
 
         # Persistent writers to avoid file handle overhead
         self.current_output_dir: Path | None = None
         self.writers: dict[str, Any] = {}
-        
+
         if bridge.bproc and bridge.bpy:
             try:
                 bridge.bproc.init()
@@ -113,22 +114,22 @@ class ZmqBackendServer:
             vram_total_mb=vram_total,
             cpu_usage_percent=0.0,
             state_hash=calculate_state_hash(self.assets_loaded, self.parameters),
-            uptime_seconds=time.time() - self.start_time
+            uptime_seconds=time.time() - self.start_time,
         )
 
     def _setup_writers(self, output_dir: Path, shard_id: str = "main"):
         """Initializes or updates persistent writers for an output directory."""
         if self.current_output_dir == output_dir:
             return
-            
+
         self.current_output_dir = output_dir
         output_dir.mkdir(parents=True, exist_ok=True)
-        
+
         self.writers = {
             "csv": CSVWriter(output_dir / f"tags_shard_{shard_id}.csv"),
             "coco": COCOWriter(output_dir),
             "rich": RichTruthWriter(output_dir / "rich_truth.json"),
-            "sidecar": SidecarWriter(output_dir)
+            "sidecar": SidecarWriter(output_dir),
         }
         # Force initialization of CSV to ensure file exists even if no detections
         self.writers["csv"]._ensure_initialized()
@@ -136,16 +137,16 @@ class ZmqBackendServer:
     def handle_command(self, cmd: Command) -> Response:
         """Processes a single command."""
         logger.info(f"Handling command: {cmd.command_type}")
-        
+
         try:
             if cmd.command_type == CommandType.STATUS:
                 return Response(
                     status=ResponseStatus.SUCCESS,
                     request_id=cmd.request_id,
                     message="Backend is alive",
-                    data=self.get_telemetry().model_dump()
+                    data=self.get_telemetry().model_dump(),
                 )
-            
+
             elif cmd.command_type == CommandType.SHUTDOWN:
                 self.running = False
                 # Finalize writers
@@ -156,14 +157,14 @@ class ZmqBackendServer:
                 return Response(
                     status=ResponseStatus.SUCCESS,
                     request_id=cmd.request_id,
-                    message="Shutting down..."
+                    message="Shutting down...",
                 )
-                
+
             elif cmd.command_type == CommandType.INIT:
                 payload = cmd.payload or {}
                 assets = payload.get("assets", [])
                 parameters = payload.get("parameters", {})
-                
+
                 new_assets = []
                 for asset_path in assets:
                     if asset_path not in self.assets_loaded:
@@ -172,15 +173,15 @@ class ZmqBackendServer:
                             if bridge.bpy:
                                 setup_background(p)
                             new_assets.append(asset_path)
-                
+
                 self.assets_loaded.extend(new_assets)
                 self.parameters.update(parameters)
-                
+
                 return Response(
                     status=ResponseStatus.SUCCESS,
                     request_id=cmd.request_id,
                     message=f"Initialized. {len(self.assets_loaded)} assets resident.",
-                    data={"state_hash": calculate_state_hash(self.assets_loaded, self.parameters)}
+                    data={"state_hash": calculate_state_hash(self.assets_loaded, self.parameters)},
                 )
 
             elif cmd.command_type == CommandType.RENDER:
@@ -190,16 +191,16 @@ class ZmqBackendServer:
                 renderer_mode = payload.get("renderer_mode", "cycles")
                 shard_id = payload.get("shard_id", "main")
                 skip_visibility = payload.get("skip_visibility", False)
-                
+
                 if not recipe or not output_dir:
                     return Response(
                         status=ResponseStatus.FAILURE,
                         request_id=cmd.request_id,
-                        message="Missing recipe or output_dir in RENDER payload"
+                        message="Missing recipe or output_dir in RENDER payload",
                     )
 
                 self._setup_writers(Path(output_dir), shard_id=shard_id)
-                
+
                 # Execute the recipe using our reusable loop
                 execute_recipe(
                     recipe,
@@ -209,14 +210,14 @@ class ZmqBackendServer:
                     self.writers["coco"],
                     self.writers["rich"],
                     self.writers["sidecar"],
-                    skip_visibility=skip_visibility
+                    skip_visibility=skip_visibility,
                 )
-                
+
                 return Response(
                     status=ResponseStatus.SUCCESS,
                     request_id=cmd.request_id,
                     message=f"Rendered scene {recipe['scene_id']}",
-                    data={"state_hash": calculate_state_hash(self.assets_loaded, self.parameters)}
+                    data={"state_hash": calculate_state_hash(self.assets_loaded, self.parameters)},
                 )
 
             elif cmd.command_type == CommandType.RESET:
@@ -226,21 +227,19 @@ class ZmqBackendServer:
                     status=ResponseStatus.SUCCESS,
                     request_id=cmd.request_id,
                     message="Volatile state reset (object pool cleared).",
-                    data={"state_hash": calculate_state_hash(self.assets_loaded, self.parameters)}
+                    data={"state_hash": calculate_state_hash(self.assets_loaded, self.parameters)},
                 )
 
         except Exception as e:
             logger.error(f"Error executing {cmd.command_type}: {e}", exc_info=True)
             return Response(
-                status=ResponseStatus.FAILURE,
-                request_id=cmd.request_id,
-                message=str(e)
+                status=ResponseStatus.FAILURE, request_id=cmd.request_id, message=str(e)
             )
 
         return Response(
             status=ResponseStatus.FAILURE,
             request_id=cmd.request_id,
-            message=f"Command {cmd.command_type} not implemented"
+            message=f"Command {cmd.command_type} not implemented",
         )
 
     def run(self, max_renders: int | None = None):
@@ -288,25 +287,24 @@ class ZmqBackendServer:
         self.socket.close()
         self.context.term()
 
+
 if __name__ == "__main__":
     import argparse
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=5555)
     parser.add_argument("--mock", action="store_true")
     parser.add_argument("--max-renders", type=int, default=None, help="Shutdown after N renders")
-    
+
     # Only parse arguments after '--' to avoid Blender args
-    if "--" in sys.argv:
-        argv = sys.argv[sys.argv.index("--") + 1:]
-    else:
-        argv = sys.argv[1:]
-    
+    argv = sys.argv[sys.argv.index("--") + 1 :] if "--" in sys.argv else sys.argv[1:]
+
     # Use parse_known_args to ignore Blender arguments if they leak into sys.argv
     args, unknown = parser.parse_known_args(argv)
-    
+
     if unknown:
         logger.warning(f"Ignored unknown arguments: {unknown}")
-    
+
     bproc_m, bpy_m = None, None
     if args.mock:
         # Add project root to path so we can import tests.mocks
@@ -317,7 +315,7 @@ if __name__ == "__main__":
         from tests.mocks import blenderproc_api as bproc_m
 
     logger.info(f"Initializing ZmqBackendServer on port {args.port}")
-    
+
     server = ZmqBackendServer(port=args.port, bproc_mock=bproc_m, bpy_mock=bpy_m)
     try:
         logger.info("Entering server run loop...")

@@ -15,8 +15,8 @@ class MockObject:
     dimensions: list[float] = field(default_factory=lambda: [1.0, 1.0, 1.0])
     data: Any = None
     pass_index: int = 0
-    filepath: str = "" # Added for Image objects
-    
+    filepath: str = ""  # Added for Image objects
+
     # Node attributes for shader node simulation
     to_node: Any = None
     to_socket: Any = None
@@ -32,7 +32,7 @@ class MockObject:
 
     @property
     def matrix_world(self):
-        return [[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]]
+        return [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]
 
     def get(self, key, default=None):
         return self._properties.get(key, default)
@@ -106,9 +106,11 @@ class MockDof:
         self.aperture_fstop = 2.8
         self.focus_distance = 1.0
 
+
 class MockCameraData:
     def __init__(self):
         self.dof = MockDof()
+
 
 class MockScene:
     def __init__(self):
@@ -212,8 +214,8 @@ class MockNodes(MockCollection):
             default_inputs = ["Color", "Strength"]
             default_outputs = ["Emission"]
         elif type_name == "Background":
-             default_inputs = ["Color", "Strength"]
-             default_outputs = ["Background"]
+            default_inputs = ["Color", "Strength"]
+            default_outputs = ["Background"]
 
         # Clear generic defaults from __init__ if any (MockNode creates some)
         node.inputs._objects.clear()
@@ -257,17 +259,20 @@ class MockMaterials(MockCollection):
         self._objects[name] = mat
         return mat
 
+
 class MockWorld(MockObject):
     def __init__(self, name="MockWorld"):
         super().__init__(name=name)
         self.use_nodes = False
         self.node_tree = MockNodeTree()
 
+
 class MockWorlds(MockCollection):
     def new(self, name: str):
         world = MockWorld(name=name)
         self._objects[name] = world
         return world
+
 
 class MockUVLayers(MockCollection):
     def new(self, name: str = "UVLayer", **kwargs: Any) -> Any:

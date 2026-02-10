@@ -34,22 +34,23 @@ if __name__ == "__main__":
         blender_script=dummy_script,
         blender_executable=sys.executable,
         startup_timeout=10,
-        use_blenderproc=False
+        use_blenderproc=False,
     )
 
     try:
         worker.start()
         assert worker.is_healthy()
-        
+
         resp = worker.send_command(CommandType.STATUS)
         assert resp.status == ResponseStatus.SUCCESS
-        
+
         worker.stop()
         assert not worker.is_healthy()
         assert worker.process is None
-        
+
     finally:
         worker.stop()
+
 
 def test_persistent_worker_failure():
     # Invalid script
@@ -59,8 +60,8 @@ def test_persistent_worker_failure():
         blender_script=Path("non_existent.py"),
         blender_executable=sys.executable,
         startup_timeout=5,
-        use_blenderproc=False
+        use_blenderproc=False,
     )
-    
+
     with pytest.raises(RuntimeError):
         worker.start()

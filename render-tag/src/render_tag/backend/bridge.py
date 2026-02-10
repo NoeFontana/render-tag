@@ -11,12 +11,14 @@ from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
+
 class BlenderBridge:
     """
     Singleton provider for Blender-related modules.
     """
-    _instance: Optional['BlenderBridge'] = None
-    
+
+    _instance: Optional["BlenderBridge"] = None
+
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
@@ -26,21 +28,22 @@ class BlenderBridge:
     def __init__(self):
         if self._initialized:
             return
-            
+
         self.bpy: Any = None
         self.bproc: Any = None
         self.mathutils: Any = None
         self.np: Any = None
-        
+
         self._load_dependencies()
         self._initialized = True
 
     def _load_dependencies(self):
         """Attempts to load real dependencies, falls back to mocks."""
-        
+
         # 1. Load NumPy (Fundamental)
         try:
             import numpy as np
+
             self.np = np
         except ImportError:
             logger.warning("NumPy not found. Some geometry math may fail.")
@@ -52,35 +55,37 @@ class BlenderBridge:
             import blenderproc as bproc
             import bpy
             import mathutils
-            
+
             self.bproc = bproc
             self.bpy = bpy
             self.mathutils = mathutils
             logger.debug("Successfully loaded real Blender/BlenderProc dependencies.")
-            
+
         except (ImportError, RuntimeError):
             # Fallback to Mocks
             logger.info("Blender environment not detected. Serving mock objects.")
-            
+
             # Ensure project root is in path so we can find tests.mocks
             from pathlib import Path
+
             project_root = str(Path(__file__).resolve().parents[3])
             if project_root not in sys.path:
                 sys.path.append(project_root)
-                
+
             from tests.mocks import blender_api as bpy_mock
             from tests.mocks import blenderproc_api as bproc_mock
-            
+
             self.bpy = bpy_mock
             self.bproc = bproc_mock
             # mathutils is harder to mock fully, but we can provide stubs if needed
-            self.mathutils = None 
+            self.mathutils = None
 
     def inject_mocks(self, bproc_mock: Any, bpy_mock: Any):
         """Explicitly override dependencies with provided mocks."""
         self.bproc = bproc_mock
         self.bpy = bpy_mock
         logger.debug("Mocks manually injected into BlenderBridge.")
+
 
 # Singleton accessors for easy importing
 bridge = BlenderBridge()

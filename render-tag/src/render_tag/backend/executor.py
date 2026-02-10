@@ -20,6 +20,7 @@ from render_tag.data_io.writers import (
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--recipe", type=Path, required=True)
@@ -29,6 +30,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--shard-id", type=str, default="main")
     return parser.parse_args()
+
 
 def main() -> None:
     args = parse_args()
@@ -60,6 +62,7 @@ def main() -> None:
 
     coco_writer.save()
     rich_writer.save()
+
 
 if __name__ == "__main__":
     main()

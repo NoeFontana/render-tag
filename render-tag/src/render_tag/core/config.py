@@ -518,11 +518,11 @@ class SceneConfig(BaseModel):
     def validate_scale_range(self) -> "SceneConfig":
         if self.texture_scale_min > self.texture_scale_max:
             raise ValueError("texture_scale_min must be <= texture_scale_max")
-        
+
         # Apply lighting preset if specified
         if self.lighting_preset:
             self.lighting = get_lighting_preset(self.lighting_preset)
-            
+
         return self
 
 
