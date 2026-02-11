@@ -31,6 +31,47 @@ def check_blenderproc_installed() -> bool:
     return shutil.which("blenderproc") is not None
 
 
+def check_audit_installed() -> bool:
+    """Check if auditing dependencies (polars, plotly) are installed."""
+    try:
+        import plotly.graph_objects as _  # noqa: F401
+        import polars as _  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
+def check_viz_installed() -> bool:
+    """Check if visualization dependencies (matplotlib) are installed."""
+    try:
+        import matplotlib.pyplot as _  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
+def check_orchestration_installed() -> bool:
+    """Check if orchestration dependencies (pyzmq) are installed."""
+    try:
+        import zmq as _  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
+def check_assets_installed() -> bool:
+    """Check if asset sync dependencies (huggingface_hub) are installed."""
+    try:
+        import huggingface_hub as _  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
 def serialize_config_to_json(config: GenConfig, output_path: Path) -> None:
     """Serialize the validated config to JSON for the Blender subprocess.
 

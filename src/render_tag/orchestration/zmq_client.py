@@ -5,7 +5,10 @@ ZeroMQ Client for Host-to-Backend communication.
 import time
 from typing import Any
 
-import zmq
+try:
+    import zmq
+except ImportError:
+    zmq = None
 
 from render_tag.schema.hot_loop import Command, CommandType, Response
 

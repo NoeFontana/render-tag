@@ -9,7 +9,10 @@ import threading
 from pathlib import Path
 from typing import Any, ClassVar
 
-import zmq
+try:
+    import zmq
+except ImportError:
+    zmq = None
 
 from render_tag.orchestration.persistent_worker import PersistentWorkerProcess
 from render_tag.schema.hot_loop import CommandType, Response, ResponseStatus

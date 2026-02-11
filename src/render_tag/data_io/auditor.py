@@ -8,7 +8,10 @@ import json
 from pathlib import Path
 from typing import Any
 
-import polars as pl
+try:
+    import polars as pl
+except ImportError:
+    pl = None
 
 from .auditor_schema import (
     AuditReport,
@@ -41,6 +44,9 @@ class DatasetReader:
         Returns:
             DataFrame containing tag detections.
         """
+        if pl is None:
+            raise ImportError("polars is not installed. Install with 'pip install polars'.")
+
         if not self.tags_csv.exists():
             raise FileNotFoundError(f"tags.csv not found in {self.dataset_path}")
 

@@ -6,10 +6,16 @@ import csv
 from pathlib import Path
 from typing import Any
 
-import matplotlib.patches as patches
-import matplotlib.pyplot as plt
+try:
+    import matplotlib.patches as patches
+    import matplotlib.pyplot as plt
+    from matplotlib.collections import PatchCollection
+except ImportError:
+    patches = None
+    plt = None
+    PatchCollection = None
+
 import numpy as np
-from matplotlib.collections import PatchCollection
 from PIL import Image, ImageDraw
 from rich.console import Console
 
@@ -22,6 +28,9 @@ class ShadowRenderer:
     """Renders 2D visualizations of Scene Recipes (fast top-down layout)."""
 
     def __init__(self, recipe: SceneRecipe):
+        if plt is None:
+            raise ImportError("matplotlib is not installed. Install with 'pip install matplotlib'.")
+
         self.recipe = recipe
         self.fig, self.ax = plt.subplots(figsize=(10, 10))
         self.ax.set_aspect("equal")

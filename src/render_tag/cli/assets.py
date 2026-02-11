@@ -4,9 +4,16 @@ Asset management commands.
 
 import typer
 
-from .tools import console, get_asset_manager
+from .tools import check_assets_installed, console, get_asset_manager
 
 app = typer.Typer(help="Manage binary assets (HDRIs, Textures, etc.)")
+
+
+def _ensure_assets():
+    if not check_assets_installed():
+        console.print("[bold red]Error:[/bold red] Assets sync dependencies not installed.")
+        console.print("Install with: [cyan]pip install 'render-tag[assets]'[/cyan]")
+        raise typer.Exit(code=1)
 
 
 @app.command()
@@ -20,6 +27,7 @@ def pull(
     """
     Download the latest assets from Hugging Face.
     """
+    _ensure_assets()
     manager = get_asset_manager()
     console.print(f"[bold]Pulling assets from {manager.repo_id}...[/bold]")
     try:
@@ -51,6 +59,7 @@ def push(
         console.print("[bold red]Error:[/bold red] HF_TOKEN is required for pushing assets.")
         raise typer.Exit(code=1) from None
 
+    _ensure_assets()
     manager = get_asset_manager()
     console.print(f"[bold]Pushing assets to {manager.repo_id}...[/bold]")
     try:

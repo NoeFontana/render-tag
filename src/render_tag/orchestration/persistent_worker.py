@@ -9,7 +9,10 @@ import time
 from pathlib import Path
 from typing import Any
 
-import zmq
+try:
+    import zmq
+except ImportError:
+    zmq = None
 
 from render_tag.orchestration.zmq_client import ZmqHostClient
 from render_tag.schema.hot_loop import CommandType, Response, ResponseStatus

@@ -21,12 +21,36 @@ dependencies = [
     "rich>=13.7",
     "pyyaml>=6.0",
     "pillow>=10.0",
+    "numpy>=1.24",
+    "opencv-python-headless>=4.8",
+]
+
+[project.optional-dependencies]
+# Required for 3D rendering
+backend = [
     "blenderproc>=2.8.0",
-    "opencv-contrib-python>=4.10",
-    "polars>=1.38.0",
-    "plotly>=6.5.2",
-    "pyzmq>=27.1.0",
+]
+# Required for 2D visualization and Shadow Render
+viz = [
+    "matplotlib>=3.7",
+]
+# Required for dataset auditing and analytics
+audit = [
+    "polars>=1.0.0",
+    "plotly>=5.15.0",
+]
+# Required for distributed orchestration and telemetry
+orchestration = [
+    "pyzmq>=25.0.0",
     "gputil>=1.4.0",
+]
+# Required for asset synchronization with Hugging Face
+assets = [
+    "huggingface_hub>=0.16.0",
+]
+# Install everything
+all = [
+    "render-tag[backend,viz,audit,orchestration,assets]",
 ]
 
 [project.urls]
@@ -46,11 +70,11 @@ packages = ["src/render_tag"]
 [dependency-groups]
 dev = [
     "pytest",
+    "pytest-cov>=7.0.0",
+    "pytest-xdist>=3.8.0",
     "ruff",
     "mypy",
     "ty",
-    "pytest-cov>=7.0.0",
-    "pytest-xdist>=3.8.0",
     "mkdocs>=1.6.1",
     "mkdocs-material>=9.7.1",
     "mkdocstrings[python]>=1.0.3",

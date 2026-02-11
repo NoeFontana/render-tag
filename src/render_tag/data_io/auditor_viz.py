@@ -4,8 +4,12 @@ Interactive HTML Dashboard Generator for Dataset Auditing.
 
 from pathlib import Path
 
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
+try:
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
+except ImportError:
+    go = None
+    make_subplots = None
 
 from .auditor import DatasetReader
 from .auditor_schema import AuditResult
@@ -28,6 +32,9 @@ class DashboardGenerator:
         Returns:
             Path to the generated HTML file.
         """
+        if go is None or make_subplots is None:
+            raise ImportError("plotly is not installed. Install with 'pip install plotly'.")
+
         # Load raw data for histograms
         df = self.reader.load_rich_detections()
 

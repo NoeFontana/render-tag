@@ -9,13 +9,27 @@ import typer
 import yaml
 from rich.table import Table
 
-from render_tag.data_io.auditor import AuditDiff, DatasetAuditor
-from render_tag.data_io.auditor_schema import AuditResult, QualityGateConfig
-from render_tag.data_io.auditor_viz import DashboardGenerator
+try:
+    from render_tag.data_io.auditor import AuditDiff, DatasetAuditor
+    from render_tag.data_io.auditor_schema import AuditResult, QualityGateConfig
+    from render_tag.data_io.auditor_viz import DashboardGenerator
+except ImportError:
+    AuditDiff = None
+    DatasetAuditor = None
+    AuditResult = None
+    QualityGateConfig = None
+    DashboardGenerator = None
 
-from .tools import console
+from .tools import check_audit_installed, console
 
 app = typer.Typer(help="Audit and compare datasets.")
+
+
+def _ensure_audit():
+    if not check_audit_installed():
+        console.print("[bold red]Error:[/bold red] Auditing dependencies not installed.")
+        console.print("Install with: [cyan]pip install 'render-tag[audit]'[/cyan]")
+        raise typer.Exit(code=1)
 
 
 @app.command(name="run")
@@ -41,6 +55,8 @@ def run(
     """
     Audit a generated dataset for quality and integrity.
     """
+    _ensure_audit()
+
     try:
         # Load gate config if provided
         gate_config = None
@@ -150,6 +166,8 @@ def diff(
     """
     Compare two datasets and detect statistical drift.
     """
+    _ensure_audit()
+
     try:
         # Load reports
         reports = []

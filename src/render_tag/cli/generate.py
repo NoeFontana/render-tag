@@ -12,26 +12,41 @@ from pathlib import Path
 import typer
 from pydantic import ValidationError
 
+try:
+    from render_tag.orchestration.executors import ExecutorFactory
+    from render_tag.orchestration.sharding import (
+        get_completed_scene_ids,
+        resolve_shard_index,
+        run_local_parallel,
+    )
+except ImportError:
+    ExecutorFactory = None
+    get_completed_scene_ids = None
+    resolve_shard_index = None
+    run_local_parallel = None
+
 from render_tag.core.config import load_config
 from render_tag.data_io.manifest import DatasetManifest
 from render_tag.generation.scene import Generator
-from render_tag.orchestration.executors import ExecutorFactory
-from render_tag.orchestration.sharding import (
-    get_completed_scene_ids,
-    resolve_shard_index,
-    run_local_parallel,
-)
 from render_tag.schema.job import JobSpec, calculate_job_id, get_env_fingerprint
 from render_tag.tools.validator import AssetValidator, validate_recipe_file
 
 from .tools import (
     check_blenderproc_installed,
+    check_orchestration_installed,
     console,
     get_asset_manager,
     serialize_config_to_json,
 )
 
 app = typer.Typer(help="Generate synthetic data.")
+
+
+def _ensure_orchestration():
+    if not check_orchestration_installed():
+        console.print("[bold red]Error:[/bold red] Orchestration dependencies not installed.")
+        console.print("Install with: [cyan]pip install 'render-tag[orchestration]'[/cyan]")
+        raise typer.Exit(code=1)
 
 
 def pre_execution_guard(job_spec: JobSpec) -> None:
@@ -151,6 +166,8 @@ def run(
     producing images and corner annotations for detector training.
     """
     # 1. Setup Executor
+    _ensure_orchestration()
+
     executor = ExecutorFactory.get_executor(executor_type)
 
     # Check for assets (Pre-flight)

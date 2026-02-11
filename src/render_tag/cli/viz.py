@@ -8,11 +8,23 @@ from pathlib import Path
 import typer
 
 from render_tag.core.config import TagFamily
-from render_tag.data_io.visualization import visualize_dataset, visualize_recipe
 
-from .tools import check_blenderproc_installed, console
+try:
+    from render_tag.data_io.visualization import visualize_dataset, visualize_recipe
+except ImportError:
+    visualize_dataset = None
+    visualize_recipe = None
+
+from .tools import check_blenderproc_installed, check_viz_installed, console
 
 app = typer.Typer(help="Visualization tools.")
+
+
+def _ensure_viz():
+    if not check_viz_installed():
+        console.print("[bold red]Error:[/bold red] Visualization dependencies not installed.")
+        console.print("Install with: [cyan]pip install 'render-tag[viz]'[/cyan]")
+        raise typer.Exit(code=1)
 
 
 @app.command(name="recipe")
@@ -37,6 +49,8 @@ def viz_recipe(
 
     Generates a top-down view of the layout for verification.
     """
+    _ensure_viz()
+
     output.mkdir(parents=True, exist_ok=True)
     console.print(f"[dim]Visualizing recipe:[/dim] {recipe}")
 
@@ -75,6 +89,8 @@ def viz_dataset(
     """
     Visualize detection annotations overlaid on rendered images.
     """
+    _ensure_viz()
+
     visualize_dataset(
         output,
         specific_image=image,
