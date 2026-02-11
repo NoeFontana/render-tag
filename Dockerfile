@@ -24,7 +24,7 @@ WORKDIR /app
 COPY pyproject.toml README.md ./
 
 # Install python dependencies including blenderproc
-RUN pip install --no-cache-dir .
+RUN pip install --no-cache-dir ".[all]"
 
 # 4. Bake Blender into the image
 # We run a simple blenderproc command to force it to download the Blender binary
@@ -37,7 +37,7 @@ COPY assets/ ./assets/
 COPY configs/ ./configs/
 
 # Re-install to link source
-RUN pip install --no-cache-dir .
+RUN pip install --no-cache-dir ".[all]"
 
 # 6. Runtime Configuration
 # We verify blenderproc is working
