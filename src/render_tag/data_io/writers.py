@@ -2,7 +2,7 @@
 Data export writers for render-tag.
 
 This module handles writing detection annotations in various formats:
-- CSV format for corner coordinates (Locus-compatible)
+- CSV format for corner coordinates
 - COCO format for instance segmentation
 """
 

@@ -62,7 +62,7 @@ class DetectionRecord:
 
     @staticmethod
     def csv_header() -> list[str]:
-        """Return CSV header row matching Locus format."""
+        """Return CSV header row for corner annotations."""
         return [
             "image_id",
             "tag_id",

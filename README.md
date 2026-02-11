@@ -239,7 +239,7 @@ output/dataset_01/
 │   ├── scene_0000_cam_0000.png
 │   ├── scene_0000_cam_0001.png
 │   └── ...
-├── tags.csv              # Corner annotations (Locus-compatible)
+├── tags.csv              # Corner annotations
 ├── annotations.json      # COCO format annotations
 └── visualizations/       # Debug visualizations (from viz command)
 ```

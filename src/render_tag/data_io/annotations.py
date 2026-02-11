@@ -34,7 +34,7 @@ def normalize_corner_order(
     """Normalize 4 tag corners to a standard order.
 
     Target Orders:
-    - ccw_bl: Bottom-Left (0), Bottom-Right (1), Top-Right (2), Top-Left (3) [Locus/Standard]
+    - ccw_bl: Bottom-Left (0), Bottom-Right (1), Top-Right (2), Top-Left (3) [Standard]
     - cw_tl: Top-Left (0), Top-Right (1), Bottom-Right (2), Bottom-Left (3) [COCO/OpenCV]
 
     Args:

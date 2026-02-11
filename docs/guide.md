@@ -1,0 +1,155 @@
+# User Guide
+
+This guide covers the usage of `render-tag` for generating synthetic fiducial marker datasets.
+
+## CLI Interface
+
+The primary entry point is the `render-tag` command.
+
+### Generate Data
+
+```bash
+uv run render-tag generate [OPTIONS]
+```
+
+**Common Options:**
+
+- `-c, --config PATH`: Path to config YAML file [default: `configs/default.yaml`]
+- `-o, --output PATH`: Output directory [default: `output/dataset_01`]
+- `-n, --scenes INTEGER`: Number of scenes to generate [default: 1]
+- `-v, --verbose`: Enable verbose output from BlenderProc
+- `-e, --executor TEXT`: Execution engine: `local`, `docker`, `mock` [default: `local`]
+
+### Execution Engines
+
+| Executor | Description | Use Case |
+|----------|-------------|----------|
+| `local` | Uses local BlenderProc installation | Fast local development |
+| `docker` | Runs BlenderProc inside a container | Hermetic, reproducible runs |
+| `mock` | No-op execution (logs only) | Testing pipeline logic |
+
+---
+
+## Configuration
+
+`render-tag` uses YAML for configuration. The configuration is divided into several sections.
+
+### Dataset Section
+
+Controls the global seed and output scale.
+
+```yaml
+dataset:
+  seed: 42
+  num_scenes: 100
+```
+
+### Camera Section
+
+Defines the sensor parameters and sampling bounds.
+
+```yaml
+camera:
+  resolution: [1920, 1080]
+  fov: 60.0
+  samples_per_scene: 10
+  min_distance: 1.0
+  max_distance: 5.0
+```
+
+### Tag Section
+
+Specifies the marker family and material properties.
+
+```yaml
+tag:
+  family: tag36h11
+  size_meters: 0.1
+  material:
+    randomize: true
+    roughness_min: 0.1
+    roughness_max: 0.5
+```
+
+### Layout Modes
+
+`render-tag` supports three layout modes:
+
+1.  **Plain**: Tags scattered randomly on a floor.
+2.  **ChArUco (cb)**: Checkerboard pattern compatible with OpenCV calibration.
+3.  **AprilGrid**: Dense grid compatible with Kalibr.
+
+## Advanced Generation
+
+### Sharding and Parallelism
+
+For large datasets, `render-tag` can distribute work across multiple processes or shards.
+
+```bash
+# Run with 8 parallel workers on a single machine
+uv run render-tag generate --workers 8 --scenes 1000
+
+# Run a specific shard (e.g., shard 2 of 10)
+uv run render-tag generate --total-shards 10 --shard-index 2
+```
+
+### Resuming Work
+
+If a render is interrupted, use the `--resume` flag to skip already completed scenes by checking the sidecar metadata:
+
+```bash
+uv run render-tag generate --resume --output output/dataset_01
+```
+
+---
+
+## Controlled Experiments
+
+The `experiment` command allows you to run parameter sweeps (e.g., testing how detector accuracy changes with distance or motion blur).
+
+```bash
+uv run render-tag experiment run --config configs/experiments/glossy_tags.yaml
+```
+
+Experiment configs define `sweeps` that override base configuration values, generating a separate sub-dataset for each variant.
+
+---
+
+## Dataset Auditing
+
+After generation, you can audit the dataset to ensure quality and analyze performance:
+
+```bash
+# Generate an audit report and dashboard
+uv run render-tag audit run --dir output/dataset_01
+
+# Compare two datasets (e.g., baseline vs. experimental)
+uv run render-tag audit diff --base output/baseline --experimental output/variant_a
+```
+
+The auditor checks for:
+- **Visibility:** Are markers actually visible or occluded?
+- **Pose Diversity:** Are we covering a sufficient range of angles and distances?
+- **Telemetry:** Blender performance metrics (VRAM usage, render times).
+
+---
+
+## Validation
+
+Before starting a long render, you can validate your configuration:
+
+```bash
+uv run render-tag validate-config --config configs/default.yaml
+```
+
+## Visualization
+
+To verify your generated data, use the `viz` command:
+
+```bash
+# Visualize a rendered dataset
+uv run render-tag viz dataset --output output/dataset_01
+
+# Visualize a scene recipe (2D preview)
+uv run render-tag viz recipe --recipe output/dataset_01/recipes_shard_0.json
+```
