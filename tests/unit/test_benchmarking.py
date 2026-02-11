@@ -2,7 +2,7 @@
 Unit tests for benchmarking utilities.
 """
 
-from render_tag.tools.benchmarking import Benchmarker
+from render_tag.common.benchmarking import Benchmarker
 
 
 def test_benchmarker_measure() -> None:

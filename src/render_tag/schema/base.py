@@ -149,3 +149,119 @@ class SceneProvenance(BaseModel):
     timestamp: str = Field(description="ISO 8601 timestamp of generation")
     recipe_snapshot: dict[str, Any] = Field(description="Snapshot of the SceneRecipe used")
     seeds: dict[str, int] | None = Field(default=None, description="Random seeds used")
+
+
+# =============================================================================
+# Export & Detection Types
+# =============================================================================
+
+
+class Corner(BaseModel):
+    """A 2D corner point in image coordinates."""
+
+    x: float
+    y: float
+
+    def as_tuple(self) -> tuple[float, float]:
+        """Convert to (x, y) tuple."""
+        return (self.x, self.y)
+
+
+class DetectionRecord(BaseModel):
+    """A single detection record for export and processing."""
+
+    image_id: str
+    tag_id: int
+    tag_family: str
+    corners: list[tuple[float, float]]  # Standardized as list of tuples
+
+    # Phase 6: Rich Metadata
+    distance: float = 0.0
+    angle_of_incidence: float = 0.0
+    pixel_area: float = 0.0
+    occlusion_ratio: float = 0.0
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+    def is_valid(self) -> bool:
+        """Check if the detection is valid (has 4 corners)."""
+        return len(self.corners) == 4
+
+    def to_csv_row(
+        self, width: float | None = None, height: float | None = None
+    ) -> list[str | int | float]:
+        """Convert to CSV row format (normalized and optionally clipped)."""
+        from render_tag.data_io.annotations import normalize_corner_order
+
+        row: list[str | int | float] = [self.image_id, self.tag_id, self.tag_family]
+
+        # CSV format uses standard CCW order from BL
+        ordered_corners = normalize_corner_order(self.corners, target_order="ccw_bl")
+
+        for x, y in ordered_corners:
+            if width is not None:
+                x = max(0.0, min(float(width), x))
+            if height is not None:
+                y = max(0.0, min(float(height), y))
+            # Format to 4 decimal places for consistency
+            row.extend([float(f"{x:.4f}"), float(f"{y:.4f}")])
+        return row
+
+    @staticmethod
+    def csv_header() -> list[str]:
+        """Return CSV header row for corner annotations."""
+        return [
+            "image_id",
+            "tag_id",
+            "tag_family",
+            "x1",
+            "y1",
+            "x2",
+            "y2",
+            "x3",
+            "y3",
+            "x4",
+            "y4",
+        ]
+
+
+class COCOImage(BaseModel):
+    """COCO format image metadata."""
+
+    id: int
+    file_name: str
+    width: int
+    height: int
+
+
+class COCOCategory(BaseModel):
+    """COCO format category."""
+
+    id: int
+    name: str
+    supercategory: str = "fiducial_marker"
+
+
+class COCOAnnotation(BaseModel):
+    """COCO format annotation."""
+
+    id: int
+    image_id: int
+    category_id: int
+    segmentation: list[list[float]] = Field(default_factory=list)
+    bbox: list[float] = Field(default_factory=list)
+    area: float = 0.0
+    iscrowd: int = 0
+    attributes: dict[str, Any] = Field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to standard COCO JSON dictionary."""
+        return {
+            "id": self.id,
+            "image_id": self.image_id,
+            "category_id": self.category_id,
+            "segmentation": self.segmentation,
+            "bbox": self.bbox,
+            "area": self.area,
+            "iscrowd": self.iscrowd,
+            "attributes": self.attributes,
+        }

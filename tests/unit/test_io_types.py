@@ -2,7 +2,7 @@
 Unit tests for the centralized types module.
 """
 
-from render_tag.data_io.types import Corner, DetectionRecord
+from render_tag.schema import Corner, DetectionRecord
 
 
 class TestCorner:
@@ -25,7 +25,7 @@ class TestDetectionRecord:
             tag_family="tag36h11",
             corners=corners,
         )
-        assert detection.validate() is True
+        assert detection.is_valid() is True
 
     def test_invalid_detection_wrong_corners(self) -> None:
         corners = [(0, 0), (100, 0), (100, 100)]  # Only 3 corners
@@ -35,11 +35,13 @@ class TestDetectionRecord:
             tag_family="tag36h11",
             corners=corners,
         )
-        assert detection.validate() is False
+        assert detection.is_valid() is False
 
     def test_to_csv_row(self) -> None:
         corners = [(10.5, 20.5), (110.5, 20.5), (110.5, 120.5), (10.5, 120.5)]
-        detection = DetectionRecord("img1", 5, "tag36h11", corners)
+        detection = DetectionRecord(
+            image_id="img1", tag_id=5, tag_family="tag36h11", corners=corners
+        )
         row = detection.to_csv_row()
         assert row[0] == "img1"
         assert row[3] == 10.5

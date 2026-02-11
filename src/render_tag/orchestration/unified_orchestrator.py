@@ -16,7 +16,7 @@ except ImportError:
 
 from render_tag.orchestration.persistent_worker import PersistentWorkerProcess
 from render_tag.schema.hot_loop import CommandType, Response, ResponseStatus
-from render_tag.tools.telemetry_auditor import TelemetryAuditor
+from render_tag.audit.telemetry_auditor import TelemetryAuditor
 
 logger = logging.getLogger(__name__)
 

@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from render_tag.data_io.auditor import DatasetAuditor
+from render_tag.audit.auditor import DatasetAuditor
 
 
 @pytest.fixture
@@ -49,7 +49,7 @@ def test_dataset_auditor_full_run(rich_dataset):
 
 def test_calculate_score_penalties():
     """Test the heuristic scoring logic."""
-    from render_tag.data_io.auditor import (
+    from render_tag.audit.auditor import (
         DatasetAuditor,
         DistributionStats,
         EnvironmentalAudit,

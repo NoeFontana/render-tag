@@ -10,9 +10,9 @@ import yaml
 from rich.table import Table
 
 try:
-    from render_tag.data_io.auditor import AuditDiff, DatasetAuditor
-    from render_tag.data_io.auditor_schema import AuditResult, QualityGateConfig
-    from render_tag.data_io.auditor_viz import DashboardGenerator
+    from render_tag.audit.auditor import AuditDiff, DatasetAuditor
+    from render_tag.audit.auditor_schema import AuditResult, QualityGateConfig
+    from render_tag.audit.auditor_viz import DashboardGenerator
 except ImportError:
     AuditDiff = None
     DatasetAuditor = None

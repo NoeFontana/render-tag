@@ -9,10 +9,10 @@ from unittest.mock import MagicMock, patch
 # Mock huggingface_hub before importing upload_assets
 sys.modules["huggingface_hub"] = MagicMock()
 
-from render_tag.tools.upload_assets import upload_assets
+from render_tag.common.upload_assets import upload_assets
 
 
-@patch("render_tag.tools.upload_assets.HfApi")
+@patch("render_tag.common.upload_assets.HfApi")
 def test_upload_assets_dry_run(mock_hf_api, tmp_path: Path, capsys) -> None:
     assets_dir = tmp_path / "assets"
     assets_dir.mkdir()
@@ -26,7 +26,7 @@ def test_upload_assets_dry_run(mock_hf_api, tmp_path: Path, capsys) -> None:
     assert not mock_hf_api.return_value.upload_folder.called
 
 
-@patch("render_tag.tools.upload_assets.HfApi")
+@patch("render_tag.common.upload_assets.HfApi")
 def test_upload_assets_real(mock_hf_api, tmp_path: Path) -> None:
     assets_dir = tmp_path / "assets"
     assets_dir.mkdir()

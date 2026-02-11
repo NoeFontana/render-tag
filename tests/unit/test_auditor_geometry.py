@@ -1,6 +1,6 @@
 import polars as pl
 
-from render_tag.data_io.auditor import GeometryAuditor
+from render_tag.audit.auditor import GeometryAuditor
 
 
 def test_geometry_auditor_calculates_stats():

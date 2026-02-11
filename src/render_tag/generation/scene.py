@@ -14,7 +14,7 @@ import numpy as np
 
 from render_tag.common import TAG_GRID_SIZES
 from render_tag.common.logging import get_logger
-from render_tag.common.math import SeedManager
+from render_tag.schema import SeedManager
 from render_tag.core.config import GenConfig
 from render_tag.geometry.camera import sample_camera_pose
 from render_tag.geometry.layouts import apply_flying_layout, apply_grid_layout

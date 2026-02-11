@@ -1,7 +1,7 @@
 import pytest
 
-from render_tag.data_io.auditor import GateEnforcer
-from render_tag.data_io.auditor_schema import (
+from render_tag.audit.auditor import GateEnforcer
+from render_tag.audit.auditor_schema import (
     AuditReport,
     DistributionStats,
     EnvironmentalAudit,

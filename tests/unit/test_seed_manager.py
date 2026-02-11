@@ -1,4 +1,4 @@
-from render_tag.common.math import SeedManager
+from render_tag.schema import SeedManager
 
 
 def test_seed_manager_init():

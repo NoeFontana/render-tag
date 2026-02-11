@@ -38,7 +38,7 @@ except ImportError:
 if TYPE_CHECKING:
     from render_tag.schema import SceneProvenance
 
-from .types import DetectionRecord
+from render_tag.schema import DetectionRecord
 
 
 class CSVWriter:
@@ -79,7 +79,7 @@ class CSVWriter:
         height: int | None = None,
     ) -> None:
         """Write a single detection to the CSV file (optionally clipped)."""
-        if not detection.validate():
+        if not detection.is_valid():
             return
 
         self._ensure_initialized()

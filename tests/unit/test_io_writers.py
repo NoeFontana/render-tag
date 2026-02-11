@@ -6,7 +6,7 @@ import json
 import tempfile
 from pathlib import Path
 
-from render_tag.data_io.types import DetectionRecord
+from render_tag.schema import DetectionRecord
 from render_tag.data_io.writers import COCOWriter, CSVWriter
 
 
@@ -38,9 +38,15 @@ class TestCSVWriter:
 
         corners = [(0, 0), (100, 0), (100, 100), (0, 100)]
         detections = [
-            DetectionRecord("img1", 0, "tag36h11", corners),
-            DetectionRecord("img2", 1, "tag36h11", corners),
-            DetectionRecord("img3", 2, "DICT_4X4_50", corners),
+            DetectionRecord(
+                image_id="img1", tag_id=0, tag_family="tag36h11", corners=corners
+            ),
+            DetectionRecord(
+                image_id="img2", tag_id=1, tag_family="tag36h11", corners=corners
+            ),
+            DetectionRecord(
+                image_id="img3", tag_id=2, tag_family="DICT_4X4_50", corners=corners
+            ),
         ]
         writer.write_detections(detections)
 
@@ -52,7 +58,9 @@ class TestCSVWriter:
         writer = CSVWriter(csv_path)
 
         # Invalid detection with only 3 corners
-        detection = DetectionRecord("img1", 0, "tag36h11", [(0, 0), (1, 1), (2, 2)])
+        detection = DetectionRecord(
+            image_id="img1", tag_id=0, tag_family="tag36h11", corners=[(0, 0), (1, 1), (2, 2)]
+        )
         writer.write_detection(detection)
 
         # File should not be created since the only detection was invalid
@@ -92,7 +100,9 @@ class TestCOCOWriter:
             img_id = writer.add_image("test.png", 640, 480)
 
             corners = [(100, 100), (200, 100), (200, 200), (100, 200)]
-            detection = DetectionRecord("test.png", 5, "tag36h11", corners)
+            detection = DetectionRecord(
+                image_id="test.png", tag_id=5, tag_family="tag36h11", corners=corners
+            )
             ann_id = writer.add_annotation(img_id, cat_id, corners, detection=detection)
 
             assert ann_id == 1

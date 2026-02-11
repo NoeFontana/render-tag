@@ -3,7 +3,7 @@ import json
 import polars as pl
 import pytest
 
-from render_tag.data_io.auditor import DatasetReader
+from render_tag.audit.auditor import DatasetReader
 
 
 @pytest.fixture

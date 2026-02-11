@@ -1,6 +1,6 @@
 import polars as pl
 
-from render_tag.data_io.auditor import OutlierExporter
+from render_tag.audit.auditor import OutlierExporter
 
 
 def test_outlier_exporter_identifies_and_links(tmp_path):

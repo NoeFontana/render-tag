@@ -2,8 +2,8 @@ import json
 
 import pytest
 
-from render_tag.data_io.auditor import DatasetAuditor
-from render_tag.data_io.auditor_viz import DashboardGenerator
+from render_tag.audit.auditor import DatasetAuditor
+from render_tag.audit.auditor_viz import DashboardGenerator
 
 
 @pytest.fixture

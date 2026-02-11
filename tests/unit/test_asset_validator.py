@@ -1,4 +1,4 @@
-from render_tag.tools.validator import AssetValidator
+from render_tag.common.validator import AssetValidator
 
 
 def test_asset_validator_not_hydrated(tmp_path):

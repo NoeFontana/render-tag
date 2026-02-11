@@ -1,6 +1,6 @@
 import hashlib
 
-from render_tag.data_io.manifest import DatasetManifest
+from render_tag.common.manifest import DatasetManifest
 
 
 def test_manifest_creation_and_hashing(tmp_path):

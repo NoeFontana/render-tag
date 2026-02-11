@@ -1,5 +1,5 @@
 from render_tag.schema import ObjectRecipe, SceneRecipe, WorldRecipe
-from render_tag.tools.validator import RecipeValidator
+from render_tag.common.validator import RecipeValidator
 
 
 def test_validator_detects_missing_hdri():

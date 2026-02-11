@@ -7,7 +7,7 @@
 The `Benchmarker` utility is used internally to measure the duration of different pipeline stages.
 
 ```python
-from render_tag.tools.benchmarking import Benchmarker
+from render_tag.common.benchmarking import Benchmarker
 
 bench = Benchmarker("My Generation Run")
 with bench.measure("Scene Generation"):

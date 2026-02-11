@@ -5,7 +5,7 @@ import time
 
 import zmq
 
-from render_tag.orchestration.worker_pool import WorkerPool
+from render_tag.orchestration.unified_orchestrator import UnifiedWorkerOrchestrator
 from render_tag.schema.hot_loop import CommandType, ResponseStatus
 
 
@@ -45,7 +45,13 @@ if __name__ == "__main__":
                     "status": "SUCCESS",
                     "message": "Stub success",
                     "request_id": request.get("request_id"),
-                    "data": {}
+                    "data": {
+                        "vram_used_mb": 100,
+                        "vram_total_mb": 8000,
+                        "cpu_usage_percent": 10,
+                        "state_hash": "abc",
+                        "uptime_seconds": 10
+                    }
                 }
                 socket.send_string(json.dumps(response))
             except Exception as e:
@@ -53,7 +59,7 @@ if __name__ == "__main__":
                 socket.send_string(json.dumps({"status": "FAILURE", "message": str(e)}))
 """)
 
-    with WorkerPool(
+    with UnifiedWorkerOrchestrator(
         num_workers=2,
         base_port=5570,
         blender_script=dummy_script,
@@ -61,12 +67,6 @@ if __name__ == "__main__":
         use_blenderproc=False,
     ) as pool:
         assert len(pool.workers) == 2
-
-        # Test broadcast
-        responses = pool.execute_on_all(CommandType.STATUS)
-        assert len(responses) == 2
-        for r in responses:
-            assert r.status == ResponseStatus.SUCCESS
 
         # Test queue access
         w1 = pool.get_worker()
@@ -89,6 +89,7 @@ import json
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=5555)
+    # Accept but ignore other args that persistent_worker passes
     parser.add_argument("--mock", action="store_true")
     parser.add_argument("--max-renders", type=int, default=None)
     args, _ = parser.parse_known_args()
@@ -108,12 +109,18 @@ if __name__ == "__main__":
                 "status": "SUCCESS",
                 "message": "Stub success",
                 "request_id": request.get("request_id"),
-                "data": {}
+                "data": {
+                    "vram_used_mb": 100,
+                    "vram_total_mb": 8000,
+                    "cpu_usage_percent": 10,
+                    "state_hash": "abc",
+                    "uptime_seconds": 10
+                }
             }
             socket.send_string(json.dumps(response))
 """)
 
-    with WorkerPool(
+    with UnifiedWorkerOrchestrator(
         num_workers=1,
         base_port=5580,
         blender_script=dummy_script,

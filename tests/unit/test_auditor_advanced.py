@@ -1,6 +1,6 @@
 import polars as pl
 
-from render_tag.data_io.auditor import EnvironmentalAuditor, IntegrityAuditor
+from render_tag.audit.auditor import EnvironmentalAuditor, IntegrityAuditor
 
 
 def test_environmental_auditor_stats():

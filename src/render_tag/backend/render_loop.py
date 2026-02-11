@@ -14,7 +14,7 @@ from render_tag.backend.bridge import bpy, np
 from render_tag.backend.projection import compute_geometric_metadata
 from render_tag.backend.renderer import RenderFacade
 from render_tag.common.git import get_git_hash
-from render_tag.data_io.types import DetectionRecord
+from render_tag.schema import DetectionRecord
 from render_tag.data_io.writers import (
     COCOWriter,
     CSVWriter,

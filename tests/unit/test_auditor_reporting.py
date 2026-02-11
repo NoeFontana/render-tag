@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from render_tag.data_io.auditor import DatasetAuditor
+from render_tag.audit.auditor import DatasetAuditor
 
 
 @pytest.fixture
