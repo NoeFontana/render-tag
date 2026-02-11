@@ -9,6 +9,7 @@ from pathlib import Path
 import typer
 
 from render_tag.generation.scene import Generator
+from render_tag.generation.tags import ensure_tag_asset
 from render_tag.orchestration.experiment import (
     expand_experiment,
     load_experiment_config,
@@ -108,8 +109,6 @@ def run(
         serialize_config_to_json(variant.config, job_config_path)
 
         # 4. Ensure Assets (Optimized: only check once? No, easy to check every time)
-        from render_tag.generation.tags import ensure_tag_asset
-
         scenario = variant.config.scenario
         families = scenario.tag_families if scenario else [variant.config.tag.family]
         assets_dir = Path("assets/tags")

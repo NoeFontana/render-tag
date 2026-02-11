@@ -109,8 +109,12 @@ class PersistentWorkerProcess:
         start_time = time.time()
         while time.time() - start_time < self.startup_timeout:
             poll_result = self.process.poll()
-            if poll_result is not None:
+            if poll_result is not None and poll_result != 0:
                 raise RuntimeError(f"Worker {self.worker_id} failed to start (exit {poll_result}).")
+            
+            if poll_result == 0:
+                # Finished already
+                return
 
             try:
                 resp = self.client.send_command(CommandType.STATUS, raise_on_failure=True)

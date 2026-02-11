@@ -49,7 +49,7 @@ tag:
   family: tag36h11
   size_meters: 0.05
 scene:
-  background_hdri: null
+  background_hdri: "assets/hdri/dummy.exr"
   texture_dir: null
 physics:
   drop_height: 0.5
@@ -77,7 +77,7 @@ physics:
                 "--scenes",
                 "5",
                 "--renderer-mode",
-                "workbench",
+                "cycles",
             ],
             capture_output=True,
             text=True,
@@ -152,6 +152,131 @@ physics:
         assert result.returncode == 0
         assert "Skipping Blender launch" in result.stdout
         assert (output_dir / "recipes_shard_0.json").exists()
+
+    def test_industrial_pipeline_cycles(self, temp_output_dir):
+        """Test full pipeline with industrial features (Cycles)."""
+        config_content = """
+dataset:
+  seed: 123
+camera:
+  resolution: [128, 128]
+  sensor_noise: {model: salt_and_pepper, amount: 0.05}
+  velocity_mean: 1.0
+  shutter_time_ms: 10.0
+tag:
+  material: {randomize: True}
+scene:
+  background_hdri: "assets/hdri/dummy.exr"
+"""
+        config_path = temp_output_dir / "industrial.yaml"
+        config_path.write_text(config_content)
+        output_dir = temp_output_dir / "industrial_out"
+
+        result = subprocess.run(
+            [
+                "render-tag",
+                "generate",
+                "--config",
+                str(config_path),
+                "--output",
+                str(output_dir),
+                "--scenes",
+                "1",
+                "--renderer-mode",
+                "cycles",
+            ],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0
+        assert (output_dir / "images/scene_0000_cam_0000.png").exists()
+        assert (output_dir / "tags.csv").exists()
+
+    def test_shard_invariance_fast(self, temp_output_dir):
+        """Verify that splitting a job into shards does not change recipes."""
+        config_path = temp_output_dir / "shard_config.yaml"
+        config_path.write_text("scene:\n  background_hdri: null\n  texture_dir: null\n")
+
+        out_single = temp_output_dir / "single"
+        subprocess.run(
+            [
+                "render-tag",
+                "generate",
+                "--config",
+                str(config_path),
+                "--output",
+                str(out_single),
+                "--scenes",
+                "4",
+                "--seed",
+                "999",
+                "--total-shards",
+                "1",
+                "--shard-index",
+                "0",
+                "--skip-render",
+            ],
+            check=True,
+        )
+
+        out_shard0 = temp_output_dir / "shard0"
+        out_shard1 = temp_output_dir / "shard1"
+
+        subprocess.run(
+            [
+                "render-tag",
+                "generate",
+                "--config",
+                str(config_path),
+                "--output",
+                str(out_shard0),
+                "--scenes",
+                "4",
+                "--seed",
+                "999",
+                "--total-shards",
+                "2",
+                "--shard-index",
+                "0",
+                "--skip-render",
+            ],
+            check=True,
+        )
+
+        subprocess.run(
+            [
+                "render-tag",
+                "generate",
+                "--config",
+                str(config_path),
+                "--output",
+                str(out_shard1),
+                "--scenes",
+                "4",
+                "--seed",
+                "999",
+                "--total-shards",
+                "2",
+                "--shard-index",
+                "1",
+                "--skip-render",
+            ],
+            check=True,
+        )
+
+        with open(out_single / "recipes_shard_0.json") as f:
+            recipes_s = json.load(f)
+        with open(out_shard0 / "recipes_shard_0.json") as f:
+            recipes_m0 = json.load(f)
+        with open(out_shard1 / "recipes_shard_1.json") as f:
+            recipes_m1 = json.load(f)
+
+        assert recipes_s[0]["scene_id"] == 0
+        assert recipes_m0[0]["scene_id"] == 0
+        assert recipes_s[0] == recipes_m0[0]
+        assert recipes_s[2]["scene_id"] == 2
+        assert recipes_m1[0]["scene_id"] == 2
+        assert recipes_s[2] == recipes_m1[0]
 
 
 class TestValidateCommand:

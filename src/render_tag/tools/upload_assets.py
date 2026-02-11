@@ -2,7 +2,10 @@ import argparse
 import os
 from pathlib import Path
 
-from huggingface_hub import HfApi
+try:
+    from huggingface_hub import HfApi
+except ImportError:
+    HfApi = None
 
 
 def upload_assets(
@@ -23,6 +26,10 @@ def upload_assets(
         print(f"Error: Assets directory not found: {assets_dir}")
         return
 
+    if HfApi is None and not dry_run:
+        print("Error: huggingface_hub not installed. Run 'pip install huggingface_hub'.")
+        return
+
     print(f"Preparing to upload assets from {assets_dir} to {repo_id}")
 
     # Check token
@@ -32,7 +39,8 @@ def upload_assets(
     if not token and not dry_run:
         print("Warning: No HF_TOKEN provided and dry_run is False. Assuming local login.")
 
-    api = HfApi(token=token)
+    if not dry_run:
+        api = HfApi(token=token)
 
     if dry_run:
         print("[DRY RUN] Would upload the following files:")

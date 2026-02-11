@@ -147,6 +147,22 @@ class TestTagConfig:
         assert config.family.is_aruco is True
 
 
+class TestTagSurfaceConfig:
+    def test_surface_config_defaults(self) -> None:
+        from render_tag.schema import TagSurfaceConfig
+
+        cfg = TagSurfaceConfig()
+        assert cfg.scratches == 0.0
+        assert cfg.dust == 0.0
+
+    def test_surface_config_custom(self) -> None:
+        from render_tag.schema import TagSurfaceConfig
+
+        cfg = TagSurfaceConfig(scratches=0.5, dust=0.2)
+        assert cfg.scratches == 0.5
+        assert cfg.dust == 0.2
+
+
 class TestPhysicsConfig:
     def test_defaults(self) -> None:
         config = PhysicsConfig()

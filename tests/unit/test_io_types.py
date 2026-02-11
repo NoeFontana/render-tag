@@ -27,6 +27,16 @@ class TestDetectionRecord:
         )
         assert detection.validate() is True
 
+    def test_invalid_detection_wrong_corners(self) -> None:
+        corners = [(0, 0), (100, 0), (100, 100)]  # Only 3 corners
+        detection = DetectionRecord(
+            image_id="test_image",
+            tag_id=42,
+            tag_family="tag36h11",
+            corners=corners,
+        )
+        assert detection.validate() is False
+
     def test_to_csv_row(self) -> None:
         corners = [(10.5, 20.5), (110.5, 20.5), (110.5, 120.5), (10.5, 120.5)]
         detection = DetectionRecord("img1", 5, "tag36h11", corners)

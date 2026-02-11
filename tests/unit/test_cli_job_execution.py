@@ -46,8 +46,12 @@ def test_cli_run_with_job_mismatch(tmp_path, monkeypatch):
 
     monkeypatch.setattr(subprocess, "run", lambda *args, **kwargs: MockCompletedProcess())
 
+    # Mock AssetValidator and BlenderProc check
+    monkeypatch.setattr("render_tag.cli.generate.AssetValidator.is_hydrated", lambda self: True)
+    monkeypatch.setattr("render_tag.cli.generate.check_blenderproc_installed", lambda: True)
+
     # 4. Run 'render-tag generate --job job.json'
-    result = runner.invoke(app, ["generate", "--job", str(job_file)])
+    result = runner.invoke(app, ["generate", "--job", str(job_file), "--executor", "mock"])
 
     assert result.exit_code != 0
     assert "Environment mismatch" in result.output
@@ -89,7 +93,11 @@ def test_cli_run_with_job_config_mismatch(tmp_path, monkeypatch):
 
     monkeypatch.setattr(subprocess, "run", lambda *args, **kwargs: MockCompletedProcess())
 
-    result = runner.invoke(app, ["generate", "--job", str(job_file)])
+    # Mock AssetValidator and BlenderProc check
+    monkeypatch.setattr("render_tag.cli.generate.AssetValidator.is_hydrated", lambda self: True)
+    monkeypatch.setattr("render_tag.cli.generate.check_blenderproc_installed", lambda: True)
+
+    result = runner.invoke(app, ["generate", "--job", str(job_file), "--executor", "mock"])
 
     assert result.exit_code != 0
     assert "Config hash mismatch" in result.output
@@ -130,9 +138,24 @@ def test_cli_run_with_job_overrides_warning(tmp_path, monkeypatch):
 
     monkeypatch.setattr(subprocess, "run", lambda *args, **kwargs: MockCompletedProcess())
 
+    # Mock AssetValidator and BlenderProc check
+    monkeypatch.setattr("render_tag.cli.generate.AssetValidator.is_hydrated", lambda self: True)
+    monkeypatch.setattr("render_tag.cli.generate.check_blenderproc_installed", lambda: True)
+
     # Run with conflicting CLI flags
     result = runner.invoke(
-        app, ["generate", "--job", str(job_file), "--scenes", "5", "--seed", "100"]
+        app,
+        [
+            "generate",
+            "--job",
+            str(job_file),
+            "--scenes",
+            "5",
+            "--seed",
+            "100",
+            "--executor",
+            "mock",
+        ],
     )
 
     # It should still run (or at least pass the guard) and show warnings

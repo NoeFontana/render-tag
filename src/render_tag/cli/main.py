@@ -31,8 +31,6 @@ app.command(name="validate-recipe")(generate.validate_recipe)
 app.command(name="lock")(job.lock)
 
 # Register top-level commands from viz.py (shortcuts)
-app.command(name="viz")(viz.viz_dataset)
-app.command(name="viz-recipe")(viz.viz_recipe)
 app.command(name="info")(viz.info)
 
 

@@ -31,7 +31,7 @@ def calculate_angle_of_incidence(
     normal = target_normal / norm
 
     # Vector from target to camera
-    to_cam = camera_location - target_location
+    to_cam = (camera_location - target_location).astype(np.float64)
     to_cam_norm = np.linalg.norm(to_cam)
     if to_cam_norm < 1e-10:
         return 0.0

@@ -6,16 +6,22 @@ description: Run the project's test suite
 
 Execute the comprehensive test suite to ensure stability.
 
-1.  **Run All Tests**
-    Runs all unit and integration tests.
+1.  **Run All Tests (Fast Parallel)**
+    Runs all unit and integration tests using multiple cores.
     ```bash
-    uv run pytest
+    uv run pytest -n auto
     ```
 
 2.  **Run Fast Tests Only**
-    Skips slow integration or data-heavy tests.
+    Skips slow integration tests.
     ```bash
-    uv run pytest -m "not slow"
+    uv run pytest -m "not integration"
+    ```
+
+3.  **Run with Coverage**
+    Generates a coverage report.
+    ```bash
+    uv run pytest --cov=src/render_tag --cov-report=term-missing
     ```
 
 3.  **Run Specific Test File**

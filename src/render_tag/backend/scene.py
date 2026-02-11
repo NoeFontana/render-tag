@@ -32,15 +32,17 @@ def setup_background(hdri_path: Path) -> None:
     # Check for lazy loading
     if bpy and bpy.context.scene.world:
         world = bpy.context.scene.world
-        if world.use_nodes:
-            # Find the Environment Texture node
-            env_node = world.node_tree.nodes.get("Environment Texture")
-            if env_node and env_node.image:
-                current_path = env_node.image.filepath
-                # Compare paths (standardizing to string)
-                if current_path == str(hdri_path):
-                    # HDRI is already loaded, skip redundant setup
-                    return
+        if not world.use_nodes:
+            world.use_nodes = True
+        
+        # Find the Environment Texture node
+        env_node = world.node_tree.nodes.get("Environment Texture")
+        if env_node and env_node.image:
+            current_path = env_node.image.filepath
+            # Compare paths (standardizing to string)
+            if current_path == str(hdri_path):
+                # HDRI is already loaded, skip redundant setup
+                return
 
     bproc.world.set_world_background_hdr_img(str(hdri_path))
 
