@@ -1,7 +1,11 @@
+import argparse
+import json
 import sys
+import time
 from pathlib import Path
 
 import pytest
+import zmq
 
 from render_tag.orchestration.persistent_worker import PersistentWorkerProcess
 from render_tag.schema.hot_loop import CommandType, ResponseStatus
@@ -9,24 +13,48 @@ from render_tag.schema.hot_loop import CommandType, ResponseStatus
 
 def test_persistent_worker_lifecycle(tmp_path):
     # Create a dummy python script that acts as our "blender" backend
-    project_root = Path(__file__).resolve().parents[3]
-    src_path = project_root / "render-tag" / "src"
+    # but uses a raw ZMQ stub to avoid importing project dependencies like blenderproc
     dummy_script = tmp_path / "dummy_backend.py"
-    dummy_script.write_text(f"""
+    dummy_script.write_text("""
 import sys
 import argparse
-from pathlib import Path
-# Add project root to path
-sys.path.append(r'{src_path}')
-from render_tag.backend.zmq_server import ZmqBackendServer
+import time
+import zmq
+import json
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=5555)
-    args = parser.parse_args()
-    server = ZmqBackendServer(port=args.port)
-    server.run()
+    # Accept but ignore other args that persistent_worker passes
+    parser.add_argument("--mock", action="store_true")
+    parser.add_argument("--max-renders", type=int, default=None)
+    args, _ = parser.parse_known_args()
+
+    context = zmq.Context()
+    socket = context.socket(zmq.REP)
+    socket.bind(f"tcp://127.0.0.1:{args.port}")
+
+    print(f"Stub backend running on {args.port}")
+    sys.stdout.flush()
+
+    while True:
+        if socket.poll(100):
+            msg = socket.recv_string()
+            try:
+                msg_json = json.loads(msg)
+                
+                # Minimal protocol implementation
+                response = {
+                    "status": "SUCCESS",
+                    "message": "Stub success",
+                    "request_id": msg_json.get("request_id"),
+                    "data": {}
+                }
+                socket.send_string(json.dumps(response))
+            except Exception as e:
+                socket.send_string(json.dumps({"status": "FAILURE", "message": str(e)}))
 """)
+
     # We use 'python' instead of 'blenderproc' for testing
     worker = PersistentWorkerProcess(
         worker_id="test-1",

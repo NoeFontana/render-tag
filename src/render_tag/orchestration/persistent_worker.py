@@ -81,8 +81,22 @@ class PersistentWorkerProcess:
         # Assuming script is at src/render_tag/backend/zmq_server.py
         # We want to add 'src' to path.
         project_src = self.blender_script.resolve().parents[2]
+        python_paths = []
+
+        if self.mock:
+            # Add tests/mocks/ to PYTHONPATH so 'import blenderproc' finds our mock
+            project_root = project_src.parent
+            mocks_dir = project_root / "tests" / "mocks"
+            if mocks_dir.exists():
+                python_paths.append(str(mocks_dir))
+            # Also add project root so 'tests.mocks' imports work
+            python_paths.append(str(project_root))
+
         if project_src.name == "src":
-            env["PYTHONPATH"] = str(project_src)
+            python_paths.append(str(project_src))
+
+        if python_paths:
+            env["PYTHONPATH"] = ":".join(python_paths)
 
         # Start the process. Inherit stdout/stderr so it propagates to parent
         # (and pytest captures it)

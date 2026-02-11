@@ -1,3 +1,19 @@
-render-tag/output/
-render-tag/assets/
-render-tag/tmp/
+# Project artifacts
+output/
+assets/
+tmp/
+fast_output/
+
+# Python / Environment
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+
