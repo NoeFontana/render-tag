@@ -13,8 +13,3 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 - [x] **Track: Codebase Modernization and Refactoring**
 *Link: [./tracks/codebase_modernization_20260208/](./tracks/codebase_modernization_20260208/)*
-
----
-
-- [x] **Track: Standardize Tag Size to Meters**
-*Link: [./tracks/standardize_units_20260212/](./tracks/standardize_units_20260212/)*
