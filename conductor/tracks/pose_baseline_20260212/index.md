@@ -1,4 +1,4 @@
-# Track calibration_suite_20260212 Context
+# Track pose_baseline_20260212 Context
 
 - [Specification](./spec.md)
 - [Implementation Plan](./plan.md)
