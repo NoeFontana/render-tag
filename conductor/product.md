@@ -8,6 +8,7 @@ Procedural 3D data generation for AprilTag training (Offline).
 - **Robotics Engineers:** Benchmarking tag tracking performance and visual odometry in simulated environments that mimic real-world deployment.
 - **Infrastructure Engineers:** Managing large-scale data generation pipelines with managed binary assets and hermetic reproducibility.
 - **MLOps Engineers:** Streamlining dataset versioning and distribution through cloud-based asset repositories.
+- **Benchmark Architects:** Defining strict Data APIs and declarative manifests for systematic performance evaluation.
 - **Perception Engineers:** Validating calibration algorithms and corner refinement accuracy against mathematically perfect ground truth.
 
 ## Core Goals & Features
@@ -17,6 +18,7 @@ Procedural 3D data generation for AprilTag training (Offline).
 - **Immutable Job Specs & Provenance:** Cryptographically verifiable "Unit of Work" definitions that lock environment state, asset versions, and logic, guaranteeing pixel-perfect reproducibility and end-to-end data auditability.
 - **Dataset Auditing:** Integrated "Contract of Trust" validation to verify geometric coverage (incidence angles, distances), environmental variance, and data integrity via automated Quality Gates.
 - **Calibration & Ground Truth Suite:** Dedicated campaigns for generating sub-pixel accurate calibration datasets (Checkerboard, AprilGrid) with COCO-compliant keypoint annotations.
+- **Pose Estimation Baseline:** Systematic sweeps (distance, angle) with high-precision quaternion ground truth for absolute pose verification.
 - **Managed Assets:** Single Source of Truth (SSoT) for HDRIs, textures, and models via Hugging Face, ensuring zero-config onboarding and deterministic results across environments.
 
 ## Supported Environments
