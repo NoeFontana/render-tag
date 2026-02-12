@@ -19,7 +19,7 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 2: CLI Sync Command Implementation' (Protocol in workflow.md) [85214da]
 
 ## Phase 3: On-Demand Downloading and Generator Integration
-- [ ] Task: Integrate `AssetProvider` into `Generator`
+- [x] Task: Integrate `AssetProvider` into `Generator` [2db4fee]
     - [ ] Write failing tests for `Generator` attempting to use a missing asset
     - [ ] Modify `Generator` to use `AssetProvider` for resolving paths to tags, models, and textures
     - [ ] Ensure automatic download triggers if the file is missing locally
