@@ -18,13 +18,13 @@
     - [x] Verify tests pass and achieve >80% coverage
 - [x] Task: Conductor - User Manual Verification 'Phase 2: CLI Sync Command Implementation' (Protocol in workflow.md) [85214da]
 
-## Phase 3: On-Demand Downloading and Generator Integration
+## Phase 3: On-Demand Downloading and Generator Integration [checkpoint: d25b90c]
 - [x] Task: Integrate `AssetProvider` into `Generator` [2db4fee]
-    - [ ] Write failing tests for `Generator` attempting to use a missing asset
-    - [ ] Modify `Generator` to use `AssetProvider` for resolving paths to tags, models, and textures
-    - [ ] Ensure automatic download triggers if the file is missing locally
-    - [ ] Verify tests pass and achieve >80% coverage
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: On-Demand Downloading and Generator Integration' (Protocol in workflow.md)
+    - [x] Write failing tests for `Generator` attempting to use a missing asset
+    - [x] Modify `Generator` to use `AssetProvider` for resolving paths to tags, models, and textures
+    - [x] Ensure automatic download triggers if the file is missing locally
+    - [x] Verify tests pass and achieve >80% coverage
+- [x] Task: Conductor - User Manual Verification 'Phase 3: On-Demand Downloading and Generator Integration' (Protocol in workflow.md) [d25b90c]
 
 ## Phase 4: Migration and Repository Cleanup
 - [ ] Task: Prepare Hugging Face Dataset and Upload
