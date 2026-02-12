@@ -1638,6 +1638,7 @@ name = "render-tag"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "huggingface-hub" },
     { name = "numpy" },
     { name = "opencv-python-headless" },
     { name = "pillow" },
@@ -1652,14 +1653,10 @@ dependencies = [
 all = [
     { name = "blenderproc" },
     { name = "gputil" },
-    { name = "huggingface-hub" },
     { name = "matplotlib" },
     { name = "plotly" },
     { name = "polars" },
     { name = "pyzmq" },
-]
-assets = [
-    { name = "huggingface-hub" },
 ]
 audit = [
     { name = "plotly" },
@@ -1694,7 +1691,7 @@ dev = [
 requires-dist = [
     { name = "blenderproc", marker = "extra == 'backend'", specifier = ">=2.8.0" },
     { name = "gputil", marker = "extra == 'orchestration'", specifier = ">=1.4.0" },
-    { name = "huggingface-hub", marker = "extra == 'assets'", specifier = ">=0.16.0" },
+    { name = "huggingface-hub", specifier = ">=0.24.0" },
     { name = "matplotlib", marker = "extra == 'viz'", specifier = ">=3.7" },
     { name = "numpy", specifier = ">=1.24" },
     { name = "opencv-python-headless", specifier = ">=4.8" },
