@@ -4,7 +4,7 @@
 - [x] Task: Add `huggingface_hub` dependency and update environment [784528b]
     - [ ] Add `huggingface-hub` to `pyproject.toml`
     - [ ] Verify installation and accessibility in the environment
-- [ ] Task: Create `AssetProvider` abstraction
+- [x] Task: Create `AssetProvider` abstraction [642030f]
     - [ ] Write failing tests for `AssetProvider` to handle local check and remote fetch
     - [ ] Implement `AssetProvider` in `src/render_tag/data_io/assets.py` using `huggingface_hub`
     - [ ] Verify tests pass and achieve >80% coverage
