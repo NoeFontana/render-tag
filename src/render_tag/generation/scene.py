@@ -16,6 +16,7 @@ from render_tag.common import TAG_GRID_SIZES
 from render_tag.common.logging import get_logger
 from render_tag.schema import SeedManager
 from render_tag.core.config import GenConfig
+from render_tag.data_io.assets import AssetProvider
 from render_tag.geometry.camera import sample_camera_pose
 from render_tag.geometry.layouts import apply_flying_layout, apply_grid_layout
 from render_tag.schema import (
@@ -54,6 +55,8 @@ class Generator:
 
         self.output_dir = output_dir
         self.output_dir.mkdir(parents=True, exist_ok=True)
+
+        self.asset_provider = AssetProvider()
 
         # Cache textures
         self.textures = []
@@ -188,17 +191,20 @@ class Generator:
         texture_rotation = 0.0
 
         if self.textures:
-            texture_path = str(rng.choice(self.textures))
+            raw_texture_path = str(rng.choice(self.textures))
+            texture_path = str(self.asset_provider.resolve_path(raw_texture_path))
             texture_scale = rng.uniform(
                 scene_config.texture_scale_min, scene_config.texture_scale_max
             )
             if scene_config.random_texture_rotation:
                 texture_rotation = rng.uniform(0, 2 * np.pi)
 
+        background_hdri = None
+        if scene_config.background_hdri:
+            background_hdri = str(self.asset_provider.resolve_path(str(scene_config.background_hdri)))
+
         return WorldRecipe(
-            background_hdri=str(scene_config.background_hdri)
-            if scene_config.background_hdri
-            else None,
+            background_hdri=background_hdri,
             lighting=LightingConfig(
                 intensity=rng.uniform(lighting_config.intensity_min, lighting_config.intensity_max),
                 radius=rng.uniform(lighting_config.radius_min, lighting_config.radius_max),
@@ -255,7 +261,9 @@ class Generator:
         # Generate Tag Objects
         for i in range(num_tags):
             family = rng.choice(tag_families)
-            texture_base_path = str(tag_config.texture_path) if tag_config.texture_path else None
+            texture_base_path = None
+            if tag_config.texture_path:
+                texture_base_path = str(self.asset_provider.resolve_path(str(tag_config.texture_path)))
 
             tag_obj = ObjectRecipe(
                 type="TAG",
