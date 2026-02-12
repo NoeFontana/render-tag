@@ -1,14 +1,14 @@
 # Implementation Plan: Hugging Face Asset Migration
 
-## Phase 1: Infrastructure and HF Integration
+## Phase 1: Infrastructure and HF Integration [checkpoint: aa04554]
 - [x] Task: Add `huggingface_hub` dependency and update environment [784528b]
-    - [ ] Add `huggingface-hub` to `pyproject.toml`
-    - [ ] Verify installation and accessibility in the environment
+    - [x] Add `huggingface-hub` to `pyproject.toml`
+    - [x] Verify installation and accessibility in the environment
 - [x] Task: Create `AssetProvider` abstraction [642030f]
-    - [ ] Write failing tests for `AssetProvider` to handle local check and remote fetch
-    - [ ] Implement `AssetProvider` in `src/render_tag/data_io/assets.py` using `huggingface_hub`
-    - [ ] Verify tests pass and achieve >80% coverage
-- [ ] Task: Conductor - User Manual Verification 'Phase 1: Infrastructure and HF Integration' (Protocol in workflow.md)
+    - [x] Write failing tests for `AssetProvider` to handle local check and remote fetch
+    - [x] Implement `AssetProvider` in `src/render_tag/data_io/assets.py` using `huggingface_hub`
+    - [x] Verify tests pass and achieve >80% coverage
+- [x] Task: Conductor - User Manual Verification 'Phase 1: Infrastructure and HF Integration' (Protocol in workflow.md) [aa04554]
 
 ## Phase 2: CLI Sync Command Implementation
 - [ ] Task: Implement `assets sync` CLI command
