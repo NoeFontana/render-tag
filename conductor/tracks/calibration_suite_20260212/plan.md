@@ -21,9 +21,9 @@
     - [x] Verify tests pass and achieve >80% coverage.
 - [x] Task: Conductor - User Manual Verification 'Phase 2: High-Precision Annotations & Metadata' (Protocol in workflow.md) [afd4444]
 
-## Phase 3: Visualization & Quality Gate
-- [~] Task: Enhance Visualization for Corner Markers
-    - [ ] Write failing tests for `render-tag viz` to ensure it correctly parses and overlays COCO corners.
-    - [ ] Update visualization logic to support high-precision corner crosshairs.
-    - [ ] Verify tests pass and achieve >80% coverage.
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: Visualization & Quality Gate' (Protocol in workflow.md)
+## Phase 3: Visualization & Quality Gate [checkpoint: c15f6a6]
+- [x] Task: Enhance Visualization for Corner Markers [44af5f1]
+    - [x] Write failing tests for `render-tag viz` to ensure it correctly parses and overlays COCO corners.
+    - [x] Update visualization logic to support high-precision corner crosshairs.
+    - [x] Verify tests pass and achieve >80% coverage.
+- [x] Task: Conductor - User Manual Verification 'Phase 3: Visualization & Quality Gate' (Protocol in workflow.md) [c15f6a6]
