@@ -12,7 +12,7 @@
     - [x] Verify tests pass and achieve >80% coverage.
 - [x] Task: Conductor - User Manual Verification 'Phase 1: High-Precision Pose API & Schema' (Protocol in workflow.md) [ad4b4d3]
 
-## Phase 2: Declarative API Implementation (The Manifest)
+## Phase 2: Declarative API Implementation (The Manifest) [checkpoint: 939d7e7]
 - [x] Task: Create Clean Room Presets [a0e2f05]
     - [x] Create `configs/presets/apriltag/distance.yaml` (Static, 1m-30m sweep, ambient light).
     - [x] Create `configs/presets/apriltag/angle.yaml` (0-85 deg sweep, three-point light).
@@ -21,7 +21,7 @@
     - [x] Write failing tests to ensure the Experiment runner correctly overrides `tag_size_mm` and injects `benchmark_phase` metadata.
     - [x] Update `expand_campaign` logic if necessary to support the new metadata injection requirements.
     - [x] Verify tests pass and achieve >80% coverage.
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Declarative API Implementation (The Manifest)' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 2: Declarative API Implementation (The Manifest)' (Protocol in workflow.md) [939d7e7]
 
 ## Phase 3: Benchmark Generation & Verification
 - [ ] Task: Generate Phase 2 Baseline Dataset
