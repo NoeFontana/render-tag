@@ -22,7 +22,7 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 2: High-Precision Annotations & Metadata' (Protocol in workflow.md) [afd4444]
 
 ## Phase 3: Visualization & Quality Gate
-- [ ] Task: Enhance Visualization for Corner Markers
+- [~] Task: Enhance Visualization for Corner Markers
     - [ ] Write failing tests for `render-tag viz` to ensure it correctly parses and overlays COCO corners.
     - [ ] Update visualization logic to support high-precision corner crosshairs.
     - [ ] Verify tests pass and achieve >80% coverage.
