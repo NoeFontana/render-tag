@@ -17,3 +17,13 @@ build/
 *.egg-info/
 
 site/
+# Assets (Binary blobs stored on Hugging Face)
+assets/**/*.png
+assets/**/*.jpg
+assets/**/*.jpeg
+assets/**/*.exr
+assets/**/*.obj
+assets/**/*.fbx
+assets/**/*.blend
+!assets/**/.keep
+!assets/**/.gitkeep
