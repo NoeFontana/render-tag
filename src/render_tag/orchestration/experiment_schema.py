@@ -8,7 +8,7 @@ reproducible science.
 from enum import Enum
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from render_tag.core.config import GenConfig
 
@@ -102,6 +102,7 @@ class Campaign(BaseModel):
 
 class CameraIntrinsicsManifest(BaseModel):
     """Camera intrinsics for the dataset manifest."""
+    model_config = ConfigDict(extra="forbid")
     focal_length_px: list[float] = Field(description="[fx, fy] in pixels")
     principal_point: list[float] = Field(description="[cx, cy] in pixels")
     resolution: list[int] = Field(description="[width, height] in pixels")
@@ -109,18 +110,21 @@ class CameraIntrinsicsManifest(BaseModel):
 
 class TagSpecificationManifest(BaseModel):
     """Tag physical specification for the dataset manifest."""
+    model_config = ConfigDict(extra="forbid")
     tag_family: str = Field(description="Name of the tag family (e.g. tag36h11)")
-    tag_size_mm: int = Field(description="Tag size in millimeters (integer)")
+    tag_size_m: float = Field(description="Tag size in meters (float)")
 
 
 class SweepDefinitionManifest(BaseModel):
     """Optional definition of the parameter sweep performed."""
+    model_config = ConfigDict(extra="forbid")
     variable_name: str = Field(description="Name of the swept variable")
     range: list[float] = Field(description="Range of values [start, end]")
 
 
 class DatasetManifest(BaseModel):
     """Strict contract for dataset_info.json metadata."""
+    model_config = ConfigDict(extra="forbid")
     camera_intrinsics: CameraIntrinsicsManifest
     tag_specification: TagSpecificationManifest
     pose_convention: Literal["wxyz"] = Field(

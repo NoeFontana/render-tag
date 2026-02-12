@@ -12,7 +12,7 @@ def test_dataset_manifest_valid():
         },
         "tag_specification": {
             "tag_family": "tag36h11",
-            "tag_size_mm": 160
+            "tag_size_m": 0.160
         },
         "pose_convention": "wxyz",
         "sweep_definition": {
@@ -22,10 +22,10 @@ def test_dataset_manifest_valid():
     }
     manifest = DatasetManifest(**data)
     assert manifest.pose_convention == "wxyz"
-    assert manifest.tag_specification.tag_size_mm == 160
+    assert manifest.tag_specification.tag_size_m == 0.160
 
-def test_dataset_manifest_invalid_tag_size():
-    """Verify that tag_size_mm must be an integer."""
+def test_dataset_manifest_invalid_tag_size_legacy():
+    """Verify that tag_size_mm is no longer allowed."""
     data = {
         "camera_intrinsics": {
             "focal_length_px": [1000.0, 1000.0],
@@ -34,7 +34,7 @@ def test_dataset_manifest_invalid_tag_size():
         },
         "tag_specification": {
             "tag_family": "tag36h11",
-            "tag_size_mm": 160.5 # Invalid: float
+            "tag_size_mm": 160 # Old field
         },
         "pose_convention": "wxyz"
     }
@@ -51,7 +51,7 @@ def test_dataset_manifest_invalid_convention():
         },
         "tag_specification": {
             "tag_family": "tag36h11",
-            "tag_size_mm": 160
+            "tag_size_m": 0.160
         },
         "pose_convention": "xyzw" # Invalid
     }

@@ -174,7 +174,7 @@ def run(
             intent = getattr(variant.config.dataset, "intent", None) # Safe access
             scenario = variant.config.scenario
             geometry = {
-                "square_size": scenario.square_size,
+                "tag_size_m": variant.config.tag.size_meters,
                 "grid_size": list(scenario.grid_size),
                 "tag_family": [f.value for f in scenario.tag_families]
             }

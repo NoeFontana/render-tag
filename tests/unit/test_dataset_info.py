@@ -22,13 +22,13 @@ def test_generate_dataset_info(sample_dataset):
     info = generate_dataset_info(
         dataset_dir=sample_dataset,
         intent="calibration",
-        geometry={"square_size": 0.1},
+        geometry={"tag_size_m": 0.16},
         extra_metadata={"custom": "value"}
     )
     
     # Check fields
     assert info["intent"] == "calibration"
-    assert info["geometry"]["square_size"] == 0.1
+    assert info["geometry"]["tag_size_m"] == 0.16
     assert info["provenance"]["render_tag_version"] is not None
     assert info["integrity"]["sha256"] is not None
     assert len(info["integrity"]["sha256"]) == 64
