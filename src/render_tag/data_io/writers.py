@@ -27,7 +27,7 @@ try:
     pkg_root = Path(__file__).parent.parent
     if str(pkg_root) not in sys.path:
         sys.path.insert(0, str(pkg_root))
-    from render_tag.data_io.annotations import compute_bbox, normalize_corner_order
+    from render_tag.data_io.annotations import compute_bbox, normalize_corner_order, format_coco_keypoints
     from render_tag.geometry.math import compute_polygon_area
 
     GEOMETRY_AVAILABLE = True
@@ -121,6 +121,8 @@ class COCOWriter:
                 "id": cat_id,
                 "name": name,
                 "supercategory": supercategory,
+                "keypoints": ["bl", "br", "tr", "tl"], # Standard corner names (CCW from BL default)
+                "skeleton": [[1, 2], [2, 3], [3, 4], [4, 1]], # Edges
             }
         )
         self._category_map[name] = cat_id
@@ -177,10 +179,30 @@ class COCOWriter:
         area = compute_polygon_area(np.array(corners))
 
         # 3. Use pure-Python utility for corner reordering (COCO prefers CW from TL)
-        ordered_corners = normalize_corner_order(corners, target_order="cw_tl")
+        # Note: normalize_corner_order returns [(x, y), ...]
+        # We need to keep consistency. If we define keypoints as [bl, br, tr, tl] (CCW),
+        # we should provide them in that order.
+        # But 'segmentation' usually follows the polygon boundary.
+        
+        # Let's keep segmentation as CW from TL (standard COCO poly), 
+        # BUT keypoints should match the category definition.
+        # If category says ["bl", "br", "tr", "tl"], we must provide them in that order.
+        # Input 'corners' is assumed to be CCW from BL (standard render-tag/OpenCV output).
+        
+        # Segmentation:
+        ordered_corners_seg = normalize_corner_order(corners, target_order="cw_tl")
         segmentation = []
-        for corner in ordered_corners:
+        for corner in ordered_corners_seg:
             segmentation.extend([corner[0], corner[1]])
+
+        # Keypoints:
+        # Assuming input 'corners' is [BL, BR, TR, TL]
+        # We want to format them as keypoints.
+        # If we didn't reorder for segmentation, we'd use 'corners' directly for keypoints.
+        # Let's ensure 'corners' is normalized to what our category expects.
+        # Our category expects [bl, br, tr, tl].
+        ordered_corners_kp = normalize_corner_order(corners, target_order="ccw_bl")
+        keypoints = format_coco_keypoints(np.array(ordered_corners_kp))
 
         # Prepare attributes
         attributes = {
@@ -201,6 +223,8 @@ class COCOWriter:
                 "segmentation": [segmentation],
                 "bbox": bbox,
                 "area": area,
+                "keypoints": keypoints,
+                "num_keypoints": 4,
                 "iscrowd": 0,
                 "attributes": attributes,
             }
