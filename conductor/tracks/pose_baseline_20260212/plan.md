@@ -1,6 +1,6 @@
 # Implementation Plan: Pose Estimation Baseline (Phase 2)
 
-## Phase 1: High-Precision Pose API & Schema
+## Phase 1: High-Precision Pose API & Schema [checkpoint: ad4b4d3]
 - [x] Task: Define Contractual Dataset Schema [552bea7]
     - [x] Write failing tests for `dataset_info.json` validation against the new Pydantic contract.
     - [x] Implement `DatasetManifest` Pydantic model in `src/render_tag/orchestration/experiment_schema.py` including `camera_intrinsics`, `tag_specification` (with integer `tag_size_mm`), and `pose_convention`.
@@ -10,7 +10,7 @@
     - [x] Implement pose extraction logic in `src/render_tag/data_io/annotations.py` to produce the `position` and `rotation_quaternion` fields.
     - [x] Update `DetectionRecord` schema and `COCOWriter` to include these high-precision pose fields.
     - [x] Verify tests pass and achieve >80% coverage.
-- [ ] Task: Conductor - User Manual Verification 'Phase 1: High-Precision Pose API & Schema' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 1: High-Precision Pose API & Schema' (Protocol in workflow.md) [ad4b4d3]
 
 ## Phase 2: Declarative API Implementation (The Manifest)
 - [ ] Task: Create Clean Room Presets
