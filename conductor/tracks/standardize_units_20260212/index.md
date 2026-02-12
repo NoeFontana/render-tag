@@ -1,4 +1,4 @@
-# Track pose_baseline_20260212 Context
+# Track standardize_units_20260212 Context
 
 - [Specification](./spec.md)
 - [Implementation Plan](./plan.md)

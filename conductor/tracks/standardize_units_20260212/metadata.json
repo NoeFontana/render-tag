@@ -1,0 +1,8 @@
+{
+  "track_id": "standardize_units_20260212",
+  "type": "refactor",
+  "status": "new",
+  "created_at": "2026-02-12T17:30:00Z",
+  "updated_at": "2026-02-12T17:30:00Z",
+  "description": "Standardize tag_size to use Meters (Float) across all manifests and schemas to avoid unit mismatch risks."
+}
