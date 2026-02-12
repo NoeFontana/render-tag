@@ -27,10 +27,10 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 3: On-Demand Downloading and Generator Integration' (Protocol in workflow.md) [d25b90c]
 
 ## Phase 4: Migration and Repository Cleanup
-- [ ] Task: Prepare Hugging Face Dataset and Upload
+- [x] Task: Prepare Hugging Face Dataset and Upload [manual]
     - [ ] (Manual/One-time) Create the public HF dataset (e.g., `user/render-tag-assets`)
     - [ ] (Manual/One-time) Upload current contents of `assets/` to the HF dataset
-- [ ] Task: Clean up Git repository
+- [x] Task: Clean up Git repository [e7e751f]
     - [ ] Remove binary files from `assets/tags/`, `assets/models/`, `assets/textures/`, and `assets/hdri/`
     - [ ] Ensure `.gitkeep` files remain in each directory
     - [ ] Update `.gitignore` to exclude large binary files in these directories
