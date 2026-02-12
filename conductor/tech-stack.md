@@ -10,6 +10,7 @@
 - **Asset Management:** Object pooling and material recycling strategies within Blender to optimize VRAM usage and rendering speed.
 - **OpenCV (opencv-contrib-python):** Used for computer vision tasks, including tag detection validation and image processing.
 - **Hugging Face Hub:** Used as the remote Object Store for binary asset management and synchronization.
+- **COCO Format:** Standard annotation format for object detection, segmentation, and keypoint estimation (corners).
 
 ## Data Management & Infrastructure
 - **Pydantic (v2):** Used for strict data validation and settings management. All internal schemas and "Scene Recipes" are defined using Pydantic models.
