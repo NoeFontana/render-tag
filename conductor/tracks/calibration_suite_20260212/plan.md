@@ -1,6 +1,6 @@
 # Implementation Plan: Calibration & Ground Truth Suite (Phase 1)
 
-## Phase 1: Experiment Infrastructure
+## Phase 1: Experiment Infrastructure [checkpoint: 1311caf]
 - [x] Task: Create Calibration Experiment Configurations [25cc5af]
     - [x] Create `configs/presets/calibration/01_checkerboard.yaml` (Static, uniform lighting, pinhole).
     - [x] Create `configs/presets/calibration/02_aprilgrid.yaml` (Slow rotation, 36h11).
@@ -9,7 +9,7 @@
     - [x] Write failing tests for experiment output path construction (verifying the `data/locus_bench_v1/01_calibration/` structure).
     - [x] Update the experiment runner logic to handle nested hierarchy and inject `intent` into the context.
     - [x] Verify tests pass and achieve >80% coverage.
-- [ ] Task: Conductor - User Manual Verification 'Phase 1: Experiment Infrastructure' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 1: Experiment Infrastructure' (Protocol in workflow.md) [1311caf]
 ## Phase 2: High-Precision Annotations & Metadata
 - [ ] Task: Implement COCO-style Corner Ground Truth
     - [ ] Write failing tests for projecting 3D corner coordinates to 2D COCO keypoints `[x, y, visibility]`.
