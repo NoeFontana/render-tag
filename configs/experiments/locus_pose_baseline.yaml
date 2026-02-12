@@ -6,8 +6,11 @@ output_dir: output/locus_pose_baseline_v1
 # Global Metadata injected into every dataset (The Contract)
 metadata:
   benchmark_phase: "phase_2_pose"
+  benchmark_version: "2026.1"
+  camera_standard: "FHD_Global_Perception"
+  units: "meters"
   tag_family: "36h11"
-  tag_size_m: 0.16
+  tag_size_m: 0.165
   camera_model: "pinhole"
 
 experiments:
@@ -19,11 +22,12 @@ experiments:
         evaluation_scopes: ["detection", "corner_accuracy", "pose_estimation"]
       camera:
         resolution: [1920, 1080] # Full HD
+        fov: 70.0
         # Use sweep_definition metadata if supported
         min_distance: 1.0
         max_distance: 15.0
       tag:
-        size_meters: 0.16 # 160mm
+        size_meters: 0.165 # 165mm standard
 
   - name: 02_pose_angle_sweep
     config: configs/presets/apriltag/angle.yaml
@@ -33,6 +37,7 @@ experiments:
         evaluation_scopes: ["detection", "corner_accuracy", "pose_estimation"]
       camera:
         resolution: [1920, 1080]
+        fov: 70.0
         min_distance: 2.0
         max_distance: 2.0
       scenario:
@@ -42,4 +47,4 @@ experiments:
         # Actually, let's use the 'angle' mode in ScenarioConfig if it exists.
         sampling_mode: angle
       tag:
-        size_meters: 0.16
+        size_meters: 0.165

@@ -18,6 +18,13 @@ class SweepType(str, Enum):
     CATEGORICAL = "categorical"
 
 
+class CameraStandard(str, Enum):
+    """Standardized camera profiles for reproduction."""
+
+    FHD_GLOBAL_PERCEPTION = "FHD_Global_Perception"  # 1920x1080, 70deg HFOV, Global Shutter
+    VGA_LEGACY = "VGA_Legacy"  # 640x480, 60deg HFOV
+
+
 class Sweep(BaseModel):
     """A definition of a single parameter sweep."""
 

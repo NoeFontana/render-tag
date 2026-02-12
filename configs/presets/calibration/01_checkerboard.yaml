@@ -4,12 +4,12 @@ dataset:
   output_dir: output/temp_calibration_01
 
 camera:
-  resolution: [1280, 720]
+  resolution: [1920, 1080]
+  fov: 70.0
   samples_per_scene: 5
-  fov: 60
-  # Pinhole model, no distortion
+  # Pinhole model, no distortion (baseline)
   intrinsics:
-    focal_length_mm: 50.0
+    focal_length_mm: null # Derived from FOV/Res
     distortion_k1: 0.0
     distortion_k2: 0.0
     distortion_p1: 0.0
@@ -19,22 +19,24 @@ camera:
   velocity_std: 0.0
 
 tag:
-  size_meters: 0.06
-  # Ensure we use an existing asset path or allow auto-download
+  # Not used for checkerboard generation directly, but good to have defaults
+  size_meters: 0.05
   texture_path: assets/tags/DICT_4X4_50
 
 scenario:
   layout: cb
   tag_families: [DICT_4X4_50]
-  tags_per_scene: [9, 9]
-  grid_size: [3, 3]
+  # Grid definition
+  grid_size: [12, 9] # cols, rows
+  square_size: 0.05 # 50mm squares
   corner_size: 0.015
   # Static scene
   flying: false
 
 scene:
+  lighting_preset: "factory" # Closest to studio_soft/even for now, allows modification
   lighting:
-    # Uniform lighting
+    # Fallback if preset not used
     intensity_min: 500
     intensity_max: 500
     radius_min: 10.0

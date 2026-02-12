@@ -317,10 +317,11 @@ class CameraIntrinsics(BaseModel):
 class CameraConfig(BaseModel):
     """Camera configuration for rendering."""
 
+    # Standard 2026 HD Perception Baseline
     resolution: tuple[Annotated[int, Field(gt=0)], Annotated[int, Field(gt=0)]] = Field(
-        default=(640, 480), description="Image resolution (width, height)"
+        default=(1920, 1080), description="Image resolution (width, height)"
     )
-    fov: float = Field(default=60.0, gt=0, lt=180, description="Field of view in degrees")
+    fov: float = Field(default=70.0, gt=0, lt=180, description="Field of view in degrees")
     samples_per_scene: int = Field(
         default=10, gt=0, description="Number of camera samples per scene"
     )
@@ -355,6 +356,11 @@ class CameraConfig(BaseModel):
     iso_noise: float = Field(
         default=0.0, ge=0, description="Simulated sensor gain/ISO noise level (0-1)"
     )
+    sensor_noise_sigma: float = Field(
+        default=0.002,
+        ge=0,
+        description="Additive Gaussian Noise (sigma)",
+    )
     sensor_noise: SensorNoiseConfig | None = Field(
         default=None, description="Parametric sensor noise configuration"
     )
@@ -376,6 +382,14 @@ class CameraConfig(BaseModel):
         for field in legacy_fields:
             if field in data and field not in dynamics:
                 dynamics[field] = data.pop(field)
+
+        # Handle 'shutter_speed' alias (seconds) -> shutter_time_ms (milliseconds)
+        if "shutter_speed" in data:
+            dynamics["shutter_time_ms"] = data.pop("shutter_speed") * 1000.0
+
+        # Handle 'rolling_shutter_readout' alias -> rolling_shutter_duration_ms
+        if "rolling_shutter_readout" in data:
+            dynamics["rolling_shutter_duration_ms"] = data.pop("rolling_shutter_readout")
 
         if dynamics:
             data["sensor_dynamics"] = dynamics
@@ -474,14 +488,14 @@ class MaterialConfig(BaseModel):
     randomize: bool = Field(default=False, description="Enable material randomization")
 
     # Range for Roughness (0.0 = Mirror, 1.0 = Matte)
-    # Default 0.8 matches existing behavior
-    roughness_min: float = Field(default=0.6, ge=0.0, le=1.0)
-    roughness_max: float = Field(default=1.0, ge=0.0, le=1.0)
+    # Default 0.4 (Matte-Finish Acrylic)
+    roughness_min: float = Field(default=0.4, ge=0.0, le=1.0)
+    roughness_max: float = Field(default=0.4, ge=0.0, le=1.0)
 
     # Range for Specular (0.0 = No highlights, 1.0 = Strong highlights)
-    # Default 0.2 matches existing behavior
-    specular_min: float = Field(default=0.1, ge=0.0, le=1.0)
-    specular_max: float = Field(default=0.3, ge=0.0, le=1.0)
+    # Default 0.2 (Plastic/Cardstock)
+    specular_min: float = Field(default=0.2, ge=0.0, le=1.0)
+    specular_max: float = Field(default=0.2, ge=0.0, le=1.0)
 
 
 class TagConfig(BaseModel):
