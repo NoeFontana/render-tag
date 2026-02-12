@@ -94,3 +94,40 @@ def verify_corner_order(
         return bool(signed_area > 0)
     else:  # cw
         return bool(signed_area < 0)
+
+
+def format_coco_keypoints(
+    points: np.ndarray,
+    visibility: np.ndarray | list[bool] | None = None,
+) -> list[float | int]:
+    """Format 2D points into COCO keypoints list [x1, y1, v1, x2, y2, v2, ...].
+
+    Visibility flags (v):
+    0: not labeled (in which case x=y=0)
+    1: labeled but not visible
+    2: labeled and visible
+
+    Args:
+        points: (N, 2) array of coordinates.
+        visibility: (N,) boolean array/list. If True, v=2. If False, v=1.
+                    If None, assumes all visible (v=2).
+
+    Returns:
+        Flattened list of keypoints.
+    """
+    if len(points) == 0:
+        return []
+
+    points = np.asarray(points)
+    
+    if visibility is None:
+        visibility = np.ones(len(points), dtype=bool)
+    else:
+        visibility = np.asarray(visibility)
+
+    keypoints = []
+    for (x, y), is_visible in zip(points, visibility):
+        v = 2 if is_visible else 1
+        keypoints.extend([float(x), float(y), v])
+
+    return keypoints

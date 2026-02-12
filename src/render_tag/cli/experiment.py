@@ -17,6 +17,7 @@ from render_tag.orchestration.experiment import (
     save_manifest,
 )
 from render_tag.orchestration.experiment_schema import Campaign
+from render_tag.audit.dataset_info import generate_dataset_info
 
 from .tools import (
     check_blenderproc_installed,
@@ -184,6 +185,23 @@ def run(
                 # We might want to continue to next variant or stop?
                 # Stopping is probably safer for experiments
                 raise typer.Exit(code=1) from None
+
+            # 6. Generate Dataset Info
+            # Extract metadata from config
+            intent = getattr(variant.config.dataset, "intent", None) # Safe access
+            scenario = variant.config.scenario
+            geometry = {
+                "square_size": scenario.square_size,
+                "grid_size": list(scenario.grid_size),
+                "tag_family": [f.value for f in scenario.tag_families]
+            }
+            
+            generate_dataset_info(
+                dataset_dir=variant_dir,
+                intent=intent,
+                geometry=geometry,
+                extra_metadata=variant.overrides
+            )
 
             console.print(f"[green]✓ {variant.variant_id} Complete[/green]")
 
