@@ -97,6 +97,7 @@ class Campaign(BaseModel):
     """A master configuration for a multi-experiment campaign."""
     output_dir: str = Field(description="Base output directory for the campaign")
     experiments: list[SubExperiment] = Field(description="List of sub-experiments to run")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Global metadata for the campaign")
 
 
 class CameraIntrinsicsManifest(BaseModel):

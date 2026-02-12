@@ -190,6 +190,7 @@ class DatasetConfig(BaseModel):
     seeds: SeedConfig = Field(default_factory=SeedConfig, description="Random seeds")
     num_scenes: int = Field(default=1, gt=0, description="Number of scenes to generate")
     intent: str | None = Field(default=None, description="Intent/Goal of this dataset (e.g., calibration)")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Arbitrary metadata for the dataset")
 
     # Backwards compatibility property
     @property
@@ -377,6 +378,16 @@ class CameraConfig(BaseModel):
     @property
     def height(self) -> int:
         return self.resolution[1]
+
+    @property
+    def distance(self) -> float | None:
+        """Alias for fixed distance if set."""
+        return None  # We use min/max distance for sampling by default
+
+    @property
+    def elevation_fixed(self) -> float | None:
+        """Alias for fixed elevation if set."""
+        return self.elevation
 
     def get_k_matrix(self) -> list[list[float]]:
         """Compute the K matrix from available parameters.

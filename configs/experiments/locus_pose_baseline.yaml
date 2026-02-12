@@ -3,6 +3,13 @@
 
 output_dir: output/locus_pose_baseline_v1
 
+# Global Metadata injected into every dataset (The Contract)
+metadata:
+  benchmark_phase: "phase_2_pose"
+  tag_family: "36h11"
+  tag_size_m: 0.16
+  camera_model: "pinhole"
+
 experiments:
   - name: 02_pose_distance_sweep
     config: configs/presets/apriltag/distance.yaml

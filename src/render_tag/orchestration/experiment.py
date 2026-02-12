@@ -203,14 +203,14 @@ def expand_campaign(campaign: Campaign) -> list[ExperimentVariant]:
         
         deep_merge(config_data, sub_exp.overrides)
         
-        # Inject intent if present in overrides but not in config schema (it might be extra metadata)
-        # GenConfig might not have 'intent' field. We need to check GenConfig schema.
-        # If GenConfig doesn't support it, we can't put it in config_data validation.
-        # However, the spec says "Self-Describing Metadata... intent".
-        # This implies we need to store it somewhere.
-        # If we can't put it in GenConfig, we might need a wrapper or put it in 'scenario' if flexible.
-        # Or maybe GenConfig allows extra fields? Pydantic default is usually 'ignore' or 'forbid'.
-        
+        # Inject campaign-level metadata
+        if campaign.metadata:
+            if "dataset" not in config_data:
+                config_data["dataset"] = {}
+            if "metadata" not in config_data["dataset"]:
+                config_data["dataset"]["metadata"] = {}
+            config_data["dataset"]["metadata"].update(campaign.metadata)
+
         try:
             config = GenConfig.model_validate(config_data)
         except Exception as e:
