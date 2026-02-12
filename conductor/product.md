@@ -7,6 +7,7 @@ Procedural 3D data generation for AprilTag training (Offline).
 - **Computer Vision Researchers:** Utilizing synthetic datasets to train, fine-tune, and validate tag detection and localization models.
 - **Robotics Engineers:** Benchmarking tag tracking performance and visual odometry in simulated environments that mimic real-world deployment.
 - **Infrastructure Engineers:** Managing large-scale data generation pipelines with managed binary assets and hermetic reproducibility.
+- **MLOps Engineers:** Streamlining dataset versioning and distribution through cloud-based asset repositories.
 
 ## Core Goals & Features
 - **High-Fidelity Rendering:** Generate photorealistic scenes with complex lighting, varied textures, and realistic shadows to minimize the sim-to-real gap.
