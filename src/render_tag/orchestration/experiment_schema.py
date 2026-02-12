@@ -84,3 +84,16 @@ class ExperimentVariant(BaseModel):
 
     config: GenConfig = Field(description="The fully resolved configuration for this variant")
     overrides: dict[str, Any] = Field(description="The parameters that were modified from base")
+
+
+class SubExperiment(BaseModel):
+    """A single experiment within a larger campaign."""
+    name: str
+    config_path: str = Field(alias="config", description="Path to the preset config file")
+    overrides: dict[str, Any] = Field(default_factory=dict, description="Overrides for this sub-experiment")
+
+
+class Campaign(BaseModel):
+    """A master configuration for a multi-experiment campaign."""
+    output_dir: str = Field(description="Base output directory for the campaign")
+    experiments: list[SubExperiment] = Field(description="List of sub-experiments to run")

@@ -1,0 +1,41 @@
+dataset:
+  num_scenes: 1
+  # Output path will be overridden by the master experiment config
+  output_dir: output/temp_calibration_01
+
+camera:
+  resolution: [1280, 720]
+  samples_per_scene: 5
+  fov: 60
+  # Pinhole model, no distortion
+  intrinsics:
+    focal_length_mm: 50.0
+    distortion_k1: 0.0
+    distortion_k2: 0.0
+    distortion_p1: 0.0
+    distortion_p2: 0.0
+  # Static camera setup
+  velocity_mean: 0.0
+  velocity_std: 0.0
+
+tag:
+  size_meters: 0.06
+  # Ensure we use an existing asset path or allow auto-download
+  texture_path: assets/tags/DICT_4X4_50
+
+scenario:
+  layout: cb
+  tag_families: [DICT_4X4_50]
+  tags_per_scene: [9, 9]
+  grid_size: [3, 3]
+  corner_size: 0.015
+  # Static scene
+  flying: false
+
+scene:
+  lighting:
+    # Uniform lighting
+    intensity_min: 500
+    intensity_max: 500
+    radius_min: 10.0
+    radius_max: 10.0

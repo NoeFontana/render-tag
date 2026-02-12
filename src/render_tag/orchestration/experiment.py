@@ -14,7 +14,7 @@ import numpy as np
 
 from render_tag.core.config import GenConfig
 
-from .experiment_schema import Experiment, ExperimentVariant, Sweep, SweepType
+from .experiment_schema import Experiment, ExperimentVariant, Sweep, SweepType, Campaign, SubExperiment
 
 
 def seed_everything(seed: int):
@@ -27,7 +27,7 @@ def seed_everything(seed: int):
     np.random.seed(seed)
 
 
-def load_experiment_config(path: Path) -> Experiment:
+def load_experiment_config(path: Path) -> Experiment | Campaign:
     """Load and validate an experiment configuration file."""
     import yaml
 
@@ -36,9 +36,13 @@ def load_experiment_config(path: Path) -> Experiment:
     if data is None:
         data = {}
 
+    # Check if this is a Campaign (has 'experiments' key)
+    if "experiments" in data:
+        return Campaign(**data)
+    
     # Check if this is an experiment or regular config
     if "base_config" not in data:
-        raise ValueError("Experiment config must contain 'base_config'")
+        raise ValueError("Experiment config must contain 'base_config' or 'experiments'")
 
     # Validation happens here via Pydantic
     return Experiment(**data)
@@ -152,6 +156,81 @@ def expand_experiment(experiment: Experiment) -> list[ExperimentVariant]:
             )
         )
 
+    return variants
+
+
+def expand_campaign(campaign: Campaign) -> list[ExperimentVariant]:
+    """Expand a Campaign into a list of concrete Variants."""
+    import yaml
+    variants = []
+    
+    base_output_dir = Path(campaign.output_dir)
+    
+    for sub_exp in campaign.experiments:
+        # Load the preset config
+        config_path = Path(sub_exp.config_path)
+        if not config_path.exists():
+            raise FileNotFoundError(f"Config for sub-experiment '{sub_exp.name}' not found at {config_path}")
+            
+        with open(config_path) as f:
+            config_data = yaml.safe_load(f) or {}
+            
+        # Apply overrides
+        # We can use the same logic as _update_nested_dict but we need to iterate over the overrides dict
+        def _apply_overrides_recursive(d, overrides_dict, prefix=""):
+            for k, v in overrides_dict.items():
+                if isinstance(v, dict) and k in d and isinstance(d[k], dict):
+                     _apply_overrides_recursive(d[k], v, prefix + k + ".")
+                else:
+                    # Flat override or leaf node
+                    d[k] = v
+        
+        # Simple recursive merge isn't enough because overrides might be flat dot notation 
+        # or nested dict. Let's assume nested dict structure matches config structure 
+        # based on how we wrote the yaml.
+        
+        # Actually, let's use a merge utility.
+        # But wait, expand_experiment uses dot notation for sweeps.
+        # In the campaign yaml, overrides are nested dictionaries.
+        
+        def deep_merge(target, source):
+            for key, value in source.items():
+                if isinstance(value, dict):
+                    node = target.setdefault(key, {})
+                    deep_merge(node, value)
+                else:
+                    target[key] = value
+        
+        deep_merge(config_data, sub_exp.overrides)
+        
+        # Inject intent if present in overrides but not in config schema (it might be extra metadata)
+        # GenConfig might not have 'intent' field. We need to check GenConfig schema.
+        # If GenConfig doesn't support it, we can't put it in config_data validation.
+        # However, the spec says "Self-Describing Metadata... intent".
+        # This implies we need to store it somewhere.
+        # If we can't put it in GenConfig, we might need a wrapper or put it in 'scenario' if flexible.
+        # Or maybe GenConfig allows extra fields? Pydantic default is usually 'ignore' or 'forbid'.
+        
+        try:
+            config = GenConfig.model_validate(config_data)
+        except Exception as e:
+            raise ValueError(f"Invalid config for sub-experiment '{sub_exp.name}': {e}")
+        
+        # Set explicit output directory for this variant
+        # structure: <campaign_output>/<sub_exp_name>
+        variant_output_dir = base_output_dir / sub_exp.name
+        config.dataset.output_dir = variant_output_dir
+        
+        # We create a single variant per sub-experiment (Campaigns don't sweep yet, they just orchestrate)
+        variant = ExperimentVariant(
+            experiment_name=sub_exp.name,
+            variant_id="main", # Single variant
+            description=f"Campaign sub-experiment: {sub_exp.name}",
+            config=config,
+            overrides=sub_exp.overrides
+        )
+        variants.append(variant)
+        
     return variants
 
 

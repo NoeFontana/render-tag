@@ -189,6 +189,7 @@ class DatasetConfig(BaseModel):
     )
     seeds: SeedConfig = Field(default_factory=SeedConfig, description="Random seeds")
     num_scenes: int = Field(default=1, gt=0, description="Number of scenes to generate")
+    intent: str | None = Field(default=None, description="Intent/Goal of this dataset (e.g., calibration)")
 
     # Backwards compatibility property
     @property

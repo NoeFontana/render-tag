@@ -12,9 +12,11 @@ from render_tag.generation.scene import Generator
 from render_tag.generation.tags import ensure_tag_asset
 from render_tag.orchestration.experiment import (
     expand_experiment,
+    expand_campaign,
     load_experiment_config,
     save_manifest,
 )
+from render_tag.orchestration.experiment_schema import Campaign
 
 from .tools import (
     check_blenderproc_installed,
@@ -70,30 +72,61 @@ def run(
     # Load Experiment
     console.print(f"[dim]Loading experiment from[/dim] {config}")
     try:
-        exp = load_experiment_config(config)
+        exp_or_campaign = load_experiment_config(config)
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] Invalid experiment config: {e}")
         raise typer.Exit(code=1) from None
 
     # Expand Variants
-    variants = expand_experiment(exp)
-    console.print(f"[bold]Found {len(variants)} variants[/bold] for experiment '{exp.name}'")
+    if isinstance(exp_or_campaign, Campaign):
+        # Campaign logic
+        # Respect CLI output as base, join with Campaign output_dir
+        # Campaign output_dir in YAML is likely "data/locus_bench_v1/01_calibration"
+        # If CLI output is provided, we might want to use it.
+        # But spec says: "The campaign runner should automatically prepend this structure to the provided --output directory"
+        # So effectively base_dir = output / campaign.output_dir
+        
+        # Note: expand_campaign currently uses campaign.output_dir directly.
+        # We should update campaign.output_dir to be relative to CLI output if strictly following spec.
+        # But expand_campaign is inside orchestration.
+        # Let's modify the campaign object here before expansion?
+        
+        # Ideally expand_campaign accepts a base_dir override.
+        # But currently it reads campaign.output_dir.
+        
+        # Let's adjust campaign.output_dir
+        exp_or_campaign.output_dir = str(output / exp_or_campaign.output_dir)
+        
+        variants = expand_campaign(exp_or_campaign)
+        console.print(f"[bold]Found {len(variants)} sub-experiments[/bold] in campaign")
+        exp_name = "campaign" # Generic name for folder grouping if needed, but variants have paths
+        
+    else:
+        # Standard Experiment
+        variants = expand_experiment(exp_or_campaign)
+        console.print(f"[bold]Found {len(variants)} variants[/bold] for experiment '{exp_or_campaign.name}'")
+        exp_name = exp_or_campaign.name
 
-    # Prepare Base Output
-    exp_dir = output / exp.name
-    exp_dir.mkdir(parents=True, exist_ok=True)
-
+        # For standard experiments, we enforce <output>/<exp_name>/<variant_id>
+        # expand_experiment doesn't set output_dir in config, we do it here.
+        # We need to set it for consistency with the loop below.
+    
     # Execute Variants
     for i, variant in enumerate(variants):
         console.print(f"\n[bold cyan]Run {i + 1}/{len(variants)}: {variant.variant_id}[/bold cyan]")
         console.print(f"[dim]Description: {variant.description}[/dim]")
 
-        variant_dir = exp_dir / variant.variant_id
-        variant_dir.mkdir(exist_ok=True)
+        # Determine variant output directory
+        # If it was a Campaign, expand_campaign already set config.dataset.output_dir
+        # If it was an Experiment, we need to construct it.
+        
+        if isinstance(exp_or_campaign, Campaign):
+            variant_dir = variant.config.dataset.output_dir
+        else:
+            variant_dir = output / exp_name / variant.variant_id
+            variant.config.dataset.output_dir = variant_dir
 
-        # Update config output dir for this variant
-        # (Generator takes output_dir explicitly, setting it in config is for consistency)
-        variant.config.dataset.output_dir = variant_dir
+        variant_dir.mkdir(parents=True, exist_ok=True)
 
         # 1. Generate Recipes
         generator = Generator(variant.config, variant_dir)
