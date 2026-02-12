@@ -23,11 +23,11 @@
     - [x] Verify tests pass and achieve >80% coverage.
 - [x] Task: Conductor - User Manual Verification 'Phase 2: Declarative API Implementation (The Manifest)' (Protocol in workflow.md) [939d7e7]
 
-## Phase 3: Benchmark Generation & Verification
+## Phase 3: Benchmark Generation & Verification [checkpoint: 9eda6b0]
 - [x] Task: Generate Phase 2 Baseline Dataset [a0e2f05]
     - [x] Execute `uv run render-tag experiment run configs/experiments/locus_pose_baseline.yaml`.
     - [x] Verify directory structure: `output/locus_pose_baseline_v1/{02_pose_distance_sweep, 02_pose_angle_sweep}`.
 - [x] Task: Final Data Product Audit [a0e2f05]
     - [x] Run `render-tag viz` on the generated datasets to verify corner/pose alignment.
     - [x] Manually inspect `dataset_info.json` to confirm `pose_convention: "wxyz"` and integer `tag_size_mm`.
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: Benchmark Generation & Verification' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 3: Benchmark Generation & Verification' (Protocol in workflow.md) [9eda6b0]
