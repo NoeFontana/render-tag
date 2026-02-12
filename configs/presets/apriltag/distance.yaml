@@ -1,19 +1,42 @@
-dataset:
-  output_dir: output/apriltag_dist
-  num_scenes: 1
+# Distance Sweep Preset (Clean Room)
+# Focuses on Z-axis precision with zero environmental noise.
+
+scene:
+  texture_dir: null # No textures
+  background_hdri: null
+  # Flat dark gray background (handled in blender via background color)
+  lighting:
+    intensity_min: 1.0
+    intensity_max: 1.0
+    radius_min: 0.0
+    radius_max: 0.0
 
 camera:
-  resolution: [1280, 720]
-  samples_per_scene: 20
-  # Controlled distance range
-  min_distance: 1.0
-  max_distance: 5.0
+  fov: 60.0
+  # Pinhole model, no distortion
+  intrinsics:
+    k1: 0.0
+    k2: 0.0
+    k3: 0.0
+    p1: 0.0
+    p2: 0.0
+  # Static frames
+  sensor_dynamics:
+    velocity_mean: 0.0
+    velocity_std: 0.0
+    shutter_time_ms: 0.01 # Minimal shutter
 
 tag:
-  size_meters: 0.1
+  family: tag36h11
+  size_meters: 0.16 # 160mm baseline
+  material:
+    randomize: false
+    roughness_min: 1.0 # Pure matte
+    roughness_max: 1.0
+    specular_min: 0.0 # No highlights
+    specular_max: 0.0
 
 scenario:
   layout: plain
-  tag_families: [tag36h11]
   tags_per_scene: [1, 1]
-  sampling_mode: distance
+  flying: true # Isolate tag in space

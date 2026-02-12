@@ -166,7 +166,7 @@ class Generator:
         seed_camera = SeedManager(self.config.dataset.seeds.camera_seed).get_shard_seed(scene_id)
         rng_camera = random.Random(seed_camera)
         np_rng_camera = np.random.default_rng(seed_camera)
-        recipe.cameras = self._generate_camera_recipes(rng_camera, np_rng_camera)
+        recipe.cameras = self._generate_camera_recipes(scene_id, rng_camera, np_rng_camera)
 
         return recipe
 
@@ -325,11 +325,12 @@ class Generator:
         return objects
 
     def _generate_camera_recipes(
-        self, rng: random.Random, np_rng: np.random.Generator
+        self, scene_id: int, rng: random.Random, np_rng: np.random.Generator
     ) -> list[CameraRecipe]:
         """Generates multiple camera poses and sensor configurations for the scene.
 
         Args:
+            scene_id: ID of the current scene (used for linear sweeps).
             rng: Isolated Python random generator.
             np_rng: Isolated NumPy random generator.
 
@@ -337,11 +338,25 @@ class Generator:
             List of CameraRecipe objects.
         """
         camera_config = self.config.camera
+        scenario_config = self.config.scenario
         samples_per_scene = camera_config.samples_per_scene
+        num_scenes = self.config.dataset.num_scenes
 
         recipes = []
         for _ in range(samples_per_scene):
-            # Sample pose
+            # Deterministic linear sweeps if sampling mode is set
+            dist_override = None
+            elev_override = None
+            
+            if num_scenes > 1:
+                # Interpolation factor [0, 1]
+                t = scene_id / (num_scenes - 1)
+                
+                if scenario_config.sampling_mode == "distance":
+                    dist_override = camera_config.min_distance + t * (camera_config.max_distance - camera_config.min_distance)
+                elif scenario_config.sampling_mode == "angle":
+                    elev_override = camera_config.min_elevation + t * (camera_config.max_elevation - camera_config.min_elevation)
+
             pose = sample_camera_pose(
                 look_at_point=[0, 0, 0],
                 min_distance=camera_config.min_distance,
@@ -349,7 +364,8 @@ class Generator:
                 min_elevation=camera_config.min_elevation,
                 max_elevation=camera_config.max_elevation,
                 azimuth=camera_config.azimuth,
-                elevation=camera_config.elevation,
+                distance=dist_override if dist_override is not None else camera_config.distance,
+                elevation=elev_override if elev_override is not None else camera_config.elevation,
                 rng=np_rng,
             )
 
