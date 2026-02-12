@@ -7,7 +7,7 @@ strict validation and type safety for all generation parameters.
 
 from enum import Enum
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 import yaml
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -365,6 +365,18 @@ class CameraConfig(BaseModel):
         default=None, description="Parametric sensor noise configuration"
     )
 
+    # 2026 High Dynamic Range (HDR) Baseline
+    # Simulates the sensor's ability to recover shadow detail
+    dynamic_range_db: float = Field(default=120.0, description="Sensor dynamic range in dB")
+
+    # Tone Mapping: 'linear' for raw, 'srgb' for standard, 'filmic' for modern ISP simulation
+    tone_mapping: Literal["linear", "srgb", "filmic"] = Field(
+        default="filmic", description="Tone mapping operator"
+    )
+
+    # ISO / Gain simulation: Higher gain = more 'salt and pepper' noise
+    iso: int = Field(default=100, ge=100, le=6400, description="Camera ISO setting")
+
     @model_validator(mode="before")
     @classmethod
     def map_legacy_sensor_dynamics(cls, data: Any) -> Any:
@@ -664,6 +676,47 @@ class ScenarioConfig(BaseModel):
         return v
 
 
+class SequenceConfig(BaseModel):
+    """Configuration for temporal sequences and motion."""
+
+    # Temporal Baseline: 30 FPS or 60 FPS
+    fps: int = Field(default=30, gt=0, description="Frames per second")
+
+    # Motion Continuity: If True, uses Physics to calculate next pose
+    continuous_motion: bool = Field(
+        default=True,
+        description="Enable physics-based motion continuity",
+    )
+
+    # Sub-frame sampling: Critical for high-fidelity Motion Blur
+    motion_blur_samples: int = Field(
+        default=8,
+        ge=1,
+        description="Number of sub-frame samples for motion blur",
+    )
+
+
+class EnvironmentConfig(BaseModel):
+    """Configuration for environmental distractors and atmospheric effects."""
+
+    # Distractors: Random objects (chairs, tools) that might partially occlude tags
+    distractor_density: float = Field(
+        default=0.1,
+        ge=0.0,
+        le=1.0,
+        description="Probability of distractor occlusion per scene",
+    )
+
+    # Atmospheric interference: Simulates dust or fog in industrial environments
+    # This tests the 'Soft Decoding' robustness of locus-tag
+    fog_intensity: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=1.0,
+        description="Volumetric fog intensity (0-1)",
+    )
+
+
 class GenConfig(BaseModel):
     """Root configuration for synthetic data generation.
 
@@ -676,6 +729,17 @@ class GenConfig(BaseModel):
     scene: SceneConfig = Field(default_factory=SceneConfig)
     physics: PhysicsConfig = Field(default_factory=PhysicsConfig)
     scenario: ScenarioConfig = Field(default_factory=ScenarioConfig)
+    sequence: SequenceConfig = Field(
+        default_factory=SequenceConfig, description="Temporal sequence configuration"
+    )
+    environment: EnvironmentConfig = Field(
+        default_factory=EnvironmentConfig, description="Environmental distractors and effects"
+    )
+
+    # Asset Management
+    force_reload_assets: bool = Field(
+        default=False, description="Force re-download/reload of assets"
+    )
 
 
 def load_config(path: Path | str) -> GenConfig:
