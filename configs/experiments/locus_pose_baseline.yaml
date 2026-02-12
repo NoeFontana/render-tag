@@ -21,7 +21,7 @@ experiments:
         resolution: [1920, 1080] # Full HD
         # Use sweep_definition metadata if supported
         min_distance: 1.0
-        max_distance: 30.0
+        max_distance: 15.0
       tag:
         size_meters: 0.16 # 160mm
 

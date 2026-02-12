@@ -8,6 +8,7 @@ scene:
   lighting:
     intensity_min: 1.0
     intensity_max: 1.0
+    max_distance: 15.0
     radius_min: 0.0
     radius_max: 0.0
 
@@ -39,4 +40,4 @@ tag:
 scenario:
   layout: plain
   tags_per_scene: [1, 1]
-  flying: true # Isolate tag in space
+  flying: false # Keep tag centered for sweep

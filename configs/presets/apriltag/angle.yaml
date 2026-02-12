@@ -31,4 +31,4 @@ tag:
 scenario:
   layout: plain
   tags_per_scene: [1, 1]
-  flying: true
+  flying: false
