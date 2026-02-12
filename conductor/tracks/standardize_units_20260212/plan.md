@@ -12,10 +12,10 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Core Schema and Logic Standardization' (Protocol in workflow.md) [c29f776]
 
 ## Phase 2: Manifest Migration and Data Regeneration
-- [ ] Task: Update Experiment Manifests and Presets
-    - [ ] Update `configs/experiments/locus_pose_baseline.yaml` to use `tag_size_m: 0.16` (instead of 160).
-    - [ ] Update `configs/presets/apriltag/distance.yaml` and `angle.yaml` if they contain the old field.
-- [ ] Task: Regenerate Phase 2 Baseline Data
-    - [ ] Execute `uv run render-tag experiment run configs/experiments/locus_pose_baseline.yaml`.
-    - [ ] Verify `dataset_info.json` in the output folders contains the correct `tag_size_m` values.
+- [x] Task: Update Experiment Manifests and Presets [manual]
+    - [x] Update `configs/experiments/locus_pose_baseline.yaml` to use `tag_size_m: 0.16` (instead of 160).
+    - [x] Update `configs/presets/apriltag/distance.yaml` and `angle.yaml` if they contain the old field.
+- [x] Task: Regenerate Phase 2 Baseline Data [manual]
+    - [x] Execute `uv run render-tag experiment run configs/experiments/locus_pose_baseline.yaml`.
+    - [x] Verify `dataset_info.json` in the output folders contains the correct `tag_size_m` values.
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Manifest Migration and Data Regeneration' (Protocol in workflow.md)
