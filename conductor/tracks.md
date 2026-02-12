@@ -16,5 +16,5 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-- [~] **Track: Calibration & Ground Truth Suite**
+- [x] **Track: Calibration & Ground Truth Suite**
 *Link: [./tracks/calibration_suite_20260212/](./tracks/calibration_suite_20260212/)*
