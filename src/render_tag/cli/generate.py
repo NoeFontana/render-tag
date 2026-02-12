@@ -25,7 +25,8 @@ except ImportError:
     resolve_shard_index = None
     run_local_parallel = None
 
-from render_tag.common.manifest import DatasetManifest
+from render_tag.audit.dataset_info import generate_dataset_info
+from render_tag.common.manifest import ChecksumManifest
 from render_tag.common.validator import AssetValidator, validate_recipe_file
 from render_tag.core.config import load_config
 from render_tag.generation.scene import Generator
@@ -487,8 +488,17 @@ def run(
         )
         final_job_id = calculate_job_id(adhoc_spec)
 
-    console.print("\n[bold blue]Generating dataset manifest...[/bold blue]")
-    manifest = DatasetManifest(job_id=final_job_id, output_dir=output)
+    console.print("\n[bold blue]Generating dataset metadata and checksums...[/bold blue]")
+
+    # 1. Unified Metadata (manifest.json)
+    generate_dataset_info(
+        dataset_dir=output,
+        config=gen_config,
+        cli_args=sys.argv,
+    )
+
+    # 2. File Checksums (checksums.json)
+    manifest = ChecksumManifest(job_id=final_job_id, output_dir=output)
 
     # Add key files
     manifest.add_directory(output / "images", pattern="*.png")
@@ -498,7 +508,7 @@ def run(
         manifest.add_file(output / "annotations.json")
 
     manifest_path = manifest.save()
-    console.print(f"[dim]Manifest saved to:[/dim] {manifest_path}")
+    console.print(f"[dim]Checksums saved to:[/dim] {manifest_path}")
 
     console.print("[bold green]✓ Generation session complete[/bold green]")
 

@@ -1,3 +1,4 @@
+import blenderproc as bproc
 import sys
 from pathlib import Path
 
@@ -16,7 +17,7 @@ import json
 import logging
 from pathlib import Path
 
-from render_tag.backend.bridge import bproc
+from render_tag.backend.bridge import bproc as bridge_bproc
 from render_tag.backend.render_loop import execute_recipe
 from render_tag.data_io.writers import (
     COCOWriter,

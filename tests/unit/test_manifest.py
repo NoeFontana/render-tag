@@ -1,6 +1,6 @@
 import hashlib
 
-from render_tag.common.manifest import DatasetManifest
+from render_tag.common.manifest import ChecksumManifest
 
 
 def test_manifest_creation_and_hashing(tmp_path):
@@ -13,7 +13,7 @@ def test_manifest_creation_and_hashing(tmp_path):
     csv_file.write_text("csv content")
 
     # 2. Create manifest
-    manifest = DatasetManifest(job_id="test_job_123", output_dir=tmp_path)
+    manifest = ChecksumManifest(job_id="test_job_123", output_dir=tmp_path)
 
     # 3. Hash files
     manifest.add_file(img1)
@@ -22,6 +22,7 @@ def test_manifest_creation_and_hashing(tmp_path):
     # 4. Save manifest
     manifest_path = manifest.save()
 
+    assert manifest_path.name == "checksums.json"
     assert manifest_path.exists()
 
     # 5. Verify content

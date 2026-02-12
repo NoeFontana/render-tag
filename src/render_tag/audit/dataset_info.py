@@ -3,12 +3,18 @@ Dataset info generation and fingerprinting.
 """
 
 import hashlib
-import json
 import subprocess
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import Any
 
+from render_tag.common.metadata import (
+    CameraIntrinsicsMetadata,
+    DatasetMetadata,
+    ExperimentMetadata,
+    ProvenanceMetadata,
+    TagSpecificationMetadata,
+)
 from render_tag.schema.job import get_env_fingerprint
 
 
@@ -55,48 +61,71 @@ def get_git_info() -> dict[str, str]:
 
 def generate_dataset_info(
     dataset_dir: Path,
-    evaluation_scopes: list[str] | None = None,
-    intent: str | None = None,
-    geometry: dict[str, Any] | None = None,
+    config: Any,
+    evaluation_scopes: list[Any] | None = None,
+    experiment_info: dict[str, Any] | None = None,
     extra_metadata: dict[str, Any] | None = None,
-) -> dict[str, Any]:
-    """Generate and write dataset_info.json."""
+    cli_args: list[str] | None = None,
+) -> DatasetMetadata:
+    """Generate and write manifest.json (formerly dataset_info.json)."""
 
     env_hash, blenderproc_version = get_env_fingerprint()
     git_info = get_git_info()
     pkg_version = get_package_version()
 
-    integrity_hash = calculate_directory_hash(dataset_dir)
+    # Provenance
+    provenance = ProvenanceMetadata(
+        git_commit=git_info.get("commit", "unknown"),
+        render_tag_version=pkg_version,
+        render_tag_env_hash=env_hash,
+        blenderproc_version=blenderproc_version,
+        command=" ".join(cli_args) if cli_args else "unknown",
+    )
 
-    # Hybrid logic: prefer evaluation_scopes, fallback to mapping intent if available
-    scopes = evaluation_scopes or []
-    if not scopes and intent:
-        # Simple heuristic mapping for ad-hoc generation if scopes not provided
-        if intent == "calibration":
-            scopes = ["calibration"]
-        elif "pose" in intent:
-            scopes = ["detection", "pose_estimation", "corner_accuracy"]
-        else:
-            scopes = ["detection"]
+    # Intrinsics
+    k = config.camera.get_k_matrix()
+    intrinsics = CameraIntrinsicsMetadata(
+        focal_length_px=[k[0][0], k[1][1]],
+        principal_point=[k[0][2], k[1][2]],
+        resolution=list(config.camera.resolution),
+    )
 
-    info = {
-        "evaluation_scopes": scopes,
-        "intent": intent or (scopes[0] if scopes else "unknown"),
-        "geometry": geometry or {},
-        "provenance": {
-            "git": git_info,
-            "render_tag_version": pkg_version,
-            "render_tag_env_hash": env_hash,
-            "blenderproc_version": blenderproc_version,
-            "pose_convention": "xyzw",
-        },
-        "integrity": {
-            "sha256": integrity_hash,
-        },
-        "metadata": extra_metadata or {},
-    }
+    # Tag Spec
+    tag_spec = TagSpecificationMetadata(
+        tag_family=config.tag.family.value,
+        tag_size_m=config.tag.size_meters,
+    )
 
-    with open(dataset_dir / "dataset_info.json", "w") as f:
-        json.dump(info, f, indent=2)
+    # Experiment
+    exp_meta = None
+    if experiment_info:
+        exp_meta = ExperimentMetadata(
+            name=experiment_info.get("name"),
+            variant_id=experiment_info.get("variant_id"),
+            description=experiment_info.get("description"),
+            overrides=experiment_info.get("overrides", {}),
+            seed_info={
+                "global": config.dataset.seeds.global_seed,
+                "layout": config.dataset.seeds.layout_seed,
+                "lighting": config.dataset.seeds.lighting_seed,
+                "camera": config.dataset.seeds.camera_seed,
+                "noise": config.dataset.seeds.noise_seed,
+            },
+        )
 
-    return info
+    # Scopes
+    scopes = evaluation_scopes or config.dataset.evaluation_scopes
+
+    manifest = DatasetMetadata(
+        provenance=provenance,
+        camera_intrinsics=intrinsics,
+        tag_specification=tag_spec,
+        evaluation_scopes=scopes,
+        experiment=exp_meta,
+        metadata=extra_metadata or {},
+    )
+
+    with open(dataset_dir / "manifest.json", "w") as f:
+        f.write(manifest.model_dump_json(indent=2))
+
+    return manifest

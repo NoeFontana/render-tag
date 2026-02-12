@@ -6,11 +6,11 @@ reproducible science.
 """
 
 from enum import Enum
-from typing import Any, Literal
+from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, Field, model_validator
 
-from render_tag.core.config import EvaluationScope, GenConfig
+from render_tag.core.config import GenConfig
 
 
 class SweepType(str, Enum):
@@ -103,47 +103,4 @@ class Campaign(BaseModel):
     experiments: list[SubExperiment] = Field(description="List of sub-experiments to run")
     metadata: dict[str, Any] = Field(
         default_factory=dict, description="Global metadata for the campaign"
-    )
-
-
-class CameraIntrinsicsManifest(BaseModel):
-    """Camera intrinsics for the dataset manifest."""
-
-    model_config = ConfigDict(extra="forbid")
-    focal_length_px: list[float] = Field(description="[fx, fy] in pixels")
-    principal_point: list[float] = Field(description="[cx, cy] in pixels")
-    resolution: list[int] = Field(description="[width, height] in pixels")
-
-
-class TagSpecificationManifest(BaseModel):
-    """Tag physical specification for the dataset manifest."""
-
-    model_config = ConfigDict(extra="forbid")
-    tag_family: str = Field(description="Name of the tag family (e.g. tag36h11)")
-    tag_size_m: float = Field(description="Tag size in meters (float)")
-
-
-class SweepDefinitionManifest(BaseModel):
-    """Optional definition of the parameter sweep performed."""
-
-    model_config = ConfigDict(extra="forbid")
-    variable_name: str = Field(description="Name of the swept variable")
-    range: list[float] = Field(description="Range of values [start, end]")
-
-
-class DatasetManifest(BaseModel):
-    """Strict contract for dataset_info.json metadata."""
-
-    model_config = ConfigDict(extra="forbid")
-    camera_intrinsics: CameraIntrinsicsManifest
-    tag_specification: TagSpecificationManifest
-    pose_convention: Literal["xyzw"] = Field(
-        default="xyzw", description="Quaternion convention (Scalar Last)"
-    )
-    evaluation_scopes: list[EvaluationScope] = Field(
-        default_factory=lambda: [EvaluationScope.DETECTION],
-        description="Explicit whitelists of valid evaluation metrics",
-    )
-    sweep_definition: SweepDefinitionManifest | None = Field(
-        default=None, description="Optional metadata about the sweep"
     )

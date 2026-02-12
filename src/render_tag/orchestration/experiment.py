@@ -150,7 +150,7 @@ def expand_experiment(experiment: Experiment) -> list[ExperimentVariant]:
         except Exception as e:
             raise ValueError(
                 f"Failed to create config for {variant_id} with {overrides}: {e}"
-            ) from e
+            ) from None
 
         variants.append(
             ExperimentVariant(
@@ -241,43 +241,6 @@ def expand_campaign(campaign: Campaign) -> list[ExperimentVariant]:
         variants.append(variant)
 
     return variants
-
-
-def save_manifest(output_dir: Path, variant: ExperimentVariant, cli_args: list[str] | None = None):
-    """Save a provenance manifest for a generated dataset."""
-    import datetime
-    import subprocess
-
-    # Get Git SHA
-    try:
-        git_sha = (
-            subprocess.check_output(["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL)
-            .decode()
-            .strip()
-        )
-    except subprocess.CalledProcessError:
-        git_sha = "unknown"
-
-    manifest = {
-        "timestamp": datetime.datetime.now(datetime.UTC).isoformat(),
-        "git_sha": git_sha,
-        "command": " ".join(cli_args) if cli_args else "unknown",
-        "experiment_name": variant.experiment_name,
-        "variant_id": variant.variant_id,
-        "description": variant.description,
-        "overrides": variant.overrides,
-        "config": variant.config.model_dump(mode="json"),
-        "seed_info": {
-            "global": variant.config.dataset.seeds.global_seed,
-            "layout": variant.config.dataset.seeds.layout_seed,
-            "lighting": variant.config.dataset.seeds.lighting_seed,
-            "camera": variant.config.dataset.seeds.camera_seed,
-            "noise": variant.config.dataset.seeds.noise_seed,
-        },
-    }
-
-    with open(output_dir / "manifest.json", "w") as f:
-        json.dump(manifest, f, indent=2)
 
 
 def _get_sweep_values(sweep: Sweep) -> list[Any]:

@@ -9,13 +9,13 @@ from pathlib import Path
 import typer
 
 from render_tag.audit.dataset_info import generate_dataset_info
+from render_tag.common.manifest import ChecksumManifest
 from render_tag.generation.scene import Generator
 from render_tag.generation.tags import ensure_tag_asset
 from render_tag.orchestration.experiment import (
     expand_campaign,
     expand_experiment,
     load_experiment_config,
-    save_manifest,
 )
 from render_tag.orchestration.experiment_schema import Campaign
 
@@ -120,8 +120,11 @@ def run(
         recipe_path = variant_dir / "scene_recipes.json"
         generator.save_recipe_json(recipes, "scene_recipes.json")
 
-        # 2. Save Manifest
-        save_manifest(variant_dir, variant, cli_args=sys.argv)
+        # 2. Save Checksum Manifest (Pre-execution)
+        manifest = ChecksumManifest(
+            job_id=f"{exp_name}_{variant.variant_id}", output_dir=variant_dir
+        )
+        # We'll add files AFTER generation, but we can initialize it here.
 
         # 3. Serialize Config for BlenderProc
         job_config_path = variant_dir / "generation_config.json"
@@ -171,24 +174,24 @@ def run(
                 # Stopping is probably safer for experiments
                 raise typer.Exit(code=1) from None
 
-            # 6. Generate Dataset Info
-            # Extract metadata from config
-            evaluation_scopes = [s.value for s in variant.config.dataset.evaluation_scopes]
-            intent = getattr(variant.config.dataset, "intent", None)  # Safe access
-            scenario = variant.config.scenario
-            geometry = {
-                "tag_size_m": variant.config.tag.size_meters,
-                "grid_size": list(scenario.grid_size),
-                "tag_family": [f.value for f in scenario.tag_families],
-            }
-
+            # 6. Generate Unified Manifest
             generate_dataset_info(
                 dataset_dir=variant_dir,
-                evaluation_scopes=evaluation_scopes,
-                intent=intent,
-                geometry=geometry,
-                extra_metadata=variant.overrides,
+                config=variant.config,
+                experiment_info={
+                    "name": variant.experiment_name,
+                    "variant_id": variant.variant_id,
+                    "description": variant.description,
+                    "overrides": variant.overrides,
+                },
+                cli_args=sys.argv,
             )
+
+            # 7. Generate Checksums
+            manifest.add_directory(variant_dir / "images", pattern="*.png")
+            if (variant_dir / "tags.csv").exists():
+                manifest.add_file(variant_dir / "tags.csv")
+            manifest.save()
 
             console.print(f"[green]✓ {variant.variant_id} Complete[/green]")
 

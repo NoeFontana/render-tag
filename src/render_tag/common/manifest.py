@@ -1,15 +1,14 @@
 import hashlib
 import json
 import logging
-from datetime import UTC, datetime
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
 
-class DatasetManifest:
+class ChecksumManifest:
     """
-    Manages the manifest.json for a generated dataset.
+    Manages the checksums.json for a generated dataset.
     Links output files to their originating Job ID via SHA256 hashes.
     """
 
@@ -17,7 +16,6 @@ class DatasetManifest:
         self.job_id = job_id
         self.output_dir = Path(output_dir)
         self.files: dict[str, str] = {}
-        self.created_at = datetime.now(UTC).isoformat()
 
     def add_file(self, file_path: Path):
         """Calculates hash for a file and adds it to the manifest."""
@@ -45,12 +43,12 @@ class DatasetManifest:
             if p.is_file():
                 self.add_file(p)
 
-    def save(self, filename: str = "manifest.json") -> Path:
-        """Saves the manifest to the output directory."""
+    def save(self, filename: str = "checksums.json") -> Path:
+        """Saves the checksums to the output directory."""
         self.output_dir.mkdir(parents=True, exist_ok=True)
         output_path = self.output_dir / filename
 
-        data = {"job_id": self.job_id, "created_at": self.created_at, "files": self.files}
+        data = {"job_id": self.job_id, "files": self.files}
 
         with open(output_path, "w") as f:
             json.dump(data, f, indent=2)
