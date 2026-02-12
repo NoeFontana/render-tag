@@ -1,7 +1,7 @@
 # Implementation Plan: Hugging Face Asset Migration
 
 ## Phase 1: Infrastructure and HF Integration
-- [~] Task: Add `huggingface_hub` dependency and update environment
+- [x] Task: Add `huggingface_hub` dependency and update environment [784528b]
     - [ ] Add `huggingface-hub` to `pyproject.toml`
     - [ ] Verify installation and accessibility in the environment
 - [ ] Task: Create `AssetProvider` abstraction
