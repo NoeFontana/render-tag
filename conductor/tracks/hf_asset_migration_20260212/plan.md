@@ -10,13 +10,13 @@
     - [x] Verify tests pass and achieve >80% coverage
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Infrastructure and HF Integration' (Protocol in workflow.md) [aa04554]
 
-## Phase 2: CLI Sync Command Implementation
+## Phase 2: CLI Sync Command Implementation [checkpoint: 85214da]
 - [x] Task: Implement `assets sync` CLI command [9052f60]
-    - [ ] Write failing integration tests for `render-tag assets sync`
-    - [ ] Add `assets` group and `sync` command to `src/render_tag/cli/main.py`
-    - [ ] Implement full dataset download logic in the sync command
-    - [ ] Verify tests pass and achieve >80% coverage
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: CLI Sync Command Implementation' (Protocol in workflow.md)
+    - [x] Write failing integration tests for `render-tag assets sync`
+    - [x] Add `assets` group and `sync` command to `src/render_tag/cli/main.py`
+    - [x] Implement full dataset download logic in the sync command
+    - [x] Verify tests pass and achieve >80% coverage
+- [x] Task: Conductor - User Manual Verification 'Phase 2: CLI Sync Command Implementation' (Protocol in workflow.md) [85214da]
 
 ## Phase 3: On-Demand Downloading and Generator Integration
 - [ ] Task: Integrate `AssetProvider` into `Generator`
