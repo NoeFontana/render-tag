@@ -13,8 +13,3 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 - [x] **Track: Codebase Modernization and Refactoring**
 *Link: [./tracks/codebase_modernization_20260208/](./tracks/codebase_modernization_20260208/)*
-
----
-
-- [x] **Track: Calibration & Ground Truth Suite**
-*Link: [./tracks/calibration_suite_20260212/](./tracks/calibration_suite_20260212/)*
