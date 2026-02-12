@@ -26,13 +26,13 @@
     - [x] Verify tests pass and achieve >80% coverage
 - [x] Task: Conductor - User Manual Verification 'Phase 3: On-Demand Downloading and Generator Integration' (Protocol in workflow.md) [d25b90c]
 
-## Phase 4: Migration and Repository Cleanup
+## Phase 4: Migration and Repository Cleanup [checkpoint: 21126b0]
 - [x] Task: Prepare Hugging Face Dataset and Upload [manual]
-    - [ ] (Manual/One-time) Create the public HF dataset (e.g., `user/render-tag-assets`)
-    - [ ] (Manual/One-time) Upload current contents of `assets/` to the HF dataset
+    - [x] (Manual/One-time) Create the public HF dataset (e.g., `user/render-tag-assets`)
+    - [x] (Manual/One-time) Upload current contents of `assets/` to the HF dataset
 - [x] Task: Clean up Git repository [e7e751f]
-    - [ ] Remove binary files from `assets/tags/`, `assets/models/`, `assets/textures/`, and `assets/hdri/`
-    - [ ] Ensure `.gitkeep` files remain in each directory
-    - [ ] Update `.gitignore` to exclude large binary files in these directories
-    - [ ] Verify the repository size reduction and that `assets sync` restores the files correctly
-- [ ] Task: Conductor - User Manual Verification 'Phase 4: Migration and Repository Cleanup' (Protocol in workflow.md)
+    - [x] Remove binary files from `assets/tags/`, `assets/models/`, `assets/textures/`, and `assets/hdri/`
+    - [x] Ensure `.gitkeep` files remain in each directory
+    - [x] Update `.gitignore` to exclude large binary files in these directories
+    - [x] Verify the repository size reduction and that `assets sync` restores the files correctly
+- [x] Task: Conductor - User Manual Verification 'Phase 4: Migration and Repository Cleanup' (Protocol in workflow.md) [21126b0]
