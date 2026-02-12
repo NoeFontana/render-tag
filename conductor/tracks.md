@@ -13,8 +13,3 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 - [x] **Track: Codebase Modernization and Refactoring**
 *Link: [./tracks/codebase_modernization_20260208/](./tracks/codebase_modernization_20260208/)*
-
----
-
-- [x] **Track: Pose Estimation Baseline**
-*Link: [./tracks/pose_baseline_20260212/](./tracks/pose_baseline_20260212/)*
