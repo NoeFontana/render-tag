@@ -16,8 +16,8 @@ def _ensure_assets():
         raise typer.Exit(code=1)
 
 
-@app.command()
-def pull(
+@app.command(name="sync")
+def sync(
     token: str = typer.Option(
         None,
         envvar="HF_TOKEN",
@@ -29,13 +29,19 @@ def pull(
     """
     _ensure_assets()
     manager = get_asset_manager()
-    console.print(f"[bold]Pulling assets from {manager.repo_id}...[/bold]")
+    console.print(f"[bold]Synchronizing assets from {manager.repo_id}...[/bold]")
     try:
         manager.pull(token=token)
         console.print("[bold green]✓ Assets synchronized successfully![/bold green]")
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
         raise typer.Exit(code=1) from None
+
+
+@app.command(name="pull", hidden=True)
+def pull_alias(token: str = typer.Option(None, envvar="HF_TOKEN")) -> None:
+    """Alias for sync."""
+    sync(token=token)
 
 
 @app.command()

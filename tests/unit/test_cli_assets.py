@@ -20,7 +20,19 @@ def test_assets_pull_success(mock_get_manager):
     result = runner.invoke(app, ["assets", "pull", "--token", "test_token"])
     
     assert result.exit_code == 0
-    assert "Pulling assets" in result.stdout
+    assert "Synchronizing assets" in result.stdout
+    mock_manager.pull.assert_called_once_with(token="test_token")
+
+
+@patch("render_tag.cli.assets.get_asset_manager")
+def test_assets_sync_success(mock_get_manager):
+    mock_manager = MagicMock()
+    mock_get_manager.return_value = mock_manager
+    
+    result = runner.invoke(app, ["assets", "sync", "--token", "test_token"])
+    
+    assert result.exit_code == 0
+    assert "Synchronizing assets" in result.stdout
     mock_manager.pull.assert_called_once_with(token="test_token")
 
 
