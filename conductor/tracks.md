@@ -16,5 +16,5 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-- [~] **Track: Standardize Tag Size to Meters**
+- [x] **Track: Standardize Tag Size to Meters**
 *Link: [./tracks/standardize_units_20260212/](./tracks/standardize_units_20260212/)*
