@@ -70,8 +70,8 @@ def get_world_normal(
     return world_normal / norm
 
 
-def matrix_to_quaternion_xyzw(matrix: np.ndarray) -> list[float]:
-    """Convert a 4x4 or 3x3 rotation matrix to a scalar-last unit quaternion [x, y, z, w].
+def matrix_to_quaternion_wxyz(matrix: np.ndarray) -> list[float]:
+    """Convert a 4x4 or 3x3 rotation matrix to a scalar-first unit quaternion [w, x, y, z].
 
     Uses a numerically stable algorithm (Shepperd's method) to avoid
     singularities.
@@ -80,7 +80,7 @@ def matrix_to_quaternion_xyzw(matrix: np.ndarray) -> list[float]:
         matrix: 4x4 transformation matrix or 3x3 rotation matrix.
 
     Returns:
-        List of 4 floats: [x, y, z, w].
+        List of 4 floats: [w, x, y, z].
     """
     m = np.asarray(matrix)[:3, :3]
     trace = np.trace(m)
@@ -110,7 +110,7 @@ def matrix_to_quaternion_xyzw(matrix: np.ndarray) -> list[float]:
         y = (m[1, 2] + m[2, 1]) / s
         z = 0.25 * s
 
-    return [float(x), float(y), float(z), float(w)]
+    return [float(w), float(x), float(y), float(z)]
 
 
 def calculate_relative_pose(
@@ -124,7 +124,7 @@ def calculate_relative_pose(
         blender_cam_world_matrix: 4x4 matrix (Blender Camera-to-World)
 
     Returns:
-        Dict with 'position' ([x, y, z]) and 'rotation_quaternion' ([x, y, z, w])
+        Dict with 'position' ([x, y, z]) and 'rotation_quaternion' ([w, x, y, z])
     """
     # 1. Convert Blender Cam to OpenCV Cam
     # OpenCV: Z forward, Y down, X right
@@ -138,7 +138,7 @@ def calculate_relative_pose(
 
     # 4. Extract position and quaternion
     pos = rel_mat[:3, 3].tolist()
-    quat = matrix_to_quaternion_xyzw(rel_mat)
+    quat = matrix_to_quaternion_wxyz(rel_mat)
 
     return {
         "position": [float(p) for p in pos],

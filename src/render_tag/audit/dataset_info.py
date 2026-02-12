@@ -10,7 +10,7 @@ from typing import Any
 
 from render_tag.common.metadata import (
     CameraIntrinsicsMetadata,
-    DatasetMetadata,
+    DatasetManifest,
     ExperimentMetadata,
     ProvenanceMetadata,
     TagSpecificationMetadata,
@@ -66,7 +66,7 @@ def generate_dataset_info(
     experiment_info: dict[str, Any] | None = None,
     extra_metadata: dict[str, Any] | None = None,
     cli_args: list[str] | None = None,
-) -> DatasetMetadata:
+) -> DatasetManifest:
     """Generate and write manifest.json (formerly dataset_info.json)."""
 
     env_hash, blenderproc_version = get_env_fingerprint()
@@ -84,10 +84,14 @@ def generate_dataset_info(
 
     # Intrinsics
     k = config.camera.get_k_matrix()
+    width, height = config.camera.resolution
     intrinsics = CameraIntrinsicsMetadata(
-        focal_length_px=[k[0][0], k[1][1]],
-        principal_point=[k[0][2], k[1][2]],
-        resolution=list(config.camera.resolution),
+        fx=k[0][0],
+        fy=k[1][1],
+        cx=k[0][2],
+        cy=k[1][2],
+        width=width,
+        height=height,
     )
 
     # Tag Spec
@@ -116,7 +120,7 @@ def generate_dataset_info(
     # Scopes
     scopes = evaluation_scopes or config.dataset.evaluation_scopes
 
-    manifest = DatasetMetadata(
+    manifest = DatasetManifest(
         provenance=provenance,
         camera_intrinsics=intrinsics,
         tag_specification=tag_spec,

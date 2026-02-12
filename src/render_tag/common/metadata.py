@@ -22,9 +22,12 @@ class ProvenanceMetadata(BaseModel):
 class CameraIntrinsicsMetadata(BaseModel):
     """Camera intrinsics for the dataset."""
 
-    focal_length_px: list[float] = Field(description="[fx, fy] in pixels")
-    principal_point: list[float] = Field(description="[cx, cy] in pixels")
-    resolution: list[int] = Field(description="[width, height] in pixels")
+    fx: float = Field(description="Focal length X (pixels)")
+    fy: float = Field(description="Focal length Y (pixels)")
+    cx: float = Field(description="Principal point X (pixels)")
+    cy: float = Field(description="Principal point Y (pixels)")
+    width: int = Field(description="Image width (pixels)")
+    height: int = Field(description="Image height (pixels)")
 
 
 class TagSpecificationMetadata(BaseModel):
@@ -44,7 +47,7 @@ class ExperimentMetadata(BaseModel):
     seed_info: dict[str, int] = Field(default_factory=dict)
 
 
-class DatasetMetadata(BaseModel):
+class DatasetManifest(BaseModel):
     """Consolidated metadata for a generated dataset."""
 
     model_config = ConfigDict(extra="forbid")

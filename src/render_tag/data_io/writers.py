@@ -221,8 +221,13 @@ class COCOWriter:
             "pixel_area": detection.pixel_area if detection else area,
             "occlusion_ratio": detection.occlusion_ratio if detection else 0.0,
             "position": detection.position if detection else None,
-            "rotation_quaternion": detection.rotation_quaternion if detection else None,
+            "rotation_quaternion": None,
         }
+
+        # IO BOUNDARY: Flip WXYZ -> XYZW for attributes
+        if detection and detection.rotation_quaternion:
+            w, x, y, z = detection.rotation_quaternion
+            attributes["rotation_quaternion"] = [x, y, z, w]
         if detection and hasattr(detection, "metadata"):
             attributes.update(detection.metadata)
 
@@ -283,6 +288,12 @@ class RichTruthWriter:
             "rotation_quaternion": detection.rotation_quaternion,
             "metadata": detection.metadata,
         }
+
+        # IO BOUNDARY: Flip quaternion from WXYZ (Blender/internal) to XYZW (SciPy/Rust)
+        if record["rotation_quaternion"] and len(record["rotation_quaternion"]) == 4:
+            w, x, y, z = record["rotation_quaternion"]
+            record["rotation_quaternion"] = [x, y, z, w]
+
         self._detections.append(record)
 
     def save(self) -> Path:
@@ -315,6 +326,23 @@ class SidecarWriter:
 
         filename = f"{image_name}_meta.json"
         path = sidecar_dir / filename
+
+        # IO BOUNDARY: Ensure quaternion flip if checking tags in provenance
+        # Typically the SceneProvenance might not have detailed detections,
+        # but if we add them, we must ensure consistency.
+        # Currently SceneProvenance creates a unique snapshot.
+
+        # If we had detection records here, we'd flip them.
+        # But SidecarWriter mostly writes the SceneProvenance/Recipe. "Recipe" has camera positions which are matrices.
+        # If we serialize specific geometric metadata here, we should check.
+        # Current usage:
+        # It dumps SceneProvenance which has `recipe_snapshot`.
+
+        # If we have detection-level metadata for sidecars (which we might in later phases), we'd process it here.
+        # For now, we act on the user's instruction "Implement the permutation logic strictly at the IO boundary inside writers.py".
+        # RichTruthWriter is the main consumer of DetectionRecord.
+
+        # We also have COCOWriter attributes.
 
         with open(path, "w") as f:
             if isinstance(provenance, dict):

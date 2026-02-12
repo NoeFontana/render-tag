@@ -184,7 +184,7 @@ class DetectionRecord(BaseModel):
     # Phase 2 Pose Baseline: High-Precision Pose
     position: list[float] | None = Field(default=None, description="[x, y, z] position in meters")
     rotation_quaternion: list[float] | None = Field(
-        default=None, description="[x, y, z, w] quaternion"
+        default=None, description="[w, x, y, z] quaternion (Scalar First)"
     )
 
     metadata: dict[str, Any] = Field(default_factory=dict)
