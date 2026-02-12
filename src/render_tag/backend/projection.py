@@ -15,6 +15,7 @@ from render_tag.geometry.projection_math import (
     calculate_distance,
     get_opencv_camera_matrix,
     get_world_normal,
+    calculate_relative_pose,
 )
 from render_tag.geometry.visibility import (
     is_facing_camera,
@@ -84,11 +85,12 @@ def compute_tag_area_in_image(corners_2d: list[tuple[float, float]]) -> float:
     return metrics["area"]
 
 
-def compute_geometric_metadata(tag_obj: Any) -> dict[str, float]:
+def compute_geometric_metadata(tag_obj: Any) -> dict[str, Any]:
     """Compute geometric metadata for a tag."""
     tag_location = np.array(tag_obj.get_location())
     cam_location = np.array(bpy.context.scene.camera.location)
     world_matrix = np.array(tag_obj.get_local2world_mat())
+    blender_cam_mat = np.array(bpy.context.scene.camera.matrix_world)
 
     # Use pure math layer
     distance = calculate_distance(tag_location, cam_location)
@@ -99,10 +101,15 @@ def compute_geometric_metadata(tag_obj: Any) -> dict[str, float]:
     corners_2d = project_corners_to_image(tag_obj)
     pixel_area = compute_tag_area_in_image(corners_2d) if corners_2d else 0.0
 
+    # High-Precision Pose
+    pose = calculate_relative_pose(world_matrix, blender_cam_mat)
+
     return {
         "distance": distance,
         "angle_of_incidence": angle_deg,
         "pixel_area": pixel_area,
+        "position": pose["position"],
+        "rotation_quaternion": pose["rotation_quaternion"],
     }
 
 

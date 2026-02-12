@@ -123,6 +123,8 @@ def execute_recipe(
                 angle_of_incidence=geom["angle_of_incidence"],
                 pixel_area=geom["pixel_area"],
                 occlusion_ratio=occlusion,
+                position=geom["position"],
+                rotation_quaternion=geom["rotation_quaternion"],
             )
 
             csv_writer.write_detection(det, res[0], res[1])

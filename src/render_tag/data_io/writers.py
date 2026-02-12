@@ -211,6 +211,8 @@ class COCOWriter:
             "angle_of_incidence": detection.angle_of_incidence if detection else 0.0,
             "pixel_area": detection.pixel_area if detection else area,
             "occlusion_ratio": detection.occlusion_ratio if detection else 0.0,
+            "position": detection.position if detection else None,
+            "rotation_quaternion": detection.rotation_quaternion if detection else None,
         }
         if detection and hasattr(detection, "metadata"):
             attributes.update(detection.metadata)
@@ -268,6 +270,8 @@ class RichTruthWriter:
             "angle_of_incidence": detection.angle_of_incidence,
             "pixel_area": detection.pixel_area,
             "occlusion_ratio": detection.occlusion_ratio,
+            "position": detection.position,
+            "rotation_quaternion": detection.rotation_quaternion,
             "metadata": detection.metadata,
         }
         self._detections.append(record)

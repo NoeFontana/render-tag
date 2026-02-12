@@ -131,3 +131,6 @@ def format_coco_keypoints(
         keypoints.extend([float(x), float(y), v])
 
     return keypoints
+
+
+from render_tag.geometry.projection_math import matrix_to_quaternion_wxyz

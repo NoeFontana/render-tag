@@ -6,7 +6,7 @@ reproducible science.
 """
 
 from enum import Enum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -97,3 +97,36 @@ class Campaign(BaseModel):
     """A master configuration for a multi-experiment campaign."""
     output_dir: str = Field(description="Base output directory for the campaign")
     experiments: list[SubExperiment] = Field(description="List of sub-experiments to run")
+
+
+class CameraIntrinsicsManifest(BaseModel):
+    """Camera intrinsics for the dataset manifest."""
+    focal_length_px: list[float] = Field(description="[fx, fy] in pixels")
+    principal_point: list[float] = Field(description="[cx, cy] in pixels")
+    resolution: list[int] = Field(description="[width, height] in pixels")
+
+
+class TagSpecificationManifest(BaseModel):
+    """Tag physical specification for the dataset manifest."""
+    tag_family: str = Field(description="Name of the tag family (e.g. tag36h11)")
+    tag_size_mm: int = Field(description="Tag size in millimeters (integer)")
+
+
+class SweepDefinitionManifest(BaseModel):
+    """Optional definition of the parameter sweep performed."""
+    variable_name: str = Field(description="Name of the swept variable")
+    range: list[float] = Field(description="Range of values [start, end]")
+
+
+class DatasetManifest(BaseModel):
+    """Strict contract for dataset_info.json metadata."""
+    camera_intrinsics: CameraIntrinsicsManifest
+    tag_specification: TagSpecificationManifest
+    pose_convention: Literal["wxyz"] = Field(
+        default="wxyz",
+        description="Quaternion convention (Scalar First)"
+    )
+    sweep_definition: SweepDefinitionManifest | None = Field(
+        default=None,
+        description="Optional metadata about the sweep"
+    )
