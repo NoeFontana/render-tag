@@ -364,7 +364,7 @@ class Generator:
                 min_elevation=camera_config.min_elevation,
                 max_elevation=camera_config.max_elevation,
                 azimuth=camera_config.azimuth,
-                distance=dist_override if dist_override is not None else camera_config.distance,
+                distance=dist_override, # If None, sample_camera_pose uses min/max
                 elevation=elev_override if elev_override is not None else camera_config.elevation,
                 rng=np_rng,
             )

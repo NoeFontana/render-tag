@@ -13,14 +13,14 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 1: High-Precision Pose API & Schema' (Protocol in workflow.md) [ad4b4d3]
 
 ## Phase 2: Declarative API Implementation (The Manifest)
-- [ ] Task: Create Clean Room Presets
-    - [ ] Create `configs/presets/apriltag/distance.yaml` (Static, 1m-30m sweep, ambient light).
-    - [ ] Create `configs/presets/apriltag/angle.yaml` (0-85 deg sweep, three-point light).
-- [ ] Task: Implement Master Experiment Manifest
-    - [ ] Create `configs/experiments/locus_pose_baseline.yaml` following the declarative Campaign structure.
-    - [ ] Write failing tests to ensure the Experiment runner correctly overrides `tag_size_mm` and injects `benchmark_phase` metadata.
-    - [ ] Update `expand_campaign` logic if necessary to support the new metadata injection requirements.
-    - [ ] Verify tests pass and achieve >80% coverage.
+- [x] Task: Create Clean Room Presets [a0e2f05]
+    - [x] Create `configs/presets/apriltag/distance.yaml` (Static, 1m-30m sweep, ambient light).
+    - [x] Create `configs/presets/apriltag/angle.yaml` (0-85 deg sweep, three-point light).
+- [x] Task: Implement Master Experiment Manifest [a0e2f05]
+    - [x] Create `configs/experiments/locus_pose_baseline.yaml` following the declarative Campaign structure.
+    - [x] Write failing tests to ensure the Experiment runner correctly overrides `tag_size_mm` and injects `benchmark_phase` metadata.
+    - [x] Update `expand_campaign` logic if necessary to support the new metadata injection requirements.
+    - [x] Verify tests pass and achieve >80% coverage.
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Declarative API Implementation (The Manifest)' (Protocol in workflow.md)
 
 ## Phase 3: Benchmark Generation & Verification
