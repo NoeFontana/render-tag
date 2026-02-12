@@ -10,7 +10,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from render_tag.core.config import GenConfig
+from render_tag.core.config import EvaluationScope, GenConfig
 
 
 class SweepType(str, Enum):
@@ -137,8 +137,12 @@ class DatasetManifest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     camera_intrinsics: CameraIntrinsicsManifest
     tag_specification: TagSpecificationManifest
-    pose_convention: Literal["wxyz"] = Field(
-        default="wxyz", description="Quaternion convention (Scalar First)"
+    pose_convention: Literal["xyzw"] = Field(
+        default="xyzw", description="Quaternion convention (Scalar Last)"
+    )
+    evaluation_scopes: list[EvaluationScope] = Field(
+        default_factory=lambda: [EvaluationScope.DETECTION],
+        description="Explicit whitelists of valid evaluation metrics",
     )
     sweep_definition: SweepDefinitionManifest | None = Field(
         default=None, description="Optional metadata about the sweep"

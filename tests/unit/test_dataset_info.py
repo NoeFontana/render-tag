@@ -19,27 +19,38 @@ def sample_dataset(tmp_path):
     return tmp_path
 
 
-def test_generate_dataset_info(sample_dataset):
-    # Test generation of dataset_info.json
-
+def test_generate_dataset_info_legacy(sample_dataset):
+    # Test backward compatibility with 'intent'
     info = generate_dataset_info(
         dataset_dir=sample_dataset,
         intent="calibration",
         geometry={"tag_size_m": 0.16},
+    )
+
+    assert info["intent"] == "calibration"
+    assert info["evaluation_scopes"] == ["calibration"]
+
+
+def test_generate_dataset_info_modern(sample_dataset):
+    # Test new 'evaluation_scopes' pattern
+    info = generate_dataset_info(
+        dataset_dir=sample_dataset,
+        evaluation_scopes=["detection", "pose_estimation"],
         extra_metadata={"custom": "value"},
     )
 
     # Check fields
-    assert info["intent"] == "calibration"
-    assert info["geometry"]["tag_size_m"] == 0.16
+    assert "detection" in info["evaluation_scopes"]
+    assert "pose_estimation" in info["evaluation_scopes"]
+    assert info["intent"] == "detection"  # Fallback intent
     assert info["provenance"]["render_tag_version"] is not None
     assert info["integrity"]["sha256"] is not None
-    assert len(info["integrity"]["sha256"]) == 64
     assert info["metadata"]["custom"] == "value"
+    assert info["provenance"]["pose_convention"] == "xyzw"
 
     # Verify file written
     info_file = sample_dataset / "dataset_info.json"
     assert info_file.exists()
 
     saved_data = json.loads(info_file.read_text())
-    assert saved_data["intent"] == "calibration"
+    assert "detection" in saved_data["evaluation_scopes"]

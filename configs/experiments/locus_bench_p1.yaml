@@ -9,15 +9,11 @@ experiments:
     overrides:
       dataset:
         seed: 42
-      camera:
-        samples_per_scene: 10
-      intent: calibration_cv
+        evaluation_scopes: ["calibration"]
 
   - name: 02_aprilgrid
     config: configs/presets/calibration/02_aprilgrid.yaml
     overrides:
       dataset:
         seed: 1337
-      camera:
-        samples_per_scene: 10
-      intent: calibration_tag
+        evaluation_scopes: ["calibration"]

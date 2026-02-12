@@ -173,6 +173,7 @@ def run(
 
             # 6. Generate Dataset Info
             # Extract metadata from config
+            evaluation_scopes = [s.value for s in variant.config.dataset.evaluation_scopes]
             intent = getattr(variant.config.dataset, "intent", None)  # Safe access
             scenario = variant.config.scenario
             geometry = {
@@ -183,6 +184,7 @@ def run(
 
             generate_dataset_info(
                 dataset_dir=variant_dir,
+                evaluation_scopes=evaluation_scopes,
                 intent=intent,
                 geometry=geometry,
                 extra_metadata=variant.overrides,

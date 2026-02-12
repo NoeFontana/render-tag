@@ -88,6 +88,15 @@ class SamplingMode(str, Enum):
     ANGLE = "angle"  # Varying tilt angle to target
 
 
+class EvaluationScope(str, Enum):
+    """Explicit capability contracts for multi-functional datasets."""
+
+    DETECTION = "detection"  # Metrics: Recall, Precision, F1
+    CORNER_PRECISION = "corner_accuracy"  # Metrics: RMSE, Max Error (px)
+    POSE_ACCURACY = "pose_estimation"  # Metrics: Translation Error (m), Rotation Error (deg)
+    CALIBRATION = "calibration"  # Metrics: Intrinsics Convergence, Reprojection Error
+
+
 # Bit counts for each tag family (used for minimum pixel area calculation)
 TAG_BIT_COUNTS: dict[str, int] = {
     # AprilTag families
@@ -190,11 +199,34 @@ class DatasetConfig(BaseModel):
     seeds: SeedConfig = Field(default_factory=SeedConfig, description="Random seeds")
     num_scenes: int = Field(default=1, gt=0, description="Number of scenes to generate")
     intent: str | None = Field(
-        default=None, description="Intent/Goal of this dataset (e.g., calibration)"
+        default=None,
+        description="[DEPRECATED] Intent/Goal of this dataset. Use evaluation_scopes instead.",
+    )
+    evaluation_scopes: list[EvaluationScope] = Field(
+        default_factory=lambda: [EvaluationScope.DETECTION],
+        description="Explicit whitelists of valid evaluation metrics",
     )
     metadata: dict[str, Any] = Field(
         default_factory=dict, description="Arbitrary metadata for the dataset"
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def map_intent_to_scopes(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            # If intent is provided but evaluation_scopes is not, map it
+            if "intent" in data and "evaluation_scopes" not in data:
+                intent_val = data["intent"]
+                if intent_val == "calibration":
+                    data["evaluation_scopes"] = [EvaluationScope.CALIBRATION]
+                elif "pose" in str(intent_val):
+                    data["evaluation_scopes"] = [
+                        EvaluationScope.DETECTION,
+                        EvaluationScope.POSE_ACCURACY,
+                        EvaluationScope.CORNER_PRECISION,
+                    ]
+                # Default for other intents is already handled by default_factory
+        return data
 
     # Backwards compatibility property
     @property

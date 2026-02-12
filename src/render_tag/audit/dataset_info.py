@@ -55,6 +55,7 @@ def get_git_info() -> dict[str, str]:
 
 def generate_dataset_info(
     dataset_dir: Path,
+    evaluation_scopes: list[str] | None = None,
     intent: str | None = None,
     geometry: dict[str, Any] | None = None,
     extra_metadata: dict[str, Any] | None = None,
@@ -67,8 +68,20 @@ def generate_dataset_info(
 
     integrity_hash = calculate_directory_hash(dataset_dir)
 
+    # Hybrid logic: prefer evaluation_scopes, fallback to mapping intent if available
+    scopes = evaluation_scopes or []
+    if not scopes and intent:
+        # Simple heuristic mapping for ad-hoc generation if scopes not provided
+        if intent == "calibration":
+            scopes = ["calibration"]
+        elif "pose" in intent:
+            scopes = ["detection", "pose_estimation", "corner_accuracy"]
+        else:
+            scopes = ["detection"]
+
     info = {
-        "intent": intent or "unknown",
+        "evaluation_scopes": scopes,
+        "intent": intent or (scopes[0] if scopes else "unknown"),
         "geometry": geometry or {},
         "provenance": {
             "git": git_info,

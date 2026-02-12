@@ -16,7 +16,7 @@ experiments:
     overrides:
       dataset:
         num_scenes: 100 # 100 frames
-        intent: phase_2_pose_distance
+        evaluation_scopes: ["detection", "corner_accuracy", "pose_estimation"]
       camera:
         resolution: [1920, 1080] # Full HD
         # Use sweep_definition metadata if supported
@@ -30,7 +30,7 @@ experiments:
     overrides:
       dataset:
         num_scenes: 90 # 90 frames (1 deg per frame)
-        intent: phase_2_pose_angle
+        evaluation_scopes: ["detection", "corner_accuracy", "pose_estimation"]
       camera:
         resolution: [1920, 1080]
         min_distance: 2.0
