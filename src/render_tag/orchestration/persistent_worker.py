@@ -114,7 +114,7 @@ class PersistentWorkerProcess:
             poll_result = self.process.poll()
             if poll_result is not None and poll_result != 0:
                 raise RuntimeError(f"Worker {self.worker_id} failed to start (exit {poll_result}).")
-            
+
             if poll_result == 0:
                 # Finished already
                 return

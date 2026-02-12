@@ -27,7 +27,11 @@ try:
     pkg_root = Path(__file__).parent.parent
     if str(pkg_root) not in sys.path:
         sys.path.insert(0, str(pkg_root))
-    from render_tag.data_io.annotations import compute_bbox, normalize_corner_order, format_coco_keypoints
+    from render_tag.data_io.annotations import (
+        compute_bbox,
+        format_coco_keypoints,
+        normalize_corner_order,
+    )
     from render_tag.geometry.math import compute_polygon_area
 
     GEOMETRY_AVAILABLE = True
@@ -121,8 +125,13 @@ class COCOWriter:
                 "id": cat_id,
                 "name": name,
                 "supercategory": supercategory,
-                "keypoints": ["bl", "br", "tr", "tl"], # Standard corner names (CCW from BL default)
-                "skeleton": [[1, 2], [2, 3], [3, 4], [4, 1]], # Edges
+                "keypoints": [
+                    "bl",
+                    "br",
+                    "tr",
+                    "tl",
+                ],  # Standard corner names (CCW from BL default)
+                "skeleton": [[1, 2], [2, 3], [3, 4], [4, 1]],  # Edges
             }
         )
         self._category_map[name] = cat_id
@@ -183,12 +192,12 @@ class COCOWriter:
         # We need to keep consistency. If we define keypoints as [bl, br, tr, tl] (CCW),
         # we should provide them in that order.
         # But 'segmentation' usually follows the polygon boundary.
-        
-        # Let's keep segmentation as CW from TL (standard COCO poly), 
+
+        # Let's keep segmentation as CW from TL (standard COCO poly),
         # BUT keypoints should match the category definition.
         # If category says ["bl", "br", "tr", "tl"], we must provide them in that order.
         # Input 'corners' is assumed to be CCW from BL (standard render-tag/OpenCV output).
-        
+
         # Segmentation:
         ordered_corners_seg = normalize_corner_order(corners, target_order="cw_tl")
         segmentation = []

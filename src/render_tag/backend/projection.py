@@ -13,9 +13,9 @@ from render_tag.backend.bridge import bproc, bpy, np
 from render_tag.geometry.projection_math import (
     calculate_angle_of_incidence,
     calculate_distance,
+    calculate_relative_pose,
     get_opencv_camera_matrix,
     get_world_normal,
-    calculate_relative_pose,
 )
 from render_tag.geometry.visibility import (
     is_facing_camera,

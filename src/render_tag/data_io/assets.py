@@ -12,10 +12,13 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+
 class AssetProvider:
     """Provides access to assets, downloading them from Hugging Face if missing locally."""
 
-    def __init__(self, local_dir: Path | str = "assets", repo_id: str = "NoeFontana/render-tag-assets"):
+    def __init__(
+        self, local_dir: Path | str = "assets", repo_id: str = "NoeFontana/render-tag-assets"
+    ):
         self.local_dir = Path(local_dir).absolute()
         self.repo_id = repo_id
 
@@ -31,7 +34,7 @@ class AssetProvider:
             Path: The absolute path to the local file.
         """
         p = Path(asset_path)
-        
+
         # 1. Absolute path check
         if p.is_absolute():
             return p
@@ -43,16 +46,20 @@ class AssetProvider:
 
         # 3. Remote download
         if hf_hub_download is None:
-            logger.error("huggingface_hub not installed, cannot download missing asset: %s", asset_path)
+            logger.error(
+                "huggingface_hub not installed, cannot download missing asset: %s", asset_path
+            )
             return local_p
 
-        logger.info("Asset %s not found locally. Attempting download from %s", asset_path, self.repo_id)
+        logger.info(
+            "Asset %s not found locally. Attempting download from %s", asset_path, self.repo_id
+        )
         try:
             downloaded_path = hf_hub_download(
                 repo_id=self.repo_id,
                 filename=str(p),
                 local_dir=str(self.local_dir),
-                repo_type="dataset"
+                repo_type="dataset",
             )
             return Path(downloaded_path)
         except Exception as e:

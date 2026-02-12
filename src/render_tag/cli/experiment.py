@@ -8,16 +8,16 @@ from pathlib import Path
 
 import typer
 
+from render_tag.audit.dataset_info import generate_dataset_info
 from render_tag.generation.scene import Generator
 from render_tag.generation.tags import ensure_tag_asset
 from render_tag.orchestration.experiment import (
-    expand_experiment,
     expand_campaign,
+    expand_experiment,
     load_experiment_config,
     save_manifest,
 )
 from render_tag.orchestration.experiment_schema import Campaign
-from render_tag.audit.dataset_info import generate_dataset_info
 
 from .tools import (
     check_blenderproc_installed,
@@ -84,15 +84,17 @@ def run(
         # Respect CLI output as base, join with Campaign output_dir
         exp_dir = output / exp_or_campaign.output_dir
         exp_or_campaign.output_dir = str(exp_dir)
-        
+
         variants = expand_campaign(exp_or_campaign)
         console.print(f"[bold]Found {len(variants)} sub-experiments[/bold] in campaign")
-        exp_name = "campaign" 
-        
+        exp_name = "campaign"
+
     else:
         # Standard Experiment
         variants = expand_experiment(exp_or_campaign)
-        console.print(f"[bold]Found {len(variants)} variants[/bold] for experiment '{exp_or_campaign.name}'")
+        console.print(
+            f"[bold]Found {len(variants)} variants[/bold] for experiment '{exp_or_campaign.name}'"
+        )
         exp_name = exp_or_campaign.name
         exp_dir = output / exp_name
 
@@ -171,19 +173,19 @@ def run(
 
             # 6. Generate Dataset Info
             # Extract metadata from config
-            intent = getattr(variant.config.dataset, "intent", None) # Safe access
+            intent = getattr(variant.config.dataset, "intent", None)  # Safe access
             scenario = variant.config.scenario
             geometry = {
                 "tag_size_m": variant.config.tag.size_meters,
                 "grid_size": list(scenario.grid_size),
-                "tag_family": [f.value for f in scenario.tag_families]
+                "tag_family": [f.value for f in scenario.tag_families],
             }
-            
+
             generate_dataset_info(
                 dataset_dir=variant_dir,
                 intent=intent,
                 geometry=geometry,
-                extra_metadata=variant.overrides
+                extra_metadata=variant.overrides,
             )
 
             console.print(f"[green]✓ {variant.variant_id} Complete[/green]")
@@ -192,5 +194,5 @@ def run(
             console.print(f"[bold red]Error running BlenderProc:[/bold red] {e}")
             raise typer.Exit(code=1) from None
 
-    console.print(f"\n[bold green]Experiment Completed Successfully![/bold green]")
+    console.print("\n[bold green]Experiment Completed Successfully![/bold green]")
     console.print(f"[dim]Results:[/dim] {exp_dir}")

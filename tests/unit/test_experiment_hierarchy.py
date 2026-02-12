@@ -1,8 +1,10 @@
-import pytest
 from pathlib import Path
-from unittest.mock import patch, MagicMock
-from render_tag.orchestration.experiment import load_experiment_config, expand_campaign
-from render_tag.orchestration.experiment_schema import Campaign, SubExperiment
+
+import pytest
+
+from render_tag.orchestration.experiment import expand_campaign, load_experiment_config
+from render_tag.orchestration.experiment_schema import Campaign
+
 
 @pytest.fixture
 def campaign_yaml(tmp_path):
@@ -26,6 +28,7 @@ experiments:
     """)
     return p
 
+
 @pytest.fixture
 def preset_configs(tmp_path):
     # Mock existence of preset configs
@@ -46,6 +49,7 @@ camera:
     """)
     return tmp_path
 
+
 def test_load_campaign_config(campaign_yaml):
     # Test that we can load a campaign config
     # This will fail until we implement Campaign schema and loader logic
@@ -56,19 +60,18 @@ def test_load_campaign_config(campaign_yaml):
     assert config.experiments[0].name == "01_checkerboard"
     assert config.experiments[0].overrides["dataset"]["intent"] == "calibration_cv"
 
+
 def test_expand_campaign(campaign_yaml, preset_configs):
     # Test that we can expand a campaign into variants with correct paths
     config = load_experiment_config(campaign_yaml)
-    
+
     # We rely on the preset_configs fixture to create the yaml files on disk
     # expand_campaign will read them.
-    
-    from render_tag.orchestration.experiment import expand_campaign
-    
+
     variants = expand_campaign(config)
-    
+
     assert len(variants) == 2
-    
+
     # Check variant 1
     v1 = variants[0]
     assert v1.experiment_name == "01_checkerboard"
@@ -77,7 +80,7 @@ def test_expand_campaign(campaign_yaml, preset_configs):
     assert v1.config.dataset.output_dir == expected_out
     # Check intent override
     assert v1.config.dataset.intent == "calibration_cv"
-    
+
     # Check variant 2
     v2 = variants[1]
     assert v2.experiment_name == "02_aprilgrid"

@@ -14,7 +14,6 @@ import numpy as np
 
 from render_tag.common import TAG_GRID_SIZES
 from render_tag.common.logging import get_logger
-from render_tag.schema import SeedManager
 from render_tag.core.config import GenConfig
 from render_tag.data_io.assets import AssetProvider
 from render_tag.geometry.camera import sample_camera_pose
@@ -25,6 +24,7 @@ from render_tag.schema import (
     LightingConfig,
     ObjectRecipe,
     SceneRecipe,
+    SeedManager,
     SensorDynamicsRecipe,
     WorldRecipe,
 )
@@ -201,7 +201,9 @@ class Generator:
 
         background_hdri = None
         if scene_config.background_hdri:
-            background_hdri = str(self.asset_provider.resolve_path(str(scene_config.background_hdri)))
+            background_hdri = str(
+                self.asset_provider.resolve_path(str(scene_config.background_hdri))
+            )
 
         return WorldRecipe(
             background_hdri=background_hdri,
@@ -263,7 +265,9 @@ class Generator:
             family = rng.choice(tag_families)
             texture_base_path = None
             if tag_config.texture_path:
-                texture_base_path = str(self.asset_provider.resolve_path(str(tag_config.texture_path)))
+                texture_base_path = str(
+                    self.asset_provider.resolve_path(str(tag_config.texture_path))
+                )
 
             tag_obj = ObjectRecipe(
                 type="TAG",
@@ -347,15 +351,19 @@ class Generator:
             # Deterministic linear sweeps if sampling mode is set
             dist_override = None
             elev_override = None
-            
+
             if num_scenes > 1:
                 # Interpolation factor [0, 1]
                 t = scene_id / (num_scenes - 1)
-                
+
                 if scenario_config.sampling_mode == "distance":
-                    dist_override = camera_config.min_distance + t * (camera_config.max_distance - camera_config.min_distance)
+                    dist_override = camera_config.min_distance + t * (
+                        camera_config.max_distance - camera_config.min_distance
+                    )
                 elif scenario_config.sampling_mode == "angle":
-                    elev_override = camera_config.min_elevation + t * (camera_config.max_elevation - camera_config.min_elevation)
+                    elev_override = camera_config.min_elevation + t * (
+                        camera_config.max_elevation - camera_config.min_elevation
+                    )
 
             pose = sample_camera_pose(
                 look_at_point=[0, 0, 0],
@@ -364,7 +372,7 @@ class Generator:
                 min_elevation=camera_config.min_elevation,
                 max_elevation=camera_config.max_elevation,
                 azimuth=camera_config.azimuth,
-                distance=dist_override, # If None, sample_camera_pose uses min/max
+                distance=dist_override,  # If None, sample_camera_pose uses min/max
                 elevation=elev_override if elev_override is not None else camera_config.elevation,
                 rng=np_rng,
             )

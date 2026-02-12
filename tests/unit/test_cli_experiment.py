@@ -5,7 +5,6 @@ Unit tests for the experiment CLI.
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 from typer.testing import CliRunner
 
 from render_tag.cli.main import app
@@ -33,12 +32,12 @@ def test_experiment_run_success(
     tmp_path: Path,
 ) -> None:
     mock_check.return_value = True
-    
+
     # Setup experiment
     exp = MagicMock()
     exp.name = "my_exp"
     mock_load.return_value = exp
-    
+
     # Setup variants
     v1 = MagicMock()
     v1.variant_id = "v1"
@@ -47,15 +46,17 @@ def test_experiment_run_success(
     v1.config.tag.family = MagicMock(value="tag36h11")
     v1.config.dataset.output_dir = tmp_path
     mock_expand.return_value = [v1]
-    
+
     # Setup subprocess
     mock_run.return_value = MagicMock(returncode=0)
-    
+
     config_file = tmp_path / "exp.yaml"
     config_file.write_text("dummy")
-    
-    result = runner.invoke(app, ["experiment", "run", "--config", str(config_file), "--output", str(tmp_path)])
-    
+
+    result = runner.invoke(
+        app, ["experiment", "run", "--config", str(config_file), "--output", str(tmp_path)]
+    )
+
     assert result.exit_code == 0
     assert "Experiment 'my_exp' Completed Successfully!" in result.stdout
     assert mock_run.called
@@ -67,7 +68,7 @@ def test_experiment_run_no_blenderproc(mock_check, tmp_path: Path) -> None:
     mock_check.return_value = False
     config_file = tmp_path / "exp.yaml"
     config_file.write_text("dummy")
-    
+
     result = runner.invoke(app, ["experiment", "run", "--config", str(config_file)])
     assert result.exit_code != 0
     assert "blenderproc not installed" in result.stdout

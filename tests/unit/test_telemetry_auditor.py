@@ -1,5 +1,5 @@
-from render_tag.schema.hot_loop import Telemetry
 from render_tag.audit.telemetry_auditor import TelemetryAuditor
+from render_tag.schema.hot_loop import Telemetry
 
 
 def test_telemetry_auditor_collection():

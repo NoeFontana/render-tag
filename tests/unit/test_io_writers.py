@@ -6,8 +6,8 @@ import json
 import tempfile
 from pathlib import Path
 
-from render_tag.schema import DetectionRecord
 from render_tag.data_io.writers import COCOWriter, CSVWriter
+from render_tag.schema import DetectionRecord
 
 
 class TestCSVWriter:
@@ -38,15 +38,9 @@ class TestCSVWriter:
 
         corners = [(0, 0), (100, 0), (100, 100), (0, 100)]
         detections = [
-            DetectionRecord(
-                image_id="img1", tag_id=0, tag_family="tag36h11", corners=corners
-            ),
-            DetectionRecord(
-                image_id="img2", tag_id=1, tag_family="tag36h11", corners=corners
-            ),
-            DetectionRecord(
-                image_id="img3", tag_id=2, tag_family="DICT_4X4_50", corners=corners
-            ),
+            DetectionRecord(image_id="img1", tag_id=0, tag_family="tag36h11", corners=corners),
+            DetectionRecord(image_id="img2", tag_id=1, tag_family="tag36h11", corners=corners),
+            DetectionRecord(image_id="img3", tag_id=2, tag_family="DICT_4X4_50", corners=corners),
         ]
         writer.write_detections(detections)
 

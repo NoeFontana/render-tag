@@ -119,18 +119,12 @@ def format_coco_keypoints(
         return []
 
     points = np.asarray(points)
-    
-    if visibility is None:
-        visibility = np.ones(len(points), dtype=bool)
-    else:
-        visibility = np.asarray(visibility)
+
+    visibility = np.ones(len(points), dtype=bool) if visibility is None else np.asarray(visibility)
 
     keypoints = []
-    for (x, y), is_visible in zip(points, visibility):
+    for (x, y), is_visible in zip(points, visibility, strict=False):
         v = 2 if is_visible else 1
         keypoints.extend([float(x), float(y), v])
 
     return keypoints
-
-
-from render_tag.geometry.projection_math import matrix_to_quaternion_wxyz

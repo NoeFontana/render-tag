@@ -158,39 +158,39 @@ def visualize_dataset(
     viz_dir = output_dir / "visualizations"
 
     detections: dict[str, list[dict]] = {}
-    
+
     if coco_path.exists():
         import json
+
         with open(coco_path) as f:
             coco = json.load(f)
-        
+
         # Map image id to file name
         img_map = {img["id"]: Path(img["file_name"]).stem for img in coco["images"]}
-        
+
         for ann in coco["annotations"]:
             img_id_str = img_map.get(ann["image_id"])
             if not img_id_str:
                 continue
-                
+
             if img_id_str not in detections:
                 detections[img_id_str] = []
-            
+
             # Extract corners from keypoints [x, y, v, x, y, v...]
             kp = ann.get("keypoints", [])
             corners = []
             if kp:
                 for i in range(0, len(kp), 3):
-                    corners.append((float(kp[i]), float(kp[i+1])))
+                    corners.append((float(kp[i]), float(kp[i + 1])))
             else:
                 # Fallback to bbox if no keypoints (approximation)
                 x, y, w, h = ann["bbox"]
-                corners = [(x, y), (x+w, y), (x+w, y+h), (x, y+h)]
-                
-            detections[img_id_str].append({
-                "tag_id": ann.get("attributes", {}).get("tag_id", "?"),
-                "corners": corners
-            })
-            
+                corners = [(x, y), (x + w, y), (x + w, y + h), (x, y + h)]
+
+            detections[img_id_str].append(
+                {"tag_id": ann.get("attributes", {}).get("tag_id", "?"), "corners": corners}
+            )
+
     elif csv_path.exists():
         with open(csv_path, newline="") as f:
             reader = csv.DictReader(f)
@@ -210,7 +210,9 @@ def visualize_dataset(
                     }
                 )
     else:
-        console.print(f"[bold red]Error:[/bold red] No annotations found (tags.csv or annotations.json) in {output_dir}")
+        console.print(
+            f"[bold red]Error:[/bold red] No annotations found (tags.csv or annotations.json) in {output_dir}"
+        )
         return
 
     if save_viz:
@@ -236,7 +238,7 @@ def visualize_dataset(
             if len(corners) == 4:
                 for i in range(4):
                     draw.line([corners[i], corners[(i + 1) % 4]], fill="lime", width=2)
-            
+
             # Draw corners (crosshairs for precision)
             for corner in corners:
                 cx, cy = corner

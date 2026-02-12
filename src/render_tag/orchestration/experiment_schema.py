@@ -88,20 +88,27 @@ class ExperimentVariant(BaseModel):
 
 class SubExperiment(BaseModel):
     """A single experiment within a larger campaign."""
+
     name: str
     config_path: str = Field(alias="config", description="Path to the preset config file")
-    overrides: dict[str, Any] = Field(default_factory=dict, description="Overrides for this sub-experiment")
+    overrides: dict[str, Any] = Field(
+        default_factory=dict, description="Overrides for this sub-experiment"
+    )
 
 
 class Campaign(BaseModel):
     """A master configuration for a multi-experiment campaign."""
+
     output_dir: str = Field(description="Base output directory for the campaign")
     experiments: list[SubExperiment] = Field(description="List of sub-experiments to run")
-    metadata: dict[str, Any] = Field(default_factory=dict, description="Global metadata for the campaign")
+    metadata: dict[str, Any] = Field(
+        default_factory=dict, description="Global metadata for the campaign"
+    )
 
 
 class CameraIntrinsicsManifest(BaseModel):
     """Camera intrinsics for the dataset manifest."""
+
     model_config = ConfigDict(extra="forbid")
     focal_length_px: list[float] = Field(description="[fx, fy] in pixels")
     principal_point: list[float] = Field(description="[cx, cy] in pixels")
@@ -110,6 +117,7 @@ class CameraIntrinsicsManifest(BaseModel):
 
 class TagSpecificationManifest(BaseModel):
     """Tag physical specification for the dataset manifest."""
+
     model_config = ConfigDict(extra="forbid")
     tag_family: str = Field(description="Name of the tag family (e.g. tag36h11)")
     tag_size_m: float = Field(description="Tag size in meters (float)")
@@ -117,6 +125,7 @@ class TagSpecificationManifest(BaseModel):
 
 class SweepDefinitionManifest(BaseModel):
     """Optional definition of the parameter sweep performed."""
+
     model_config = ConfigDict(extra="forbid")
     variable_name: str = Field(description="Name of the swept variable")
     range: list[float] = Field(description="Range of values [start, end]")
@@ -124,14 +133,13 @@ class SweepDefinitionManifest(BaseModel):
 
 class DatasetManifest(BaseModel):
     """Strict contract for dataset_info.json metadata."""
+
     model_config = ConfigDict(extra="forbid")
     camera_intrinsics: CameraIntrinsicsManifest
     tag_specification: TagSpecificationManifest
     pose_convention: Literal["wxyz"] = Field(
-        default="wxyz",
-        description="Quaternion convention (Scalar First)"
+        default="wxyz", description="Quaternion convention (Scalar First)"
     )
     sweep_definition: SweepDefinitionManifest | None = Field(
-        default=None,
-        description="Optional metadata about the sweep"
+        default=None, description="Optional metadata about the sweep"
     )

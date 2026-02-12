@@ -1,12 +1,7 @@
-import argparse
-import json
 import sys
 import time
 
-import zmq
-
 from render_tag.orchestration.unified_orchestrator import UnifiedWorkerOrchestrator
-from render_tag.schema.hot_loop import CommandType, ResponseStatus
 
 
 def test_worker_pool_lifecycle(tmp_path):

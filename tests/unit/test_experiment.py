@@ -83,24 +83,26 @@ def test_expand_experiment_cross_product():
     variants = expand_experiment(exp)
     assert len(variants) == 4  # 2 * 2
 
+
 def test_save_manifest(tmp_path):
     from render_tag.orchestration.experiment import save_manifest
     from render_tag.orchestration.experiment_schema import ExperimentVariant
-    
+
     base = GenConfig()
     variant = ExperimentVariant(
         experiment_name="test_manifest",
         variant_id="v001",
         description="Test desc",
         config=base,
-        overrides={"foo": "bar"}
+        overrides={"foo": "bar"},
     )
-    
+
     save_manifest(tmp_path, variant, cli_args=["render-tag", "experiment"])
-    
+
     manifest_file = tmp_path / "manifest.json"
     assert manifest_file.exists()
     import json
+
     data = json.loads(manifest_file.read_text())
     assert data["experiment_name"] == "test_manifest"
     assert data["overrides"] == {"foo": "bar"}

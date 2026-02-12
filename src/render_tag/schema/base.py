@@ -180,11 +180,13 @@ class DetectionRecord(BaseModel):
     angle_of_incidence: float = 0.0
     pixel_area: float = 0.0
     occlusion_ratio: float = 0.0
-    
+
     # Phase 2 Pose Baseline: High-Precision Pose
     position: list[float] | None = Field(default=None, description="[x, y, z] position in meters")
-    rotation_quaternion: list[float] | None = Field(default=None, description="[w, x, y, z] quaternion")
-    
+    rotation_quaternion: list[float] | None = Field(
+        default=None, description="[x, y, z, w] quaternion"
+    )
+
     metadata: dict[str, Any] = Field(default_factory=dict)
 
     def is_valid(self) -> bool:
@@ -256,11 +258,11 @@ class COCOAnnotation(BaseModel):
     bbox: list[float] = Field(default_factory=list)
     area: float = 0.0
     iscrowd: int = 0
-    
+
     # Keypoints support
     keypoints: list[float] | None = Field(default=None, description="[x1, y1, v1, ...]")
     num_keypoints: int | None = Field(default=None)
-    
+
     attributes: dict[str, Any] = Field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:

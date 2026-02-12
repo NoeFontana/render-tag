@@ -34,7 +34,7 @@ def setup_background(hdri_path: Path) -> None:
         world = bpy.context.scene.world
         if not world.use_nodes:
             world.use_nodes = True
-        
+
         # Find the Environment Texture node
         env_node = world.node_tree.nodes.get("Environment Texture")
         if env_node and env_node.image:

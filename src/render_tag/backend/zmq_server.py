@@ -1,5 +1,3 @@
-import blenderproc
-
 """
 ZeroMQ Server running inside Blender for Hot Loop optimization.
 """

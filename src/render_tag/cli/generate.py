@@ -25,11 +25,11 @@ except ImportError:
     resolve_shard_index = None
     run_local_parallel = None
 
-from render_tag.core.config import load_config
 from render_tag.common.manifest import DatasetManifest
+from render_tag.common.validator import AssetValidator, validate_recipe_file
+from render_tag.core.config import load_config
 from render_tag.generation.scene import Generator
 from render_tag.schema.job import JobSpec, calculate_job_id, get_env_fingerprint
-from render_tag.common.validator import AssetValidator, validate_recipe_file
 
 from .tools import (
     check_blenderproc_installed,

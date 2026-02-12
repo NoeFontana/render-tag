@@ -34,7 +34,7 @@ def check_blenderproc_installed() -> bool:
 def check_audit_installed() -> bool:
     """Check if auditing dependencies (polars, plotly) are installed."""
     try:
-        import plotly.graph_objects as _  # noqa: F401
+        import plotly.graph_objects as _
         import polars as _  # noqa: F401
 
         return True

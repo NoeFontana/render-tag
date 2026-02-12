@@ -5,8 +5,6 @@ Unit tests for the backend executor.
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from render_tag.backend.executor import parse_args
 
 
