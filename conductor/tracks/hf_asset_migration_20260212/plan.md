@@ -11,7 +11,7 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Infrastructure and HF Integration' (Protocol in workflow.md) [aa04554]
 
 ## Phase 2: CLI Sync Command Implementation
-- [ ] Task: Implement `assets sync` CLI command
+- [x] Task: Implement `assets sync` CLI command [9052f60]
     - [ ] Write failing integration tests for `render-tag assets sync`
     - [ ] Add `assets` group and `sync` command to `src/render_tag/cli/main.py`
     - [ ] Implement full dataset download logic in the sync command
