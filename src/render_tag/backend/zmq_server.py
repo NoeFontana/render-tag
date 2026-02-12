@@ -1,12 +1,14 @@
+import blenderproc  # noqa: F401
+
 """
 ZeroMQ Server running inside Blender for Hot Loop optimization.
 """
 
-import logging
-import sys
-import time
-from pathlib import Path
-from typing import Any
+import logging  # noqa: E402
+import sys  # noqa: E402
+import time  # noqa: E402
+from pathlib import Path  # noqa: E402
+from typing import Any  # noqa: E402
 
 # DEBUG: Trace path
 try:
@@ -38,31 +40,40 @@ try:
 except Exception:
     pass
 
-import zmq
-
 try:
-    import GPUtil
-except ImportError:
-    GPUtil = None
+    import zmq  # noqa: E402
 
-from render_tag.backend.assets import global_pool
-from render_tag.backend.bridge import bridge
-from render_tag.backend.render_loop import execute_recipe
-from render_tag.backend.scene import setup_background
-from render_tag.data_io.writers import (
-    COCOWriter,
-    CSVWriter,
-    RichTruthWriter,
-    SidecarWriter,
-)
-from render_tag.schema.hot_loop import (
-    Command,
-    CommandType,
-    Response,
-    ResponseStatus,
-    Telemetry,
-    calculate_state_hash,
-)
+    try:
+        import GPUtil
+    except ImportError:
+        GPUtil = None
+
+    from render_tag.backend.assets import global_pool  # noqa: E402
+    from render_tag.backend.bridge import bridge  # noqa: E402
+    from render_tag.backend.render_loop import execute_recipe  # noqa: E402
+    from render_tag.backend.scene import setup_background  # noqa: E402
+    from render_tag.data_io.writers import (  # noqa: E402
+        COCOWriter,
+        CSVWriter,
+        RichTruthWriter,
+        SidecarWriter,
+    )
+    from render_tag.schema.hot_loop import (  # noqa: E402
+        Command,
+        CommandType,
+        Response,
+        ResponseStatus,
+        Telemetry,
+        calculate_state_hash,
+    )
+except Exception as e:
+    with open("/tmp/debug_backend.log", "a") as f:
+        import traceback
+
+        f.write(f"IMPORT ERROR: {e}\n")
+        f.write(traceback.format_exc())
+    print(f"IMPORT ERROR: {e}")
+    sys.exit(1)
 
 logger = logging.getLogger(__name__)
 
@@ -101,11 +112,12 @@ class ZmqBackendServer:
         vram_used = 0.0
         vram_total = 0.0
         try:
-            gpus = GPUtil.getGPUs()
-            if gpus:
-                gpu = gpus[0]
-                vram_used = gpu.memoryUsed
-                vram_total = gpu.memoryTotal
+            if GPUtil:
+                gpus = GPUtil.getGPUs()
+                if gpus:
+                    gpu = gpus[0]
+                    vram_used = gpu.memoryUsed
+                    vram_total = gpu.memoryTotal
         except Exception:
             pass
 
@@ -284,8 +296,11 @@ class ZmqBackendServer:
 
     def stop(self):
         self.running = False
-        self.socket.close()
-        self.context.term()
+        try:
+            self.socket.close()
+            self.context.term()
+        except:
+            pass
 
 
 if __name__ == "__main__":
@@ -297,6 +312,7 @@ if __name__ == "__main__":
     parser.add_argument("--max-renders", type=int, default=None, help="Shutdown after N renders")
 
     # Only parse arguments after '--' to avoid Blender args
+    # This prevents Blender's own flags from confusing argparse
     argv = sys.argv[sys.argv.index("--") + 1 :] if "--" in sys.argv else sys.argv[1:]
 
     # Use parse_known_args to ignore Blender arguments if they leak into sys.argv
@@ -316,13 +332,21 @@ if __name__ == "__main__":
 
     logger.info(f"Initializing ZmqBackendServer on port {args.port}")
 
-    server = ZmqBackendServer(port=args.port, bproc_mock=bproc_m, bpy_mock=bpy_m)
     try:
+        server = ZmqBackendServer(port=args.port, bproc_mock=bproc_m, bpy_mock=bpy_m)
         logger.info("Entering server run loop...")
         server.run(max_renders=args.max_renders)
+        logger.info("Server run loop exited normally")
     except KeyboardInterrupt:
         logger.info("KeyboardInterrupt received, stopping...")
-        server.stop()
+        if "server" in locals():
+            server.stop()
     except Exception as e:
         logger.exception(f"Server crashed: {e}")
-        raise
+        # Ensure we exit with error code logic if needed, but logging detail helps
+        import traceback
+
+        with open("/tmp/debug_backend.log", "a") as f:
+            f.write(f"FATAL CRASH: {e}\n")
+            f.write(traceback.format_exc())
+        sys.exit(1)
