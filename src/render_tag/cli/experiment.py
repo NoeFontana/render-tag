@@ -82,45 +82,28 @@ def run(
     if isinstance(exp_or_campaign, Campaign):
         # Campaign logic
         # Respect CLI output as base, join with Campaign output_dir
-        # Campaign output_dir in YAML is likely "data/locus_bench_v1/01_calibration"
-        # If CLI output is provided, we might want to use it.
-        # But spec says: "The campaign runner should automatically prepend this structure to the provided --output directory"
-        # So effectively base_dir = output / campaign.output_dir
-        
-        # Note: expand_campaign currently uses campaign.output_dir directly.
-        # We should update campaign.output_dir to be relative to CLI output if strictly following spec.
-        # But expand_campaign is inside orchestration.
-        # Let's modify the campaign object here before expansion?
-        
-        # Ideally expand_campaign accepts a base_dir override.
-        # But currently it reads campaign.output_dir.
-        
-        # Let's adjust campaign.output_dir
-        exp_or_campaign.output_dir = str(output / exp_or_campaign.output_dir)
+        exp_dir = output / exp_or_campaign.output_dir
+        exp_or_campaign.output_dir = str(exp_dir)
         
         variants = expand_campaign(exp_or_campaign)
         console.print(f"[bold]Found {len(variants)} sub-experiments[/bold] in campaign")
-        exp_name = "campaign" # Generic name for folder grouping if needed, but variants have paths
+        exp_name = "campaign" 
         
     else:
         # Standard Experiment
         variants = expand_experiment(exp_or_campaign)
         console.print(f"[bold]Found {len(variants)} variants[/bold] for experiment '{exp_or_campaign.name}'")
         exp_name = exp_or_campaign.name
+        exp_dir = output / exp_name
 
-        # For standard experiments, we enforce <output>/<exp_name>/<variant_id>
-        # expand_experiment doesn't set output_dir in config, we do it here.
-        # We need to set it for consistency with the loop below.
-    
+    exp_dir.mkdir(parents=True, exist_ok=True)
+
     # Execute Variants
     for i, variant in enumerate(variants):
         console.print(f"\n[bold cyan]Run {i + 1}/{len(variants)}: {variant.variant_id}[/bold cyan]")
         console.print(f"[dim]Description: {variant.description}[/dim]")
 
         # Determine variant output directory
-        # If it was a Campaign, expand_campaign already set config.dataset.output_dir
-        # If it was an Experiment, we need to construct it.
-        
         if isinstance(exp_or_campaign, Campaign):
             variant_dir = variant.config.dataset.output_dir
         else:
@@ -209,5 +192,5 @@ def run(
             console.print(f"[bold red]Error running BlenderProc:[/bold red] {e}")
             raise typer.Exit(code=1) from None
 
-    console.print(f"\n[bold green]Experiment '{exp.name}' Completed Successfully![/bold green]")
+    console.print(f"\n[bold green]Experiment Completed Successfully![/bold green]")
     console.print(f"[dim]Results:[/dim] {exp_dir}")

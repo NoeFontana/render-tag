@@ -1,3 +1,12 @@
+import blenderproc
+import sys
+from pathlib import Path
+
+# Add project root to sys.path to allow imports from within Blender
+project_root = str(Path(__file__).parents[2])
+if project_root not in sys.path:
+    sys.path.append(project_root)
+
 """
 Minimal one-shot executor for render-tag.
 Acts as a wrapper around render_loop for non-ZMQ contexts (e.g. Docker).
