@@ -10,7 +10,7 @@
     - [x] Update the experiment runner logic to handle nested hierarchy and inject `intent` into the context.
     - [x] Verify tests pass and achieve >80% coverage.
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Experiment Infrastructure' (Protocol in workflow.md) [1311caf]
-## Phase 2: High-Precision Annotations & Metadata
+## Phase 2: High-Precision Annotations & Metadata [checkpoint: afd4444]
 - [x] Task: Implement COCO-style Corner Ground Truth [82e7439]
     - [x] Write failing tests for projecting 3D corner coordinates to 2D COCO keypoints `[x, y, visibility]`.
     - [x] Implement corner extraction and annotation logic in `src/render_tag/data_io/annotations.py`.
@@ -19,7 +19,7 @@
     - [x] Write failing tests for `dataset_info.json` generation (including SHA-256 fingerprinting).
     - [x] Implement metadata collector (provenance, geometry, versions) and writer.
     - [x] Verify tests pass and achieve >80% coverage.
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: High-Precision Annotations & Metadata' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 2: High-Precision Annotations & Metadata' (Protocol in workflow.md) [afd4444]
 
 ## Phase 3: Visualization & Quality Gate
 - [ ] Task: Enhance Visualization for Corner Markers
