@@ -16,5 +16,5 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-- [~] **Track: Pose Estimation Baseline**
+- [x] **Track: Pose Estimation Baseline**
 *Link: [./tracks/pose_baseline_20260212/](./tracks/pose_baseline_20260212/)*
