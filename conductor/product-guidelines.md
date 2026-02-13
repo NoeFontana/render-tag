@@ -7,6 +7,7 @@
 ## Visual Identity & Data Clarity
 - **Clinical Information Overlays:** While primary renders aim for high photorealism, all debugging and visualization tools must prioritize data clarity. Use high-contrast colors, clear labels, and minimal aesthetic embellishment for ground-truth overlays.
 - **Photorealistic Priority:** For the core dataset, prioritize realistic lighting, material properties, and sensor artifacts to ensure maximum utility for training models destined for real-world deployment.
+- **Structured Feedback**: Prioritize structured, machine-readable telemetry (NDJSON) over raw text logs. Use progress bars and categorized metrics to provide high-fidelity feedback during long-running tasks.
 
 ## Error Handling & Reliability
 - **Resilient Batch Processing:** During large-scale generation, the system must be resilient. If a single scene or shard fails, it should be logged and skipped, allowing the rest of the batch to complete.

@@ -19,6 +19,7 @@
 - **Typer:** Powering the CLI interface, providing a user-friendly and type-safe way to interact with the generation pipeline.
 - **Dynamic Load Balancing:** A "Batch Stealing" orchestrator model for parallel rendering, supporting fault tolerance and session resuming.
 - **Bootstrap Pattern:** Environment-aware initialization module (`bootstrap.py`) that synchronizes Blender's Python runtime with the project's virtual environment, ensuring dependency parity and strict isolation.
+- **Structured Observability (NDJSON)**: High-performance IPC protocol using Newline Delimited JSON and `orjson` for real-time telemetry, progress tracking, and log routing between Backend and Host.
 - **Polars:** High-performance, multi-threaded DataFrame library used for vectorized dataset auditing and KPI calculation.
 - **Plotly:** Used for generating interactive HTML dashboards for dataset visualization and manual quality review.
 - **Docker:** Supported as a pluggable execution engine for hermetic and reproducible rendering environments.
