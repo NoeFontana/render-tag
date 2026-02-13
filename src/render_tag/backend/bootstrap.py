@@ -46,11 +46,13 @@ def setup_environment():
             if potential_site and potential_site.exists():
                 venv_site_packages = str(potential_site)
 
-    # Apply the site-packages if found
     if venv_site_packages:
         site.addsitedir(venv_site_packages)
     
-    # 4. Fail Fast: Verify critical dependencies
+    # 4. Configure Structured Logging
+    configure_logging()
+    
+    # 5. Fail Fast: Verify critical dependencies
     # We check for pydantic as a baseline dependency for the project
     try:
         import pydantic # noqa: F401
@@ -63,6 +65,34 @@ def setup_environment():
             f"Detected site-packages: {venv_site_packages}\n"
             f"Please ensure the virtual environment is correctly set up."
         )
+
+def configure_logging():
+    """Configures structured JSON logging for the Blender backend."""
+    import logging
+    from render_tag.common.logging import JSONFormatter
+    
+    # 1. Setup Root Logger
+    root = logging.getLogger()
+    # Remove existing handlers
+    for handler in root.handlers[:]:
+        root.removeHandler(handler)
+        
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(JSONFormatter())
+    root.addHandler(handler)
+    root.setLevel(logging.INFO)
+    
+    # 2. Redirect stderr to the root logger
+    class StderrLogger:
+        def __init__(self, logger):
+            self.logger = logger
+        def write(self, buf):
+            for line in buf.rstrip().splitlines():
+                self.logger.error(line.rstrip())
+        def flush(self):
+            pass
+            
+    sys.stderr = StderrLogger(logging.getLogger("stderr"))
 
 if __name__ == "__main__":
     setup_environment()

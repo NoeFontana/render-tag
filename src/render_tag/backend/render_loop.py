@@ -70,7 +70,24 @@ def execute_recipe(
     }
 
     for cam_idx, cam_recipe in enumerate(cam_recipes):
+        import time
+        start_time = time.time()
+        
         render_out = renderer.render_camera(cam_recipe)
+        
+        render_time = time.time() - start_time
+        logger.info(
+            f"Rendered camera {cam_idx}",
+            extra={
+                "log_type": "metric",
+                "payload": {
+                    "metric": "render_time",
+                    "value": render_time,
+                    "unit": "seconds",
+                    "camera_idx": cam_idx
+                }
+            }
+        )
 
         image_name = f"scene_{scene_idx:04d}_cam_{cam_idx:04d}"
         image_path = output_dir / "images" / f"{image_name}.png"
@@ -137,5 +154,18 @@ def execute_recipe(
                 detection=det,
             )
             rich_writer.add_detection(det)
+            
+        # Report progress
+        logger.info(
+            f"Scene {scene_idx} progress: {cam_idx + 1}/{len(cam_recipes)} cameras",
+            extra={
+                "log_type": "progress",
+                "payload": {
+                    "current": cam_idx + 1,
+                    "total": len(cam_recipes),
+                    "scene_id": scene_idx
+                }
+            }
+        )
 
     logger.info(f"✓ Rendered scene {scene_idx}")
