@@ -2,6 +2,8 @@
 CLI Entry Point.
 """
 
+import subprocess
+import sys
 import typer
 from rich.panel import Panel
 
@@ -32,6 +34,26 @@ app.command(name="lock")(job.lock)
 
 # Register top-level commands from viz.py (shortcuts)
 app.command(name="info")(viz.info)
+
+
+@app.command(name="lint-arch")
+def lint_arch() -> None:
+    """Run architectural linter to enforce Host/Backend isolation."""
+    console.print("[bold green]Running architectural linter...[/bold green]")
+    try:
+        # We use 'lint-imports' command from import-linter
+        result = subprocess.run(
+            ["lint-imports"],
+            capture_output=False,
+            check=False,
+        )
+        if result.returncode != 0:
+            console.print("[bold red]Architectural violations detected![/bold red]")
+            sys.exit(result.returncode)
+        console.print("[bold green]Architectural integrity verified.[/bold green]")
+    except FileNotFoundError:
+        console.print("[bold red]Error: 'import-linter' not found. Is it installed?[/bold red]")
+        sys.exit(1)
 
 
 def main() -> None:
