@@ -17,3 +17,9 @@ Ensure code quality and adherence to style guides.
     ```bash
     uv run ruff format .
     ```
+
+3.  **Architectural Lint**
+    Enforce Host/Backend isolation boundaries.
+    ```bash
+    uv run render-tag lint-arch
+    ```
