@@ -4,6 +4,7 @@ CLI Entry Point.
 
 import subprocess
 import sys
+
 import typer
 from rich.panel import Panel
 
