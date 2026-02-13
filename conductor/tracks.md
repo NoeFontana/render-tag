@@ -1,16 +1,18 @@
 # Project Tracks
 
 This file tracks all major tracks for the project. Each track has its own detailed plan in its respective folder.
----
 
-*Link: [./tracks/rolling_shutter_20260205/](./tracks/rolling_shutter_20260205/)*
+## Active Tracks
 
----
+(None)
 
-*Link: [./tracks/hot_loop_20260205/](./tracks/hot_loop_20260205/)*
+## Archived Tracks
 
----
+- [x] **Track: Rolling Shutter**
+  *Link: [./archive/rolling_shutter_20260205/](./archive/rolling_shutter_20260205/)*
+
+- [x] **Track: Hot Loop**
+  *Link: [./archive/hot_loop_20260205/](./archive/hot_loop_20260205/)*
 
 - [x] **Track: Codebase Modernization and Refactoring**
-*Link: [./tracks/codebase_modernization_20260208/](./tracks/codebase_modernization_20260208/)*
-
+  *Link: [./archive/codebase_modernization_20260208/](./archive/codebase_modernization_20260208/)*

@@ -6,17 +6,18 @@ This module handles background setup, lighting, floor creation, and physics.
 
 from __future__ import annotations
 
+import logging
 import math
 import random
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-import blenderproc as bproc
-import bpy
-import numpy as np
+from render_tag.backend.bridge import bproc, bpy, np
 
 if TYPE_CHECKING:
     pass
+
+logger = logging.getLogger(__name__)
 
 
 def setup_background(hdri_path: Path) -> None:
@@ -28,7 +29,7 @@ def setup_background(hdri_path: Path) -> None:
         hdri_path: Path to the HDRI image file (.exr or .hdr)
     """
     if not hdri_path.exists():
-        print(f"Warning: HDRI path does not exist: {hdri_path}")
+        logger.warning(f"HDRI path does not exist: {hdri_path}")
         return
 
     # Check for lazy loading
@@ -250,7 +251,7 @@ def randomize_floor_material(
     try:
         image = bpy.data.images.load(str(texture_path))
     except Exception as e:
-        print(f"Failed to load texture: {texture_path}, error: {e}")
+        logger.error(f"Failed to load texture: {texture_path}, error: {e}")
         return
 
     # 1. Setup Material

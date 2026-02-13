@@ -10,9 +10,7 @@ import random
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-import blenderproc as bproc
-import bpy
-import numpy as np
+from render_tag.backend.bridge import bproc, bpy, np
 
 if TYPE_CHECKING:
     pass

@@ -152,11 +152,15 @@ class UnifiedWorkerOrchestrator:
 
         # 2. Check health and collect real telemetry
         is_healthy = False
+        
+        # Staff Engineer: If ephemeral and max_renders reached, the worker is already shutting down.
+        # Don't try to talk to it or we'll hang for the full timeout.
+        skip_check = self.ephemeral and self.max_renders_per_worker is not None
+        
         try:
-            if worker.client:
+            if worker.client and not skip_check:
                 # Use a very short timeout for quick health check
-                worker.client.socket.setsockopt(zmq.RCVTIMEO, 1000)
-                resp = worker.send_command(CommandType.STATUS)
+                resp = worker.send_command(CommandType.STATUS, timeout_ms=1000)
                 if resp.status == ResponseStatus.SUCCESS:
                     is_healthy = True
                     real_tel = Telemetry(**resp.data)
@@ -165,9 +169,6 @@ class UnifiedWorkerOrchestrator:
                     if self.vram_threshold_mb and real_tel.vram_used_mb > self.vram_threshold_mb:
                         logger.warning(f"Worker {worker.worker_id} exceeded VRAM threshold.")
                         should_restart = True
-
-                # Restore timeout
-                worker.client.socket.setsockopt(zmq.RCVTIMEO, 10000)
         except Exception as e:
             logger.debug(f"Telemetry/Health check failed during release: {e}")
             is_healthy = False
@@ -211,6 +212,7 @@ class UnifiedWorkerOrchestrator:
                     "shard_id": shard_id,
                     "skip_visibility": self.mock,  # Auto-skip visibility in mock mode
                 },
+                timeout_ms=worker.client.timeout_ms,
             )
             return resp
         finally:

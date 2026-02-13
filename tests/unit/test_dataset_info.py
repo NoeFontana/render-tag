@@ -1,8 +1,10 @@
 import json
-from pathlib import Path
+
 import pytest
+
 from render_tag.audit.dataset_info import generate_dataset_info
-from render_tag.core.config import GenConfig, EvaluationScope
+from render_tag.core.config import EvaluationScope, GenConfig
+
 
 @pytest.fixture
 def sample_dataset(tmp_path):

@@ -9,15 +9,12 @@ from __future__ import annotations
 
 import logging
 import sys
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    import blenderproc
     import bpy
     import mathutils
     import numpy as np
-    from bpy.types import Context, Object, Scene
-    from mathutils import Matrix, Vector
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +24,7 @@ class BlenderBridge:
     Singleton provider for Blender-related modules.
     """
 
-    _instance: Optional[BlenderBridge] = None
+    _instance: BlenderBridge | None = None
 
     def __new__(cls):
         if cls._instance is None:
@@ -79,25 +76,38 @@ class BlenderBridge:
             # Fallback to Mocks
             logger.info("Blender environment not detected. Serving mock objects.")
 
+            # Check if mocks were already injected into sys.modules
+            if "bpy" in sys.modules and "blenderproc" in sys.modules:
+                self.bpy = sys.modules["bpy"]
+                self.bproc = sys.modules["blenderproc"]
+                if "mathutils" in sys.modules:
+                    self.mathutils = sys.modules["mathutils"]
+                return
+
+            # Otherwise try to import them (requires project root in path)
             try:
                 from tests.mocks import blender_api as bpy_mock
                 from tests.mocks import blenderproc_api as bproc_mock
+                from tests.mocks import mathutils_api as math_mock
+                self.bpy = bpy_mock
+                self.bproc = bproc_mock
+                self.mathutils = math_mock
             except ImportError:
-                # If bootstrap hasn't run or is in a weird state, 
-                # we might need to manually help it find tests if we are in a dev flow
-                # but bootstrap.py should handle .venv which should include the project root.
-                # If still not found, we do a last-ditch effort.
+                # Last resort: ensure project root is in path
                 from pathlib import Path
                 project_root = str(Path(__file__).resolve().parents[3])
                 if project_root not in sys.path:
                     sys.path.append(project_root)
-                from tests.mocks import blender_api as bpy_mock
-                from tests.mocks import blenderproc_api as bproc_mock
-
-            self.bpy = bpy_mock
-            self.bproc = bproc_mock
-            # mathutils is harder to mock fully, but we can provide stubs if needed
-            self.mathutils = None
+                
+                try:
+                    from tests.mocks import blender_api as bpy_mock
+                    from tests.mocks import blenderproc_api as bproc_mock
+                    from tests.mocks import mathutils_api as math_mock
+                    self.bpy = bpy_mock
+                    self.bproc = bproc_mock
+                    self.mathutils = math_mock
+                except ImportError:
+                    logger.warning("Could not load Blender mocks. Some functionality will be limited.")
 
     def inject_mocks(self, bproc_mock: Any, bpy_mock: Any):
         """Explicitly override dependencies with provided mocks."""

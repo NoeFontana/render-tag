@@ -1,7 +1,8 @@
 import os
-import sys
 import site
+import sys
 from pathlib import Path
+
 
 def setup_environment():
     """
@@ -35,11 +36,7 @@ def setup_environment():
                 lib_dir = venv_path / "lib"
                 if lib_dir.exists():
                     sites = list(lib_dir.glob("python*/site-packages"))
-                    if sites:
-                        # Take the first one found
-                        potential_site = sites[0]
-                    else:
-                        potential_site = None
+                    potential_site = sites[0] if sites else None
                 else:
                     potential_site = None
             
@@ -47,7 +44,19 @@ def setup_environment():
                 venv_site_packages = str(potential_site)
 
     if venv_site_packages:
-        site.addsitedir(venv_site_packages)
+        # VERSION GUARD: Only add site-packages if Python versions match (major.minor)
+        # to avoid "No module named 'orjson.orjson'" or similar binary incompatibilities.
+        # Compiled extensions (like orjson, pydantic-core, numpy) are version-specific.
+        venv_version_dir = Path(venv_site_packages).parent.name # e.g. "python3.12"
+        blender_version_str = f"python{sys.version_info.major}.{sys.version_info.minor}"
+        
+        if venv_version_dir == blender_version_str:
+            site.addsitedir(venv_site_packages)
+        else:
+            # If versions mismatch, we SHOULD NOT add site-packages blindly.
+            # However, if we are in a container or a managed environment, 
+            # the dependencies might already be in Blender's own site-packages.
+            pass
     
     # 4. Configure Structured Logging
     configure_logging()
@@ -55,20 +64,23 @@ def setup_environment():
     # 5. Fail Fast: Verify critical dependencies
     # We check for pydantic as a baseline dependency for the project
     try:
-        import pydantic # noqa: F401
-    except ImportError:
+        import orjson  # noqa: F401
+        import pydantic  # noqa: F401
+    except ImportError as e:
         # Only raise if we think we found a venv but it's broken
         # or if we are clearly in an environment that should have it.
         raise RuntimeError(
             f"Blender Environment Bootstrap Failed.\n"
-            f"Critical dependency 'pydantic' not found.\n"
+            f"Critical dependency not found: {e}\n"
+            f"Blender Python: {sys.version_info.major}.{sys.version_info.minor}\n"
             f"Detected site-packages: {venv_site_packages}\n"
-            f"Please ensure the virtual environment is correctly set up."
-        )
+            f"Please ensure the dependencies are installed for Blender's Python version."
+        ) from e
 
 def configure_logging():
     """Configures structured JSON logging for the Blender backend."""
     import logging
+
     from render_tag.common.logging import JSONFormatter
     
     # 1. Setup Root Logger

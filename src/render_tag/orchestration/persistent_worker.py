@@ -190,7 +190,7 @@ class PersistentWorkerProcess:
 
         # Ensure raw log file is open
         if not self._raw_log_file:
-            self._raw_log_file = open("blender_raw.log", "a")
+            self._raw_log_file = open("blender_raw.log", "a")  # noqa: SIM115
 
         # Start the process with piped output
         self.process = subprocess.Popen(
@@ -206,14 +206,16 @@ class PersistentWorkerProcess:
         self._log_thread = threading.Thread(target=self._log_router, daemon=True)
         self._log_thread.start()
 
-        # Initialize ZMQ client with short timeout for startup phase
-        self.client = ZmqHostClient(port=self.port, timeout_ms=1000, context=self.context)
+        # Initialize ZMQ client
+        self.client = ZmqHostClient(port=self.port, context=self.context)
         self.client.connect()
         # Wait for heartbeat/status success
         start_time = time.time()
         while time.time() - start_time < self.startup_timeout:
+            # CHECK PROCESS FIRST
             poll_result = self.process.poll()
             if poll_result is not None and poll_result != 0:
+                self.stop() # Cleanup threads
                 raise RuntimeError(f"Worker {self.worker_id} failed to start (exit {poll_result}).")
 
             if poll_result == 0:
@@ -221,11 +223,10 @@ class PersistentWorkerProcess:
                 return
 
             try:
-                resp = self.client.send_command(CommandType.STATUS, raise_on_failure=True)
+                # Use a slightly longer timeout for the initial status check (Blender init can be slow)
+                resp = self.client.send_command(CommandType.STATUS, raise_on_failure=True, timeout_ms=5000)
                 if resp.status == ResponseStatus.SUCCESS:
                     logger.info(f"Worker {self.worker_id} is ready.")
-                    # Restore default timeout for normal operation
-                    self.client.socket.setsockopt(zmq.RCVTIMEO, 10000)
                     return
                 else:
                     logger.warning(
@@ -283,17 +284,20 @@ class PersistentWorkerProcess:
         if not self.client:
             return False
 
-        resp = self.client.send_command(CommandType.STATUS)
+        resp = self.client.send_command(CommandType.STATUS, timeout_ms=self.client.timeout_ms)
         return resp.status == ResponseStatus.SUCCESS
 
     def send_command(
-        self, command_type: CommandType, payload: dict[str, Any] | None = None
+        self,
+        command_type: CommandType,
+        payload: dict[str, Any] | None = None,
+        timeout_ms: int | None = None,
     ) -> Response:
         """Sends a command to the worker."""
         if not self.is_healthy():
             raise RuntimeError(f"Worker {self.worker_id} is not healthy or not running.")
 
-        return self.client.send_command(command_type, payload)
+        return self.client.send_command(command_type, payload, timeout_ms=timeout_ms)
 
     def __enter__(self):
         self.start()

@@ -159,7 +159,7 @@ class MockExecutor:
         shard_id: str,
         verbose: bool = False,
     ) -> None:
-        print(f"[MOCK] Executing render: recipe={recipe_path.name}, output={output_dir.name}")
+        logger.info(f"[MOCK] Executing render: recipe={recipe_path.name}, output={output_dir.name}")
 
 
 class ExecutorFactory:

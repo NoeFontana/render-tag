@@ -6,7 +6,6 @@ BEFORE any tests run or imports happen.
 """
 
 import sys
-import types
 from pathlib import Path
 
 import pytest

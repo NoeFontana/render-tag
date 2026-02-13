@@ -2,13 +2,24 @@
 ZeroMQ Server running inside Blender for Hot Loop optimization.
 """
 
+import logging
+import sys
+import time
+from pathlib import Path
+from typing import Any
+
+import zmq
+
+try:
+    import GPUtil
+except ImportError:
+    GPUtil = None
+
 # 1. BOOTSTRAP: Synchronize environment first
 try:
     # We must ensure the project src is available to find the bootstrap module
     import os
-    import sys
-    from pathlib import Path
-    
+
     # Locate src/ so we can import render_tag.backend.bootstrap
     # zmq_server.py is at src/render_tag/backend/zmq_server.py
     _src_path = str(Path(__file__).resolve().parents[2])
@@ -22,17 +33,23 @@ try:
         project_root = str(Path(_src_path).parent)
         if project_root not in sys.path:
             sys.path.append(project_root)
-        
+
         from tests.mocks import (
             blender_api as bpy_m,
+        )
+        from tests.mocks import (
             blenderproc_api as bproc_m,
+        )
+        from tests.mocks import (
             mathutils_api as math_m,
         )
+
         sys.modules["bpy"] = bpy_m
         sys.modules["blenderproc"] = bproc_m
         sys.modules["mathutils"] = math_m
-    
+
     from render_tag.backend import bootstrap
+
     bootstrap.setup_environment()
 except Exception as e:
     # Fallback logging if bootstrap fails early
@@ -41,21 +58,13 @@ except Exception as e:
             f.write(f"BOOTSTRAP FAILED: {e}\n")
     except Exception:
         pass
-    print(f"BOOTSTRAP FAILED: {e}")
+    sys.stderr.write(f"BOOTSTRAP FAILED: {e}\n")
     # Don't exit yet, try to proceed with standard imports if possible
 
-import logging
-import time
-from typing import Any
+
+logger = logging.getLogger(__name__)
 
 try:
-    import zmq
-
-    try:
-        import GPUtil
-    except ImportError:
-        GPUtil = None
-
     from render_tag.backend.assets import global_pool
     from render_tag.backend.bridge import bridge
     from render_tag.backend.render_loop import execute_recipe
@@ -80,10 +89,8 @@ except Exception as e:
 
         f.write(f"IMPORT ERROR: {e}\n")
         f.write(traceback.format_exc())
-    print(f"IMPORT ERROR: {e}")
+    logging.error(f"IMPORT ERROR: {e}")
     sys.exit(1)
-
-logger = logging.getLogger(__name__)
 
 
 class ZmqBackendServer:
@@ -108,12 +115,12 @@ class ZmqBackendServer:
         self.current_output_dir: Path | None = None
         self.writers: dict[str, Any] = {}
 
-        if bridge.bproc and bridge.bpy:
-            try:
+        try:
+            if bridge.bproc:
                 bridge.bproc.init()
                 bridge.bproc.clean_up()
-            except Exception:
-                pass
+        except Exception:
+            pass
 
     def get_telemetry(self) -> Telemetry:
         """Collects backend telemetry."""
@@ -190,6 +197,7 @@ class ZmqBackendServer:
                     if asset_path not in self.assets_loaded:
                         p = Path(asset_path)
                         if p.exists() and p.suffix.lower() in [".exr", ".hdr"]:
+                            import render_tag.backend.bridge as bridge
                             if bridge.bpy:
                                 setup_background(p)
                             new_assets.append(asset_path)
@@ -329,19 +337,10 @@ if __name__ == "__main__":
     if unknown:
         logger.warning(f"Ignored unknown arguments: {unknown}")
 
-    bproc_m, bpy_m = None, None
-    if args.mock:
-        # Add project root to path so we can import tests.mocks
-        project_root = str(Path(__file__).resolve().parents[3])
-        if project_root not in sys.path:
-            sys.path.append(project_root)
-        from tests.mocks import blender_api as bpy_m
-        from tests.mocks import blenderproc_api as bproc_m
-
     logger.info(f"Initializing ZmqBackendServer on port {args.port}")
 
     try:
-        server = ZmqBackendServer(port=args.port, bproc_mock=bproc_m, bpy_mock=bpy_m)
+        server = ZmqBackendServer(port=args.port)
         logger.info("Entering server run loop...")
         server.run(max_renders=args.max_renders)
         logger.info("Server run loop exited normally")

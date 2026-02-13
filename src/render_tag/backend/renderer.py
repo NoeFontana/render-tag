@@ -9,11 +9,8 @@ import logging
 from pathlib import Path
 from typing import Any
 
-import blenderproc as bproc
-import bpy
-import numpy as np
-
 from render_tag.backend.assets import create_tag_plane, get_tag_texture_path, global_pool
+from render_tag.backend.bridge import bproc, bpy, np
 from render_tag.backend.camera import setup_sensor_dynamics
 from render_tag.backend.scene import (
     create_board,
@@ -36,9 +33,6 @@ class RenderFacade:
 
     def _configure_engine(self):
         """Standardizes engine-specific settings."""
-        if not bpy:
-            return
-
         if self.renderer_mode == "workbench":
             bpy.context.scene.render.engine = "BLENDER_WORKBENCH"
         elif self.renderer_mode == "eevee":
@@ -52,18 +46,14 @@ class RenderFacade:
     def reset_volatile_state(self):
         """Clears objects from the scene but keeps heavy environment assets resident."""
         global_pool.release_all()
-        if bproc:
-            bproc.utility.reset_keyframes()
+        bproc.utility.reset_keyframes()
 
     def setup_world(self, world_recipe: dict[str, Any]):
         """Sets up HDRI, lighting, and floor."""
-        if not bproc:
-            return
-
         hdri_path = world_recipe.get("background_hdri")
         if hdri_path and Path(hdri_path).is_file():
             setup_background(Path(hdri_path))
-
+        
         lighting = world_recipe.get("lighting", {})
         setup_lighting(
             intensity_min=lighting.get("intensity", 100),
@@ -95,26 +85,22 @@ class RenderFacade:
 
     def render_camera(self, camera_recipe: dict[str, Any]) -> dict[str, Any]:
         """Configures a camera and renders the image."""
-        if not bproc:
-            return {"colors": [], "segmentation": []}
-
         pose_matrix = np.array(camera_recipe["transform_matrix"])
         bproc.camera.add_camera_pose(pose_matrix, frame=0)
         setup_sensor_dynamics(pose_matrix, camera_recipe.get("sensor_dynamics"))
 
-        if bpy:
-            cam_data = bpy.context.scene.camera.data
-            fstop = camera_recipe.get("fstop")
-            if fstop:
-                cam_data.dof.use_dof = True
-                cam_data.dof.aperture_fstop = fstop
-                focus_dist = camera_recipe.get("focus_distance")
-                if focus_dist:
-                    cam_data.dof.focus_distance = focus_dist
-            else:
-                cam_data.dof.use_dof = False
+        cam_data = bpy.context.scene.camera.data
+        fstop = camera_recipe.get("fstop")
+        if fstop:
+            cam_data.dof.use_dof = True
+            cam_data.dof.aperture_fstop = fstop
+            focus_dist = camera_recipe.get("focus_distance")
+            if focus_dist:
+                cam_data.dof.focus_distance = focus_dist
+        else:
+            cam_data.dof.use_dof = False
 
-        if bpy and bpy.context.scene.render.engine != "BLENDER_WORKBENCH":
+        if bpy.context.scene.render.engine != "BLENDER_WORKBENCH":
             bproc.renderer.enable_segmentation_output(default_values={"category_id": 0})
 
         data = bproc.renderer.render()

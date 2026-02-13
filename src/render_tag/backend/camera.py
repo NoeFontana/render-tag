@@ -10,11 +10,7 @@ import logging
 import math
 from typing import Any
 
-import blenderproc as bproc
-import bpy
-import mathutils
-import numpy as np
-
+from render_tag.backend.bridge import bproc, bpy, mathutils, np
 from render_tag.geometry.camera import (
     sample_camera_pose,
     validate_camera_pose,
@@ -186,7 +182,7 @@ def setup_sensor_dynamics(
         dynamics_recipe: Dictionary containing velocity, shutter_time_ms,
                         and rolling_shutter_duration_ms.
     """
-    if not dynamics_recipe or not bpy:
+    if not dynamics_recipe:
         return
 
     velocity = dynamics_recipe.get("velocity")
@@ -194,7 +190,7 @@ def setup_sensor_dynamics(
     rolling_shutter_ms = dynamics_recipe.get("rolling_shutter_duration_ms", 0.0)
 
     # 1. Handle Motion Blur (Keyframing)
-    if velocity and shutter_time_ms > 0 and bproc and mathutils:
+    if velocity and shutter_time_ms > 0:
         vx, vy, vz = velocity
         dt = shutter_time_ms / 1000.0
 
@@ -212,9 +208,7 @@ def setup_sensor_dynamics(
         bpy.context.scene.render.use_motion_blur = True
         bpy.context.scene.render.motion_blur_shutter = 1.0
     else:
-        if bpy:
-            bpy.context.scene.render.use_motion_blur = False
-
+        bpy.context.scene.render.use_motion_blur = False
     # 2. Handle Rolling Shutter (Cycles only)
     if rolling_shutter_ms > 0:
         engine = bpy.context.scene.render.engine

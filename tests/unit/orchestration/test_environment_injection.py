@@ -1,9 +1,7 @@
-import os
-from pathlib import Path
-from unittest.mock import patch, MagicMock
-import pytest
+from unittest.mock import patch
 
 from render_tag.orchestration.persistent_worker import PersistentWorkerProcess
+
 
 @patch("subprocess.Popen")
 @patch("render_tag.orchestration.persistent_worker.ZmqHostClient")
@@ -16,7 +14,7 @@ def test_persistent_worker_injects_env_vars(mock_sleep, mock_get_venv, mock_zmq_
     mock_popen_instance.poll.return_value = None
     
     # Ensure ZmqHostClient mock returns a SUCCESS response
-    from render_tag.schema.hot_loop import ResponseStatus, Response
+    from render_tag.schema.hot_loop import Response, ResponseStatus
     mock_resp = Response(status=ResponseStatus.SUCCESS, request_id="test", message="OK")
     
     # Configure the instance that will be created
@@ -39,7 +37,7 @@ def test_persistent_worker_injects_env_vars(mock_sleep, mock_get_venv, mock_zmq_
         
     # Verify Popen was called with correct environment
     assert mock_popen.called
-    args, kwargs = mock_popen.call_args
+    _, kwargs = mock_popen.call_args
     env = kwargs.get("env")
     
     assert env is not None

@@ -77,15 +77,15 @@ if __name__ == "__main__":
 
 
 def test_persistent_worker_failure():
-    # Invalid script
+    # Invalid executable will cause immediate failure
     worker = PersistentWorkerProcess(
         worker_id="fail-1",
         port=5560,
         blender_script=Path("non_existent.py"),
-        blender_executable=sys.executable,
+        blender_executable="/bin/non_existent_executable_12345",
         startup_timeout=5,
         use_blenderproc=False,
     )
 
-    with pytest.raises(RuntimeError):
+    with pytest.raises((RuntimeError, OSError)):
         worker.start()

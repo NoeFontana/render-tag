@@ -8,9 +8,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-import bpy
-import numpy as np
 from PIL import Image
+
+from render_tag.backend.bridge import bpy, np
 from render_tag.backend.projection import compute_geometric_metadata
 from render_tag.backend.renderer import RenderFacade
 from render_tag.common.git import get_git_hash
@@ -40,12 +40,10 @@ def execute_recipe(
     logger.info(f"--- Executing Scene {scene_idx} ---")
 
     # 1. Determinism
-    if np:
-        np.random.seed(scene_idx)
+    np.random.seed(scene_idx)
     random.seed(scene_idx)
-    if bpy:
-        bpy.context.scene.cycles.seed = scene_idx
-        bpy.context.scene.cycles.use_animated_seed = False
+    bpy.context.scene.cycles.seed = scene_idx
+    bpy.context.scene.cycles.use_animated_seed = False
 
     # 2. Setup Facade
     renderer = RenderFacade(renderer_mode=renderer_mode)
@@ -101,9 +99,8 @@ def execute_recipe(
         coco_img_id = coco_writer.add_image(f"images/{image_path.name}", res[0], res[1])
 
         # Subframe alignment for metadata
-        if bpy:
-            bpy.context.scene.frame_set(0, subframe=0.5)
-            bpy.context.view_layer.update()
+        bpy.context.scene.frame_set(0, subframe=0.5)
+        bpy.context.view_layer.update()
 
         # 5. Metadata Projection & Export
         # (We use the project_corners_to_image which now uses pure math)

@@ -1,5 +1,8 @@
+import logging
 import sys
 from pathlib import Path
+
+import blenderproc as bproc
 
 # 1. BOOTSTRAP: Synchronize environment first
 try:
@@ -9,9 +12,9 @@ try:
     from render_tag.backend import bootstrap
     bootstrap.setup_environment()
 except Exception as e:
-    print(f"BOOTSTRAP FAILED: {e}")
+    sys.stderr.write(f"BOOTSTRAP FAILED: {e}\n")
 
-import blenderproc as bproc
+from render_tag.backend.bridge import bproc
 
 """
 Minimal one-shot executor for render-tag.
@@ -20,7 +23,6 @@ Acts as a wrapper around render_loop for non-ZMQ contexts (e.g. Docker).
 
 import argparse  # noqa: E402
 import json  # noqa: E402
-import logging  # noqa: E402
 from pathlib import Path  # noqa: E402
 
 from render_tag.backend.render_loop import execute_recipe  # noqa: E402
@@ -51,9 +53,8 @@ def main() -> None:
     output_dir = args.output
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    if bproc:
-        bproc.init()
-        bproc.clean_up()
+    bproc.init()
+    bproc.clean_up()
 
     csv_writer = CSVWriter(output_dir / f"tags_shard_{args.shard_id}.csv")
     coco_writer = COCOWriter(output_dir)

@@ -9,9 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
-import blenderproc as bproc
-import bpy
-import numpy as np
+from render_tag.backend.bridge import bproc, bpy, np
 from render_tag.geometry.projection_math import (
     calculate_angle_of_incidence,
     calculate_distance,

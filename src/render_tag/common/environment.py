@@ -1,6 +1,7 @@
 import sys
 from pathlib import Path
 
+
 def get_venv_site_packages() -> str | None:
     """
     Detects the site-packages directory of the currently active virtual environment.

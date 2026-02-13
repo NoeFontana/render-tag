@@ -1,13 +1,15 @@
-import logging
 import json
+import logging
 from pathlib import Path
+
 import numpy as np
-import pytest
+
 from render_tag.common.logging import JSONFormatter
+
 
 def test_json_formatter_basic():
     formatter = JSONFormatter()
-    logger = logging.getLogger("test_basic")
+    # logger = logging.getLogger("test_basic") # Unused
     record = logging.LogRecord(
         name="test_logger",
         level=logging.INFO,

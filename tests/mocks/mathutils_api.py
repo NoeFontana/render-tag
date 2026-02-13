@@ -2,7 +2,6 @@
 Mock for Blender's mathutils module.
 """
 
-from typing import Any
 
 class Matrix:
     def __init__(self, data=None):
@@ -27,10 +26,10 @@ class Vector:
         self.data = data or (0.0, 0.0, 0.0)
     
     def __add__(self, other):
-        return Vector(tuple(a + b for a, b in zip(self.data, other.data)))
+        return Vector(tuple(a + b for a, b in zip(self.data, other.data, strict=False)))
     
     def __repr__(self):
         return f"Vector({self.data})"
 
-def Quaternion(data=None):
+def Quaternion(data=None):  # noqa: N802
     return [1.0, 0.0, 0.0, 0.0]
