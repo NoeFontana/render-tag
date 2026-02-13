@@ -6,21 +6,21 @@ import pytest
 from render_tag.orchestration.persistent_worker import PersistentWorkerProcess
 
 @patch("subprocess.Popen")
-@patch("render_tag.orchestration.zmq_client.ZmqHostClient")
+@patch("render_tag.orchestration.persistent_worker.ZmqHostClient")
 @patch("render_tag.common.environment.get_venv_site_packages")
-def test_persistent_worker_injects_env_vars(mock_get_venv, mock_zmq_client, mock_popen, tmp_path):
+@patch("time.sleep", return_value=None)
+def test_persistent_worker_injects_env_vars(mock_sleep, mock_get_venv, mock_zmq_client, mock_popen, tmp_path):
     # Setup mocks
     mock_get_venv.return_value = "/mock/venv/site-packages"
     mock_popen_instance = mock_popen.return_value
     mock_popen_instance.poll.return_value = None
     
-    # Mock status response to avoid timeout
+    # Ensure ZmqHostClient mock returns a SUCCESS response
+    from render_tag.schema.hot_loop import ResponseStatus, Response
+    mock_resp = Response(status=ResponseStatus.SUCCESS, request_id="test", message="OK")
+    
+    # Configure the instance that will be created
     mock_client_instance = mock_zmq_client.return_value
-    mock_resp = MagicMock()
-    mock_resp.status = "SUCCESS" # Using string as in some contexts it might not be enum
-    # Actually it should be ResponseStatus.SUCCESS
-    from render_tag.schema.hot_loop import ResponseStatus
-    mock_resp.status = ResponseStatus.SUCCESS
     mock_client_instance.send_command.return_value = mock_resp
 
     blender_script = tmp_path / "src" / "render_tag" / "backend" / "zmq_server.py"
@@ -34,13 +34,8 @@ def test_persistent_worker_injects_env_vars(mock_get_venv, mock_zmq_client, mock
         use_blenderproc=True
     )
     
-    # Run start
-    try:
-        worker.start()
-    except Exception:
-        # We might get some errors because of deeper mocks needed, 
-        # but we only care about Popen call
-        pass
+    # Run start - it should return immediately now if mock works
+    worker.start()
         
     # Verify Popen was called with correct environment
     assert mock_popen.called

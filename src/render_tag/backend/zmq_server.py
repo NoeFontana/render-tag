@@ -15,8 +15,8 @@ try:
     if _src_path not in sys.path:
         sys.path.insert(0, _src_path)
     
-    from render_tag.backend.bootstrap import setup_environment
-    setup_environment()
+    from render_tag.backend import bootstrap
+    bootstrap.setup_environment()
 except Exception as e:
     # Fallback logging if bootstrap fails early
     try:
