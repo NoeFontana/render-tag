@@ -1,0 +1,21 @@
+# Implementation Plan: Blender Environment Bootstrap Pattern
+
+Implement a robust initialization mechanism to synchronize Blender's Python environment with the project's virtual environment.
+
+## Phase 1: Bootstrap Module Implementation
+- [x] Task: Create `src/render_tag/backend/bootstrap.py` with environment discovery logic. 0cde8cb
+- [x] Task: Implement `setup_environment()` function with `site.addsitedir` and `pyproject.toml` discovery. 0cde8cb
+- [x] Task: Implement "Fail Fast" dependency verification. 0cde8cb
+- [ ] Task: Conductor - User Manual Verification 'Phase 1: Bootstrap Module Implementation' (Protocol in workflow.md)
+
+## Phase 2: Orchestration Handshake
+- [ ] Task: Update `src/render_tag/orchestration/executors.py` to inject `RENDER_TAG_VENV_SITE_PACKAGES`.
+- [ ] Task: Update `run_blender_process` to set `PYTHONNOUSERSITE=1`.
+- [ ] Task: Write unit tests to verify environment variable injection in the executor.
+- [ ] Task: Conductor - User Manual Verification 'Phase 2: Orchestration Handshake' (Protocol in workflow.md)
+
+## Phase 3: Refactoring & Verification
+- [ ] Task: Refactor `src/render_tag/backend/render_loop.py` and other backend scripts to use `bootstrap.py`.
+- [ ] Task: Remove legacy `sys.path` manipulation across the `src/render_tag/backend/` directory.
+- [ ] Task: Verify full generation pipeline using `uv run render-tag generate`.
+- [ ] Task: Conductor - User Manual Verification 'Phase 3: Refactoring & Verification' (Protocol in workflow.md)
