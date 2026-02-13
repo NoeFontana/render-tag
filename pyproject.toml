@@ -80,6 +80,7 @@ dev = [
     "mkdocstrings[python]>=1.0.3",
     "pymdown-extensions>=10.20.1",
     "import-linter",
+    "fake-bpy-module-4.2",
 ]
 
 [tool.ruff]
@@ -106,9 +107,10 @@ include = ["src", "tests"]
 python-version = "3.12"
 
 [tool.ty.rules]
-unresolved-import = "ignore"
-possibly-missing-attribute = "ignore"
-unresolved-attribute = "ignore"
+# Standard rules enabled
+# unresolved-import = "ignore" # Removed to enable Blender API checking
+# possibly-missing-attribute = "ignore"
+# unresolved-attribute = "ignore"
 invalid-method-override = "ignore"
 invalid-assignment = "ignore"
 unused-ignore-comment = "ignore"

@@ -60,10 +60,10 @@ class TestCameraIntrinsics:
 class TestCameraConfig:
     def test_defaults(self) -> None:
         config = CameraConfig()
-        assert config.resolution == (640, 480)
-        assert config.width == 640
-        assert config.height == 480
-        assert config.fov == 60.0
+        assert config.resolution == (1920, 1080)
+        assert config.width == 1920
+        assert config.height == 1080
+        assert config.fov == 70.0
         assert config.samples_per_scene == 10
 
     def test_invalid_resolution(self) -> None:
@@ -174,7 +174,7 @@ class TestGenConfig:
     def test_defaults(self) -> None:
         config = GenConfig()
         assert config.dataset.seed == 42
-        assert config.camera.fov == 60.0
+        assert config.camera.fov == 70.0
         assert config.tag.family == TagFamily.TAG36H11
 
 

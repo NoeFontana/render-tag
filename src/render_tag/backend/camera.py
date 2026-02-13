@@ -10,7 +10,11 @@ import logging
 import math
 from typing import Any
 
-from render_tag.backend.bridge import bproc, bpy, mathutils, np
+import blenderproc as bproc
+import bpy
+import mathutils
+import numpy as np
+
 from render_tag.geometry.camera import (
     sample_camera_pose,
     validate_camera_pose,

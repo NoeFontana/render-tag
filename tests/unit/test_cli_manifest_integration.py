@@ -32,4 +32,4 @@ def test_cli_run_generates_manifest(tmp_path, monkeypatch):
     print(result.output)
     assert result.exit_code == 0
     assert (output_dir / "manifest.json").exists()
-    assert "Generating dataset manifest" in result.output
+    assert "Generating dataset metadata" in result.output

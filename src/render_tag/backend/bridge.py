@@ -5,9 +5,19 @@ This module acts as a Service Locator/Bridge that automatically serves
 either the real Blender APIs or high-fidelity mocks based on the environment.
 """
 
+from __future__ import annotations
+
 import logging
 import sys
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
+
+if TYPE_CHECKING:
+    import blenderproc
+    import bpy
+    import mathutils
+    import numpy as np
+    from bpy.types import Context, Object, Scene
+    from mathutils import Matrix, Vector
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +27,7 @@ class BlenderBridge:
     Singleton provider for Blender-related modules.
     """
 
-    _instance: Optional["BlenderBridge"] = None
+    _instance: Optional[BlenderBridge] = None
 
     def __new__(cls):
         if cls._instance is None:
@@ -55,6 +65,10 @@ class BlenderBridge:
             import blenderproc as bproc
             import bpy
             import mathutils
+
+            # STUBS CHECK: fake-bpy-module does not have bpy.app
+            if not hasattr(bpy, "app"):
+                raise ImportError("Real Blender environment not detected (stubs found instead).")
 
             self.bproc = bproc
             self.bpy = bpy
@@ -94,7 +108,7 @@ class BlenderBridge:
 
 # Singleton accessors for easy importing
 bridge = BlenderBridge()
-bpy = bridge.bpy
-bproc = bridge.bproc
-mathutils = bridge.mathutils
-np = bridge.np
+bpy: Any = bridge.bpy
+bproc: Any = bridge.bproc
+mathutils: Any = bridge.mathutils
+np: Any = bridge.np

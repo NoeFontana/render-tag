@@ -17,7 +17,7 @@ runner = CliRunner()
 @patch("render_tag.cli.experiment.check_blenderproc_installed")
 @patch("render_tag.cli.experiment.subprocess.run")
 @patch("render_tag.cli.experiment.Generator")
-@patch("render_tag.cli.experiment.save_manifest")
+@patch("render_tag.cli.experiment.generate_dataset_info")
 @patch("render_tag.cli.experiment.serialize_config_to_json")
 @patch("render_tag.cli.experiment.ensure_tag_asset")
 def test_experiment_run_success(
@@ -58,7 +58,7 @@ def test_experiment_run_success(
     )
 
     assert result.exit_code == 0
-    assert "Experiment 'my_exp' Completed Successfully!" in result.stdout
+    assert "Experiment Completed Successfully!" in result.stdout
     assert mock_run.called
     assert (tmp_path / "my_exp" / "v1").exists()
 

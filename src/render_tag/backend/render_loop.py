@@ -8,9 +8,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+import bpy
+import numpy as np
 from PIL import Image
-
-from render_tag.backend.bridge import bpy, np
 from render_tag.backend.projection import compute_geometric_metadata
 from render_tag.backend.renderer import RenderFacade
 from render_tag.common.git import get_git_hash

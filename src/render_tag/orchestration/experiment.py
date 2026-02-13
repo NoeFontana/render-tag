@@ -283,3 +283,23 @@ def _update_nested_dict(d: dict[str, Any], path: str, value: Any):
             raise ValueError(f"Cannot traverse path '{path}' at '{part}': not a dict")
 
     curr[parts[-1]] = value
+
+
+def save_manifest(output_dir: Path, variant: ExperimentVariant, cli_args: list[str] | None = None):
+    """Save an experiment variant manifest to JSON."""
+    from render_tag.audit.dataset_info import generate_dataset_info
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Use the centralized manifest generation
+    generate_dataset_info(
+        dataset_dir=output_dir,
+        config=variant.config,
+        experiment_info={
+            "name": variant.experiment_name,
+            "variant_id": variant.variant_id,
+            "description": variant.description,
+            "overrides": variant.overrides,
+        },
+        cli_args=cli_args,
+    )

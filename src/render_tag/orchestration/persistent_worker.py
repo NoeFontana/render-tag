@@ -80,6 +80,9 @@ class PersistentWorkerProcess:
         env = os.environ.copy()
         env.pop("PYTHONPATH", None)
 
+        if self.mock:
+            env["RENDER_TAG_BACKEND_MOCK"] = "1"
+
         # Inject venv site-packages so the backend bootstrap can find them
         from render_tag.common.environment import get_venv_site_packages
         venv_site = get_venv_site_packages()

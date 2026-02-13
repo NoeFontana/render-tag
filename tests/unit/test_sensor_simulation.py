@@ -17,7 +17,7 @@ def test_generator_samples_velocity(tmp_path):
 
     rng = random.Random(42)
     np_rng = np.random.default_rng(42)
-    recipes = gen._generate_camera_recipes(rng, np_rng)
+    recipes = gen._generate_camera_recipes(0, rng, np_rng)
 
     assert len(recipes) > 0
     cam = recipes[0]
@@ -43,7 +43,7 @@ def test_generator_passes_dof_and_noise(tmp_path):
 
     rng = random.Random(42)
     np_rng = np.random.default_rng(42)
-    recipes = gen._generate_camera_recipes(rng, np_rng)
+    recipes = gen._generate_camera_recipes(0, rng, np_rng)
 
     cam = recipes[0]
     assert cam.fstop == 2.8
@@ -60,7 +60,7 @@ def test_generator_no_velocity_default(tmp_path):
 
     rng = random.Random(42)
     np_rng = np.random.default_rng(42)
-    recipes = gen._generate_camera_recipes(rng, np_rng)
+    recipes = gen._generate_camera_recipes(0, rng, np_rng)
 
     cam = recipes[0]
     # If mean/std are 0, velocity should be None

@@ -15,7 +15,9 @@ from __future__ import annotations
 import math
 from typing import TYPE_CHECKING
 
-from render_tag.backend.bridge import bproc, bpy
+import blenderproc as bproc
+import bpy
+
 from render_tag.geometry.board import (
     BoardSpec,
     BoardType,

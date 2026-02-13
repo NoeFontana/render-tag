@@ -46,8 +46,8 @@ def test_calculate_relative_pose_identity():
     assert np.allclose(pose["position"], [0.0, 0.0, 0.0])
 
     # Rotation should be flip_mat rotation (180 deg around X)
-    # xyzw: [1.0, 0.0, 0.0, 0.0]
-    assert np.allclose(pose["rotation_quaternion"], [1.0, 0.0, 0.0, 0.0])
+    # wxyz: [0.0, 1.0, 0.0, 0.0]
+    assert np.allclose(pose["rotation_quaternion"], [0.0, 1.0, 0.0, 0.0])
 
 
 def test_calculate_relative_pose_translation():

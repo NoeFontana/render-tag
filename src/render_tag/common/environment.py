@@ -9,6 +9,7 @@ def get_venv_site_packages() -> str | None:
     # sys.prefix points to the root of the venv when active
     prefix = Path(sys.prefix).resolve()
     
+    site_packages = None
     if sys.platform == "win32":
         site_packages = prefix / "Lib" / "site-packages"
     else:
@@ -18,9 +19,9 @@ def get_venv_site_packages() -> str | None:
             # Find pythonX.Y directory
             sites = list(lib_dir.glob("python*/site-packages"))
             if sites:
-                return str(sites[0])
+                site_packages = sites[0]
     
-    if site_packages.exists():
+    if site_packages and site_packages.exists():
         return str(site_packages)
         
     return None

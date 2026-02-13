@@ -11,7 +11,9 @@ import random
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from render_tag.backend.bridge import bproc, bpy, np
+import blenderproc as bproc
+import bpy
+import numpy as np
 
 if TYPE_CHECKING:
     pass

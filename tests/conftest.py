@@ -23,20 +23,16 @@ if str(src_path) not in sys.path:
 # Import our mocks
 # Add root to sys.path to find 'tests'
 sys.path.append(str(Path(__file__).parent.parent))
-from tests.mocks import blender_api, blenderproc_api  # noqa: E402
+from tests.mocks import (  # noqa: E402
+    blender_api,
+    blenderproc_api,
+    mathutils_api,
+)
 
 # Inject them into sys.modules
 sys.modules["bpy"] = blender_api
 sys.modules["blenderproc"] = blenderproc_api
-
-# Mock mathutils
-if "mathutils" not in sys.modules:
-    from typing import Any
-
-    mathutils: Any = types.ModuleType("mathutils")
-    mathutils.Matrix = lambda x=None: x if x is not None else []
-    mathutils.Vector = lambda x=None: x
-    sys.modules["mathutils"] = mathutils
+sys.modules["mathutils"] = mathutils_api
 # --- MOCK INJECTION END ---
 
 

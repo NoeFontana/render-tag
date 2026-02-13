@@ -14,6 +14,23 @@ try:
     _src_path = str(Path(__file__).resolve().parents[2])
     if _src_path not in sys.path:
         sys.path.insert(0, _src_path)
+
+    # MOCK INJECTION: If running in mock mode, inject mocks BEFORE bootstrap or other imports
+    # to avoid conflicts with fake-bpy-module
+    if os.environ.get("RENDER_TAG_BACKEND_MOCK") == "1":
+        # Add project root to path to find 'tests.mocks'
+        project_root = str(Path(_src_path).parent)
+        if project_root not in sys.path:
+            sys.path.append(project_root)
+        
+        from tests.mocks import (
+            blender_api as bpy_m,
+            blenderproc_api as bproc_m,
+            mathutils_api as math_m,
+        )
+        sys.modules["bpy"] = bpy_m
+        sys.modules["blenderproc"] = bproc_m
+        sys.modules["mathutils"] = math_m
     
     from render_tag.backend import bootstrap
     bootstrap.setup_environment()

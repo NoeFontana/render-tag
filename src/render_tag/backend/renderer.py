@@ -9,8 +9,11 @@ import logging
 from pathlib import Path
 from typing import Any
 
+import blenderproc as bproc
+import bpy
+import numpy as np
+
 from render_tag.backend.assets import create_tag_plane, get_tag_texture_path, global_pool
-from render_tag.backend.bridge import bproc, bpy, np
 from render_tag.backend.camera import setup_sensor_dynamics
 from render_tag.backend.scene import (
     create_board,

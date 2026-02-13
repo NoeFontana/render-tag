@@ -113,6 +113,19 @@ def matrix_to_quaternion_wxyz(matrix: np.ndarray) -> list[float]:
     return [float(w), float(x), float(y), float(z)]
 
 
+def matrix_to_quaternion_xyzw(matrix: np.ndarray) -> list[float]:
+    """Convert a 4x4 or 3x3 rotation matrix to a scalar-last unit quaternion [x, y, z, w].
+
+    Args:
+        matrix: 4x4 transformation matrix or 3x3 rotation matrix.
+
+    Returns:
+        List of 4 floats: [x, y, z, w].
+    """
+    w, x, y, z = matrix_to_quaternion_wxyz(matrix)
+    return [x, y, z, w]
+
+
 def calculate_relative_pose(
     tag_world_matrix: np.ndarray, blender_cam_world_matrix: np.ndarray
 ) -> dict[str, list[float]]:

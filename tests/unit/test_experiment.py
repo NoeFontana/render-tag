@@ -104,6 +104,6 @@ def test_save_manifest(tmp_path):
     import json
 
     data = json.loads(manifest_file.read_text())
-    assert data["experiment_name"] == "test_manifest"
-    assert data["overrides"] == {"foo": "bar"}
-    assert "git_sha" in data
+    assert data["experiment"]["name"] == "test_manifest"
+    assert data["experiment"]["overrides"] == {"foo": "bar"}
+    assert "git_commit" in data["provenance"]
