@@ -16,10 +16,5 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-- [x] **Track: Static Type Stubs for Blender API (fake-bpy)**
-*Link: [./tracks/fake_bpy_stubs_20260213/](./tracks/fake_bpy_stubs_20260213/)*
-
----
-
 - [ ] **Track: Structured Observability Pipeline (JSON IPC)**
 *Link: [./tracks/observability_pipeline_20260213/](./tracks/observability_pipeline_20260213/)*
