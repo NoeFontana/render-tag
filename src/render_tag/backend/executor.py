@@ -1,12 +1,17 @@
 import sys
 from pathlib import Path
 
-import blenderproc as bproc
+# 1. BOOTSTRAP: Synchronize environment first
+try:
+    _src_path = str(Path(__file__).resolve().parents[2])
+    if _src_path not in sys.path:
+        sys.path.insert(0, _src_path)
+    from render_tag.backend.bootstrap import setup_environment
+    setup_environment()
+except Exception as e:
+    print(f"BOOTSTRAP FAILED: {e}")
 
-# Add project root to sys.path to allow imports from within Blender
-project_root = str(Path(__file__).parents[2])
-if project_root not in sys.path:
-    sys.path.append(project_root)
+import blenderproc as bproc
 
 """
 Minimal one-shot executor for render-tag.

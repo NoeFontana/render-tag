@@ -1,44 +1,35 @@
-import blenderproc  # noqa: F401
-
 """
 ZeroMQ Server running inside Blender for Hot Loop optimization.
 """
 
-import logging  # noqa: E402
-import sys  # noqa: E402
-import time  # noqa: E402
-from pathlib import Path  # noqa: E402
-from typing import Any  # noqa: E402
-
-# DEBUG: Trace path
+# 1. BOOTSTRAP: Synchronize environment first
 try:
-    with open("/tmp/debug_backend.log", "a") as f:
-        f.write("--- PROCESS START ---\n")
-        f.write(f"EXE: {sys.executable}\n")
-        f.write(f"FILE: {__file__}\n")
-        f.write(f"ARGV: {sys.argv}\n")
-        f.write(f"PATH PRE-CLEAN: {sys.path}\n")
-except Exception:
-    pass
+    # We must ensure the project src is available to find the bootstrap module
+    import os
+    import sys
+    from pathlib import Path
+    
+    # Locate src/ so we can import render_tag.backend.bootstrap
+    # zmq_server.py is at src/render_tag/backend/zmq_server.py
+    _src_path = str(Path(__file__).resolve().parents[2])
+    if _src_path not in sys.path:
+        sys.path.insert(0, _src_path)
+    
+    from render_tag.backend.bootstrap import setup_environment
+    setup_environment()
+except Exception as e:
+    # Fallback logging if bootstrap fails early
+    try:
+        with open("/tmp/debug_backend.log", "a") as f:
+            f.write(f"BOOTSTRAP FAILED: {e}\n")
+    except Exception:
+        pass
+    print(f"BOOTSTRAP FAILED: {e}")
+    # Don't exit yet, try to proceed with standard imports if possible
 
-# HACK: Reorder sys.path to prioritize Blender's internal packages over host .venv
-# This ensures 'import zmq' picks the one compatible with Blender's Python (3.11),
-# while still allowing 'import blenderproc' from the host .venv if needed.
-if "blender" in sys.executable.lower():
-    venv_paths = [p for p in sys.path if ".venv" in p]
-    clean_paths = [p for p in sys.path if ".venv" not in p]
-    sys.path[:] = clean_paths + venv_paths
-
-    # Ensure src is in sys.path so we can import render_tag
-    src_path = Path(__file__).resolve().parents[2]
-    if str(src_path) not in sys.path:
-        sys.path.insert(0, str(src_path))  # Insert at start for priority
-
-try:
-    with open("/tmp/debug_backend.log", "a") as f:
-        f.write(f"PATH POST-CLEAN: {sys.path}\n")
-except Exception:
-    pass
+import logging
+import time
+from typing import Any
 
 try:
     import zmq

@@ -65,15 +65,20 @@ class BlenderBridge:
             # Fallback to Mocks
             logger.info("Blender environment not detected. Serving mock objects.")
 
-            # Ensure project root is in path so we can find tests.mocks
-            from pathlib import Path
-
-            project_root = str(Path(__file__).resolve().parents[3])
-            if project_root not in sys.path:
-                sys.path.append(project_root)
-
-            from tests.mocks import blender_api as bpy_mock
-            from tests.mocks import blenderproc_api as bproc_mock
+            try:
+                from tests.mocks import blender_api as bpy_mock
+                from tests.mocks import blenderproc_api as bproc_mock
+            except ImportError:
+                # If bootstrap hasn't run or is in a weird state, 
+                # we might need to manually help it find tests if we are in a dev flow
+                # but bootstrap.py should handle .venv which should include the project root.
+                # If still not found, we do a last-ditch effort.
+                from pathlib import Path
+                project_root = str(Path(__file__).resolve().parents[3])
+                if project_root not in sys.path:
+                    sys.path.append(project_root)
+                from tests.mocks import blender_api as bpy_mock
+                from tests.mocks import blenderproc_api as bproc_mock
 
             self.bpy = bpy_mock
             self.bproc = bproc_mock
