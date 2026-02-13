@@ -18,6 +18,7 @@
 - **Cryptographic Fingerprinting (hashlib):** SHA256-based content addressing for jobs, environment states, and binary assets to ensure data integrity and provenance.
 - **Typer:** Powering the CLI interface, providing a user-friendly and type-safe way to interact with the generation pipeline.
 - **Dynamic Load Balancing:** A "Batch Stealing" orchestrator model for parallel rendering, supporting fault tolerance and session resuming.
+- **Bootstrap Pattern:** Environment-aware initialization module (`bootstrap.py`) that synchronizes Blender's Python runtime with the project's virtual environment, ensuring dependency parity and strict isolation.
 - **Polars:** High-performance, multi-threaded DataFrame library used for vectorized dataset auditing and KPI calculation.
 - **Plotly:** Used for generating interactive HTML dashboards for dataset visualization and manual quality review.
 - **Docker:** Supported as a pluggable execution engine for hermetic and reproducible rendering environments.
