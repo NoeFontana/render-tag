@@ -111,6 +111,8 @@ class DockerExecutor:
             "docker",
             "run",
             "--rm",
+            "-e",
+            "PYTHONNOUSERSITE=1",
             "-v",
             f"{abs_output}:/output",
             "-v",

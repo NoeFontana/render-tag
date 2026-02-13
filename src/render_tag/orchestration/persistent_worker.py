@@ -80,6 +80,16 @@ class PersistentWorkerProcess:
         env = os.environ.copy()
         env.pop("PYTHONPATH", None)
 
+        # Inject venv site-packages so the backend bootstrap can find them
+        from render_tag.common.environment import get_venv_site_packages
+        venv_site = get_venv_site_packages()
+        if venv_site:
+            env["RENDER_TAG_VENV_SITE_PACKAGES"] = venv_site
+            logger.debug(f"Injected RENDER_TAG_VENV_SITE_PACKAGES: {venv_site}")
+
+        # Ensure strict isolation from system-wide Python packages
+        env["PYTHONNOUSERSITE"] = "1"
+
         # Add project src to PYTHONPATH so render_tag package can be imported
         # Assuming script is at src/render_tag/backend/zmq_server.py
         # We want to add 'src' to path.
