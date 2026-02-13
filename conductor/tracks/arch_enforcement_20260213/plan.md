@@ -7,7 +7,7 @@ Implement a strict architectural linter using `import-linter` to enforce isolati
 - [x] Task: Create `import-linter` configuration to define architectural contracts. c68f78e
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Environment & Tooling Setup' (Protocol in workflow.md)
 
-## Phase 2: CLI Integration
+## Phase 2: CLI Integration [checkpoint: 099eb04]
 - [x] Task: Implement `lint-arch` command in the `render-tag` CLI. eb5f876
     - [x] Add `lint_arch` function to the Typer CLI in `src/render_tag/cli/main.py`.
     - [x] Configure it to invoke `import-linter` via subprocess.
