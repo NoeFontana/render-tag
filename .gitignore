@@ -27,3 +27,4 @@ assets/**/*.fbx
 assets/**/*.blend
 !assets/**/.keep
 !assets/**/.gitkeep
+blender_raw.log

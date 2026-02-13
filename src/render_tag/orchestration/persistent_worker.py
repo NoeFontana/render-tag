@@ -5,6 +5,7 @@ Manager for a single persistent Blender worker process.
 import logging
 import os
 import subprocess
+import threading
 import time
 from pathlib import Path
 from typing import Any
@@ -13,6 +14,9 @@ try:
     import zmq
 except ImportError:
     zmq = None
+
+import orjson
+from tqdm import tqdm
 
 from render_tag.orchestration.zmq_client import ZmqHostClient
 from render_tag.schema.hot_loop import CommandType, Response, ResponseStatus
@@ -23,6 +27,7 @@ logger = logging.getLogger(__name__)
 class PersistentWorkerProcess:
     """
     Manages the lifecycle of a persistent Blender subprocess with ZMQ communication.
+    Now includes a structured Log Router for JSON IPC.
     """
 
     def __init__(
@@ -49,10 +54,78 @@ class PersistentWorkerProcess:
 
         self.process: subprocess.Popen | None = None
         self.client: ZmqHostClient | None = None
+        
+        # Structured Logging
+        self._log_thread: threading.Thread | None = None
+        self._stop_event = threading.Event()
+        self._pbar: tqdm | None = None
+        self._raw_log_file = open("blender_raw.log", "a")
 
     def _get_process_output(self) -> str:
         """Helper to get process output safely if it has exited."""
-        return "Process output capture disabled to prevent deadlocks."
+        return "Process output capture handled by Log Router."
+
+    def _log_router(self):
+        """
+        Reads NDJSON from the subprocess stdout/stderr and routes it.
+        """
+        if not self.process or not self.process.stdout:
+            return
+
+        for line_bytes in iter(self.process.stdout.readline, b""):
+            if self._stop_event.is_set():
+                break
+                
+            line = line_bytes.decode("utf-8").rstrip()
+            if not line:
+                continue
+
+            try:
+                # Try to parse as JSON
+                data = orjson.loads(line)
+                
+                # Route based on type
+                log_type = data.get("type", "log")
+                message = data.get("message", "")
+                payload = data.get("payload", {})
+                
+                if log_type == "progress":
+                    self._update_progress(payload)
+                elif log_type == "metric":
+                    logger.debug(f"[{self.worker_id}] METRIC: {payload.get('metric')} = {payload.get('value')} {payload.get('unit')}")
+                elif log_type == "error":
+                    logger.error(f"[{self.worker_id}] BACKEND ERROR: {message}")
+                else:
+                    # Regular log
+                    level = data.get("level", "INFO")
+                    log_func = getattr(logger, level.lower(), logger.info)
+                    log_func(f"[{self.worker_id}] {message}")
+
+            except orjson.JSONDecodeError:
+                # Non-JSON output (Blender noise)
+                self._raw_log_file.write(f"{line}\n")
+                self._raw_log_file.flush()
+
+    def _update_progress(self, payload: dict[str, Any]):
+        """Updates or creates a tqdm progress bar."""
+        current = payload.get("current", 0)
+        total = payload.get("total", 100)
+        scene_id = payload.get("scene_id", "unknown")
+
+        if not self._pbar:
+            self._pbar = tqdm(
+                total=total,
+                desc=f"Worker {self.worker_id} (Scene {scene_id})",
+                leave=False,
+                unit="cam"
+            )
+        
+        self._pbar.n = current
+        self._pbar.refresh()
+        
+        if current >= total:
+            self._pbar.close()
+            self._pbar = None
 
     def start(self):
         """Spawns the Blender subprocess and waits for it to become ready."""
@@ -114,9 +187,19 @@ class PersistentWorkerProcess:
         if python_paths:
             env["PYTHONPATH"] = ":".join(python_paths)
 
-        # Start the process. Inherit stdout/stderr so it propagates to parent
-        # (and pytest captures it)
-        self.process = subprocess.Popen(cmd, env=env, stdout=None, stderr=None, text=True)
+        # Start the process with piped output
+        self.process = subprocess.Popen(
+            cmd, 
+            env=env, 
+            stdout=subprocess.PIPE, 
+            stderr=subprocess.STDOUT, 
+            text=False # Use bytes for efficiency
+        )
+
+        # Start Log Router Thread
+        self._stop_event.clear()
+        self._log_thread = threading.Thread(target=self._log_router, daemon=True)
+        self._log_thread.start()
 
         # Initialize ZMQ client with short timeout for startup phase
         self.client = ZmqHostClient(port=self.port, timeout_ms=1000, context=self.context)
@@ -145,7 +228,7 @@ class PersistentWorkerProcess:
                         f"{resp.message}"
                     )
             except Exception as e:
-                logger.warning(f"Worker {self.worker_id} not ready yet (attempt): {e}")
+                logger.debug(f"Worker {self.worker_id} not ready yet (attempt): {e}")
                 pass
 
             time.sleep(0.5)
@@ -155,6 +238,8 @@ class PersistentWorkerProcess:
 
     def stop(self):
         """Gracefully stops the worker."""
+        self._stop_event.set()
+        
         if self.client:
             try:
                 # Only try to send SHUTDOWN if process is still alive
@@ -176,6 +261,14 @@ class PersistentWorkerProcess:
                 except subprocess.TimeoutExpired:
                     self.process.kill()
             self.process = None
+            
+        if self._log_thread:
+            self._log_thread.join(timeout=1.0)
+            self._log_thread = None
+            
+        if self._pbar:
+            self._pbar.close()
+            self._pbar = None
 
     def is_healthy(self) -> bool:
         """Checks if the worker is still alive and responsive."""
@@ -203,3 +296,7 @@ class PersistentWorkerProcess:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.stop()
+    
+    def __del__(self):
+        if hasattr(self, "_raw_log_file") and self._raw_log_file:
+            self._raw_log_file.close()
