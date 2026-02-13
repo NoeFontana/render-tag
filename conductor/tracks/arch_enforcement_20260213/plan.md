@@ -16,7 +16,7 @@ Implement a strict architectural linter using `import-linter` to enforce isolati
     - [x] Verify `lint-arch` returns non-zero when a violation is introduced.
 - [x] Task: Conductor - User Manual Verification 'Phase 2: CLI Integration' (Protocol in workflow.md)
 
-## Phase 3: Workflow Integration & Finalization
+## Phase 3: Workflow Integration & Finalization [checkpoint: 44284ef]
 - [x] Task: Update `.agent/workflows/lint_code.md` to include `uv run render-tag lint-arch`. 4f28d75
 - [x] Task: Run full linting suite and verify architectural integrity. 7432a46
 - [x] Task: Conductor - User Manual Verification 'Phase 3: Workflow Integration & Finalization' (Protocol in workflow.md)
