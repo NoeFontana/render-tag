@@ -16,7 +16,7 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-- [ ] **Track: Static Type Stubs for Blender API (fake-bpy)**
+- [x] **Track: Static Type Stubs for Blender API (fake-bpy)**
 *Link: [./tracks/fake_bpy_stubs_20260213/](./tracks/fake_bpy_stubs_20260213/)*
 
 ---
