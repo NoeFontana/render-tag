@@ -14,8 +14,8 @@ Implement a robust initialization mechanism to synchronize Blender's Python envi
 - [x] Task: Write unit tests to verify environment variable injection in the executor. bff0748
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Orchestration Handshake' (Protocol in workflow.md)
 
-## Phase 3: Refactoring & Verification
+## Phase 3: Refactoring & Verification [checkpoint: 68b01cf]
 - [x] Task: Refactor `src/render_tag/backend/render_loop.py` and other backend scripts to use `bootstrap.py`. 960b471
 - [x] Task: Remove legacy `sys.path` manipulation across the `src/render_tag/backend/` directory. 960b471
 - [x] Task: Verify full generation pipeline using `uv run render-tag generate`. 960b471
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: Refactoring & Verification' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 3: Refactoring & Verification' (Protocol in workflow.md) 68b01cf
