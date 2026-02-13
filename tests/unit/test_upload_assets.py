@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 # Mock huggingface_hub before importing upload_assets
 sys.modules["huggingface_hub"] = MagicMock()
 
-from render_tag.common.upload_assets import upload_assets
+from render_tag.common.upload_assets import upload_assets  # noqa: E402
 
 
 @patch("render_tag.common.upload_assets.HfApi")
@@ -36,7 +36,7 @@ def test_upload_assets_real(mock_hf_api, tmp_path: Path) -> None:
 
     assert mock_hf_api.called
     assert mock_hf_api.return_value.upload_folder.called
-    args, kwargs = mock_hf_api.return_value.upload_folder.call_args
+    _, kwargs = mock_hf_api.return_value.upload_folder.call_args
     assert kwargs["repo_id"] == "test/repo"
     assert kwargs["folder_path"] == str(assets_dir)
 

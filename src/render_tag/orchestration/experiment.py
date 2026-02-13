@@ -5,7 +5,6 @@ Handles the expansion of high-level Experiment descriptions into concrete
 variants (SceneRecipes) and manages provenance (Manifests).
 """
 
-import json
 import random
 from pathlib import Path
 from typing import Any
@@ -223,7 +222,7 @@ def expand_campaign(campaign: Campaign) -> list[ExperimentVariant]:
         try:
             config = GenConfig.model_validate(config_data)
         except Exception as e:
-            raise ValueError(f"Invalid config for sub-experiment '{sub_exp.name}': {e}")
+            raise ValueError(f"Invalid config for sub-experiment '{sub_exp.name}': {e}") from e
 
         # Set explicit output directory for this variant
         # structure: <campaign_output>/<sub_exp_name>

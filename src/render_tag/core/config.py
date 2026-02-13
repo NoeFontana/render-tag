@@ -213,18 +213,17 @@ class DatasetConfig(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def map_intent_to_scopes(cls, data: Any) -> Any:
-        if isinstance(data, dict):
+        if isinstance(data, dict) and "intent" in data and "evaluation_scopes" not in data:
             # If intent is provided but evaluation_scopes is not, map it
-            if "intent" in data and "evaluation_scopes" not in data:
-                intent_val = data["intent"]
-                if intent_val == "calibration":
-                    data["evaluation_scopes"] = [EvaluationScope.CALIBRATION]
-                elif "pose" in str(intent_val):
-                    data["evaluation_scopes"] = [
-                        EvaluationScope.DETECTION,
-                        EvaluationScope.POSE_ACCURACY,
-                        EvaluationScope.CORNER_PRECISION,
-                    ]
+            intent_val = data["intent"]
+            if intent_val == "calibration":
+                data["evaluation_scopes"] = [EvaluationScope.CALIBRATION]
+            elif "pose" in str(intent_val):
+                data["evaluation_scopes"] = [
+                    EvaluationScope.DETECTION,
+                    EvaluationScope.POSE_ACCURACY,
+                    EvaluationScope.CORNER_PRECISION,
+                ]
                 # Default for other intents is already handled by default_factory
         return data
 

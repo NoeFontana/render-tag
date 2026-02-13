@@ -1,6 +1,7 @@
-import blenderproc as bproc
 import sys
 from pathlib import Path
+
+import blenderproc as bproc
 
 # Add project root to sys.path to allow imports from within Blender
 project_root = str(Path(__file__).parents[2])
@@ -12,14 +13,13 @@ Minimal one-shot executor for render-tag.
 Acts as a wrapper around render_loop for non-ZMQ contexts (e.g. Docker).
 """
 
-import argparse
-import json
-import logging
-from pathlib import Path
+import argparse  # noqa: E402
+import json  # noqa: E402
+import logging  # noqa: E402
+from pathlib import Path  # noqa: E402
 
-from render_tag.backend.bridge import bproc as bridge_bproc
-from render_tag.backend.render_loop import execute_recipe
-from render_tag.data_io.writers import (
+from render_tag.backend.render_loop import execute_recipe  # noqa: E402
+from render_tag.data_io.writers import (  # noqa: E402
     COCOWriter,
     CSVWriter,
     RichTruthWriter,

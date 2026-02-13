@@ -41,24 +41,24 @@ except Exception:
     pass
 
 try:
-    import zmq  # noqa: E402
+    import zmq
 
     try:
         import GPUtil
     except ImportError:
         GPUtil = None
 
-    from render_tag.backend.assets import global_pool  # noqa: E402
-    from render_tag.backend.bridge import bridge  # noqa: E402
-    from render_tag.backend.render_loop import execute_recipe  # noqa: E402
-    from render_tag.backend.scene import setup_background  # noqa: E402
-    from render_tag.data_io.writers import (  # noqa: E402
+    from render_tag.backend.assets import global_pool
+    from render_tag.backend.bridge import bridge
+    from render_tag.backend.render_loop import execute_recipe
+    from render_tag.backend.scene import setup_background
+    from render_tag.data_io.writers import (
         COCOWriter,
         CSVWriter,
         RichTruthWriter,
         SidecarWriter,
     )
-    from render_tag.schema.hot_loop import (  # noqa: E402
+    from render_tag.schema.hot_loop import (
         Command,
         CommandType,
         Response,
@@ -299,7 +299,7 @@ class ZmqBackendServer:
         try:
             self.socket.close()
             self.context.term()
-        except:
+        except Exception:
             pass
 
 
