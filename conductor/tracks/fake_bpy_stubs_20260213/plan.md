@@ -17,3 +17,6 @@ Implement high-fidelity type stubs for Blender modules to enable robust static a
 - [x] Task: Execute the project type checker (`uv run ty`) and resolve any newly discovered type errors in backend modules.
 - [x] Task: Verify autocompletion for core types like `bpy.types.Object` and `mathutils.Vector`.
 - [x] Task: Conductor - User Manual Verification 'Phase 3: Integration & Finalization' (Protocol in workflow.md)
+
+## Phase: Review Fixes
+- [x] Task: Apply review suggestions 8361e2f
