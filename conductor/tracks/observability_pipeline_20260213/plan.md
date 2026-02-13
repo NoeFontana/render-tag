@@ -31,3 +31,6 @@ Implement a high-performance, structured logging and telemetry pipeline between 
 - [x] Task: Run a full generation batch and verify `tqdm` progress and clean terminal output. f48a135
 - [x] Task: Verify that `blender_raw.log` contains expected Blender background noise. f48a135
 - [x] Task: Conductor - User Manual Verification 'Phase 4: Finalization & Verification' (Protocol in workflow.md) f48a135
+
+## Phase: Review Fixes
+- [~] Task: Apply review suggestions

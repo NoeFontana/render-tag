@@ -59,7 +59,7 @@ class PersistentWorkerProcess:
         self._log_thread: threading.Thread | None = None
         self._stop_event = threading.Event()
         self._pbar: tqdm | None = None
-        self._raw_log_file = open("blender_raw.log", "a")
+        self._raw_log_file: Any | None = None
 
     def _get_process_output(self) -> str:
         """Helper to get process output safely if it has exited."""
@@ -103,8 +103,9 @@ class PersistentWorkerProcess:
 
             except orjson.JSONDecodeError:
                 # Non-JSON output (Blender noise)
-                self._raw_log_file.write(f"{line}\n")
-                self._raw_log_file.flush()
+                if self._raw_log_file:
+                    self._raw_log_file.write(f"{line}\n")
+                    self._raw_log_file.flush()
 
     def _update_progress(self, payload: dict[str, Any]):
         """Updates or creates a tqdm progress bar."""
@@ -186,6 +187,10 @@ class PersistentWorkerProcess:
 
         if python_paths:
             env["PYTHONPATH"] = ":".join(python_paths)
+
+        # Ensure raw log file is open
+        if not self._raw_log_file:
+            self._raw_log_file = open("blender_raw.log", "a")
 
         # Start the process with piped output
         self.process = subprocess.Popen(
@@ -298,5 +303,8 @@ class PersistentWorkerProcess:
         self.stop()
     
     def __del__(self):
-        if hasattr(self, "_raw_log_file") and self._raw_log_file:
-            self._raw_log_file.close()
+        try:
+            if hasattr(self, "_raw_log_file") and self._raw_log_file:
+                self._raw_log_file.close()
+        except Exception:
+            pass
