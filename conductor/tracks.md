@@ -13,3 +13,8 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 - [x] **Track: Codebase Modernization and Refactoring**
 *Link: [./tracks/codebase_modernization_20260208/](./tracks/codebase_modernization_20260208/)*
+
+---
+
+- [~] **Track: Architectural Boundary Enforcement (Split-Brain)**
+*Link: [./tracks/arch_enforcement_20260213/](./tracks/arch_enforcement_20260213/)*
