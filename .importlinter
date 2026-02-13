@@ -1,0 +1,13 @@
+[importlinter]
+root_package = render_tag
+include_external_packages = True
+
+[importlinter:contract:host-isolation]
+name = Host isolation (Orchestration & Common)
+type = forbidden
+source_modules =
+    render_tag.orchestration
+    render_tag.common
+forbidden_modules =
+    bpy
+    render_tag.backend
