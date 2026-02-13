@@ -19,3 +19,6 @@ Implement a robust initialization mechanism to synchronize Blender's Python envi
 - [x] Task: Remove legacy `sys.path` manipulation across the `src/render_tag/backend/` directory. 960b471
 - [x] Task: Verify full generation pipeline using `uv run render-tag generate`. 960b471
 - [x] Task: Conductor - User Manual Verification 'Phase 3: Refactoring & Verification' (Protocol in workflow.md) 68b01cf
+
+## Phase: Review Fixes
+- [x] Task: Apply review suggestions 762351d
