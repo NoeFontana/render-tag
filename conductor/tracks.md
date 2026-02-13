@@ -16,5 +16,5 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-- [~] **Track: Architectural Boundary Enforcement (Split-Brain)**
+- [x] **Track: Architectural Boundary Enforcement (Split-Brain)**
 *Link: [./tracks/arch_enforcement_20260213/](./tracks/arch_enforcement_20260213/)*
