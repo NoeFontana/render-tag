@@ -13,3 +13,18 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 - [x] **Track: Codebase Modernization and Refactoring**
 *Link: [./tracks/codebase_modernization_20260208/](./tracks/codebase_modernization_20260208/)*
+
+---
+
+- [x] **Track: Blender Environment Bootstrap Pattern**
+*Link: [./tracks/blender_bootstrap_20260213/](./tracks/blender_bootstrap_20260213/)*
+
+---
+
+- [ ] **Track: Static Type Stubs for Blender API (fake-bpy)**
+*Link: [./tracks/fake_bpy_stubs_20260213/](./tracks/fake_bpy_stubs_20260213/)*
+
+---
+
+- [ ] **Track: Structured Observability Pipeline (JSON IPC)**
+*Link: [./tracks/observability_pipeline_20260213/](./tracks/observability_pipeline_20260213/)*
