@@ -9,9 +9,9 @@ Implement a robust initialization mechanism to synchronize Blender's Python envi
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Bootstrap Module Implementation' (Protocol in workflow.md) ac2204f
 
 ## Phase 2: Orchestration Handshake
-- [ ] Task: Update `src/render_tag/orchestration/executors.py` to inject `RENDER_TAG_VENV_SITE_PACKAGES`.
-- [ ] Task: Update `run_blender_process` to set `PYTHONNOUSERSITE=1`.
-- [ ] Task: Write unit tests to verify environment variable injection in the executor.
+- [x] Task: Update `src/render_tag/orchestration/executors.py` to inject `RENDER_TAG_VENV_SITE_PACKAGES`. bff0748
+- [x] Task: Update `run_blender_process` to set `PYTHONNOUSERSITE=1`. bff0748
+- [x] Task: Write unit tests to verify environment variable injection in the executor. bff0748
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Orchestration Handshake' (Protocol in workflow.md)
 
 ## Phase 3: Refactoring & Verification
