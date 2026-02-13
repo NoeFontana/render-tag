@@ -2,7 +2,7 @@
 
 Implement a strict architectural linter using `import-linter` to enforce isolation between the Host (Pure Python) and Backend (Blender Python) modules.
 
-## Phase 1: Environment & Tooling Setup
+## Phase 1: Environment & Tooling Setup [checkpoint: 1cc85f5]
 - [x] Task: Install `import-linter` and update dependencies. d0d604a
 - [x] Task: Create `import-linter` configuration to define architectural contracts. c68f78e
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Environment & Tooling Setup' (Protocol in workflow.md)
