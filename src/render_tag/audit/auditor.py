@@ -38,7 +38,7 @@ class DatasetReader:
         self.manifest_json = dataset_path / "manifest.json"
         self.images_dir = dataset_path / "images"
 
-    def load_detections(self) -> pl.DataFrame:
+    def load_detections(self) -> "pl.DataFrame":
         """Load tags.csv into a Polars DataFrame.
 
         Returns:
