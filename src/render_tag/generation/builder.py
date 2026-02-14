@@ -132,6 +132,7 @@ class SceneRecipeBuilder:
                         "tag_id": tag_id,
                         "tag_family": family,
                         "tag_size": tag_size,
+                        "margin_bits": tag_config.margin_bits,
                         "texture_base_path": tex_base,
                     },
                 )

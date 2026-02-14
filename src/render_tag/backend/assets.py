@@ -88,6 +88,7 @@ def get_tag_texture_path(
     tag_family: str,
     custom_path: Path | None = None,
     tag_id: int | None = None,
+    margin_bits: int = 0,
 ) -> Path | None:
     """Get the path to a tag texture file.
 
@@ -95,6 +96,7 @@ def get_tag_texture_path(
         tag_family: The tag family identifier (e.g., "tag36h11", "DICT_4X4_50")
         custom_path: Optional custom texture path
         tag_id: Optional marker ID for indexed textures (e.g., "tag36h11_0.png")
+        margin_bits: Quiet zone width suffix
 
     Returns:
         Path to the texture file, or None if not found
@@ -105,6 +107,7 @@ def get_tag_texture_path(
     # Check for specific indexed tag first
     if tag_id is not None:
         indexed_paths = [
+            Path("assets/tags") / f"{tag_family}_{tag_id}_m{margin_bits}.png",
             Path("assets/tags") / f"{tag_family}_{tag_id}.png",
             Path("assets/textures") / f"{tag_family}_{tag_id}.png",
         ]
@@ -133,14 +136,17 @@ def create_tag_plane(
     tag_family: str,
     tag_id: int = 0,
     material_config: dict | None = None,
+    margin_bits: int = 0,
 ) -> Any:
     """Create a textured plane representing a fiducial marker.
 
     Args:
-        size_meters: The size of the tag in meters (outer edge)
+        size_meters: The size of the tag in meters (outer edge, including margin)
         texture_path: Path to the tag texture image
         tag_family: Tag family identifier for metadata
         tag_id: Tag ID number
+        material_config: Dict for randomization
+        margin_bits: Quiet zone width in bits
 
     Returns:
         BlenderProc MeshObject with corner coordinates stored as custom properties
@@ -154,21 +160,28 @@ def create_tag_plane(
     plane.set_scale([size_meters / 2.0, size_meters / 2.0, 1])
 
     # Store corner coordinates as custom properties
-    # After persist_transformation_into_mesh, the mesh is already scaled.
-    # So we use base corners (half size) without additional scaling.
-    # These will be transformed to world space via matrix_world.
-    half = size_meters / 2.0
+    # Detection standard is the OUTER BLACK BORDER corners.
+    # If margin_bits > 0, the black border is smaller than size_meters.
+    from render_tag.core import TAG_GRID_SIZES
+    grid_size = TAG_GRID_SIZES.get(tag_family, 8)
+    total_bits = grid_size + (2 * margin_bits)
+    
+    # Calculate scale factor for black border relative to total plane
+    black_border_scale = grid_size / total_bits
+    half_black = (size_meters * black_border_scale) / 2.0
+    
     corners_local = [
-        [-half, -half, 0.0],  # BL
-        [half, -half, 0.0],  # BR
-        [half, half, 0.0],  # TR
-        [-half, half, 0.0],  # TL
+        [-half_black, -half_black, 0.0],  # BL
+        [half_black, -half_black, 0.0],  # BR
+        [half_black, half_black, 0.0],  # TR
+        [-half_black, half_black, 0.0],  # TL
     ]
 
     # Store metadata on the object
     plane.blender_obj["corner_coords"] = corners_local
     plane.blender_obj["tag_id"] = tag_id
     plane.blender_obj["tag_family"] = tag_family
+    plane.blender_obj["margin_bits"] = margin_bits
 
     # Apply texture if provided
     if texture_path and texture_path.exists():

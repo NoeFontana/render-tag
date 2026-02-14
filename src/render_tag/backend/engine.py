@@ -129,9 +129,19 @@ class RenderFacade:
         for obj_recipe in object_recipes:
             if obj_recipe["type"] == "TAG":
                 props = obj_recipe["properties"]
-                texture_path = get_tag_texture_path(props["tag_family"], tag_id=props["tag_id"])
+                margin_bits = props.get("margin_bits", 0)
+                texture_path = get_tag_texture_path(
+                    props["tag_family"], 
+                    tag_id=props["tag_id"],
+                    margin_bits=margin_bits
+                )
                 tag_obj = create_tag_plane(
-                    props["tag_size"], texture_path, props["tag_family"], tag_id=props["tag_id"]
+                    props["tag_size"], 
+                    texture_path, 
+                    props["tag_family"], 
+                    tag_id=props["tag_id"],
+                    margin_bits=margin_bits,
+                    material_config=obj_recipe.get("material")
                 )
                 tag_obj.blender_obj.pass_index = props["tag_id"] + 1
                 tag_obj.set_location(obj_recipe["location"])

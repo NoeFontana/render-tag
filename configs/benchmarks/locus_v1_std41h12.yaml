@@ -22,6 +22,7 @@ camera:
 tag:
   family: tagStandard41h12
   size_meters: 0.16
+  margin_bits: 1
   material:
     randomize: true
     roughness_min: 0.2

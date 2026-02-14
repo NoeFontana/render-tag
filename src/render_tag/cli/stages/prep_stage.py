@@ -79,15 +79,16 @@ class PreparationStage(PipelineStage):
                 if obj.type == "TAG":
                     family = obj.properties.get("tag_family")
                     tag_id = obj.properties.get("tag_id")
+                    margin_bits = obj.properties.get("margin_bits", 0)
                     if family and tag_id is not None:
-                        required_tags.add((family, tag_id))
+                        required_tags.add((family, tag_id, margin_bits))
         
         if not required_tags:
             return
             
         console.print(f"[dim]Pre-generating {len(required_tags)} unique tags...[/dim]")
-        for family, tag_id in required_tags:
-            ensure_tag_asset(family, tag_id, assets_tag_dir)
+        for family, tag_id, margin_bits in required_tags:
+            ensure_tag_asset(family, tag_id, assets_tag_dir, margin_bits=margin_bits)
 
     def _ensure_assets(self, ctx: GenerationContext) -> None:
         default_dir = Path(__file__).parents[4] / "assets"

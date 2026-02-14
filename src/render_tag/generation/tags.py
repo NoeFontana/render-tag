@@ -48,14 +48,16 @@ def generate_tag_image(
     tag_id: int,
     size_pixels: int = 512,
     border_bits: int = 1,
+    margin_bits: int = 0,
 ) -> np.ndarray | None:
-    """Generate a marker image for a given family and ID.
+    """Generate a marker image for a given family and ID with optional white margin.
 
     Args:
         family: Tag family name (e.g., "tag36h11" or "DICT_4X4_50")
         tag_id: The marker ID to generate
-        size_pixels: Size of the output image in pixels (square)
+        size_pixels: Size of the final output image in pixels (square)
         border_bits: Thickness of the black border in bits
+        margin_bits: Width of the white quiet zone in bits
 
     Returns:
         Numpy array (grayscale image) or None if family not supported
@@ -63,14 +65,28 @@ def generate_tag_image(
     if family not in TAG_DICT_MAP:
         return None
 
+    # 1. Resolve Grid Size (bits across)
+    from render_tag.core import TAG_GRID_SIZES
+    grid_size = TAG_GRID_SIZES.get(family, 8)
+    total_bits = grid_size + (2 * margin_bits)
+    
+    # 2. Calculate inner marker size in pixels
+    inner_size = int(size_pixels * (grid_size / total_bits))
+    
+    # 3. Generate inner marker
     dictionary = cv2.aruco.getPredefinedDictionary(TAG_DICT_MAP[family])
-
-    # Generate the marker
     marker_img = cv2.aruco.generateImageMarker(
-        dictionary, tag_id, size_pixels, borderBits=border_bits
+        dictionary, tag_id, inner_size, borderBits=border_bits
     )
 
-    return marker_img
+    # 4. Create final image with white margin
+    final_img = np.full((size_pixels, size_pixels), 255, dtype=np.uint8)
+    
+    # Center the marker
+    offset = (size_pixels - inner_size) // 2
+    final_img[offset:offset+inner_size, offset:offset+inner_size] = marker_img
+
+    return final_img
 
 
 def ensure_tag_asset(
@@ -78,6 +94,7 @@ def ensure_tag_asset(
     tag_id: int,
     output_dir: Path,
     size_pixels: int = 512,
+    margin_bits: int = 0,
 ) -> Path:
     """Ensure a tag asset exists on disk, generating it if necessary.
 
@@ -86,16 +103,17 @@ def ensure_tag_asset(
         tag_id: Marker ID
         output_dir: Directory where assets are stored
         size_pixels: Pixel size for generated image
+        margin_bits: White quiet zone width
 
     Returns:
         Path to the asset file
     """
     output_dir.mkdir(parents=True, exist_ok=True)
-    filename = f"{family}_{tag_id}.png"
+    filename = f"{family}_{tag_id}_m{margin_bits}.png"
     asset_path = output_dir / filename
 
     if not asset_path.exists():
-        img = generate_tag_image(family, tag_id, size_pixels=size_pixels)
+        img = generate_tag_image(family, tag_id, size_pixels=size_pixels, margin_bits=margin_bits)
         if img is not None:
             cv2.imwrite(str(asset_path), img)
 
