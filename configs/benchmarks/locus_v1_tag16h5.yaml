@@ -19,6 +19,14 @@ camera:
   sensor_noise_sigma: 0.002
   min_tag_pixels: 16  # Exactly num bits for this family
 
+  # Target PPM range for AMR docking
+  # 5.0 is the detection breaking point
+  # 40.0 is the high-confidence comfort zone
+  ppm_constraint:
+    min: 5.0
+    max: 40.0
+    distribution: uniform
+
 tag:
   family: tag16h5
   size_meters: 0.16
