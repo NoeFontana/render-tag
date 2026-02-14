@@ -8,13 +8,13 @@ from typing import Any
 import numpy as np
 
 from render_tag.core import TAG_GRID_SIZES
+from render_tag.core.schema import ObjectRecipe
 from render_tag.generation.board import (
     BoardSpec,
     BoardType,
     compute_aprilgrid_layout,
     compute_charuco_layout,
 )
-from render_tag.core.schema import ObjectRecipe
 
 
 def apply_flying_layout(
@@ -76,7 +76,7 @@ def apply_grid_layout(
             obj.location = [
                 start_x + col * cell_size,
                 start_y + row * cell_size,
-                0.002,
+                0.01,
             ]
 
     elif mode == "cb":
@@ -108,6 +108,6 @@ def _apply_layout_to_objects(objects: list[ObjectRecipe], layout: Any, marker_si
     for sq in layout.squares:
         if sq.has_tag and tag_idx < len(objects):
             obj = objects[tag_idx]
-            obj.location = [sq.center.x, sq.center.y, 0.002]
+            obj.location = [sq.center.x, sq.center.y, 0.01]
             obj.properties["marker_size"] = marker_size
             tag_idx += 1

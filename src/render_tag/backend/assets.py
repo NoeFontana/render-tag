@@ -57,7 +57,7 @@ class AssetPool:
             self._bg_plane.set_scale([20, 20, 1])
             self._bg_plane.set_location([0, 0, -0.01])
             self._bg_plane.persist_transformation_into_mesh()
-        
+
         self._bg_plane.blender_obj.hide_render = False
         self._bg_plane.blender_obj.hide_viewport = False
         return self._bg_plane
@@ -69,11 +69,11 @@ class AssetPool:
             obj.blender_obj.hide_viewport = True
             # Reset parent if any
             obj.blender_obj.parent = None
-        
+
         if self._bg_plane:
             self._bg_plane.blender_obj.hide_render = True
             self._bg_plane.blender_obj.hide_viewport = True
-            
+
         self._active_count = 0
 
 
@@ -237,6 +237,8 @@ def apply_tag_texture(obj: Any, texture_path: Path, config: dict | None = None) 
     # Link nodes if not already linked
     if not any(link.to_node == bsdf_node and link.to_socket.name == "Base Color" for link in links):
         links.new(tex_node.outputs["Color"], bsdf_node.inputs["Base Color"])
+    if not any(link.to_node == bsdf_node and link.to_socket.name == "Alpha" for link in links):
+        links.new(tex_node.outputs["Alpha"], bsdf_node.inputs["Alpha"])
     if not any(link.to_node == output_node for link in links):
         links.new(bsdf_node.outputs["BSDF"], output_node.inputs["Surface"])
 
