@@ -228,6 +228,50 @@ def calculate_pixel_area(pixels: np.ndarray) -> float:
     return 0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
 
 
+def calculate_ppm(
+    distance_m: float,
+    tag_size_m: float,
+    focal_length_px: float,
+    tag_grid_size: int
+) -> float:
+    """
+    Calculates the visual resolution in Pixels Per Module (PPM).
+
+    Formula: PPM = (f_px * tag_size_m) / (distance_m * tag_grid_size)
+
+    Args:
+        distance_m: Distance from camera to tag in meters.
+        tag_size_m: Physical size of the tag in meters.
+        focal_length_px: Effective focal length of the camera in pixels.
+        tag_grid_size: Number of modules (bits) across the tag.
+    """
+    if distance_m < 1e-6 or tag_grid_size == 0:
+        return 0.0
+    return (focal_length_px * tag_size_m) / (distance_m * tag_grid_size)
+
+
+def solve_distance_for_ppm(
+    target_ppm: float,
+    tag_size_m: float,
+    focal_length_px: float,
+    tag_grid_size: int
+) -> float:
+    """
+    Calculates the required distance to achieve a target PPM.
+
+    Formula: distance_m = (f_px * tag_size_m) / (target_ppm * tag_grid_size)
+
+    Args:
+        target_ppm: Desired visual resolution in Pixels Per Module.
+        tag_size_m: Physical size of the tag in meters.
+        focal_length_px: Effective focal length of the camera in pixels.
+        tag_grid_size: Number of modules (bits) across the tag.
+    """
+    if target_ppm < 1e-6 or tag_grid_size == 0:
+        return 100.0  # Safe default far distance
+    return (focal_length_px * tag_size_m) / (target_ppm * tag_grid_size)
+
+
 def calculate_incidence_angle(cam_world_matrix: np.ndarray, tag_world_matrix: np.ndarray) -> float:
     """
     Calculates the angle of incidence between the camera forward vector and the tag normal.
