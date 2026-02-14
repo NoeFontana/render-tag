@@ -9,7 +9,7 @@ These are absolute constraints. Violation leads to failure.
 
 1.  **Strict Isolation**: Logic (`src/render_tag/generator.py`) must NEVER import `bpy`.
 2.  **The Subprocess Pattern**: Blender runs in its own process. Interact ONLY via `SceneRecipe` JSON.
-3.  **Schema is King**: Validation against `src/render_tag/schema.py` is mandatory.
+3.  **Schema is King**: Validation against `src/render_tag/core/schema/` is mandatory.
 4.  **UV Only**: All commands must use `uv run`.
 
 > [!IMPORTANT]
