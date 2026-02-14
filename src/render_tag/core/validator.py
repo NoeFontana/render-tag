@@ -218,39 +218,39 @@ class RecipeValidator:
                 x, y = obj.location[0], obj.location[1]
 
                 # Simple AABB (Axis Aligned Bounding Box) - ignores rotation for this quick check
-                radius = (w**2 + h**2) ** 0.5 / 2.0
-                tag_boxes.append((i, obj, x, y, radius))
+                xmin, xmax = x - w / 2, x + w / 2
+                ymin, ymax = y - h / 2, y + h / 2
+                tag_boxes.append((obj, xmin, xmax, ymin, ymax))
 
                 # Check if tag is within board boundaries
                 if board_aabb:
                     bx_min, bx_max, by_min, by_max = board_aabb
                     # Use a small buffer (1mm) for floating point
                     if (
-                        x - w / 2 < bx_min - 0.001
-                        or x + w / 2 > bx_max + 0.001
-                        or y - h / 2 < by_min - 0.001
-                        or y + h / 2 > by_max + 0.001
+                        xmin < bx_min - 0.001
+                        or xmax > bx_max + 0.001
+                        or ymin < by_min - 0.001
+                        or ymax > by_max + 0.001
                     ):
                         self.warnings.append(f"Tag '{obj.name}' is outside board boundaries.")
 
         # O(N^2) overlap check
         for i in range(len(tag_boxes)):
             for j in range(i + 1, len(tag_boxes)):
-                _idx1, obj1, x1, y1, r1 = tag_boxes[i]
-                _idx2, obj2, x2, y2, r2 = tag_boxes[j]
+                obj1, xmin1, xmax1, ymin1, ymax1 = tag_boxes[i]
+                obj2, xmin2, xmax2, ymin2, ymax2 = tag_boxes[j]
 
-                dist = ((x1 - x2) ** 2 + (y1 - y2) ** 2) ** 0.5
-                min_dist = r1 + r2
-
-                # Allow a tiny bit of overlap (floating point)
-                if dist < min_dist * 0.9:  # 10% overlap tolerance
+                # AABB Overlap check (with 1mm tolerance to avoid edge cases)
+                if (
+                    xmin1 < xmax2 - 0.001
+                    and xmax1 > xmin2 + 0.001
+                    and ymin1 < ymax2 - 0.001
+                    and ymax1 > ymin2 + 0.001
+                ):
                     # Check Z to ensure they aren't stacked?
-                    # Assuming planar tags on same Z
                     z1, z2 = obj1.location[2], obj2.location[2]
                     if abs(z1 - z2) < 0.001:
-                        self.warnings.append(
-                            f"Overlap {obj1.name}-{obj2.name} (d={dist:.3f}, req={min_dist:.3f})"
-                        )
+                        self.warnings.append(f"Overlap {obj1.name}-{obj2.name}")
 
     def _check_cameras(self):
         """Check camera configuration."""
