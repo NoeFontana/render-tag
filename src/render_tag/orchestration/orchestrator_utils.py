@@ -24,6 +24,7 @@ except ImportError:
 
 from render_tag.audit.telemetry_auditor import TelemetryAuditor
 from render_tag.common.resilience import retry_with_backoff
+from render_tag.common.resources import ResourceStack
 from render_tag.core.config import load_config
 from render_tag.core.errors import WorkerStartupError
 from render_tag.orchestration.persistent_worker import PersistentWorkerProcess
@@ -137,6 +138,7 @@ class UnifiedWorkerOrchestrator:
         self.auditor = TelemetryAuditor()
         self._lock = threading.Lock()
         self.running = False
+        self._resource_stack = ResourceStack()
         UnifiedWorkerOrchestrator._instances.append(self)
 
     @classmethod
@@ -166,38 +168,43 @@ class UnifiedWorkerOrchestrator:
             resolved_port = self._resolve_base_port(shard_id)
             # Add a small random offset per attempt to avoid sticky conflicts
             import random
+
             current_base_port = resolved_port + random.randint(0, 50) * 10
 
-            try:
-                logger.info(f"Starting pool on ports {current_base_port}+.")
-                self.workers.clear()
-                for i in range(self.num_workers):
-                    worker = PersistentWorkerProcess(
-                        worker_id=f"worker-{i}",
-                        port=current_base_port + i,
-                        blender_script=self.blender_script,
-                        blender_executable=self.blender_executable,
-                        use_blenderproc=self.use_blenderproc,
-                        mock=self.mock,
-                        max_renders=self.max_renders_per_worker,
-                        context=self.context,
-                    )
-                    worker.start()
-                    self.workers.append(worker)
-                    self.worker_queue.put(worker)
-                self.running = True
-            except Exception as e:
-                for w in self.workers:
-                    w.stop()
-                raise WorkerStartupError(f"Failed to start worker pool: {e}") from e
+            # Use a fresh stack for this attempt
+            with ResourceStack() as attempt_stack:
+                try:
+                    logger.info(f"Starting pool on ports {current_base_port}+.")
+                    self.workers.clear()
+                    for i in range(self.num_workers):
+                        worker = PersistentWorkerProcess(
+                            worker_id=f"worker-{i}",
+                            port=current_base_port + i,
+                            blender_script=self.blender_script,
+                            blender_executable=self.blender_executable,
+                            use_blenderproc=self.use_blenderproc,
+                            mock=self.mock,
+                            max_renders=self.max_renders_per_worker,
+                            context=self.context,
+                        )
+                        worker.start()
+                        attempt_stack.push_resource(worker)
+                        self.workers.append(worker)
+                        self.worker_queue.put(worker)
+
+                    # Handover stack to instance-level stack if successful
+                    self._resource_stack.enter_context(attempt_stack.pop_all())
+                    self.running = True
+                except Exception as e:
+                    raise WorkerStartupError(f"Failed to start worker pool: {e}") from e
 
     def stop(self):
         """Stops all workers."""
         with self._lock:
             if not self.running:
                 return
-            for worker in self.workers:
-                worker.stop()
+            logger.info("Stopping UnifiedWorkerOrchestrator.")
+            self._resource_stack.close()
             self.workers.clear()
             while not self.worker_queue.empty():
                 try:
