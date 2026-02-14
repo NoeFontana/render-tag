@@ -27,16 +27,16 @@
     - [x] Verify integration tests pass
 - [x] Task: Conductor - User Manual Verification 'Phase 3: Generator Logic Integration' (Protocol in workflow.md) 83e543a
 
-## Phase 4: Data Export and Auditing
-- [ ] Task: Update Data Writers
-    - [ ] Modify `DetectionRecord` to include `ppm` field
-    - [ ] Update `CSVWriter` to include `ppm` column in `tags.csv`
-    - [ ] Update `RichTruthWriter` to include `meta_ppm` in `rich_truth.json`
-    - [ ] Update `SidecarWriter` to include PPM in image metadata
-- [ ] Task: Update Auditing Pipeline
-    - [ ] Modify `DatasetAuditor` to calculate PPM statistics using Polars
-    - [ ] Update `AuditReport` schema and `DashboardGenerator` to visualize PPM distribution
-- [ ] Task: Conductor - User Manual Verification 'Phase 4: Data Export and Auditing' (Protocol in workflow.md)
+## Phase 4: Data Export and Auditing [checkpoint: 0ee2a75]
+- [x] Task: Update Data Writers 3dc1ecd
+    - [x] Modify `DetectionRecord` to include `ppm` field
+    - [x] Update `CSVWriter` to include `ppm` column in `tags.csv`
+    - [x] Update `RichTruthWriter` to include `meta_ppm` in `rich_truth.json`
+    - [x] Update `SidecarWriter` to include PPM in image metadata
+- [x] Task: Update Auditing Pipeline 1ffe64b
+    - [x] Modify `DatasetAuditor` to calculate PPM statistics using Polars
+    - [x] Update `AuditReport` schema and `DashboardGenerator` to visualize PPM distribution
+- [x] Task: Conductor - User Manual Verification 'Phase 4: Data Export and Auditing' (Protocol in workflow.md) 0ee2a75
 
 ## Phase 5: Verification and Benchmarking
 - [ ] Task: Create PPM Sweep Benchmark Config
