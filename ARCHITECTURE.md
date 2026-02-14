@@ -1,52 +1,42 @@
-# System Architecture
+# System Architecture (v3.0)
 
-`render-tag` is designed as a **Host-Backend** system to bridge the gap between a standard Python environment and Blender's embedded Python environment.
+`render-tag` is designed as a **Host-Backend** system using ZMQ to bridge the gap between a standard Python environment and Blender's embedded environment.
 
-## High-Level Overview
+## High-Level Flow
+
+```mermaid
+graph TD
+    A[Host CLI] --> B[Generator]
+    B --> C[Scene Recipes]
+    C --> D[Unified Orchestrator]
+    D -- ZMQ (REQ/REP) --> E[Persistent Worker 0]
+    D -- ZMQ (REQ/REP) --> F[Persistent Worker N]
+    subgraph Blender Process
+    E --> G[ZMQ Server]
+    G --> H[BlenderProc Engine]
+    end
+    H --> I[Output Directory]
+```
+
+## Core Components
 
 1.  **Host Process (Standard Python)**:
-    *   **CLI (`cli.py`)**: Entry point for users. Modularized to use `orchestration` for sharding.
-    *   **Orchestration (`orchestration/sharding.py`)**: Manages parallel execution, shard detection (AWS/GCP/K8s), and result merging.
-    *   **Visualization (`data_io/visualization.py`)**: Provides 2D recipe previews and 3D detection overlays.
-    *   **Generator (`generator.py`)**: Pure logic component. detailed "Recipes" (`SceneRecipe`) for each scene based on the configuration. It is deterministic and has NO dependency on Blender.
-    *   **Output**: The Host process produces a `scene_recipes.json` file, which acts as the contract between Host and Backend.
+    *   **Orchestration (`orchestration/orchestrator.py`)**: Manages the lifecycle of persistent worker processes. It communicates with workers over ZMQ, monitors health, and handles automatic restarts on failure or VRAM exhaustion.
+    *   **Generator (`generator.py`)**: Pure logic component. It defines "Recipes" (`SceneRecipe`) for each scene deterministically. 
+    *   **CLI (`cli/main.py`)**: Unified entry point that binds orchestration and generation.
 
 2.  **Backend Process (Blender)**:
-    *   **Executor (`backend/executor.py`)**: The entry point running inside Blender. It loads `scene_recipes.json` and blindly executes the instructions.
-    *   **BlenderProc**: Used by the executor for low-level interaction with Blender (rendering, object creation).
+    *   **ZMQ Server (`backend/zmq_server.py`)**: A minimal bootstrap script that runs inside Blender. It starts a ZMQ listener and waits for commands.
+    *   **Worker Server (`backend/worker_server.py`)**: The "Hot Loop" implementation. It receives recipes, stabilizes the Blender environment via `bridge.py`, and calls the rendering engine.
+    *   **Engine (`backend/engine.py`)**: Low-level interaction with `BlenderProc` to actually render the 3D scene and save metadata.
 
-## Directory Structure
+## The "Hot Loop" Contract
 
-```
-src/render_tag/
-├── cli.py              # Host: CLI entry point (slim)
-├── config.py           # Host: Configuration schema
-├── generator.py        # Host: Logic to create recipes
-├── schema.py           # Shared: Data contracts (Recipes)
-├── geometry/           # Shared: Pure math/geometry logic
-├── encapsulation/      # Host: (Optional) encapsulation layer
-├── orchestration/      # Host: Sharding and parallel execution logic
-│   └── sharding.py     #   - Shard detection and multiprocessing
-├── data_io/            # Shared/Host: Data input/output
-│   ├── visualization.py #   - 2D and 3D visualization tools
-│   ├── writers.py      #   - COCO, CSV, Rich truth writers
-│   └── types.py        #   - Shared data types
-├── backend/            # Backend: Code running INSIDE Blender
-│   ├── executor.py     #   - Main driver
-│   ├── scene.py        #   - Scene setup (lights, background)
-│   ├── assets.py       #   - Asset loading (tags, textures)
-│   └── projection.py   #   - 3D to 2D projection logic
-└── tools/              # Utilities
-```
+The communication between Host and Backend happens over ZMQ using a robust REQ/REP pattern:
 
-## The "Recipe" Contract
+- **INIT**: Orchestrator tells the worker to prime its environment (BlenderProc initialization).
+- **RENDER**: Orchestrator sends a `SceneRecipe`. The worker renders it and remains alive.
+- **STATUS**: Periodic heartbeat and telemetry (VRAM, uptime).
+- **SHUTDOWN**: Graceful termination.
 
-The communication between Host and Backend is one-way via the `SceneRecipe` schema.
-
--   **Host** decides *what* to render (positions, camera angles, lighting parameters).
--   **Backend** decides *how* to render it (Blender API calls).
-
-This separation allows us to:
-1.  Debug logic without opening Blender.
-2.  Run unit tests on layout generation easily.
-3.  Swap out the backend (e.g., to a different renderer) if needed in the future, as long as it adheres to the Recipe contract.
+This separation allows for high throughput (no Blender startup overhead) and excellent testability (mocking the ZMQ backend).

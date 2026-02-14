@@ -9,26 +9,28 @@ The system is divided into **Host** code (Python 3.12) and **Backend** code (Ble
 ```mermaid
 graph TD
     A[CLI / Python API] --> B[Generator]
-    B --> C[Scene Recipe JSON]
-    C --> D[Executor]
-    D --> E[BlenderProc / Blender]
-    E --> F[Rendered Images]
-    E --> G[Metadata Sidecars]
-    F --> H[Post-Processor]
-    G --> H
-    H --> I[Final Dataset]
+    B -- SceneRecipe --> C[Unified Orchestrator]
+    C -- ZMQ REQ --> D[ZMQ Server (Blender)]
+    D --> E[Worker Server]
+    E --> F[BlenderBridge]
+    F --> G[BlenderProc / Blender]
+    G --> H[Rendered Images & Metadata]
 ```
 
 ## Components
 
 ### 1. Core (`src/render_tag/core/`)
-The foundation of the system. Contains the single source of truth **Schemas** (Pydantic models), configuration logic, and fundamental utilities like resilience and resource management.
+The foundation of the system. Contains the single source of truth **Schemas** (Pydantic models), configuration logic, and fundamental utilities.
 
 ### 2. Generation (`src/render_tag/generation/`)
-Pure Python procedural logic. Samples parameters (camera poses, lighting, tag IDs) and builds `SceneRecipe` objects. It has **no** dependency on Blender, allowing for fast "Shadow Renders" (2D bounding box verification without 3D).
+Pure Python procedural logic. Samples parameters and builds `SceneRecipe` objects. It has **no** dependency on Blender.
 
 ### 3. Backend (`src/render_tag/backend/`)
-The 3D rendering engine. It consumes a `SceneRecipe` and uses `BlenderProc` via `backend/engine.py` to build the scene. This code runs exclusively inside the Blender Python environment.
+The 3D rendering engine.
+- **`bootstrap.py`**: Centralized environment stabilization. Handles paths, venv site-packages, and logging.
+- **`bridge.py`**: `BlenderBridge` provides explicit Dependency Injection for Blender/BlenderProc APIs.
+- **`worker_server.py`**: Implementation of the "Hot Loop" ZMQ server.
+- **`engine.py`**: The actual BlenderProc execution logic.
 
 ### 4. Orchestration (`src/render_tag/orchestration/`)
 The `UnifiedWorkerOrchestrator` manages the lifecycle of `PersistentWorkerProcess` instances. It handles ZMQ communication, VRAM guardrails, and parallel sharding.
@@ -43,7 +45,10 @@ To avoid the significant overhead of starting Blender for every scene, `render-t
 1.  **Orchestrator** starts one or more Blender instances in the background.
 2.  Each Blender instance runs a **ZMQ Server** (`zmq_server.py`).
 3.  The Orchestrator sends **Scene Recipes** over ZMQ.
-4.  Blender renders the scene, saves the result, and remains ready for the next recipe without quitting.
+4.  The **Worker Server** receives the recipe, uses the **BlenderBridge** to access APIs, and renders the scene.
+5.  Blender remains ready for the next recipe without quitting.
+
+This "Hot Loop" improves rendering throughput by **2-5x** for small scenes.
 
 This "Hot Loop" can improve rendering throughput by **2-5x** for small scenes.
 

@@ -31,13 +31,13 @@ pip install blenderproc
 uv run render-tag info
 
 # Validate a configuration file
-uv run render-tag validate --config configs/default.yaml
+uv run render-tag validate-config --config configs/default.yaml
 
 # Generate synthetic data (requires BlenderProc)
 uv run render-tag generate --config configs/default.yaml --output output/dataset_01 --scenes 10
 
 # Visualize detection annotations
-uv run render-tag viz --output output/dataset_01
+uv run render-tag viz dataset --output output/dataset_01
 ```
 
 ## Architecture
@@ -45,8 +45,8 @@ uv run render-tag viz --output output/dataset_01
 `render-tag` uses a decoupled **Host-Backend** architecture for high-performance rendering:
 
 *   **Host (Python 3.12)**: Procedural math, recipe generation, and worker orchestration.
-*   **Backend (Blender/ZMQ)**: Persistent 3D workers running a "Hot Loop" to avoid Blender startup overhead.
-*   **Unified Orchestrator**: Manages parallel sharding, VRAM guardrails, and telemetry.
+*   **Backend (Blender/ZMQ)**: Persistent 3D workers running a **ZMQ-based Hot Loop**. This avoids the massive overhead of Blender startup by keeping workers alive and sending "Scene Recipes" over the wire.
+*   **Unified Orchestrator**: Manages parallel sharding, ZMQ communication, VRAM guardrails, and telemetry.
 
 ## CLI Commands
 
@@ -81,12 +81,12 @@ Reproduce any scene from a dataset by using the same config and seed. `render-ta
 Workers automatically restart if they exceed a VRAM threshold (default: 90% of total VRAM), preventing OOM crashes during long generation runs.
 ```
 
-### `render-tag validate`
+### `render-tag validate-config`
 
 Validate a configuration file without running generation.
 
 ```bash
-uv run render-tag validate --config configs/default.yaml
+uv run render-tag validate-config --config configs/default.yaml
 ```
 
 ### `render-tag info`
@@ -102,13 +102,13 @@ uv run render-tag info
 Visualize detection annotations overlaid on rendered images.
 
 ```bash
-uv run render-tag viz --output output/dataset_01
+uv run render-tag viz dataset --output output/dataset_01
 
 # Visualize a specific image
-uv run render-tag viz --output output/dataset_01 --image scene_0001_cam_0001
+uv run render-tag viz dataset --output output/dataset_01 --image scene_0001_cam_0001
 
 # Don't save visualization files
-uv run render-tag viz --output output/dataset_01 --no-save
+uv run render-tag viz dataset --output output/dataset_01 --no-save
 ```
 
 ## Configuration
