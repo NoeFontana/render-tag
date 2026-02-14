@@ -669,17 +669,23 @@ class MockExecutor:
             recipes = json.load(f)
             
         rich_truth = []
-        tags_csv_rows = [["image_id", "tag_id", "tag_family", "x1", "y1", "x2", "y2", "x3", "y3", "x4", "y4"]]
+        tags_csv_rows = [["image_id", "tag_id", "tag_family", "ppm", "x1", "y1", "x2", "y2", "x3", "y3", "x4", "y4"]]
         
         for recipe in recipes:
             sid = recipe["scene_id"]
             for cam_idx in range(len(recipe.get("cameras", [0]))):
+                cam_recipe = recipe.get("cameras")[cam_idx]
                 image_id = f"scene_{sid:04d}_cam_{cam_idx:04d}"
                 
                 # Create dummy meta file
                 meta_path = images_dir / f"{image_id}_meta.json"
                 with open(meta_path, "w") as f_meta:
-                    json.dump({"scene_id": sid}, f_meta)
+                    # Include PPM in meta if available in recipe
+                    meta_data = {"scene_id": sid}
+                    # We don't strictly have the exact calculated PPM here without re-solving
+                    # but we can grab it from cam_recipe if we were to store it there in generator.
+                    # For mock, we'll just simulate it or calculate it if possible.
+                    json.dump(meta_data, f_meta)
                 
                 # Add dummy detections for tags
                 for obj in recipe.get("objects", []):
@@ -690,6 +696,9 @@ class MockExecutor:
                         angle = random.uniform(0, 90)
                         occlusion = random.uniform(0, 0.5)
                         
+                        # Simulate PPM based on distance if not provided
+                        ppm = 160.0 / (dist * 8.0) # Dummy approx
+                        
                         det = {
                             "image_id": image_id,
                             "tag_id": props["tag_id"],
@@ -698,12 +707,14 @@ class MockExecutor:
                             "angle_of_incidence": angle,
                             "occlusion_ratio": occlusion,
                             "pixel_area": 1000.0 / (dist * dist),
+                            "ppm": ppm,
                             "lighting_intensity": random.uniform(100, 1000),
                             "corners": [[0,0], [100,0], [100,100], [0,100]]
                         }
                         rich_truth.append(det)
                         tags_csv_rows.append([
                             image_id, props["tag_id"], props["tag_family"],
+                            float(f"{ppm:.4f}"),
                             0, 0, 100, 0, 100, 100, 0, 100
                         ])
         
