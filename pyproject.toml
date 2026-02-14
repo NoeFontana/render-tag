@@ -124,3 +124,18 @@ markers = [
     "timeout: marks tests with a timeout duration",
 ]
 testpaths = ["tests"]
+
+[tool.importlinter]
+root_package = "render_tag"
+
+["importlinter:contract:1"]
+name = "Backend must not import host logic"
+type = "layers"
+containers = ["render_tag"]
+layers = [
+    "cli",
+    "orchestration",
+    "generation",
+    "core",
+    "backend",
+]

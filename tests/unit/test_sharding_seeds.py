@@ -2,7 +2,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from render_tag.core.config import GenConfig
-from render_tag.orchestration.orchestrator_utils import run_local_parallel
+from render_tag.orchestration.orchestrator import run_local_parallel
 
 
 def test_run_local_parallel_flow(tmp_path):
@@ -17,9 +17,9 @@ def test_run_local_parallel_flow(tmp_path):
     dummy_yaml.write_text("dataset: {seed: 42}")
 
     with (
-        patch("render_tag.orchestration.orchestrator_utils.load_config") as mock_load,
+        patch("render_tag.orchestration.orchestrator.load_config") as mock_load,
         patch("render_tag.generation.scene.Generator") as mock_gen_cls,
-        patch("render_tag.orchestration.executors.ExecutorFactory") as mock_exec_factory,
+        patch("render_tag.orchestration.orchestrator.ExecutorFactory") as mock_exec_factory,
         patch("threading.Thread") as mock_thread,
     ):
         # Setup config mock

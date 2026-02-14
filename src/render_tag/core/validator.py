@@ -11,7 +11,7 @@ Checks:
 
 from pathlib import Path
 
-from render_tag.schema import SceneRecipe
+from render_tag.core.schema import SceneRecipe
 
 
 class AssetValidator:

@@ -22,6 +22,10 @@ class OrchestrationError(RenderTagError):
     """Base class for errors occurring during the orchestration phase."""
 
 
+class WorkerError(OrchestrationError):
+    """General error related to worker processes."""
+
+
 class WorkerStartupError(OrchestrationError):
     """Raised when a worker process fails to start or become healthy."""
 

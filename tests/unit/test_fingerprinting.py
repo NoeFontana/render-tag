@@ -1,6 +1,6 @@
 import shutil
 
-from render_tag.schema.job import get_env_fingerprint
+from render_tag.core.schema.job import get_env_fingerprint
 
 
 def test_get_env_fingerprint_uv_lock(tmp_path, monkeypatch):

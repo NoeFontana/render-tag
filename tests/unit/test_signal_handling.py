@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from render_tag.orchestration.orchestrator_utils import run_local_parallel
+from render_tag.orchestration.orchestrator import run_local_parallel
 
 
 def test_run_local_parallel_installs_signal_handlers():
@@ -17,7 +17,7 @@ def test_run_local_parallel_installs_signal_handlers():
     with (
         patch("signal.signal") as mock_signal,
         patch("subprocess.Popen") as mock_popen,
-        patch("render_tag.orchestration.orchestrator_utils.load_config") as mock_load,
+        patch("render_tag.orchestration.orchestrator.load_config") as mock_load,
     ):
         # Setup mocks
         mock_load.return_value = GenConfig()
@@ -47,10 +47,10 @@ def test_signal_handler_terminates_processes():
     """
     Test that the _signal_handler function calls UnifiedWorkerOrchestrator.cleanup_all.
     """
-    from render_tag.orchestration.orchestrator_utils import _signal_handler
+    from render_tag.orchestration.orchestrator import _signal_handler
 
     unified_cleanup_path = (
-        "render_tag.orchestration.orchestrator_utils.UnifiedWorkerOrchestrator.cleanup_all"
+        "render_tag.orchestration.orchestrator.UnifiedWorkerOrchestrator.cleanup_all"
     )
     with patch(unified_cleanup_path) as mock_cleanup, patch("sys.exit") as mock_exit:
         _signal_handler(signal.SIGINT, None)
@@ -67,7 +67,7 @@ def test_run_local_parallel_reports_failure():
 
     with (
         patch("subprocess.Popen") as mock_popen,
-        patch("render_tag.orchestration.orchestrator_utils.load_config") as mock_load,
+        patch("render_tag.orchestration.orchestrator.load_config") as mock_load,
     ):
         from typer import Exit
 
@@ -94,7 +94,7 @@ def test_get_completed_scene_ids(tmp_path):
     """
     Test that get_completed_scene_ids identifies completed scenes based on sidecars.
     """
-    from render_tag.orchestration.orchestrator_utils import get_completed_scene_ids
+    from render_tag.orchestration.orchestrator import get_completed_scene_ids
 
     # Create a mock output directory
     output_dir = tmp_path / "output"

@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-from render_tag.common.utils import get_git_hash
+from render_tag.core.utils import get_git_hash
 
 
 def test_get_git_hash_returns_string():

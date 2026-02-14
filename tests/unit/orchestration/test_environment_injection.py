@@ -1,11 +1,11 @@
 from unittest.mock import patch
 
-from render_tag.orchestration.persistent_worker import PersistentWorkerProcess
+from render_tag.orchestration.orchestrator import PersistentWorkerProcess
 
 
 @patch("subprocess.Popen")
-@patch("render_tag.orchestration.persistent_worker.ZmqHostClient")
-@patch("render_tag.common.utils.get_venv_site_packages")
+@patch("render_tag.orchestration.orchestrator.ZmqHostClient")
+@patch("render_tag.core.utils.get_venv_site_packages")
 @patch("time.sleep", return_value=None)
 def test_persistent_worker_injects_env_vars(
     mock_sleep, mock_get_venv, mock_zmq_client, mock_popen, tmp_path
@@ -16,7 +16,7 @@ def test_persistent_worker_injects_env_vars(
     mock_popen_instance.poll.return_value = None
 
     # Ensure ZmqHostClient mock returns a SUCCESS response
-    from render_tag.schema.hot_loop import Response, ResponseStatus
+    from render_tag.core.schema.hot_loop import Response, ResponseStatus
 
     mock_resp = Response(status=ResponseStatus.SUCCESS, request_id="test", message="OK")
 

@@ -8,7 +8,7 @@ from rich.panel import Panel
 
 from render_tag.cli.tools import console
 from render_tag.orchestration.assets import AssetManager
-from render_tag.schema.job import JobSpec, get_env_fingerprint
+from render_tag.core.schema.job import JobSpec, get_env_fingerprint
 
 app = typer.Typer(help="Manage and lock rendering jobs.")
 

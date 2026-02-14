@@ -1,5 +1,6 @@
 """
 Generation commands using the Pipeline Pattern.
+Consolidated stages for radical simplicity.
 """
 
 from pathlib import Path
@@ -7,11 +8,10 @@ from pathlib import Path
 import typer
 
 from render_tag.cli.pipeline import GenerationContext, GenerationPipeline
-from render_tag.cli.stages.assets_stage import AssetPreparationStage
 from render_tag.cli.stages.config_stage import ConfigLoadingStage
 from render_tag.cli.stages.execution_stage import ExecutionStage
-from render_tag.cli.stages.manifest_stage import ManifestGenerationStage
-from render_tag.cli.stages.recipe_stage import RecipeGenerationStage
+from render_tag.cli.stages.final_stage import FinalizationStage
+from render_tag.cli.stages.prep_stage import PreparationStage
 from render_tag.cli.tools import console
 from render_tag.core.config import load_config
 
@@ -29,7 +29,7 @@ def run(
     output: Path = typer.Option(
         "output/dataset_01", "--output", "-o", help="Output directory", resolve_path=True
     ),
-    num_scenes: int = typer.Option(1, "--scenes", "-n", min=1),
+    num_scenes: int = typer.Option(-1, "--scenes", "-n"),
     verbose: bool = typer.Option(False, "--verbose", "-v"),
     renderer_mode: str = typer.Option("cycles", "--renderer-mode", "-r"),
     workers: int = typer.Option(1, "--workers", "-w"),
@@ -62,14 +62,13 @@ def run(
         batch_size=batch_size,
     )
 
-    # Build and Run Pipeline
+    # Build and Run Pipeline (Consolidated Stages)
     pipeline = (
         GenerationPipeline()
         .add_stage(ConfigLoadingStage())
-        .add_stage(AssetPreparationStage())
-        .add_stage(RecipeGenerationStage())
+        .add_stage(PreparationStage())
         .add_stage(ExecutionStage())
-        .add_stage(ManifestGenerationStage())
+        .add_stage(FinalizationStage())
     )
 
     pipeline.run(ctx)
@@ -103,7 +102,7 @@ def validate_recipe(
     recipe: Path = typer.Option(..., "--recipe", "-r", exists=True, dir_okay=False),
 ) -> None:
     """Validate a scene recipe explicitly."""
-    from render_tag.common.validator import validate_recipe_file
+    from render_tag.core.validator import validate_recipe_file
 
     console.print(f"[dim]Validating recipe:[/dim] {recipe}")
     is_valid, errors, warnings = validate_recipe_file(recipe)

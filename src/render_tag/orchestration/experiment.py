@@ -289,7 +289,7 @@ def _update_nested_dict(d: dict[str, Any], path: str, value: Any):
 
 def save_manifest(output_dir: Path, variant: ExperimentVariant, cli_args: list[str] | None = None):
     """Save an experiment variant manifest to JSON."""
-    from render_tag.audit.dataset_info import generate_dataset_info
+    from render_tag.audit.reporting import generate_dataset_info
 
     output_dir.mkdir(parents=True, exist_ok=True)
 

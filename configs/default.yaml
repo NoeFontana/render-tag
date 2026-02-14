@@ -6,6 +6,6 @@ lighting:
   intensity_max: 500
 backgrounds:
   texture_dir: "assets/textures"
-  hdri_path: "assets/hdri/studio.exr"
+  hdri_path: "assets/hdri/dummy.exr"
 physics:
   drop_height: 1.5

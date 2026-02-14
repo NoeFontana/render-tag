@@ -3,7 +3,7 @@ from __future__ import annotations
 Advanced unit tests for board geometry, focusing on malformed specs and failures.
 """
 
-from render_tag.geometry.board import (
+from render_tag.generation.board import (
     BoardLayout,
     BoardPosition,
     BoardSpec,
@@ -76,7 +76,7 @@ These tests verify physical plausibility of calibration boards:
 All tests run WITHOUT Blender.
 """
 
-from render_tag.geometry.board import (
+from render_tag.generation.board import (
     BoardSpec,
     BoardType,
     compute_aprilgrid_layout,
@@ -394,7 +394,7 @@ Unit tests for camera_geometry module.
 
 import numpy as np
 
-from render_tag.geometry.camera import sample_camera_pose, validate_camera_pose
+from render_tag.generation.camera import sample_camera_pose, validate_camera_pose
 
 
 def test_sample_camera_pose_bounds():
@@ -449,7 +449,7 @@ Advanced unit tests for geometry math, focusing on edge cases.
 
 import numpy as np
 
-from render_tag.geometry.math import look_at_rotation, rotation_matrix_from_vectors
+from render_tag.generation.math import look_at_rotation, rotation_matrix_from_vectors
 
 
 def test_rotation_matrix_alignment_edge_cases():
@@ -534,7 +534,7 @@ Unit tests for math_utils module.
 import numpy as np
 import pytest
 
-from render_tag.geometry.math import (
+from render_tag.generation.math import (
     compute_polygon_area,
     look_at_rotation,
     make_transformation_matrix,
@@ -601,7 +601,7 @@ Advanced tests for projection math and coordinate transformations.
 
 import numpy as np
 
-from render_tag.geometry.projection_math import (
+from render_tag.generation.projection_math import (
     calculate_angle_of_incidence,
     get_opencv_camera_matrix,
     get_world_normal,
@@ -1086,7 +1086,7 @@ Unit tests for visibility_geometry module.
 import numpy as np
 import pytest
 
-from render_tag.geometry.visibility import (
+from render_tag.generation.visibility import (
     is_facing_camera,
     project_points,
     validate_visibility_metrics,
@@ -1122,7 +1122,7 @@ def test_project_points_basic():
     cam_pos = np.array([0, 0, 1])
     np.eye(3)  # This is a bit simplified, but let's test a point on axis
     # In my look_at_rotation, forward (0,0,-1) with up (0,0,1) handled:
-    from render_tag.geometry.math import look_at_rotation, make_transformation_matrix
+    from render_tag.generation.math import look_at_rotation, make_transformation_matrix
 
     R = look_at_rotation(np.array([0, 0, -1]))
     cam2world = make_transformation_matrix(cam_pos, R)

@@ -1,6 +1,6 @@
 import hashlib
 
-from render_tag.common.manifest import ChecksumManifest
+from render_tag.core.manifest import ChecksumManifest
 
 
 def test_manifest_creation_and_hashing(tmp_path):

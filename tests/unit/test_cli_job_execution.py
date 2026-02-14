@@ -3,7 +3,7 @@ import hashlib
 from typer.testing import CliRunner
 
 from render_tag.cli.main import app
-from render_tag.schema.job import JobSpec
+from render_tag.core.schema.job import JobSpec
 
 runner = CliRunner()
 
@@ -47,7 +47,7 @@ def test_cli_run_with_job_mismatch(tmp_path, monkeypatch):
     monkeypatch.setattr(subprocess, "run", lambda *args, **kwargs: MockCompletedProcess())
 
     # Mock AssetValidator and BlenderProc check
-    monkeypatch.setattr("render_tag.common.validator.AssetValidator.is_hydrated", lambda self: True)
+    monkeypatch.setattr("render_tag.core.validator.AssetValidator.is_hydrated", lambda self: True)
     monkeypatch.setattr("render_tag.cli.tools.check_blenderproc_installed", lambda: True)
 
     # 4. Run 'render-tag generate --job job.json'
@@ -94,7 +94,7 @@ def test_cli_run_with_job_config_mismatch(tmp_path, monkeypatch):
     monkeypatch.setattr(subprocess, "run", lambda *args, **kwargs: MockCompletedProcess())
 
     # Mock AssetValidator and BlenderProc check
-    monkeypatch.setattr("render_tag.common.validator.AssetValidator.is_hydrated", lambda self: True)
+    monkeypatch.setattr("render_tag.core.validator.AssetValidator.is_hydrated", lambda self: True)
     monkeypatch.setattr("render_tag.cli.tools.check_blenderproc_installed", lambda: True)
 
     result = runner.invoke(app, ["generate", "--job", str(job_file), "--executor", "mock"])
@@ -139,7 +139,7 @@ def test_cli_run_with_job_overrides_warning(tmp_path, monkeypatch):
     monkeypatch.setattr(subprocess, "run", lambda *args, **kwargs: MockCompletedProcess())
 
     # Mock AssetValidator and BlenderProc check
-    monkeypatch.setattr("render_tag.common.validator.AssetValidator.is_hydrated", lambda self: True)
+    monkeypatch.setattr("render_tag.core.validator.AssetValidator.is_hydrated", lambda self: True)
     monkeypatch.setattr("render_tag.cli.tools.check_blenderproc_installed", lambda: True)
 
     # Run with conflicting CLI flags

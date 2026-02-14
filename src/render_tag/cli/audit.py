@@ -11,8 +11,8 @@ from rich.table import Table
 
 try:
     from render_tag.audit.auditor import AuditDiff, DatasetAuditor
-    from render_tag.audit.auditor_schema import AuditResult, QualityGateConfig
-    from render_tag.audit.auditor_viz import DashboardGenerator
+    from render_tag.audit.auditor import AuditResult, QualityGateConfig
+    from render_tag.audit.reporting import DashboardGenerator
 except ImportError:
     AuditDiff = None
     DatasetAuditor = None

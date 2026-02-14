@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 import numpy as np
 
 if TYPE_CHECKING:
-    from render_tag.schema import DetectionRecord
+    from render_tag.core.schema import DetectionRecord
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ try:
         format_coco_keypoints,
         normalize_corner_order,
     )
-    from render_tag.geometry.math import compute_polygon_area
+    from render_tag.generation.math import compute_polygon_area
 
     GEOMETRY_AVAILABLE = True
 except ImportError:
@@ -37,9 +37,9 @@ except ImportError:
 
 
 if TYPE_CHECKING:
-    from render_tag.schema import SceneProvenance
+    from render_tag.core.schema import SceneProvenance
 
-from render_tag.schema import DetectionRecord
+from render_tag.core.schema import DetectionRecord
 
 
 class CSVWriter:

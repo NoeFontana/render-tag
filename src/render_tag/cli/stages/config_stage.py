@@ -12,7 +12,7 @@ from rich.console import Console
 from render_tag.cli.pipeline import GenerationContext, PipelineStage
 from render_tag.cli.tools import serialize_config_to_json
 from render_tag.core.config import load_config
-from render_tag.schema.job import JobSpec, get_env_fingerprint
+from render_tag.core.schema.job import JobSpec, get_env_fingerprint
 
 console = Console()
 
@@ -114,7 +114,11 @@ class ConfigLoadingStage(PipelineStage):
             raise typer.Exit(code=1) from None
 
         # Apply CLI Overrides
-        ctx.gen_config.dataset.num_scenes = ctx.num_scenes
+        if ctx.num_scenes > 0:
+            ctx.gen_config.dataset.num_scenes = ctx.num_scenes
+        else:
+            ctx.num_scenes = ctx.gen_config.dataset.num_scenes
+
         if ctx.seed != -1:
             ctx.gen_config.dataset.seeds.global_seed = ctx.seed
 

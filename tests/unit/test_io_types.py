@@ -2,7 +2,7 @@
 Unit tests for the centralized types module.
 """
 
-from render_tag.schema import Corner, DetectionRecord
+from render_tag.core.schema import Corner, DetectionRecord
 
 
 class TestCorner:

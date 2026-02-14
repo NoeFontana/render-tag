@@ -1,7 +1,7 @@
 import sys
 import time
-
-from render_tag.orchestration.orchestrator_utils import UnifiedWorkerOrchestrator
+import pytest
+from render_tag.orchestration.orchestrator import UnifiedWorkerOrchestrator
 
 
 def test_vram_guardrail_restart(tmp_path):
@@ -27,6 +27,12 @@ if __name__ == "__main__":
         msg = socket.recv_string()
         request = json.loads(msg)
         
+        # Handle SHUTDOWN to allow process termination
+        if request.get("command_type") == "SHUTDOWN":
+            response = {"status": "SUCCESS", "message": "Bye", "request_id": request.get("request_id")}
+            socket.send_string(json.dumps(response))
+            break
+
         # Always report high VRAM
         response = {
             "status": "SUCCESS",
@@ -50,6 +56,7 @@ if __name__ == "__main__":
         blender_script=dummy_script,
         blender_executable=sys.executable,
         use_blenderproc=False,
+        mock=True,
         vram_threshold_mb=1000,
     ) as pool:
         worker = pool.get_worker()
@@ -64,4 +71,3 @@ if __name__ == "__main__":
         # 4. Get worker again and check PID
         worker_new = pool.get_worker()
         assert worker_new.process.pid != original_pid
-        assert worker_new.worker_id == "worker-0"

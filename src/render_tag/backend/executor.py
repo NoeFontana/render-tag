@@ -1,3 +1,4 @@
+import blenderproc as bproc
 import logging
 import sys
 from pathlib import Path
@@ -13,8 +14,6 @@ try:
 except Exception as e:
     sys.stderr.write(f"BOOTSTRAP FAILED: {e}\n")
 
-from render_tag.backend.bridge import bproc
-
 """
 Minimal one-shot executor for render-tag.
 Acts as a wrapper around render_loop for non-ZMQ contexts (e.g. Docker).
@@ -22,9 +21,8 @@ Acts as a wrapper around render_loop for non-ZMQ contexts (e.g. Docker).
 
 import argparse  # noqa: E402
 import json  # noqa: E402
-from pathlib import Path  # noqa: E402
 
-from render_tag.backend.render_loop import execute_recipe  # noqa: E402
+from render_tag.backend.engine import execute_recipe  # noqa: E402
 from render_tag.data_io.writers import (  # noqa: E402
     COCOWriter,
     CSVWriter,

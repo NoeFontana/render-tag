@@ -7,14 +7,14 @@ from typing import Any
 
 import numpy as np
 
-from render_tag.common import TAG_GRID_SIZES
-from render_tag.geometry.board import (
+from render_tag.core import TAG_GRID_SIZES
+from render_tag.generation.board import (
     BoardSpec,
     BoardType,
     compute_aprilgrid_layout,
     compute_charuco_layout,
 )
-from render_tag.schema import ObjectRecipe
+from render_tag.core.schema import ObjectRecipe
 
 
 def apply_flying_layout(

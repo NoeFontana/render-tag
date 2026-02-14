@@ -48,7 +48,13 @@ Use these slash commands for standard operations:
 ---
 
 ## 4. Directory Map
-- [schema.py](file:///src/render_tag/schema.py): The source of truth for recipes.
-- [generator.py](file:///src/render_tag/generator.py): Procedural math logic.
-- [blender_main.py](file:///src/render_tag/scripts/blender_main.py): 3D render driver.
+
+- [core/](file:///src/render_tag/core/): Core utilities, config, and schemas.
+
+- [generation/](file:///src/render_tag/generation/): Procedural math and scene logic.
+
+- [backend/engine.py](file:///src/render_tag/backend/engine.py): Unified rendering engine.
+
+- [orchestration/orchestrator.py](file:///src/render_tag/orchestration/orchestrator.py): Worker management.
+
 - [.agent/](file:///.agent/): Agent-specific rules and workflows.

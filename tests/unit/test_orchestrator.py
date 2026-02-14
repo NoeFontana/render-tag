@@ -1,7 +1,7 @@
 import pytest
 
-from render_tag.orchestration.orchestrator_utils import UnifiedWorkerOrchestrator
-from render_tag.schema.hot_loop import ResponseStatus
+from render_tag.orchestration.orchestrator import UnifiedWorkerOrchestrator
+from render_tag.core.schema.hot_loop import ResponseStatus
 
 
 @pytest.mark.timeout(30)

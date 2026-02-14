@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 
-from render_tag.orchestration.orchestrator_utils import UnifiedWorkerOrchestrator
+from render_tag.orchestration.orchestrator import UnifiedWorkerOrchestrator
 
 
 def test_hot_loop_end_to_end(tmp_path):

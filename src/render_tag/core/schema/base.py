@@ -12,6 +12,46 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class TagFamily(str, Enum):
+    """Fiducial tag families."""
+
+    TAG36H11 = "tag36h11"
+    TAG36H10 = "tag36h10"
+    TAG25H9 = "tag25h9"
+    TAG16H5 = "tag16h5"
+    TAGCIRCLE21H7 = "tagCircle21h7"
+    TAGCIRCLE49H12 = "tagCircle49h12"
+    TAGCUSTOM48H12 = "tagCustom48h12"
+    TAGSTANDARD41H12 = "tagStandard41h12"
+    TAGSTANDARD52H13 = "tagStandard52h13"
+    DICT_4X4_50 = "DICT_4X4_50"
+    DICT_4X4_100 = "DICT_4X4_100"
+    DICT_4X4_250 = "DICT_4X4_250"
+    DICT_6X6_1000 = "DICT_6X6_1000"
+    DICT_7X7_50 = "DICT_7X7_50"
+    DICT_7X7_100 = "DICT_7X7_100"
+    DICT_7X7_250 = "DICT_7X7_250"
+    DICT_7X7_1000 = "DICT_7X7_1000"
+    DICT_ARUCO_ORIGINAL = "DICT_ARUCO_ORIGINAL"
+
+
+class ObjectType(str, Enum):
+    """Types of objects in the scene."""
+
+    TAG = "TAG"
+    BOARD = "BOARD"
+    PLANE = "PLANE"
+    DISTRACTOR = "DISTRACTOR"
+
+
+class EvaluationScope(str, Enum):
+    """Scopes for dataset evaluation."""
+
+    DETECTION = "detection"
+    POSE = "pose"
+    SEGMENTATION = "segmentation"
+
+
 class NoiseType(str, Enum):
     """Types of sensor noise models."""
 
@@ -46,6 +86,14 @@ class SensorDynamicsRecipe(BaseModel):
     rolling_shutter_duration_ms: float | None = Field(
         default=None, description="Rolling shutter duration in ms"
     )
+
+
+class TagSurfaceConfig(BaseModel):
+    """Configuration for tag surface imperfections."""
+
+    scratches: float = Field(default=0.0, ge=0.0, le=1.0, description="Intensity of scratches")
+    dust: float = Field(default=0.0, ge=0.0, le=1.0, description="Intensity of dust")
+    grunge: float = Field(default=0.0, ge=0.0, le=1.0, description="Intensity of grunge/stains")
 
 
 class TagSurfaceConfig(BaseModel):

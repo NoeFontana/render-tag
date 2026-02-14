@@ -7,32 +7,39 @@ from pathlib import Path
 def setup_environment():
     """
     Synchronizes the Blender Python environment with the project virtual environment.
-
-    This ensures that Blender has access to all project dependencies and the
-    live code in the src/ directory.
     """
-    # 1. Identify project root and src directory
-    # bootstrap.py is located at src/render_tag/backend/bootstrap.py
-    current_file = Path(__file__).resolve()
-    src_dir = current_file.parents[2]
+    # Staff Engineer: Robustly find project root (directory containing 'render_tag')
+    # 1. Check environment variable first (most reliable in orchestrated mode)
+    src_dir = os.environ.get("RENDER_TAG_SRC_ROOT")
+    
+    if not src_dir:
+        # 2. Fallback: Search upwards from this file
+        _curr = Path(__file__).resolve().parent
+        while _curr.parent != _curr:
+            if (_curr / "render_tag").is_dir() and (_curr / "render_tag" / "__init__.py").exists():
+                src_dir = str(_curr.parent)
+                break
+            _curr = _curr.parent
+            
+    if not src_dir:
+        # 3. Last fallback: parents[2]
+        src_dir = str(Path(__file__).resolve().parents[2])
 
-    if str(src_dir) not in sys.path:
-        sys.path.insert(0, str(src_dir))
+    if src_dir and src_dir not in sys.path:
+        sys.path.insert(0, src_dir)
 
     # 2. Orchestration Mode: Get site-packages from environment variable
     venv_site_packages = os.environ.get("RENDER_TAG_VENV_SITE_PACKAGES")
 
     # 3. Dev Mode Fallback: Search for .venv if not provided by orchestrator
     if not venv_site_packages:
-        # Assume the project root is the parent of src/
-        project_root = src_dir.parent
+        project_root = Path(src_dir).parent if src_dir else Path.cwd()
         venv_path = project_root / ".venv"
 
         if venv_path.exists():
             if sys.platform == "win32":
                 potential_site = venv_path / "Lib" / "site-packages"
             else:
-                # On Linux/Mac, it's lib/pythonX.Y/site-packages
                 lib_dir = venv_path / "lib"
                 if lib_dir.exists():
                     sites = list(lib_dir.glob("python*/site-packages"))
@@ -44,49 +51,39 @@ def setup_environment():
                 venv_site_packages = str(potential_site)
 
     if venv_site_packages:
-        # VERSION GUARD: Only add site-packages if Python versions match (major.minor)
-        # to avoid "No module named 'orjson.orjson'" or similar binary incompatibilities.
-        # Compiled extensions (like orjson, pydantic-core, numpy) are version-specific.
-        venv_version_dir = Path(venv_site_packages).parent.name  # e.g. "python3.12"
+        venv_version_dir = Path(venv_site_packages).parent.name
         blender_version_str = f"python{sys.version_info.major}.{sys.version_info.minor}"
 
         if venv_version_dir == blender_version_str:
             site.addsitedir(venv_site_packages)
-        else:
-            # If versions mismatch, we SHOULD NOT add site-packages blindly.
-            # However, if we are in a container or a managed environment,
-            # the dependencies might already be in Blender's own site-packages.
-            pass
 
     # 4. Configure Structured Logging
-    configure_logging()
+    try:
+        configure_logging()
+    except Exception:
+        pass
 
     # 5. Fail Fast: Verify critical dependencies
-    # We check for pydantic as a baseline dependency for the project
     try:
         import orjson  # noqa: F401
         import pydantic  # noqa: F401
     except ImportError as e:
-        # Only raise if we think we found a venv but it's broken
-        # or if we are clearly in an environment that should have it.
         raise RuntimeError(
             f"Blender Environment Bootstrap Failed.\n"
             f"Critical dependency not found: {e}\n"
-            f"Blender Python: {sys.version_info.major}.{sys.version_info.minor}\n"
-            f"Detected site-packages: {venv_site_packages}\n"
-            f"Please ensure the dependencies are installed for Blender's Python version."
         ) from e
 
 
 def configure_logging():
     """Configures structured JSON logging for the Blender backend."""
     import logging
+    try:
+        from render_tag.core.logging import JSONFormatter
+    except ImportError:
+        # If we still can't find it, we can't configure structured logging yet
+        return
 
-    from render_tag.common.logging import JSONFormatter
-
-    # 1. Setup Root Logger
     root = logging.getLogger()
-    # Remove existing handlers
     for handler in root.handlers[:]:
         root.removeHandler(handler)
 
@@ -94,20 +91,6 @@ def configure_logging():
     handler.setFormatter(JSONFormatter())
     root.addHandler(handler)
     root.setLevel(logging.INFO)
-
-    # 2. Redirect stderr to the root logger
-    class StderrLogger:
-        def __init__(self, logger):
-            self.logger = logger
-
-        def write(self, buf):
-            for line in buf.rstrip().splitlines():
-                self.logger.error(line.rstrip())
-
-        def flush(self):
-            pass
-
-    sys.stderr = StderrLogger(logging.getLogger("stderr"))
 
 
 if __name__ == "__main__":

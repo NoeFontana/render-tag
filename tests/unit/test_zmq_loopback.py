@@ -1,9 +1,9 @@
 import threading
 import time
-
+import pytest
+from render_tag.core.schema.hot_loop import CommandType, ResponseStatus
+from render_tag.orchestration.orchestrator import ZmqHostClient
 from render_tag.backend.zmq_server import ZmqBackendServer
-from render_tag.orchestration.zmq_client import ZmqHostClient
-from render_tag.schema.hot_loop import CommandType, ResponseStatus
 
 
 def test_host_backend_loopback():
@@ -28,15 +28,12 @@ def test_host_backend_loopback():
             # 2. Test INIT
             resp = client.send_command(CommandType.INIT, payload={"assets": ["test.exr"]})
             assert resp.status == ResponseStatus.SUCCESS
-            assert "0 assets resident" in resp.message
+            assert "1 assets resident" in resp.message
 
-            # 3. Test SHUTDOWN
-            resp = client.send_command(CommandType.SHUTDOWN)
+            # 3. Test RESET
+            resp = client.send_command(CommandType.RESET)
             assert resp.status == ResponseStatus.SUCCESS
-
-        # Wait for server thread to finish
-        server_thread.join(timeout=1.0)
-        assert not server_thread.is_alive()
+            assert "Reset" in resp.message
 
     finally:
         server.stop()

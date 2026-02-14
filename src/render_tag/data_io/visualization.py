@@ -19,7 +19,7 @@ import numpy as np
 from PIL import Image, ImageDraw
 from rich.console import Console
 
-from render_tag.schema import ObjectRecipe, SceneRecipe
+from render_tag.core.schema import ObjectRecipe, SceneRecipe
 
 console = Console()
 

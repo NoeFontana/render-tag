@@ -8,7 +8,7 @@ import sys
 import typer
 from rich.panel import Panel
 
-from ..common.logging import setup_logging
+from render_tag.core.logging import setup_logging
 from . import assets, audit, experiment, generate, job, viz
 from .tools import console
 

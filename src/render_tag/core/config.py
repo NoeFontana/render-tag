@@ -12,7 +12,7 @@ from typing import Annotated, Any, Literal
 import yaml
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from render_tag.schema import (
+from render_tag.core.schema import (
     SensorNoiseConfig,
 )
 

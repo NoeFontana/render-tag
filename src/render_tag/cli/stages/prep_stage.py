@@ -1,0 +1,112 @@
+"""
+Preparation stage for the generation pipeline.
+Combines asset verification and recipe generation.
+"""
+
+import os
+import sys
+from pathlib import Path
+
+import typer
+from rich.console import Console
+
+from render_tag.cli.pipeline import GenerationContext, PipelineStage
+from render_tag.cli.tools import get_asset_manager
+from render_tag.core.validator import AssetValidator, validate_recipe_file
+from render_tag.generation.scene import Generator
+from render_tag.generation.tags import ensure_tag_asset
+from render_tag.orchestration.orchestrator import (
+    get_completed_scene_ids,
+    resolve_shard_index,
+)
+
+console = Console()
+
+
+class PreparationStage(PipelineStage):
+    """Ensures assets are present and generates scene recipes."""
+
+    def execute(self, ctx: GenerationContext) -> None:
+        # 1. Assets
+        self._ensure_assets(ctx)
+
+        # 2. Sharding / Resuming
+        if ctx.shard_index == -1 and ctx.total_shards > 1:
+            ctx.shard_index = resolve_shard_index()
+        if ctx.shard_index == -1:
+            ctx.shard_index = 0
+
+        if ctx.resume:
+            ctx.completed_ids = get_completed_scene_ids(ctx.output_dir)
+            if ctx.completed_ids:
+                console.print(f"[yellow]Resuming. Found {len(ctx.completed_ids)} completed scenes.[/yellow]")
+
+        # 3. Generate Recipes
+        console.print(f"[bold]Running Shard {ctx.shard_index + 1}/{ctx.total_shards}[/bold]")
+        generator = Generator(ctx.gen_config.model_dump(mode="json"), ctx.output_dir)
+
+        recipes = generator.generate_shards(
+            total_scenes=ctx.num_scenes,
+            shard_index=ctx.shard_index,
+            total_shards=ctx.total_shards,
+            exclude_ids=ctx.completed_ids,
+        )
+
+        if not recipes:
+            console.print("[yellow]Empty shard range. Exiting.[/yellow]")
+            return
+
+        filename = f"recipes_shard_{ctx.shard_index}.json"
+        ctx.recipes_path = ctx.output_dir / filename
+        generator.save_recipe_json(recipes, filename)
+        console.print(f"[dim]Recipe saved to:[/dim] {ctx.recipes_path}")
+
+        # 4. Validation
+        self._validate_recipes(ctx.recipes_path)
+
+    def _ensure_assets(self, ctx: GenerationContext) -> None:
+        default_dir = Path(__file__).parents[4] / "assets"
+        local_dir = Path(os.environ.get("RENDER_TAG_ASSETS_DIR", default_dir))
+        validator = AssetValidator(local_dir)
+
+        if not validator.is_hydrated():
+            if not sys.stdin.isatty():
+                console.print("[bold red]Error:[/bold red] Required assets missing.")
+                raise typer.Exit(code=1)
+
+            console.print("[bold yellow]Warning:[/bold yellow] Assets folder is missing or empty.")
+            if typer.confirm("Pull assets from Hugging Face now?", default=True):
+                try:
+                    get_asset_manager().pull()
+                    console.print("[bold green]✓ Assets synchronized![/bold green]")
+                except Exception as e:
+                    console.print(f"[bold red]Error pulling assets:[/bold red] {e}")
+                    raise typer.Exit(code=1) from None
+            else:
+                raise typer.Exit(code=1)
+
+        # Specific Tags
+        assets_tag_dir = Path("assets/tags")
+        assets_tag_dir.mkdir(parents=True, exist_ok=True)
+        scenario = ctx.gen_config.scenario
+        families = scenario.tag_families if scenario else [ctx.gen_config.tag.family]
+        tags_per_scene = scenario.tags_per_scene[1] if scenario else 1
+
+        for family_enum in families:
+            family = family_enum.value
+            for i in range(max(tags_per_scene, 10)):
+                path = ensure_tag_asset(family, i, assets_tag_dir)
+                if ctx.verbose:
+                    console.print(f"  [dim]Checked asset:[/dim] {path.name}")
+
+    def _validate_recipes(self, path) -> None:
+        is_valid, errors, warnings = validate_recipe_file(path)
+        if warnings:
+            for w in warnings:
+                console.print(f"[yellow]Warning:[/yellow] {w}")
+        if not is_valid:
+            console.print("[bold red]Pre-flight Validation Failed![/bold red]")
+            for e in errors:
+                console.print(f"[red]Error:[/red] {e}")
+            raise typer.Exit(code=1)
+        console.print("[green]✓ Pre-flight validation passed[/green]")

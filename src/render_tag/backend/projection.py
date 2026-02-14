@@ -10,14 +10,14 @@ from __future__ import annotations
 from typing import Any
 
 from render_tag.backend.bridge import bproc, bpy, np
-from render_tag.geometry.projection_math import (
+from render_tag.generation.projection_math import (
     calculate_angle_of_incidence,
     calculate_distance,
     calculate_relative_pose,
     get_opencv_camera_matrix,
     get_world_normal,
 )
-from render_tag.geometry.visibility import (
+from render_tag.generation.visibility import (
     is_facing_camera,
     project_points,
     validate_visibility_metrics,

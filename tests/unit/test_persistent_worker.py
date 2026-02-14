@@ -3,8 +3,8 @@ from pathlib import Path
 
 import pytest
 
-from render_tag.orchestration.persistent_worker import PersistentWorkerProcess
-from render_tag.schema.hot_loop import CommandType, ResponseStatus
+from render_tag.orchestration.orchestrator import PersistentWorkerProcess
+from render_tag.core.schema.hot_loop import CommandType, ResponseStatus
 
 
 def test_persistent_worker_lifecycle(tmp_path):

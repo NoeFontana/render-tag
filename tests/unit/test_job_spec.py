@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from render_tag.schema.job import JobSpec, calculate_job_id
+from render_tag.core.schema.job import JobSpec, calculate_job_id
 
 
 def test_job_spec_immutability():

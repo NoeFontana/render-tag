@@ -11,7 +11,7 @@ import math
 from typing import Any
 
 from render_tag.backend.bridge import bproc, bpy, mathutils, np
-from render_tag.geometry.camera import (
+from render_tag.generation.camera import (
     sample_camera_pose,
     validate_camera_pose,
 )

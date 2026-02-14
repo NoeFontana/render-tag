@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from render_tag.core.config import GenConfig
-from render_tag.schema.job import JobSpec
+from render_tag.core.schema.job import JobSpec
 
 logger = logging.getLogger(__name__)
 

@@ -5,7 +5,7 @@ from pydantic import ValidationError
 from render_tag.backend.sensors import apply_parametric_noise
 
 # We expect these imports to fail or the classes to not have these fields yet
-from render_tag.schema import NoiseType, SensorNoiseConfig
+from render_tag.core.schema import NoiseType, SensorNoiseConfig
 
 
 def test_sensor_noise_config_validation():

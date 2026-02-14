@@ -1,4 +1,4 @@
-from render_tag.schema.hot_loop import (
+from render_tag.core.schema.hot_loop import (
     Command,
     CommandType,
     Response,

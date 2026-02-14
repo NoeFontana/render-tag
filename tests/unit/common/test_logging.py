@@ -4,7 +4,7 @@ from pathlib import Path
 
 import numpy as np
 
-from render_tag.common.logging import JSONFormatter
+from render_tag.core.logging import JSONFormatter
 
 
 def test_json_formatter_basic():

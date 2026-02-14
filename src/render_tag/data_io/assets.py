@@ -40,7 +40,13 @@ class AssetProvider:
             return p
 
         # 2. Local check
+        # Staff Engineer: Avoid double-prepending local_dir if the path already starts with it
         local_p = self.local_dir / p
+        if p.parts and p.parts[0] == self.local_dir.name:
+            # If path is 'assets/hdri/studio.exr' and local_dir is '/.../assets'
+            # we should use self.local_dir.parent / p
+            local_p = self.local_dir.parent / p
+
         if local_p.exists():
             return local_p
 
@@ -55,9 +61,14 @@ class AssetProvider:
             "Asset %s not found locally. Attempting download from %s", asset_path, self.repo_id
         )
         try:
+            # Strip the assets/ prefix if it exists for HF filename
+            hf_filename = str(p)
+            if p.parts and p.parts[0] == self.local_dir.name:
+                hf_filename = str(Path(*p.parts[1:]))
+
             downloaded_path = hf_hub_download(
                 repo_id=self.repo_id,
-                filename=str(p),
+                filename=hf_filename,
                 local_dir=str(self.local_dir),
                 repo_type="dataset",
             )

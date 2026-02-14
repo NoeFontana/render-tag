@@ -2,8 +2,8 @@ import threading
 import time
 
 from render_tag.backend.zmq_server import ZmqBackendServer
-from render_tag.orchestration.zmq_client import ZmqHostClient
-from render_tag.schema.hot_loop import CommandType, ResponseStatus
+from render_tag.orchestration.orchestrator import ZmqHostClient
+from render_tag.core.schema.hot_loop import CommandType, ResponseStatus
 
 
 def test_ephemeral_mode(tmp_path):

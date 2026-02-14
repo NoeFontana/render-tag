@@ -1,31 +1,32 @@
-import json
 import threading
 import time
+import pytest
+from render_tag.core.schema.hot_loop import CommandType, Response, ResponseStatus
+from render_tag.orchestration.orchestrator import ZmqHostClient
+from render_tag.core.errors import WorkerCommunicationError
 
-import zmq
 
-from render_tag.orchestration.zmq_client import ZmqHostClient
-from render_tag.schema.hot_loop import CommandType, Response, ResponseStatus
-
-
-def mock_zmq_server(port, response_delay=0):
+def mock_zmq_server(port, delay=0):
+    import zmq
+    import json
     context = zmq.Context()
     socket = context.socket(zmq.REP)
-    socket.bind(f"tcp://*:{port}")
-
+    socket.bind(f"tcp://127.0.0.1:{port}")
+    
     try:
-        # Wait for one command
-        message = socket.recv_string()
-        if response_delay > 0:
-            time.sleep(response_delay)
-
-        cmd_data = json.loads(message)
-        resp = Response(
-            status=ResponseStatus.SUCCESS,
-            request_id=cmd_data["request_id"],
-            message=f"Echo: {cmd_data['command_type']}",
-        )
-        socket.send_string(resp.model_dump_json())
+        # Wait for a message
+        if socket.poll(2000):
+            msg = socket.recv_string()
+            if delay > 0:
+                time.sleep(delay)
+            
+            resp = {
+                "status": "SUCCESS",
+                "message": "Mock response",
+                "request_id": "mock-id",
+                "data": {}
+            }
+            socket.send_string(json.dumps(resp))
     finally:
         socket.close()
         context.term()
@@ -35,29 +36,25 @@ def test_zmq_client_success():
     port = 5556
     server_thread = threading.Thread(target=mock_zmq_server, args=(port,))
     server_thread.start()
-
-    time.sleep(0.1)  # Give server time to bind
-
+    
+    time.sleep(0.1) # Wait for bind
+    
     with ZmqHostClient(port=port) as client:
         resp = client.send_command(CommandType.STATUS)
         assert resp.status == ResponseStatus.SUCCESS
-        assert "Echo: STATUS" in resp.message
-
-    server_thread.join()
+        assert resp.message == "Mock response"
 
 
 def test_zmq_client_timeout():
     port = 5557
-    # Start server with delay longer than client timeout
-    server_thread = threading.Thread(target=mock_zmq_server, args=(port, 0.5))
+    # Start server with delay significantly longer than client timeout
+    # Staff Engineer: Increase delay to avoid race conditions
+    server_thread = threading.Thread(target=mock_zmq_server, args=(port, 2.0))
     server_thread.start()
-
+    
     time.sleep(0.1)
-
+    
     # Set small timeout
-    with ZmqHostClient(port=port, timeout_ms=100) as client:
-        resp = client.send_command(CommandType.STATUS)
-        assert resp.status == ResponseStatus.FAILURE
-        assert "Timeout" in resp.message
-
-    server_thread.join()
+    with ZmqHostClient(port=port, timeout_ms=200) as client:
+        with pytest.raises(WorkerCommunicationError, match="TIMEOUT sending CommandType.STATUS"):
+            client.send_command(CommandType.STATUS)

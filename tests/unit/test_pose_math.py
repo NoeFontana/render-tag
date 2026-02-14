@@ -1,6 +1,6 @@
 import numpy as np
 
-from render_tag.geometry.projection_math import matrix_to_quaternion_xyzw
+from render_tag.generation.projection_math import matrix_to_quaternion_xyzw
 
 
 def test_matrix_to_quaternion_identity():
@@ -32,7 +32,7 @@ def test_matrix_to_quaternion_translation_ignored():
 
 def test_calculate_relative_pose_identity():
     """Verify relative pose when tag and camera are aligned (identity)."""
-    from render_tag.geometry.projection_math import calculate_relative_pose
+    from render_tag.generation.projection_math import calculate_relative_pose
 
     # Tag at world origin
     tag_mat = np.eye(4)
@@ -52,7 +52,7 @@ def test_calculate_relative_pose_identity():
 
 def test_calculate_relative_pose_translation():
     """Verify relative pose with translation."""
-    from render_tag.geometry.projection_math import calculate_relative_pose
+    from render_tag.generation.projection_math import calculate_relative_pose
 
     # Tag at [0, 0, 5] in world
     tag_mat = np.eye(4)

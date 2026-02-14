@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from render_tag.common.metadata import DatasetManifest
+from render_tag.core.metadata import DatasetManifest
 
 
 def test_dataset_metadata_valid():

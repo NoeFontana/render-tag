@@ -8,8 +8,8 @@ from pathlib import Path
 
 import typer
 
-from render_tag.audit.dataset_info import generate_dataset_info
-from render_tag.common.manifest import ChecksumManifest
+from render_tag.audit.reporting import generate_dataset_info
+from render_tag.core.manifest import ChecksumManifest
 from render_tag.generation.scene import Generator
 from render_tag.generation.tags import ensure_tag_asset
 from render_tag.orchestration.experiment import (

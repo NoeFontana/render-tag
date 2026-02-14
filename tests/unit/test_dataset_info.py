@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from render_tag.audit.dataset_info import generate_dataset_info
+from render_tag.audit.reporting import generate_dataset_info
 from render_tag.core.config import EvaluationScope, GenConfig
 
 
