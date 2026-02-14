@@ -16,7 +16,7 @@ from typing import Any, Protocol, runtime_checkable
 from PIL import Image
 
 from render_tag.backend.assets import create_tag_plane, get_tag_texture_path, global_pool
-from render_tag.backend.bridge import bproc, bpy, np
+from render_tag.backend.bridge import bridge
 from render_tag.backend.camera import setup_sensor_dynamics
 from render_tag.backend.projection import compute_geometric_metadata
 from render_tag.backend.scene import (
@@ -51,7 +51,7 @@ class CyclesRenderStrategy:
     """Configures the high-fidelity Cycles path tracer."""
 
     def configure(self) -> None:
-        bpy.context.scene.render.engine = "CYCLES"
+        bridge.bpy.context.scene.render.engine = "CYCLES"
 
 
 class EeveeRenderStrategy:
@@ -59,16 +59,16 @@ class EeveeRenderStrategy:
 
     def configure(self) -> None:
         try:
-            bpy.context.scene.render.engine = "BLENDER_EEVEE_NEXT"
+            bridge.bpy.context.scene.render.engine = "BLENDER_EEVEE_NEXT"
         except Exception:
-            bpy.context.scene.render.engine = "BLENDER_EEVEE"
+            bridge.bpy.context.scene.render.engine = "BLENDER_EEVEE"
 
 
 class WorkbenchRenderStrategy:
     """Configures the fast Workbench engine for previews."""
 
     def configure(self) -> None:
-        bpy.context.scene.render.engine = "BLENDER_WORKBENCH"
+        bridge.bpy.context.scene.render.engine = "BLENDER_WORKBENCH"
 
 
 class RenderFacade:
@@ -93,7 +93,7 @@ class RenderFacade:
     def reset_volatile_state(self):
         """Clears objects from the scene but keeps heavy environment assets."""
         global_pool.release_all()
-        bproc.utility.reset_keyframes()
+        bridge.bproc.utility.reset_keyframes()
 
     def setup_world(self, world_recipe: dict[str, Any]):
         """Sets up HDRI, lighting, and environment."""
@@ -130,11 +130,11 @@ class RenderFacade:
 
     def render_camera(self, camera_recipe: dict[str, Any]) -> dict[str, Any]:
         """Configures a camera and renders the image."""
-        pose_matrix = np.array(camera_recipe["transform_matrix"])
-        bproc.camera.add_camera_pose(pose_matrix, frame=0)
+        pose_matrix = bridge.np.array(camera_recipe["transform_matrix"])
+        bridge.bproc.camera.add_camera_pose(pose_matrix, frame=0)
         setup_sensor_dynamics(pose_matrix, camera_recipe.get("sensor_dynamics"))
 
-        cam_data = bpy.context.scene.camera.data
+        cam_data = bridge.bpy.context.scene.camera.data
         fstop = camera_recipe.get("fstop")
         if fstop:
             cam_data.dof.use_dof = True
@@ -145,10 +145,12 @@ class RenderFacade:
         else:
             cam_data.dof.use_dof = False
 
-        if bpy.context.scene.render.engine != "BLENDER_WORKBENCH":
-            bproc.renderer.enable_segmentation_output(default_values={"category_id": 0})
+        if bridge.bpy.context.scene.render.engine != "BLENDER_WORKBENCH":
+            bridge.bproc.renderer.enable_segmentation_output(default_values={"category_id": 0})
 
-        data = bproc.renderer.render()
+        logger.info("Starting BlenderProc render call...")
+        data = bridge.bproc.renderer.render()
+        logger.info("BlenderProc render call completed.")
         img = data["colors"][0]
 
         if camera_recipe.get("sensor_noise"):
@@ -171,10 +173,10 @@ def execute_recipe(
     scene_idx = recipe["scene_id"]
     logger.info(f"--- Executing Scene {scene_idx} ---")
 
-    np.random.seed(scene_idx)
+    bridge.np.random.seed(scene_idx)
     random.seed(scene_idx)
-    bpy.context.scene.cycles.seed = scene_idx
-    bpy.context.scene.cycles.use_animated_seed = False
+    bridge.bpy.context.scene.cycles.seed = scene_idx
+    bridge.bpy.context.scene.cycles.use_animated_seed = False
 
     renderer = RenderFacade(renderer_mode=renderer_mode)
     renderer.reset_volatile_state()
@@ -198,28 +200,42 @@ def execute_recipe(
         render_out = renderer.render_camera(cam_recipe)
         render_time = time.time() - start_time
 
-        logger.info(f"Rendered camera {cam_idx}", extra={"log_type": "metric", "payload": {
-            "metric": "render_time", "value": render_time, "unit": "seconds", "camera_idx": cam_idx
-        }})
+        logger.info(
+            f"Rendered camera {cam_idx}",
+            extra={
+                "log_type": "metric",
+                "payload": {
+                    "metric": "render_time",
+                    "value": render_time,
+                    "unit": "seconds",
+                    "camera_idx": cam_idx,
+                },
+            },
+        )
 
         image_name = f"scene_{scene_idx:04d}_cam_{cam_idx:04d}"
         image_path = output_dir / "images" / f"{image_name}.png"
         image_path.parent.mkdir(parents=True, exist_ok=True)
 
         img_array = render_out.get("img")
-        if img_array is not None and np.asarray(img_array).size > 0:
-            Image.fromarray(np.asarray(img_array).astype(np.uint8)).save(str(image_path))
+        if img_array is not None and bridge.np.asarray(img_array).size > 0:
+            Image.fromarray(bridge.np.asarray(img_array).astype(bridge.np.uint8)).save(
+                str(image_path)
+            )
 
         sidecar_writer.write_sidecar(image_name, provenance)
         coco_img_id = coco_writer.add_image(f"images/{image_path.name}", res[0], res[1])
 
-        bpy.context.scene.frame_set(0, subframe=0.5)
-        bpy.context.view_layer.update()
+        bridge.bpy.context.scene.frame_set(0, subframe=0.5)
+        bridge.bpy.context.view_layer.update()
 
         if skip_visibility:
-            valid_detections = [(obj, [[0, 0], [res[0], 0], [res[0], res[1]], [0, res[1]]]) for obj in tag_objects]
+            valid_detections = [
+                (obj, [[0, 0], [res[0], 0], [res[0], res[1]], [0, res[1]]]) for obj in tag_objects
+            ]
         else:
             from render_tag.backend.projection import get_valid_detections
+
             valid_detections = get_valid_detections(tag_objects)
 
         segmap = render_out["segmap"]
@@ -228,9 +244,11 @@ def execute_recipe(
             geom = compute_geometric_metadata(tag_obj)
             occlusion = 0.0
             if segmap is not None:
-                vis_pixels = np.sum(segmap == blender_obj.pass_index)
+                vis_pixels = bridge.np.sum(segmap == blender_obj.pass_index)
                 if geom["pixel_area"] > 0:
-                    occlusion = float(np.clip(1.0 - (vis_pixels / geom["pixel_area"]), 0.0, 1.0))
+                    occlusion = float(
+                        bridge.np.clip(1.0 - (vis_pixels / geom["pixel_area"]), 0.0, 1.0)
+                    )
 
             det = DetectionRecord(
                 image_id=image_name,
@@ -255,8 +273,16 @@ def execute_recipe(
             )
             rich_writer.add_detection(det)
 
-        logger.info(f"Scene {scene_idx} progress: {cam_idx + 1}/{len(cam_recipes)}", extra={
-            "log_type": "progress", "payload": {"current": cam_idx + 1, "total": len(cam_recipes), "scene_id": scene_idx}
-        })
+        logger.info(
+            f"Scene {scene_idx} progress: {cam_idx + 1}/{len(cam_recipes)}",
+            extra={
+                "log_type": "progress",
+                "payload": {
+                    "current": cam_idx + 1,
+                    "total": len(cam_recipes),
+                    "scene_id": scene_idx,
+                },
+            },
+        )
 
     logger.info(f"✓ Rendered scene {scene_idx}")

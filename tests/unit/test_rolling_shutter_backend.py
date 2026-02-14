@@ -2,10 +2,10 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 
-# We mock bpy and bproc since they are not available in the host environment
+# We get setup_sensor_dynamics knowing it uses bridge internally
 with (
-    patch("render_tag.backend.camera.bpy", create=True) as mock_bpy,
-    patch("render_tag.backend.camera.bproc", create=True) as mock_bproc,
+    patch("render_tag.backend.bridge.bridge.bpy", create=True) as mock_bpy,
+    patch("render_tag.backend.bridge.bridge.bproc", create=True) as mock_bproc,
 ):
     from render_tag.backend.camera import setup_sensor_dynamics
 
@@ -24,9 +24,9 @@ def test_setup_sensor_dynamics_rolling_shutter():
     }
 
     with (
-        patch("render_tag.backend.camera.bpy", mock_bpy),
-        patch("render_tag.backend.camera.bproc", mock_bproc),
-        patch("render_tag.backend.camera.mathutils", create=True),
+        patch("render_tag.backend.bridge.bridge.bpy", mock_bpy),
+        patch("render_tag.backend.bridge.bridge.bproc", mock_bproc),
+        patch("render_tag.backend.bridge.bridge.mathutils", create=True),
     ):
         setup_sensor_dynamics(pose_matrix, dynamics_recipe)
 
@@ -44,9 +44,9 @@ def test_setup_sensor_dynamics_eevee_warning():
     dynamics_recipe = {"rolling_shutter_duration_ms": 5.0}
 
     with (
-        patch("render_tag.backend.camera.bpy", mock_bpy),
+        patch("render_tag.backend.bridge.bridge.bpy", mock_bpy),
         patch("render_tag.backend.camera.logger") as mock_logger,
-        patch("render_tag.backend.camera.mathutils", create=True),
+        patch("render_tag.backend.bridge.bridge.mathutils", create=True),
     ):
         setup_sensor_dynamics(pose_matrix, dynamics_recipe)
         assert mock_logger.warning.called

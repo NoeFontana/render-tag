@@ -10,7 +10,7 @@ import logging
 import math
 from typing import Any
 
-from render_tag.backend.bridge import bproc, bpy, mathutils, np
+from render_tag.backend.bridge import bridge
 from render_tag.generation.camera import (
     sample_camera_pose,
     validate_camera_pose,
@@ -29,7 +29,7 @@ def set_camera_intrinsics(camera_config: dict) -> None:
     fov = camera_config.get("fov", 60.0)
 
     # Set resolution
-    bproc.camera.set_resolution(resolution[0], resolution[1])
+    bridge.bproc.camera.set_resolution(resolution[0], resolution[1])
 
     # Check for explicit intrinsics
     intrinsics = camera_config.get("intrinsics", {})
@@ -37,7 +37,7 @@ def set_camera_intrinsics(camera_config: dict) -> None:
 
     if k_matrix:
         # Use explicit K matrix
-        bproc.camera.set_intrinsics_from_K_matrix(
+        bridge.bproc.camera.set_intrinsics_from_K_matrix(
             K=k_matrix,
             image_width=resolution[0],
             image_height=resolution[1],
@@ -71,7 +71,7 @@ def set_camera_intrinsics(camera_config: dict) -> None:
             [0.0, 0.0, 1.0],
         ]
 
-        bproc.camera.set_intrinsics_from_K_matrix(
+        bridge.bproc.camera.set_intrinsics_from_K_matrix(
             K=K_list,
             image_width=resolution[0],
             image_height=resolution[1],
@@ -90,7 +90,7 @@ def sample_camera_poses(
     total_samples: int = 1,
     elevation: float | None = None,
     azimuth: float | None = None,
-) -> list[np.ndarray]:
+) -> list[bridge.np.ndarray]:
     """Sample camera poses from a partial sphere looking at a point.
 
     Args:
@@ -113,8 +113,8 @@ def sample_camera_poses(
 
     # Pre-calculate steps for structured sampling if num_samples > 1
     if num_samples > 1:
-        dist_steps = np.linspace(min_distance, max_distance, num_samples)
-        elev_steps = np.linspace(min_elevation, max_elevation, num_samples)
+        dist_steps = bridge.np.linspace(min_distance, max_distance, num_samples)
+        elev_steps = bridge.np.linspace(min_elevation, max_elevation, num_samples)
     else:
         t = sample_idx / (total_samples - 1) if total_samples > 1 else 0.5
         dist_steps = [min_distance + t * (max_distance - min_distance)]
@@ -152,27 +152,27 @@ def sample_camera_poses(
     return poses
 
 
-def add_camera_poses_to_scene(poses: list[np.ndarray]) -> None:
+def add_camera_poses_to_scene(poses: list[bridge.np.ndarray]) -> None:
     """Add multiple camera poses to the BlenderProc scene.
 
     Args:
         poses: List of 4x4 camera-to-world matrices
     """
     for pose in poses:
-        bproc.camera.add_camera_pose(pose)
+        bridge.bproc.camera.add_camera_pose(pose)
 
 
-def get_camera_k_matrix() -> np.ndarray:
+def get_camera_k_matrix() -> bridge.np.ndarray:
     """Get the current camera's intrinsic matrix.
 
     Returns:
         3x3 camera intrinsic matrix K
     """
-    return bproc.camera.get_intrinsics_as_K_matrix()
+    return bridge.bproc.camera.get_intrinsics_as_K_matrix()
 
 
 def setup_sensor_dynamics(
-    pose_matrix: np.ndarray | list[list[float]],
+    pose_matrix: bridge.np.ndarray | list[list[float]],
     dynamics_recipe: dict[str, Any] | None,
 ) -> None:
     """Setup motion blur and rolling shutter artifacts.
@@ -195,32 +195,32 @@ def setup_sensor_dynamics(
         dt = shutter_time_ms / 1000.0
 
         # Ensure pose_matrix is suitable for mathutils
-        start_matrix = mathutils.Matrix(pose_matrix)
+        start_matrix = bridge.mathutils.Matrix(pose_matrix)
 
         # Calculate end location: start_loc + velocity * dt
-        end_loc = start_matrix.to_translation() + mathutils.Vector((vx * dt, vy * dt, vz * dt))
+        end_loc = start_matrix.to_translation() + bridge.mathutils.Vector((vx * dt, vy * dt, vz * dt))
 
         end_matrix = start_matrix.copy()
         end_matrix.translation = end_loc
 
         # Frame 0 is the start pose, Frame 1 is the end pose
-        bproc.camera.add_camera_pose(end_matrix, frame=1)
-        bpy.context.scene.render.use_motion_blur = True
-        bpy.context.scene.render.motion_blur_shutter = 1.0
+        bridge.bproc.camera.add_camera_pose(end_matrix, frame=1)
+        bridge.bpy.context.scene.render.use_motion_blur = True
+        bridge.bpy.context.scene.render.motion_blur_shutter = 1.0
     else:
-        bpy.context.scene.render.use_motion_blur = False
+        bridge.bpy.context.scene.render.use_motion_blur = False
     # 2. Handle Rolling Shutter (Cycles only)
     if rolling_shutter_ms > 0:
-        engine = bpy.context.scene.render.engine
+        engine = bridge.bpy.context.scene.render.engine
         if engine == "CYCLES":
-            bpy.context.scene.render.rolling_shutter_type = "TOP_BOTTOM"
+            bridge.bpy.context.scene.render.rolling_shutter_type = "TOP_BOTTOM"
 
             # Map ms to Blender's 'duration' factor (0.0 to 1.0)
             if shutter_time_ms > 0:
                 duration = min(1.0, rolling_shutter_ms / shutter_time_ms)
-                bpy.context.scene.render.rolling_shutter_duration = duration
+                bridge.bpy.context.scene.render.rolling_shutter_duration = duration
             else:
-                bpy.context.scene.render.rolling_shutter_duration = 0.1
+                bridge.bpy.context.scene.render.rolling_shutter_duration = 0.1
         else:
             logger.warning(
                 f"Rolling shutter simulation requested for {engine}, but it is only "
@@ -229,7 +229,7 @@ def setup_sensor_dynamics(
 
 
 def setup_motion_blur(
-    pose_matrix: np.ndarray | list[list[float]],
+    pose_matrix: bridge.np.ndarray | list[list[float]],
     velocity: list[float] | None,
     shutter_time_ms: float,
 ) -> None:

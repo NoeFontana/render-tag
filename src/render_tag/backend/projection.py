@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from render_tag.backend.bridge import bproc, bpy, np
+from render_tag.backend.bridge import bridge
 from render_tag.generation.projection_math import (
     calculate_angle_of_incidence,
     calculate_distance,
@@ -26,7 +26,7 @@ from render_tag.generation.visibility import (
 
 def project_corners_to_image(
     tag_obj: Any,
-    camera_matrix: np.ndarray | None = None,
+    camera_matrix: bridge.np.ndarray | None = None,
 ) -> list[tuple[float, float]] | None:
     """Project the 3D corners of a tag to 2D image coordinates."""
     from render_tag.backend.assets import get_corner_world_coords
@@ -36,14 +36,14 @@ def project_corners_to_image(
         return None
 
     k_matrix = (
-        camera_matrix if camera_matrix is not None else bproc.camera.get_intrinsics_as_K_matrix()
+        camera_matrix if camera_matrix is not None else bridge.bproc.camera.get_intrinsics_as_K_matrix()
     )
 
     # Use bridge/math logic for matrix conversion
-    blender_cam_mat = np.array(bpy.context.scene.camera.matrix_world)
+    blender_cam_mat = bridge.np.array(bridge.bpy.context.scene.camera.matrix_world)
     cam2world = get_opencv_camera_matrix(blender_cam_mat)
 
-    points_2d = project_points(np.array(corners_world), k_matrix, cam2world)
+    points_2d = project_points(bridge.np.array(corners_world), k_matrix, cam2world)
     if points_2d is None or len(points_2d) != 4:
         return None
 
@@ -62,41 +62,41 @@ def check_tag_visibility(tag_obj: Any, min_visible_corners: int = 3) -> bool:
     if corners_2d is None:
         return False
 
-    res_x = bpy.context.scene.render.resolution_x
-    res_y = bpy.context.scene.render.resolution_y
+    res_x = bridge.bpy.context.scene.render.resolution_x
+    res_y = bridge.bpy.context.scene.render.resolution_y
 
     is_visible, _ = validate_visibility_metrics(
-        np.array(corners_2d), res_x, res_y, min_visible_corners=min_visible_corners
+        bridge.np.array(corners_2d), res_x, res_y, min_visible_corners=min_visible_corners
     )
     return is_visible
 
 
 def check_tag_facing_camera(tag_obj: Any) -> bool:
     """Check if the tag's front face is facing the camera."""
-    world_matrix = np.array(tag_obj.get_local2world_mat())
+    world_matrix = bridge.np.array(tag_obj.get_local2world_mat())
     world_normal = get_world_normal(world_matrix)
 
-    tag_center = np.array(tag_obj.get_location())
-    cam_pos = np.array(bpy.context.scene.camera.location)
+    tag_center = bridge.np.array(tag_obj.get_location())
+    cam_pos = bridge.np.array(bridge.bpy.context.scene.camera.location)
 
     return is_facing_camera(tag_center, world_normal, cam_pos)
 
 
 def compute_tag_area_in_image(corners_2d: list[tuple[float, float]]) -> float:
     """Compute the area of the tag in image space."""
-    res_x = bpy.context.scene.render.resolution_x
-    res_y = bpy.context.scene.render.resolution_y
+    res_x = bridge.bpy.context.scene.render.resolution_x
+    res_y = bridge.bpy.context.scene.render.resolution_y
 
-    _, metrics = validate_visibility_metrics(np.array(corners_2d), res_x, res_y)
+    _, metrics = validate_visibility_metrics(bridge.np.array(corners_2d), res_x, res_y)
     return metrics["area"]
 
 
 def compute_geometric_metadata(tag_obj: Any) -> dict[str, Any]:
     """Compute geometric metadata for a tag."""
-    tag_location = np.array(tag_obj.get_location())
-    cam_location = np.array(bpy.context.scene.camera.location)
-    world_matrix = np.array(tag_obj.get_local2world_mat())
-    blender_cam_mat = np.array(bpy.context.scene.camera.matrix_world)
+    tag_location = bridge.np.array(tag_obj.get_location())
+    cam_location = bridge.np.array(bridge.bpy.context.scene.camera.location)
+    world_matrix = bridge.np.array(tag_obj.get_local2world_mat())
+    blender_cam_mat = bridge.np.array(bridge.bpy.context.scene.camera.matrix_world)
 
     # Use pure math layer
     distance = calculate_distance(tag_location, cam_location)

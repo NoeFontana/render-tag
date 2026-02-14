@@ -10,7 +10,7 @@ import random
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from render_tag.backend.bridge import bproc, bpy, np
+from render_tag.backend.bridge import bridge
 
 if TYPE_CHECKING:
     pass
@@ -41,7 +41,7 @@ class AssetPool:
             obj.blender_obj.hide_viewport = False
         else:
             # Create a new plane primitive
-            obj = bproc.object.create_primitive("PLANE")
+            obj = bridge.bproc.object.create_primitive("PLANE")
             self._tag_pool.append(obj)
 
         self._active_count += 1
@@ -171,19 +171,19 @@ def apply_tag_texture(obj: Any, texture_path: Path, config: dict | None = None) 
     # Load the texture image
     # Check if already loaded
     img_name = texture_path.name
-    image = bpy.data.images.get(img_name)
+    image = bridge.bpy.data.images.get(img_name)
     if not image:
         try:
-            image = bpy.data.images.load(str(texture_path))
+            image = bridge.bpy.data.images.load(str(texture_path))
         except RuntimeError:
             # Fallback if load fails
             return
 
     # Reuse or create material
     mat_name = "TagMaterial_Pooled"
-    material = bpy.data.materials.get(mat_name)
+    material = bridge.bpy.data.materials.get(mat_name)
     if not material:
-        material = bpy.data.materials.new(name=mat_name)
+        material = bridge.bpy.data.materials.new(name=mat_name)
         material.use_nodes = True
 
     nodes = material.node_tree.nodes
@@ -232,7 +232,7 @@ def apply_default_material(obj: Any) -> None:
     Args:
         obj: The BlenderProc mesh object
     """
-    material = bpy.data.materials.new(name="TagMaterial_Default")
+    material = bridge.bpy.data.materials.new(name="TagMaterial_Default")
     material.use_nodes = True
 
     nodes = material.node_tree.nodes
@@ -267,10 +267,10 @@ def get_corner_world_coords(tag_obj: Any) -> list[list[float]]:
     corners_world = []
     for corner in corners_local:
         # Transform each corner to world space using the 4x4 matrix
-        local_pos = np.array(corner[:3])
+        local_pos = bridge.np.array(corner[:3])
         # Homogeneous coordinates trick: add 1.0 and dot with 4x4 matrix
-        local_homo = np.append(local_pos, 1.0)
-        world_homo = np.dot(world_matrix, local_homo)
+        local_homo = bridge.np.append(local_pos, 1.0)
+        world_homo = bridge.np.dot(world_matrix, local_homo)
 
         # Project back to 3D by dividing by w (usually 1.0 for affine transforms)
         world_pos = world_homo[:3] / world_homo[3] if abs(world_homo[3]) > 1e-6 else world_homo[:3]

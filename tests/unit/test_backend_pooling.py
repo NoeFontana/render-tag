@@ -3,8 +3,8 @@ from unittest.mock import MagicMock, patch
 
 # Mock bpy/bproc for host-side tests
 with (
-    patch("render_tag.backend.assets.bpy", create=True) as mock_bpy,
-    patch("render_tag.backend.assets.bproc", create=True) as mock_bproc,
+    patch("render_tag.backend.bridge.bridge.bpy", create=True) as mock_bpy,
+    patch("render_tag.backend.bridge.bridge.bproc", create=True) as mock_bproc,
 ):
     from render_tag.backend.assets import AssetPool, create_tag_plane
 
@@ -21,7 +21,7 @@ def test_asset_pool_retrieval():
     # Mock create_primitive to return unique objects
     mock_bproc.object.create_primitive.side_effect = [obj1, obj2]
 
-    with patch("render_tag.backend.assets.bproc", mock_bproc):
+    with patch("render_tag.backend.bridge.bridge.bproc", mock_bproc):
         pool = AssetPool()
 
         # 1. First retrieval (empty pool)

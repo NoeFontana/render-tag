@@ -12,7 +12,7 @@ import random
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from render_tag.backend.bridge import bproc, bpy, np
+from render_tag.backend.bridge import bridge
 
 if TYPE_CHECKING:
     pass
@@ -33,8 +33,8 @@ def setup_background(hdri_path: Path) -> None:
         return
 
     # Check for lazy loading
-    if bpy and bpy.context.scene.world:
-        world = bpy.context.scene.world
+    if bridge.bpy and bridge.bpy.context.scene.world:
+        world = bridge.bpy.context.scene.world
         if not world.use_nodes:
             world.use_nodes = True
 
@@ -47,7 +47,7 @@ def setup_background(hdri_path: Path) -> None:
                 # HDRI is already loaded, skip redundant setup
                 return
 
-    bproc.world.set_world_background_hdr_img(str(hdri_path))
+    bridge.bproc.world.set_world_background_hdr_img(str(hdri_path))
 
 
 def setup_lighting(
@@ -75,10 +75,10 @@ def setup_lighting(
         phi = random.uniform(0.2, 0.8) * 3.14159 / 2  # Bias towards top
         radius = random.uniform(2, 5)
 
-        if np:
-            x = radius * np.sin(phi) * np.cos(theta)
-            y = radius * np.sin(phi) * np.sin(theta)
-            z = radius * np.cos(phi)
+        if bridge.np:
+            x = radius * bridge.np.sin(phi) * bridge.np.cos(theta)
+            y = radius * bridge.np.sin(phi) * bridge.np.sin(theta)
+            z = radius * bridge.np.cos(phi)
         else:
             x = radius * math.sin(phi) * math.cos(theta)
             y = radius * math.sin(phi) * math.sin(theta)
@@ -92,7 +92,7 @@ def setup_lighting(
         color = (color_temp, color_temp, 1.0)
 
         # Create point light
-        light = bproc.types.Light()
+        light = bridge.bproc.types.Light()
         light.set_type("POINT")
         light.set_location([x, y, z])
         light.set_energy(intensity)
@@ -121,7 +121,7 @@ def create_floor(
         The floor mesh object
     """
     # Create floor plane
-    floor = bproc.object.create_primitive("PLANE")
+    floor = bridge.bproc.object.create_primitive("PLANE")
     floor.set_location(list(location))
     floor.set_scale([size, size, 1])
     floor.persist_transformation_into_mesh()
@@ -130,7 +130,7 @@ def create_floor(
     # floor.blender_obj.hide_render = True
 
     # Apply a neutral material
-    material = bpy.data.materials.new(name="FloorMaterial")
+    material = bridge.bpy.data.materials.new(name="FloorMaterial")
     material.use_nodes = True
     nodes = material.node_tree.nodes
     bsdf = nodes.get("Principled BSDF")
@@ -224,7 +224,7 @@ def randomize_floor_material(
     """Apply a randomized, scaled texture to the floor using shader nodes.
 
     Args:
-        floor_obj: The floor mesh object (bproc.types.MeshObject)
+        floor_obj: The floor mesh object (bridge.bproc.types.MeshObject)
         texture_path: Path to the texture image (optional)
         scale: Tiling scale for the texture
         rotation: Rotation for the texture in radians
@@ -234,7 +234,7 @@ def randomize_floor_material(
         if floor_obj.blender_obj.data.materials:
             mat = floor_obj.blender_obj.data.materials[0]
         else:
-            mat = bpy.data.materials.new(name="RandomFloorMat")
+            mat = bridge.bpy.data.materials.new(name="RandomFloorMat")
             floor_obj.blender_obj.data.materials.append(mat)
 
         mat.use_nodes = True
@@ -249,7 +249,7 @@ def randomize_floor_material(
         return
 
     try:
-        image = bpy.data.images.load(str(texture_path))
+        image = bridge.bpy.data.images.load(str(texture_path))
     except Exception as e:
         logger.error(f"Failed to load texture: {texture_path}, error: {e}")
         return
@@ -258,7 +258,7 @@ def randomize_floor_material(
     if floor_obj.blender_obj.data.materials:
         mat = floor_obj.blender_obj.data.materials[0]
     else:
-        mat = bpy.data.materials.new(name="RandomFloorMat")
+        mat = bridge.bpy.data.materials.new(name="RandomFloorMat")
         floor_obj.blender_obj.data.materials.append(mat)
 
     mat.use_nodes = True
@@ -315,7 +315,7 @@ def create_board(
     board_height = rows * square_size
 
     # Create a simple plane for the board
-    board = bproc.object.create_primitive("PLANE")
+    board = bridge.bproc.object.create_primitive("PLANE")
     board.blender_obj.name = f"Board_Background_{layout_mode}"
     # More clearance below layout (-0.005) to avoid z-fighting with tags/squares at 0 or near 0
     board.set_location([0, 0, -0.005])
@@ -334,7 +334,7 @@ def create_board(
 
 def _create_white_emission_material(name: str) -> Any:
     """Create a pure white emission material."""
-    mat = bpy.data.materials.new(name=name)
+    mat = bridge.bpy.data.materials.new(name=name)
     mat.diffuse_color = (1, 1, 1, 1)
     mat.use_nodes = True
     nodes = mat.node_tree.nodes

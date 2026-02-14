@@ -8,7 +8,7 @@ within a Blender scene using various procedural logic.
 import random
 from typing import Any, Protocol, runtime_checkable
 
-from render_tag.backend.bridge import bproc
+from render_tag.backend.bridge import bridge
 
 
 @runtime_checkable

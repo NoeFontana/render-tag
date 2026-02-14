@@ -5,13 +5,13 @@ Consolidates tests for config validation, job execution, skip-render, and manife
 
 import hashlib
 import json
+import re
 import shutil
 import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-import yaml
 from typer.testing import CliRunner
 
 from render_tag.cli import app
@@ -95,7 +95,9 @@ def mock_generator():
         mock_gen = mock_gen_cls.return_value
         mock_gen.generate_shards.return_value = [{"scene_id": 0}]
 
-        with patch("render_tag.cli.stages.prep_stage.validate_recipe_file", return_value=(True, [], [])):
+        with patch(
+            "render_tag.cli.stages.prep_stage.validate_recipe_file", return_value=(True, [], [])
+        ):
             yield mock_gen_cls, mock_gen
 
 
@@ -143,6 +145,7 @@ def test_generate_handoff_to_executor(
         print(f"Exception: {result.exception}")
         if result.exc_info:
             import traceback
+
             traceback.print_tb(result.exc_info[2])
     assert result.exit_code == 0
     # Verify handoff
@@ -210,8 +213,6 @@ def test_cli_run_with_job_mismatch(tmp_path, monkeypatch):
     (tmp_path / "uv.lock").write_text("actual content")
 
     # 3. Mock blenderproc to return correct version
-    import shutil
-    import subprocess
 
     monkeypatch.setattr(shutil, "which", lambda x: "/usr/bin/blenderproc")
 
@@ -257,8 +258,6 @@ def test_cli_run_with_job_config_mismatch(tmp_path, monkeypatch):
     (tmp_path / "uv.lock").write_text("actual uv content")
 
     # Mock environment to pass
-    import shutil
-    import subprocess
 
     monkeypatch.setattr(shutil, "which", lambda x: "/usr/bin/blenderproc")
 
@@ -302,8 +301,6 @@ def test_cli_run_with_job_overrides_warning(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     (tmp_path / "uv.lock").write_text("uv")
 
-    import shutil
-    import subprocess
 
     monkeypatch.setattr(shutil, "which", lambda x: "/usr/bin/blenderproc")
 
@@ -335,10 +332,11 @@ def test_cli_run_with_job_overrides_warning(tmp_path, monkeypatch):
     )
 
     # It should still run (or at least pass the guard) and show warnings
-    assert "Warning" in result.output
-    assert "ignored" in result.output
-    assert "Using job spec value: 1" in result.output
-    assert "Using job spec value: 42" in result.output
+    output_normalized = result.output.replace("\n", " ")
+    assert "Warning" in output_normalized
+    assert "ignored" in output_normalized
+    assert re.search(r"Using job spec value:\s+1", output_normalized)
+    assert re.search(r"Using job spec value:\s+42", output_normalized)
 
 
 def test_cli_run_with_job_not_found():
@@ -461,7 +459,6 @@ def test_cli_run_generates_manifest(tmp_path, monkeypatch):
 
     monkeypatch.chdir(tmp_path)
 
-    import shutil
 
     monkeypatch.setattr(shutil, "which", lambda x: None)
 

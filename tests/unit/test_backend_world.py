@@ -1,10 +1,10 @@
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-# Mock bpy/bproc for host-side tests
+# Mock bridge.bpy/bproc for host-side tests
 with (
-    patch("render_tag.backend.scene.bpy", create=True) as mock_bpy,
-    patch("render_tag.backend.scene.bproc", create=True) as mock_bproc,
+    patch("render_tag.backend.bridge.bridge.bpy", create=True) as mock_bpy,
+    patch("render_tag.backend.bridge.bridge.bproc", create=True) as mock_bproc,
 ):
     from render_tag.backend.scene import setup_background
 
@@ -24,8 +24,8 @@ def test_setup_background_lazy_loading(mock_exists):
     world.node_tree.nodes = {"Environment Texture": env_node}
 
     with (
-        patch("render_tag.backend.scene.bpy", mock_bpy),
-        patch("render_tag.backend.scene.bproc", mock_bproc),
+        patch("render_tag.backend.bridge.bridge.bpy", mock_bpy),
+        patch("render_tag.backend.bridge.bridge.bproc", mock_bproc),
     ):
         # 1. Load SAME HDRI
         setup_background(Path("old_studio.exr"))

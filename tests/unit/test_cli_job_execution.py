@@ -1,4 +1,5 @@
 import hashlib
+import re
 
 from typer.testing import CliRunner
 
@@ -159,10 +160,11 @@ def test_cli_run_with_job_overrides_warning(tmp_path, monkeypatch):
     )
 
     # It should still run (or at least pass the guard) and show warnings
-    assert "Warning" in result.output
-    assert "ignored" in result.output
-    assert "Using job spec value: 1" in result.output
-    assert "Using job spec value: 42" in result.output
+    output_normalized = result.output.replace("\n", " ")
+    assert "Warning" in output_normalized
+    assert "ignored" in output_normalized
+    assert re.search(r"Using job spec value:\s+1", output_normalized)
+    assert re.search(r"Using job spec value:\s+42", output_normalized)
 
 
 def test_cli_run_with_job_not_found():

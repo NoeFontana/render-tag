@@ -7,14 +7,11 @@ import tempfile
 from pathlib import Path
 
 import typer
-from rich.console import Console
 
 from render_tag.cli.pipeline import GenerationContext, PipelineStage
-from render_tag.cli.tools import serialize_config_to_json
+from render_tag.cli.tools import console, serialize_config_to_json
 from render_tag.core.config import load_config
 from render_tag.core.schema.job import JobSpec, get_env_fingerprint
-
-console = Console()
 
 
 class ConfigLoadingStage(PipelineStage):
@@ -60,7 +57,6 @@ class ConfigLoadingStage(PipelineStage):
 
             # Warn if CLI overrides are provided but will be ignored
             # In pipeline context, defaults (like -1) are passed if not set by user
-            # We assume -1 means "not set" for seed and shard_index
             if ctx.num_scenes != 1 and ctx.num_scenes != ctx.job_spec.shard_size:
                 console.print(
                     f"[bold yellow]Warning:[/bold yellow] --scenes={ctx.num_scenes} ignored. "

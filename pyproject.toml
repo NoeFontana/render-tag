@@ -94,6 +94,7 @@ ignore = ["N803", "N806", "B008"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["render_tag"]
+force-to-top = ["blenderproc"]
 
 [tool.ruff.format]
 quote-style = "double"

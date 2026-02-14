@@ -1,7 +1,8 @@
-import blenderproc as bproc
 import logging
 import sys
 from pathlib import Path
+
+import blenderproc as bproc  # isort: skip
 
 # 1. BOOTSTRAP: Synchronize environment first
 try:
