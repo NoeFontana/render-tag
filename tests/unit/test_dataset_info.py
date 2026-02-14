@@ -19,10 +19,11 @@ def sample_dataset(tmp_path):
 
     return tmp_path
 
+
 def test_generate_dataset_info_modern(sample_dataset):
     # Setup a mock config
     config = GenConfig()
-    
+
     # Test new 'evaluation_scopes' pattern
     info = generate_dataset_info(
         dataset_dir=sample_dataset,

@@ -54,7 +54,7 @@ class PersistentWorkerProcess:
 
         self.process: subprocess.Popen | None = None
         self.client: ZmqHostClient | None = None
-        
+
         # Structured Logging
         self._log_thread: threading.Thread | None = None
         self._stop_event = threading.Event()
@@ -69,13 +69,17 @@ class PersistentWorkerProcess:
         """
         Reads NDJSON from the subprocess stdout/stderr and routes it.
         """
-        if not self.process or not self.process.stdout:
+        if not self.process:
+            return
+            
+        stdout = self.process.stdout
+        if not stdout:
             return
 
-        for line_bytes in iter(self.process.stdout.readline, b""):
+        for line_bytes in iter(stdout.readline, b""):
             if self._stop_event.is_set():
                 break
-                
+
             line = line_bytes.decode("utf-8").rstrip()
             if not line:
                 continue
@@ -83,16 +87,19 @@ class PersistentWorkerProcess:
             try:
                 # Try to parse as JSON
                 data = orjson.loads(line)
-                
+
                 # Route based on type
                 log_type = data.get("type", "log")
                 message = data.get("message", "")
                 payload = data.get("payload", {})
-                
+
                 if log_type == "progress":
                     self._update_progress(payload)
                 elif log_type == "metric":
-                    logger.debug(f"[{self.worker_id}] METRIC: {payload.get('metric')} = {payload.get('value')} {payload.get('unit')}")
+                    m_name = payload.get("metric")
+                    m_val = payload.get("value")
+                    m_unit = payload.get("unit")
+                    logger.debug(f"[{self.worker_id}] METRIC: {m_name} = {m_val} {m_unit}")
                 elif log_type == "error":
                     logger.error(f"[{self.worker_id}] BACKEND ERROR: {message}")
                 else:
@@ -118,12 +125,12 @@ class PersistentWorkerProcess:
                 total=total,
                 desc=f"Worker {self.worker_id} (Scene {scene_id})",
                 leave=False,
-                unit="cam"
+                unit="cam",
             )
-        
+
         self._pbar.n = current
         self._pbar.refresh()
-        
+
         if current >= total:
             self._pbar.close()
             self._pbar = None
@@ -158,7 +165,8 @@ class PersistentWorkerProcess:
             env["RENDER_TAG_BACKEND_MOCK"] = "1"
 
         # Inject venv site-packages so the backend bootstrap can find them
-        from render_tag.common.environment import get_venv_site_packages
+        from render_tag.common.utils import get_venv_site_packages
+
         venv_site = get_venv_site_packages()
         if venv_site:
             env["RENDER_TAG_VENV_SITE_PACKAGES"] = venv_site
@@ -194,11 +202,11 @@ class PersistentWorkerProcess:
 
         # Start the process with piped output
         self.process = subprocess.Popen(
-            cmd, 
-            env=env, 
-            stdout=subprocess.PIPE, 
-            stderr=subprocess.STDOUT, 
-            text=False # Use bytes for efficiency
+            cmd,
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=False,  # Use bytes for efficiency
         )
 
         # Start Log Router Thread
@@ -215,7 +223,7 @@ class PersistentWorkerProcess:
             # CHECK PROCESS FIRST
             poll_result = self.process.poll()
             if poll_result is not None and poll_result != 0:
-                self.stop() # Cleanup threads
+                self.stop()  # Cleanup threads
                 raise RuntimeError(f"Worker {self.worker_id} failed to start (exit {poll_result}).")
 
             if poll_result == 0:
@@ -223,8 +231,11 @@ class PersistentWorkerProcess:
                 return
 
             try:
-                # Use a slightly longer timeout for the initial status check (Blender init can be slow)
-                resp = self.client.send_command(CommandType.STATUS, raise_on_failure=True, timeout_ms=5000)
+                # Use a slightly longer timeout for the initial status check
+                # (Blender init can be slow)
+                resp = self.client.send_command(
+                    CommandType.STATUS, raise_on_failure=True, timeout_ms=5000
+                )
                 if resp.status == ResponseStatus.SUCCESS:
                     logger.info(f"Worker {self.worker_id} is ready.")
                     return
@@ -245,14 +256,16 @@ class PersistentWorkerProcess:
     def stop(self):
         """Gracefully stops the worker."""
         self._stop_event.set()
-        
+
         if self.client:
             try:
                 # Only try to send SHUTDOWN if process is still alive
+                # Staff Engineer: Use a very short timeout and handle already-exited processes
                 if self.process and self.process.poll() is None:
-                    # Use a very short timeout for shutdown command
-                    self.client.socket.setsockopt(zmq.RCVTIMEO, 500)
-                    self.client.send_command(CommandType.SHUTDOWN)
+                    try:
+                        self.client.send_command(CommandType.SHUTDOWN, timeout_ms=200)
+                    except Exception:
+                        pass
 
                 self.client.disconnect()
             except Exception:
@@ -267,11 +280,11 @@ class PersistentWorkerProcess:
                 except subprocess.TimeoutExpired:
                     self.process.kill()
             self.process = None
-            
+
         if self._log_thread:
             self._log_thread.join(timeout=1.0)
             self._log_thread = None
-            
+
         if self._pbar:
             self._pbar.close()
             self._pbar = None
@@ -284,8 +297,17 @@ class PersistentWorkerProcess:
         if not self.client:
             return False
 
-        resp = self.client.send_command(CommandType.STATUS, timeout_ms=self.client.timeout_ms)
-        return resp.status == ResponseStatus.SUCCESS
+        # Staff Engineer: Use small retry for health check to avoid transient failures
+        for _ in range(2):
+            try:
+                resp = self.client.send_command(
+                    CommandType.STATUS, timeout_ms=self.client.timeout_ms
+                )
+                if resp.status == ResponseStatus.SUCCESS:
+                    return True
+            except Exception:
+                time.sleep(0.1)
+        return False
 
     def send_command(
         self,
@@ -305,7 +327,7 @@ class PersistentWorkerProcess:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.stop()
-    
+
     def __del__(self):
         try:
             if hasattr(self, "_raw_log_file") and self._raw_log_file:

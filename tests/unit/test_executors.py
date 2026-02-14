@@ -48,8 +48,9 @@ def test_local_executor_handoff_to_orchestrator(tmp_path):
 
     with patch("render_tag.orchestration.executors.UnifiedWorkerOrchestrator") as mock_orch_cls:
         mock_orch = mock_orch_cls.return_value.__enter__.return_value
-        mock_orch.execute_recipe.return_value = MagicMock(status="SUCCESS")
+        from render_tag.schema.hot_loop import ResponseStatus
 
+        mock_orch.execute_recipe.return_value = MagicMock(status=ResponseStatus.SUCCESS)
         local.execute(
             recipe_path=recipe_path,
             output_dir=output_dir,

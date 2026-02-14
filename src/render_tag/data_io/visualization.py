@@ -210,9 +210,8 @@ def visualize_dataset(
                     }
                 )
     else:
-        console.print(
-            f"[bold red]Error:[/bold red] No annotations found (tags.csv or annotations.json) in {output_dir}"
-        )
+        msg = f"No annotations found (tags.csv or annotations.json) in {output_dir}"
+        console.print(f"[bold red]Error:[/bold red] {msg}")
         return
 
     if save_viz:

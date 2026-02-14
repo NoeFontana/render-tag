@@ -2,14 +2,13 @@ import logging
 import sys
 from pathlib import Path
 
-import blenderproc as bproc
-
 # 1. BOOTSTRAP: Synchronize environment first
 try:
     _src_path = str(Path(__file__).resolve().parents[2])
     if _src_path not in sys.path:
         sys.path.insert(0, _src_path)
     from render_tag.backend import bootstrap
+
     bootstrap.setup_environment()
 except Exception as e:
     sys.stderr.write(f"BOOTSTRAP FAILED: {e}\n")
@@ -57,7 +56,7 @@ def main() -> None:
     bproc.clean_up()
 
     csv_writer = CSVWriter(output_dir / f"tags_shard_{args.shard_id}.csv")
-    coco_writer = COCOWriter(output_dir)
+    coco_writer = COCOWriter(output_dir, filename=f"coco_shard_{args.shard_id}.json")
     rich_writer = RichTruthWriter(output_dir / "rich_truth.json")
     sidecar_writer = SidecarWriter(output_dir)
 

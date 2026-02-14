@@ -10,13 +10,16 @@ from __future__ import annotations
 
 import csv
 import json
+import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar
 
 import numpy as np
 
 if TYPE_CHECKING:
-    pass
+    from render_tag.schema import DetectionRecord
+
+logger = logging.getLogger(__name__)
 
 
 # Import pure-Python geometry modules
@@ -98,9 +101,10 @@ class CSVWriter:
 class COCOWriter:
     """Writer for COCO format annotations."""
 
-    def __init__(self, output_dir: Path) -> None:
+    def __init__(self, output_dir: Path, filename: str = "annotations.json") -> None:
         """Initialize the COCO writer."""
         self.output_dir = output_dir
+        self.filename = filename
         self.images: list[dict] = []
         self.annotations: list[dict] = []
         self.categories: list[dict] = []
@@ -242,10 +246,19 @@ class COCOWriter:
 
         return annotation_id
 
-    def save(self, filename: str = "annotations.json") -> Path:
+    def save(self, filename: str | None = None) -> Path:
         """Save the COCO annotations to a JSON file."""
+        if filename is None:
+            filename = self.filename
+
         self.output_dir.mkdir(parents=True, exist_ok=True)
         output_path = self.output_dir / filename
+        logger.info(
+            "Saving COCO annotations to %s (%d images, %d annotations)",
+            output_path,
+            len(self.images),
+            len(self.annotations),
+        )
 
         coco_data = {
             "images": self.images,
@@ -327,13 +340,16 @@ class SidecarWriter:
         # Currently SceneProvenance creates a unique snapshot.
 
         # If we had detection records here, we'd flip them.
-        # But SidecarWriter mostly writes the SceneProvenance/Recipe. "Recipe" has camera positions which are matrices.
+        # But SidecarWriter mostly writes the SceneProvenance/Recipe.
+        # "Recipe" has camera positions which are matrices.
         # If we serialize specific geometric metadata here, we should check.
         # Current usage:
         # It dumps SceneProvenance which has `recipe_snapshot`.
 
-        # If we have detection-level metadata for sidecars (which we might in later phases), we'd process it here.
-        # For now, we act on the user's instruction "Implement the permutation logic strictly at the IO boundary inside writers.py".
+        # If we have detection-level metadata for sidecars (which we might in later phases),
+        # we'd process it here.
+        # For now, we act on the user's instruction
+        # "Implement the permutation logic strictly at the IO boundary inside writers.py".
         # RichTruthWriter is the main consumer of DetectionRecord.
 
         # We also have COCOWriter attributes.

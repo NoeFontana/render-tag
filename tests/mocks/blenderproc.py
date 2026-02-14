@@ -14,6 +14,6 @@ from tests.mocks.blenderproc_api import (
     object as bproc_object,
 )
 
-object = bproc_object
+object = bproc_object  # noqa: A001
 
 __all__ = ["clean_up", "init", "object", "renderer", "types", "world"]

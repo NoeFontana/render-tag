@@ -118,6 +118,7 @@ unused-ignore-comment = "ignore"
 invalid-argument-type = "ignore"
 
 [tool.pytest.ini_options]
+addopts = "-n 4 --dist loadfile"
 markers = [
     "integration: marks tests as slow integration tests (deselect with '-m \"not integration\"')",
     "timeout: marks tests with a timeout duration",

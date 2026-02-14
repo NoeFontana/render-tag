@@ -1,4 +1,8 @@
+import logging
+
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 # Constants matching NoiseType enum
 NOISE_TYPE_GAUSSIAN = "gaussian"
@@ -16,6 +20,7 @@ def apply_parametric_noise(image: np.ndarray, config: dict) -> np.ndarray:
     Returns:
         Noisy RGB image array (0-255).
     """
+    logger.debug(f"Applying noise: {config}")
     img_float = image.astype(np.float32) / 255.0
     noisy = img_float.copy()
 
@@ -24,7 +29,7 @@ def apply_parametric_noise(image: np.ndarray, config: dict) -> np.ndarray:
     if model == NOISE_TYPE_GAUSSIAN:
         mean = config.get("mean", 0.0)
         stddev = config.get("stddev", 0.0)
-        if stddev > 0:
+        if np.asarray(stddev).any() and np.asarray(stddev) > 0:
             noise = np.random.normal(mean, stddev, img_float.shape)
             noisy = img_float + noise
 
@@ -37,10 +42,11 @@ def apply_parametric_noise(image: np.ndarray, config: dict) -> np.ndarray:
         amount = config.get("amount", 0.0)
         salt_vs_pepper = config.get("salt_vs_pepper", 0.5)
 
-        if amount > 0:
+        logger.debug(f"Salt and Pepper: amount={amount}")
+        if np.asarray(amount).any() and np.asarray(amount) > 0:
             # Generate random mask
             # Total pixels to affect
-            num_pixels = int(amount * image.size)
+            num_pixels = int(np.asarray(amount) * image.size)
 
             # Salt (White)
             num_salt = int(num_pixels * salt_vs_pepper)
@@ -55,4 +61,7 @@ def apply_parametric_noise(image: np.ndarray, config: dict) -> np.ndarray:
                 noisy[tuple(coords_pepper)] = 0.0
 
     noisy = np.clip(noisy, 0, 1)
-    return (noisy * 255).astype(np.uint8)
+    # Staff Engineer: Ensure we are dealing with a real numpy array for the final conversion
+    # to avoid ambiguous truth value errors in mock environments.
+    result = (np.array(noisy) * 255).astype(np.uint8)
+    return result

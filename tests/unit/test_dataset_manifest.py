@@ -22,6 +22,7 @@ def test_dataset_metadata_valid():
     assert manifest.pose_convention == "xyzw"
     assert manifest.tag_specification.tag_size_m == 0.160
 
+
 def test_dataset_metadata_invalid_tag_size_legacy():
     """Verify that tag_size_mm is no longer allowed."""
     data = {
@@ -41,6 +42,7 @@ def test_dataset_metadata_invalid_tag_size_legacy():
     }
     with pytest.raises(ValidationError):
         DatasetManifest(**data)
+
 
 def test_dataset_metadata_invalid_convention():
     """Verify that only 'xyzw' is allowed for now."""

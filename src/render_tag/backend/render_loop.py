@@ -13,7 +13,7 @@ from PIL import Image
 from render_tag.backend.bridge import bpy, np
 from render_tag.backend.projection import compute_geometric_metadata
 from render_tag.backend.renderer import RenderFacade
-from render_tag.common.git import get_git_hash
+from render_tag.common.utils import get_git_hash
 from render_tag.data_io.writers import (
     COCOWriter,
     CSVWriter,
@@ -69,10 +69,11 @@ def execute_recipe(
 
     for cam_idx, cam_recipe in enumerate(cam_recipes):
         import time
+
         start_time = time.time()
-        
+
         render_out = renderer.render_camera(cam_recipe)
-        
+
         render_time = time.time() - start_time
         logger.info(
             f"Rendered camera {cam_idx}",
@@ -82,9 +83,9 @@ def execute_recipe(
                     "metric": "render_time",
                     "value": render_time,
                     "unit": "seconds",
-                    "camera_idx": cam_idx
-                }
-            }
+                    "camera_idx": cam_idx,
+                },
+            },
         )
 
         image_name = f"scene_{scene_idx:04d}_cam_{cam_idx:04d}"
@@ -92,8 +93,10 @@ def execute_recipe(
         image_path.parent.mkdir(parents=True, exist_ok=True)
 
         # Save Image
-        if len(render_out["img"]) > 0:
-            Image.fromarray(render_out["img"].astype(np.uint8)).save(str(image_path))
+        img_array = render_out.get("img")
+        # Use np.asarray to safely handle truth value checks on mocks vs real arrays
+        if img_array is not None and np.asarray(img_array).size > 0:
+            Image.fromarray(np.asarray(img_array).astype(np.uint8)).save(str(image_path))
 
         sidecar_writer.write_sidecar(image_name, provenance)
         coco_img_id = coco_writer.add_image(f"images/{image_path.name}", res[0], res[1])
@@ -151,7 +154,7 @@ def execute_recipe(
                 detection=det,
             )
             rich_writer.add_detection(det)
-            
+
         # Report progress
         logger.info(
             f"Scene {scene_idx} progress: {cam_idx + 1}/{len(cam_recipes)} cameras",
@@ -160,9 +163,9 @@ def execute_recipe(
                 "payload": {
                     "current": cam_idx + 1,
                     "total": len(cam_recipes),
-                    "scene_id": scene_idx
-                }
-            }
+                    "scene_id": scene_idx,
+                },
+            },
         )
 
     logger.info(f"✓ Rendered scene {scene_idx}")

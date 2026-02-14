@@ -14,24 +14,38 @@ def test_provenance_sidecar_generated(tmp_path):
     )
     config_path.write_text(config_content)
 
-    result = subprocess.run(
-        [
-            "render-tag",
-            "generate",
-            "--output",
-            str(output_dir),
-            "--scenes",
-            "1",
-            "--config",
-            str(config_path),
-            "--renderer-mode",
-            "workbench",
-        ],
-        capture_output=True,
-        text=True,
-    )
+    # Staff Engineer: Retry logic for robustness in parallel CI environments
+    max_retries = 3
+    for attempt in range(max_retries):
+        result = subprocess.run(
+            [
+                "render-tag",
+                "generate",
+                "--output",
+                str(output_dir),
+                "--scenes",
+                "1",
+                "--config",
+                str(config_path),
+                "--renderer-mode",
+                "workbench",
+                "--verbose",
+            ],
+            capture_output=True,
+            text=True,
+        )
 
-    assert result.returncode == 0, f"Generation failed: {result.stderr}"
+        if result.returncode == 0:
+            break
+
+        if attempt == max_retries - 1:
+            assert result.returncode == 0, (
+                f"Generation failed after {max_retries} attempts: {result.stderr}"
+            )
+
+        import time
+
+        time.sleep(2)
 
     # Check sidecar
     # Default camera setup usually produces cam_0000

@@ -131,10 +131,10 @@ class ZmqBackendServer:
                 gpus = GPUtil.getGPUs()
                 if gpus:
                     gpu = gpus[0]
-                    vram_used = gpu.memoryUsed
-                    vram_total = gpu.memoryTotal
-        except Exception:
-            pass
+                    vram_used = float(gpu.memoryUsed)
+                    vram_total = float(gpu.memoryTotal)
+        except Exception as e:
+            logger.debug(f"Failed to collect GPU telemetry: {e}")
 
         return Telemetry(
             vram_used_mb=vram_used,
@@ -154,7 +154,7 @@ class ZmqBackendServer:
 
         self.writers = {
             "csv": CSVWriter(output_dir / f"tags_shard_{shard_id}.csv"),
-            "coco": COCOWriter(output_dir),
+            "coco": COCOWriter(output_dir, filename=f"coco_shard_{shard_id}.json"),
             "rich": RichTruthWriter(output_dir / "rich_truth.json"),
             "sidecar": SidecarWriter(output_dir),
         }
@@ -198,6 +198,7 @@ class ZmqBackendServer:
                         p = Path(asset_path)
                         if p.exists() and p.suffix.lower() in [".exr", ".hdr"]:
                             import render_tag.backend.bridge as bridge
+
                             if bridge.bpy:
                                 setup_background(p)
                             new_assets.append(asset_path)
@@ -297,18 +298,25 @@ class ZmqBackendServer:
                         renders_completed += 1
                         if max_renders and renders_completed >= max_renders:
                             logger.info(f"Reached max_renders ({max_renders}). Shutting down soon.")
-                            # Give host a tiny bit of time to collect final telemetry
-                            time.sleep(1.0)
-                            self.running = False
-                            # Finalize writers
+                            # Staff Engineer: Finalize writers immediately before shutdown
                             if "coco" in self.writers:
                                 self.writers["coco"].save()
                             if "rich" in self.writers:
                                 self.writers["rich"].save()
 
+                            # Give host a tiny bit of time to collect final telemetry
+                            time.sleep(1.0)
+                            self.running = False
+
             except Exception as e:
                 logger.error(f"Error in server loop: {e}")
                 pass
+
+        # Finalize writers
+        if "coco" in self.writers:
+            self.writers["coco"].save()
+        if "rich" in self.writers:
+            self.writers["rich"].save()
 
     def stop(self):
         self.running = False
@@ -342,7 +350,15 @@ if __name__ == "__main__":
     try:
         server = ZmqBackendServer(port=args.port)
         logger.info("Entering server run loop...")
-        server.run(max_renders=args.max_renders)
+        try:
+            server.run(max_renders=args.max_renders)
+        finally:
+            # Staff Engineer: Guaranteed finalization of writers
+            if hasattr(server, "writers"):
+                if "coco" in server.writers:
+                    server.writers["coco"].save()
+                if "rich" in server.writers:
+                    server.writers["rich"].save()
         logger.info("Server run loop exited normally")
     except KeyboardInterrupt:
         logger.info("KeyboardInterrupt received, stopping...")

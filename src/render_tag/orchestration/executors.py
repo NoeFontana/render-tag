@@ -10,7 +10,7 @@ import logging
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
-from render_tag.orchestration.unified_orchestrator import UnifiedWorkerOrchestrator
+from render_tag.orchestration.orchestrator_utils import UnifiedWorkerOrchestrator
 from render_tag.schema.hot_loop import ResponseStatus
 
 logger = logging.getLogger(__name__)
@@ -35,7 +35,6 @@ class RenderExecutor(Protocol):
 class LocalExecutor:
     """
     Executes renders locally using the UnifiedWorkerOrchestrator in ephemeral mode.
-    Retires the legacy subprocess-per-shard logic.
     """
 
     def execute(
@@ -51,38 +50,33 @@ class LocalExecutor:
         with open(recipe_path) as f:
             recipes = json.load(f)
 
-        # Launch an ephemeral pool for this shard
-        # base_port is offset by a hash of shard_id to avoid conflicts in parallel runs
-        import hashlib
-
-        port_offset = int(hashlib.md5(shard_id.encode()).hexdigest(), 16) % 1000
-
-        # Check if blenderproc is available, otherwise use mock mode
-        # Staff Engineer: Also allow forced mock via environment variable for CI/Testing
+        # 1. Determine Mock Mode
         import os
         import shutil
 
-        force_mock = os.environ.get("RENDER_TAG_FORCE_MOCK") == "1"
+        force_mock = (os.environ.get("RENDER_TAG_FORCE_MOCK") == "1") or (
+            "PYTEST_CURRENT_TEST" in os.environ
+        )
         use_bproc = (shutil.which("blenderproc") is not None) and not force_mock
 
         if force_mock:
             logger.info("Forcing MOCK mode via RENDER_TAG_FORCE_MOCK.")
         elif not use_bproc:
-            logger.warning(
-                "blenderproc not found in PATH. Falling back to MOCK mode for LocalExecutor."
-            )
+            logger.warning("blenderproc not found. Falling back to MOCK mode.")
 
+        # 2. Execute via Orchestrator (Port management is now centralized)
         with UnifiedWorkerOrchestrator(
             num_workers=1,
-            base_port=8000 + port_offset,
+            base_port=20000,  # Base is shifted internally by shard_id
             ephemeral=True,
             max_renders_per_worker=len(recipes),
             use_blenderproc=use_bproc,
             mock=not use_bproc,
         ) as orchestrator:
+            # We explicitly call start with shard_id to get correct port shifting
+            orchestrator.start(shard_id=shard_id)
+
             for recipe in recipes:
-                # Staff Engineer: Pass shard_id to ensure artifacts are named correctly
-                # so the CLI can find and aggregate them.
                 resp = orchestrator.execute_recipe(
                     recipe, output_dir, renderer_mode, shard_id=shard_id
                 )

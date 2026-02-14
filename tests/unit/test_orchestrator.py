@@ -1,6 +1,6 @@
 import pytest
 
-from render_tag.orchestration.unified_orchestrator import UnifiedWorkerOrchestrator
+from render_tag.orchestration.orchestrator_utils import UnifiedWorkerOrchestrator
 from render_tag.schema.hot_loop import ResponseStatus
 
 

@@ -184,7 +184,8 @@ def expand_campaign(campaign: Campaign) -> list[ExperimentVariant]:
             config_data = yaml.safe_load(f) or {}
 
         # Apply overrides
-        # We can use the same logic as _update_nested_dict but we need to iterate over the overrides dict
+        # We can use the same logic as _update_nested_dict but we need to
+        # iterate over the overrides dict
         def _apply_overrides_recursive(d, overrides_dict, prefix=""):
             for k, v in overrides_dict.items():
                 if isinstance(v, dict) and k in d and isinstance(d[k], dict):
@@ -229,7 +230,8 @@ def expand_campaign(campaign: Campaign) -> list[ExperimentVariant]:
         variant_output_dir = base_output_dir / sub_exp.name
         config.dataset.output_dir = variant_output_dir
 
-        # We create a single variant per sub-experiment (Campaigns don't sweep yet, they just orchestrate)
+        # We create a single variant per sub-experiment
+        # (Campaigns don't sweep yet, they just orchestrate)
         variant = ExperimentVariant(
             experiment_name=sub_exp.name,
             variant_id="main",  # Single variant

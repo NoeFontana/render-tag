@@ -50,7 +50,8 @@ def test_visualize_dataset_coco(mock_dataset):
             visualize_dataset(mock_dataset, save_viz=False)
 
             # Check if line/ellipse drawing was called
-            # Since we have keypoints, we expect 4 lines (edges) + 8 lines (4 corners * 2 crosshairs) = 12 lines
+            # Since we have keypoints, we expect 4 lines (edges)
+            # + 8 lines (4 corners * 2 crosshairs) = 12 lines
             # Previous assert: draw_instance.line.call_count >= 4
             # We removed ellipse drawing.
             assert draw_instance.line.call_count >= 12

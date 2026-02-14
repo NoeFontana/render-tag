@@ -53,7 +53,7 @@ class RenderFacade:
         hdri_path = world_recipe.get("background_hdri")
         if hdri_path and Path(hdri_path).is_file():
             setup_background(Path(hdri_path))
-        
+
         lighting = world_recipe.get("lighting", {})
         setup_lighting(
             intensity_min=lighting.get("intensity", 100),

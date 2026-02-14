@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 
 class LogSchema(BaseModel):
     """Structured log schema for JSON IPC."""
+
     type: str = "log"
     level: str
     logger: str
@@ -29,7 +30,7 @@ def _json_default(obj: Any) -> Any:
         return float(obj)
     if isinstance(obj, (np.int32, np.int64)):
         return int(obj)
-    
+
     # Handle Blender mathutils if present
     # We check by name to avoid direct dependency in common
     type_name = type(obj).__name__
@@ -38,7 +39,7 @@ def _json_default(obj: Any) -> Any:
             return obj.to_list()
         # Fallback for Matrix which has __iter__ but maybe not to_list in some contexts
         return list(obj)
-        
+
     raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
 
 
@@ -57,9 +58,9 @@ class JSONFormatter(logging.Formatter):
             logger=record.name,
             timestamp=datetime.fromtimestamp(record.created).isoformat(),
             message=record.getMessage(),
-            payload=payload
+            payload=payload,
         )
-        
+
         # Determine log type
         if hasattr(record, "log_type"):
             log_entry.type = record.log_type
@@ -70,7 +71,7 @@ class JSONFormatter(logging.Formatter):
         return orjson.dumps(
             log_entry.model_dump(),
             default=_json_default,
-            option=orjson.OPT_SERIALIZE_NUMPY | orjson.OPT_PASSTHROUGH_DATETIME
+            option=orjson.OPT_SERIALIZE_NUMPY | orjson.OPT_PASSTHROUGH_DATETIME,
         ).decode("utf-8")
 
 

@@ -1,7 +1,7 @@
 import sys
 import time
 
-from render_tag.orchestration.unified_orchestrator import UnifiedWorkerOrchestrator
+from render_tag.orchestration.orchestrator_utils import UnifiedWorkerOrchestrator
 
 
 def test_vram_guardrail_restart(tmp_path):

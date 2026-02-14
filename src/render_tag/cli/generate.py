@@ -14,7 +14,7 @@ from pydantic import ValidationError
 
 try:
     from render_tag.orchestration.executors import ExecutorFactory
-    from render_tag.orchestration.sharding import (
+    from render_tag.orchestration.orchestrator_utils import (
         get_completed_scene_ids,
         resolve_shard_index,
         run_local_parallel,
@@ -429,6 +429,24 @@ def run(
                 final_csv = output / "tags.csv"
                 if shard_csv.exists():
                     shard_csv.rename(final_csv)
+                    console.print(f"[dim]Renamed {shard_csv.name} -> tags.csv[/dim]")
+
+                shard_coco = output / f"coco_shard_{shard_index}.json"
+                final_coco = output / "annotations.json"
+                if shard_coco.exists():
+                    shard_coco.rename(final_coco)
+                    console.print(f"[dim]Renamed {shard_coco.name} -> annotations.json[/dim]")
+                else:
+                    # Search for any coco_shard_*.json if the index didn't match
+                    other_cocos = list(output.glob("coco_shard_*.json"))
+                    if other_cocos:
+                        other_cocos[0].rename(final_coco)
+                        console.print(f"[dim]Renamed {other_cocos[0].name} -> annotations.json[/dim]")
+
+                shard_coco = output / f"coco_shard_{shard_index}.json"
+                final_coco = output / "annotations.json"
+                if shard_coco.exists():
+                    shard_coco.rename(final_coco)
 
             # Show summary of generated files
             images_dir = output / "images"

@@ -89,25 +89,30 @@ class BlenderBridge:
                 from tests.mocks import blender_api as bpy_mock
                 from tests.mocks import blenderproc_api as bproc_mock
                 from tests.mocks import mathutils_api as math_mock
+
                 self.bpy = bpy_mock
                 self.bproc = bproc_mock
                 self.mathutils = math_mock
             except ImportError:
                 # Last resort: ensure project root is in path
                 from pathlib import Path
+
                 project_root = str(Path(__file__).resolve().parents[3])
                 if project_root not in sys.path:
                     sys.path.append(project_root)
-                
+
                 try:
                     from tests.mocks import blender_api as bpy_mock
                     from tests.mocks import blenderproc_api as bproc_mock
                     from tests.mocks import mathutils_api as math_mock
+
                     self.bpy = bpy_mock
                     self.bproc = bproc_mock
                     self.mathutils = math_mock
                 except ImportError:
-                    logger.warning("Could not load Blender mocks. Some functionality will be limited.")
+                    logger.warning(
+                        "Could not load Blender mocks. Some functionality will be limited."
+                    )
 
     def inject_mocks(self, bproc_mock: Any, bpy_mock: Any):
         """Explicitly override dependencies with provided mocks."""

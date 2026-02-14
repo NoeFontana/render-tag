@@ -9,6 +9,7 @@ if _src_path not in sys.path:
 
 try:
     from render_tag.backend import bootstrap
+
     bootstrap.setup_environment()
     print("Bootstrap successful")
 except Exception as e:
@@ -23,12 +24,14 @@ print("----------------")
 
 try:
     import orjson
+
     print(f"orjson found: {orjson.__file__}")
 except Exception as e:
     print(f"orjson error: {e}")
 
 try:
     import pydantic
+
     print(f"pydantic version: {pydantic.__version__}")
 except Exception as e:
     print(f"pydantic error: {e}")

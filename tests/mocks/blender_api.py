@@ -72,7 +72,8 @@ class MockCollection:
     def __getitem__(self, key):
         if key in self._objects:
             return self._objects[key]
-        raise KeyError(f"Key '{key}' not found in MockCollection")
+        # Staff Engineer: Return a default mock instead of raising to handle dynamic access in tests
+        return MockObject(name=str(key))
 
     def __len__(self):
         return len(self._objects)

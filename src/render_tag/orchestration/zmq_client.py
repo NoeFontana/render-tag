@@ -40,13 +40,13 @@ class ZmqHostClient:
         if self.socket:
             self.socket.close(linger=0)
         self.socket = self.context.socket(zmq.REQ)
-        
+
         # Ensure timeout options are set BEFORE connecting
         if zmq:
             self.socket.setsockopt(zmq.RCVTIMEO, self.timeout_ms)
             self.socket.setsockopt(zmq.SNDTIMEO, self.timeout_ms)
             self.socket.setsockopt(zmq.LINGER, 0)
-            
+
         self.socket.connect(self.address)
 
     def connect(self):
@@ -101,7 +101,10 @@ class ZmqHostClient:
             # REQ/REP synchronization is broken on timeout. Must reset socket.
             elapsed = time.time() - start_time
             effective_timeout = timeout_ms if timeout_ms is not None else self.timeout_ms
-            logger.error(f"TIMEOUT sending command {command_type} ({request_id}) after {elapsed:.3f}s (timeout_cfg={effective_timeout}ms)")
+            logger.error(
+                f"TIMEOUT sending command {command_type} ({request_id}) "
+                f"after {elapsed:.3f}s (timeout_cfg={effective_timeout}ms)"
+            )
             self._create_socket()
             if raise_on_failure:
                 raise TimeoutError(f"Timeout waiting for response from {self.address}") from None

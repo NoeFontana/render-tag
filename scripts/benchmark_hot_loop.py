@@ -10,7 +10,7 @@ from pathlib import Path
 # Add src to path
 sys.path.append(str(Path(__file__).resolve().parents[1] / "src"))
 
-from render_tag.orchestration.unified_orchestrator import UnifiedWorkerOrchestrator
+from render_tag.orchestration.orchestrator_utils import UnifiedWorkerOrchestrator
 
 logging.basicConfig(level=logging.ERROR)
 
