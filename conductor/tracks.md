@@ -4,10 +4,12 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ## Active Tracks
 
-- [x] **Track: PPM-Driven Generation**
-  *Link: [./tracks/ppm_driven_gen_20260214/](./tracks/ppm_driven_gen_20260214/)*
+(None)
 
 ## Archived Tracks
+
+- [x] **Track: PPM-Driven Generation**
+  *Link: [./archive/ppm_driven_gen_20260214/](./ppm_driven_gen_20260214/)*
 
 - [x] **Track: Rolling Shutter**
   *Link: [./archive/rolling_shutter_20260205/](./archive/rolling_shutter_20260205/)*
