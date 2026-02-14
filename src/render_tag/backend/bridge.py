@@ -1,8 +1,5 @@
 """
 Centralized provider for Blender and BlenderProc dependencies.
-
-This module acts as a Service Locator/Bridge that automatically serves
-either the real Blender APIs or high-fidelity mocks based on the environment.
 """
 
 from __future__ import annotations
@@ -22,6 +19,7 @@ logger = logging.getLogger(__name__)
 class BlenderBridge:
     """
     Singleton provider for Blender-related modules.
+    Acts as a Service Locator that is explicitly initialized.
     """
 
     _instance: BlenderBridge | None = None
@@ -40,92 +38,75 @@ class BlenderBridge:
         self.bproc: Any = None
         self.mathutils: Any = None
         self.np: Any = None
-
-        self._load_dependencies()
         self._initialized = True
 
-    def _load_dependencies(self):
-        """Attempts to load real dependencies, falls back to mocks."""
+    def stabilize(self, bproc_module: Any = None, bpy_module: Any = None, math_module: Any = None):
+        """
+        Explicitly set the dependencies.
+        If not provided, attempts to import real Blender/BlenderProc.
+        """
+        # 1. Handle NumPy
+        if not self.np:
+            try:
+                import numpy as np
 
-        # 1. Load NumPy (Fundamental)
+                self.np = np
+            except ImportError:
+                pass
+
+        # 2. Use provided modules if any
+        if bproc_module or bpy_module:
+            self.bproc = bproc_module
+            self.bpy = bpy_module
+            self.mathutils = math_module
+            logger.info("BlenderBridge stabilized with provided dependencies.")
+            return
+
+        # 3. Fallback: Attempt discovery of real Blender environment
         try:
-            import numpy as np
-
-            self.np = np
-        except ImportError:
-            logger.warning("NumPy not found. Some geometry math may fail.")
-            self.np = None
-
-        # 2. Load Blender/BlenderProc
-        try:
-            # We try to import blenderproc first as it often enforces the 'blenderproc run' check
             import blenderproc as bproc
             import bpy
             import mathutils
 
             # STUBS CHECK: fake-bpy-module does not have bpy.app
-            if not hasattr(bpy, "app"):
-                raise ImportError("Real Blender environment not detected (stubs found instead).")
-
-            self.bproc = bproc
-            self.bpy = bpy
-            self.mathutils = mathutils
-            logger.debug("Successfully loaded real Blender/BlenderProc dependencies.")
-
-        except (ImportError, RuntimeError):
-            # Fallback to Mocks
-            logger.info("Blender environment not detected. Serving mock objects.")
-
-            # Check if mocks were already injected into sys.modules (via inject_mocks)
-            # Staff Engineer: We must differentiate between "injected mocks" and "bad stubs"
-            # If the module in sys.modules is the real stub that failed validation, we ignore it.
-            if "bpy" in sys.modules and getattr(sys.modules["bpy"], "__mock__", False):
-                self.bpy = sys.modules["bpy"]
-                self.bproc = sys.modules["blenderproc"]
-                if "mathutils" in sys.modules:
-                    self.mathutils = sys.modules["mathutils"]
+            if hasattr(bpy, "app"):
+                self.bproc = bproc
+                self.bpy = bpy
+                self.mathutils = mathutils
+                logger.info("BlenderBridge stabilized with real Blender environment.")
                 return
+        except (ImportError, RuntimeError):
+            pass
 
-            # Otherwise try to import them (requires project root in path)
-            try:
-                from tests.mocks import blender_api as bpy_mock
-                from tests.mocks import blenderproc_api as bproc_mock
-                from tests.mocks import mathutils_api as math_mock
+        # 4. Final Fallback: Attempt discovery of internal mocks
+        try:
+            from render_tag.backend.mocks import blender_api as bpy_mock
+            from render_tag.backend.mocks import blenderproc_api as bproc_mock
+            from render_tag.backend.mocks import mathutils_api as math_mock
 
-                self.bpy = bpy_mock
-                self.bproc = bproc_mock
-                self.mathutils = math_mock
-            except ImportError:
-                # Last resort: ensure project root is in path
-                from pathlib import Path
-
-                project_root = str(Path(__file__).resolve().parents[3])
-                if project_root not in sys.path:
-                    sys.path.append(project_root)
-
-                try:
-                    from tests.mocks import blender_api as bpy_mock
-                    from tests.mocks import blenderproc_api as bproc_mock
-                    from tests.mocks import mathutils_api as math_mock
-
-                    self.bpy = bpy_mock
-                    self.bproc = bproc_mock
-                    self.mathutils = math_mock
-                except ImportError:
-                    logger.warning(
-                        "Could not load Blender mocks. Some functionality will be limited."
-                    )
-
-    def inject_mocks(self, bproc_mock: Any, bpy_mock: Any):
-        """Explicitly override dependencies with provided mocks."""
-        self.bproc = bproc_mock
-        self.bpy = bpy_mock
-        logger.debug("Mocks manually injected into BlenderBridge.")
+            self.bproc = bproc_mock
+            self.bpy = bpy_mock
+            self.mathutils = math_mock
+            logger.info("BlenderBridge stabilized with internal mocks.")
+        except ImportError:
+            logger.warning("BlenderBridge: Could not find any dependencies or mocks.")
 
 
-# Singleton accessors for easy importing
+# Singleton instance
 bridge = BlenderBridge()
-bpy: Any = bridge.bpy
-bproc: Any = bridge.bproc
-mathutils: Any = bridge.mathutils
-np: Any = bridge.np
+
+# Late-binding accessors - these will be None until bridge.stabilize() is called
+# but modules that 'from bridge import bpy' will get our proxy attributes if we used them.
+# For simplicity, we encourage 'from bridge import bridge' and then 'bridge.bpy'.
+
+
+def get_bpy():
+    return bridge.bpy
+
+
+def get_bproc():
+    return bridge.bproc
+
+
+def get_mathutils():
+    return bridge.mathutils

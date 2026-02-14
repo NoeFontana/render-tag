@@ -6,91 +6,91 @@ from pathlib import Path
 
 def setup_environment():
     """
-    Synchronizes the Blender Python environment with the project virtual environment.
+    Stabilizes the environment for the Blender Python backend.
+    Ensures 'src' is in sys.path and venv site-packages are loaded if running inside Blender.
     """
-    # Staff Engineer: Robustly find project root (directory containing 'render_tag')
-    # 1. Check environment variable first (most reliable in orchestrated mode)
-    src_dir = os.environ.get("RENDER_TAG_SRC_ROOT")
-    
-    if not src_dir:
-        # 2. Fallback: Search upwards from this file
-        _curr = Path(__file__).resolve().parent
-        while _curr.parent != _curr:
-            if (_curr / "render_tag").is_dir() and (_curr / "render_tag" / "__init__.py").exists():
-                src_dir = str(_curr.parent)
-                break
-            _curr = _curr.parent
-            
-    if not src_dir:
-        # 3. Last fallback: parents[2]
-        src_dir = str(Path(__file__).resolve().parents[2])
-
-    if src_dir and src_dir not in sys.path:
+    # 1. Ensure the 'src' directory (parent of 'render_tag' package) is in sys.path
+    # We find this relative to the current file: src/render_tag/backend/bootstrap.py -> src/
+    src_dir = str(Path(__file__).resolve().parents[2])
+    if src_dir not in sys.path:
         sys.path.insert(0, src_dir)
 
-    # 2. Orchestration Mode: Get site-packages from environment variable
+    # 2. Add repo root to sys.path to allow importing 'tests' if needed (for mocks/telemetry)
+    # The repo root is the parent of 'src'
+    repo_root = str(Path(src_dir).parent)
+    if repo_root not in sys.path:
+        sys.path.append(repo_root)
+
+    # 3. Handle Blender's internal Python: Add project venv site-packages
+    # This is only needed when running inside Blender's bundled Python which ignores external envs.
     venv_site_packages = os.environ.get("RENDER_TAG_VENV_SITE_PACKAGES")
 
-    # 3. Dev Mode Fallback: Search for .venv if not provided by orchestrator
+    # If not explicitly provided, look for .venv in repo root (only for local dev)
     if not venv_site_packages:
-        project_root = Path(src_dir).parent if src_dir else Path.cwd()
-        venv_path = project_root / ".venv"
-
-        if venv_path.exists():
+        potential_venv = Path(repo_root) / ".venv"
+        if potential_venv.exists():
             if sys.platform == "win32":
-                potential_site = venv_path / "Lib" / "site-packages"
+                site_path = potential_venv / "Lib" / "site-packages"
             else:
-                lib_dir = venv_path / "lib"
+                # Find the pythonX.Y/site-packages
+                lib_dir = potential_venv / "lib"
                 if lib_dir.exists():
                     sites = list(lib_dir.glob("python*/site-packages"))
-                    potential_site = sites[0] if sites else None
+                    site_path = sites[0] if sites else None
                 else:
-                    potential_site = None
+                    site_path = None
 
-            if potential_site and potential_site.exists():
-                venv_site_packages = str(potential_site)
+            if site_path and site_path.exists():
+                venv_site_packages = str(site_path)
 
     if venv_site_packages:
-        venv_version_dir = Path(venv_site_packages).parent.name
+        # Avoid mixing incompatible python versions
+        venv_version_dir = Path(venv_site_packages).parent.name  # 'python3.10'
         blender_version_str = f"python{sys.version_info.major}.{sys.version_info.minor}"
 
         if venv_version_dir == blender_version_str:
             site.addsitedir(venv_site_packages)
 
-    # 4. Configure Structured Logging
+    # 4. Configure structured logging
     try:
         configure_logging()
     except Exception:
         pass
 
-    # 5. Fail Fast: Verify critical dependencies
+    # 5. Verify critical dependencies
     try:
         import orjson  # noqa: F401
         import pydantic  # noqa: F401
     except ImportError as e:
-        raise RuntimeError(
-            f"Blender Environment Bootstrap Failed.\n"
-            f"Critical dependency not found: {e}\n"
-        ) from e
+        # We don't raise here to allow the caller to handle it (or use mocks)
+        # but we do log it.
+        import logging
+
+        logging.getLogger(__name__).warning(f"Bootstrap: Critical dependencies missing: {e}")
 
 
 def configure_logging():
-    """Configures structured JSON logging for the Blender backend."""
+    """Configures structured JSON logging for the backend."""
     import logging
+
     try:
         from render_tag.core.logging import JSONFormatter
     except ImportError:
-        # If we still can't find it, we can't configure structured logging yet
         return
 
     root = logging.getLogger()
-    for handler in root.handlers[:]:
-        root.removeHandler(handler)
+    # Avoid duplicate handlers
+    if not any(
+        isinstance(h, logging.StreamHandler) and isinstance(h.formatter, JSONFormatter)
+        for h in root.handlers
+    ):
+        for handler in root.handlers[:]:
+            root.removeHandler(handler)
 
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(JSONFormatter())
-    root.addHandler(handler)
-    root.setLevel(logging.INFO)
+        handler = logging.StreamHandler(sys.stdout)
+        handler.setFormatter(JSONFormatter())
+        root.addHandler(handler)
+        root.setLevel(logging.INFO)
 
 
 if __name__ == "__main__":

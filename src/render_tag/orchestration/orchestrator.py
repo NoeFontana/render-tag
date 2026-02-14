@@ -187,8 +187,6 @@ class PersistentWorkerProcess:
                 str(self.blender_script),
                 "--port",
                 str(self.port),
-                "--src-root",
-                str(project_root),
             ]
         else:
             base = (
@@ -196,7 +194,7 @@ class PersistentWorkerProcess:
                 if self.use_blenderproc
                 else [exec_to_use, str(self.blender_script)]
             )
-            cmd = [*base, "--port", str(self.port), "--src-root", str(project_root)]
+            cmd = [*base, "--port", str(self.port)]
 
         if self.mock:
             cmd.append("--mock")
@@ -208,9 +206,19 @@ class PersistentWorkerProcess:
             env["RENDER_TAG_BACKEND_MOCK"] = "1"
             # Bypass blenderproc's strict runtime check for mock mode
             env["OUTSIDE_OF_THE_INTERNAL_BLENDER_PYTHON_ENVIRONMENT_BUT_IN_RUN_SCRIPT"] = "1"
+
+        # Ensure project root is in PYTHONPATH so bootstrap can find everything
         env["RENDER_TAG_SRC_ROOT"] = str(project_root)
         curr_pp = env.get("PYTHONPATH", "")
-        env["PYTHONPATH"] = f"{project_root}{os.pathsep}{curr_pp}" if curr_pp else str(project_root)
+        # Add src AND repo root to PYTHONPATH
+        src_path = str(project_root / "src")
+        repo_root = str(project_root)
+        env["PYTHONPATH"] = (
+            f"{src_path}{os.pathsep}{repo_root}{os.pathsep}{curr_pp}"
+            if curr_pp
+            else f"{src_path}{os.pathsep}{repo_root}"
+        )
+
         env["PYTHONNOUSERSITE"] = "1"
 
         from render_tag.core.utils import get_venv_site_packages

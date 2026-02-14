@@ -8,7 +8,7 @@ import numpy as np
 # or define simple stubs here.
 # BlenderProc usually wraps blender objects.
 # Import MockObject from blender_api
-from tests.mocks.blender_api import MockMesh, MockObject
+from render_tag.backend.mocks.blender_api import MockMesh, MockObject
 
 
 class MockBProcObject:

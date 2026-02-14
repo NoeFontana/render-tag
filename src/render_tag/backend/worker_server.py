@@ -50,7 +50,10 @@ class ZmqBackendServer:
             CommandType.SHUTDOWN: ShutdownHandler(),
         }
         if bproc_mock or bpy_mock:
-            bridge.inject_mocks(bproc_mock, bpy_mock)
+            bridge.stabilize(bproc_mock, bpy_mock)
+        else:
+            bridge.stabilize()
+
         self.current_output_dir, self.writers = None, {}
         self.bproc_initialized = False
 
