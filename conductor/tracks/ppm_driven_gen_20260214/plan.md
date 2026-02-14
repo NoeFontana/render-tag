@@ -38,10 +38,10 @@
     - [x] Update `AuditReport` schema and `DashboardGenerator` to visualize PPM distribution
 - [x] Task: Conductor - User Manual Verification 'Phase 4: Data Export and Auditing' (Protocol in workflow.md) 0ee2a75
 
-## Phase 5: Verification and Benchmarking
-- [ ] Task: Create PPM Sweep Benchmark Config
-    - [ ] Create `configs/benchmarks/locus_ppm_sweep.yaml`
-- [ ] Task: End-to-End Validation
-    - [ ] Run generation with the new config
-    - [ ] Audit the resulting dataset to confirm uniform PPM distribution
-- [ ] Task: Conductor - User Manual Verification 'Phase 5: Verification and Benchmarking' (Protocol in workflow.md)
+## Phase 5: Verification and Benchmarking [checkpoint: 999e9f5]
+- [x] Task: Create PPM Sweep Benchmark Config 3dc1ecd
+    - [x] Create `configs/benchmarks/locus_ppm_sweep.yaml`
+- [x] Task: End-to-End Validation 1ffe64b
+    - [x] Run generation with the new config
+    - [x] Audit the resulting dataset to confirm uniform PPM distribution
+- [x] Task: Conductor - User Manual Verification 'Phase 5: Verification and Benchmarking' (Protocol in workflow.md) 83e543a
