@@ -207,6 +207,33 @@ class SceneRecipeBuilder:
                         camera_config.max_elevation - camera_config.min_elevation
                     )
 
+            # PPM Constraint Calculation
+            if camera_config.ppm_constraint and target_tag:
+                from render_tag.generation.projection_math import solve_distance_for_ppm
+                
+                # 1. Retrieve Tag Grid Size
+                family = target_tag.properties.get("tag_family", "tag36h11")
+                tag_grid_size = TAG_GRID_SIZES.get(family, 8)
+                
+                # 2. Calculate effective focal length
+                width = camera_config.resolution[0]
+                fov_rad = np.radians(camera_config.fov)
+                f_px = width / (2.0 * np.tan(fov_rad / 2.0))
+                
+                # 3. Sample Target PPM
+                target_ppm = np_rng.uniform(
+                    camera_config.ppm_constraint.min,
+                    camera_config.ppm_constraint.max
+                )
+                
+                # 4. Solve for distance
+                dist_override = solve_distance_for_ppm(
+                    target_ppm=target_ppm,
+                    tag_size_m=target_tag.properties.get("tag_size", 0.1),
+                    focal_length_px=f_px,
+                    tag_grid_size=tag_grid_size
+                )
+
             # Rejection Sampling for Tag Size
             pose = None
             max_attempts = 20
