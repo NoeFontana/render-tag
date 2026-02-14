@@ -178,7 +178,7 @@ class PersistentWorkerProcess:
                 logger.debug(f"[{self.worker_id}] {line}")
 
     def start(self):
-        project_root = Path(__file__).resolve().parents[2]
+        project_root = Path(__file__).resolve().parents[3]
         exec_to_use = sys.executable if self.mock else self.blender_executable
 
         if self.mock:

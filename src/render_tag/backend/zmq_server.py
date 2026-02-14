@@ -14,7 +14,7 @@ except ImportError:
     _curr = Path(__file__).resolve().parent
     while _curr.parent != _curr:
         if (_curr / "render_tag").is_dir():
-            sys.path.insert(0, str(_curr.parent))
+            sys.path.insert(0, str(_curr))
             break
         _curr = _curr.parent
 
