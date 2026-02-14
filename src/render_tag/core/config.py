@@ -130,6 +130,37 @@ TAG_BIT_COUNTS: dict[str, int] = {
 }
 
 
+# Maximum ID (exclusive) for each tag family
+TAG_MAX_IDS: dict[str, int] = {
+    "tag16h5": 16,
+    "tag25h9": 35,
+    "tag36h10": 2320,
+    "tag36h11": 587,
+    "tagCircle21h7": 38,
+    "tagCircle49h12": 65535,
+    "tagCustom48h12": 65535,
+    "tagStandard41h12": 2115,
+    "tagStandard52h13": 65535,
+    "DICT_4X4_50": 50,
+    "DICT_4X4_100": 100,
+    "DICT_4X4_250": 250,
+    "DICT_4X4_1000": 1000,
+    "DICT_5X5_50": 50,
+    "DICT_5X5_100": 100,
+    "DICT_5X5_250": 250,
+    "DICT_5X5_1000": 1000,
+    "DICT_6X6_50": 50,
+    "DICT_6X6_100": 100,
+    "DICT_6X6_250": 250,
+    "DICT_6X6_1000": 1000,
+    "DICT_7X7_50": 50,
+    "DICT_7X7_100": 100,
+    "DICT_7X7_250": 250,
+    "DICT_7X7_1000": 1000,
+    "DICT_ARUCO_ORIGINAL": 1024,
+}
+
+
 def get_min_pixel_area(tag_family: str | TagFamily) -> int:
     """Get the minimum pixel area for a tag to be considered valid.
 
@@ -334,6 +365,8 @@ class CameraConfig(BaseModel):
     max_elevation: float = Field(default=0.9, ge=0, le=1, description="Max elevation")
     elevation: float | None = Field(default=None, description="Fixed elevation")
     azimuth: float | None = Field(default=None, description="Fixed azimuth")
+    min_roll: float = Field(default=0.0, description="Minimum in-plane rotation (degrees)")
+    max_roll: float = Field(default=0.0, description="Maximum in-plane rotation (degrees)")
 
     # Sensor Dynamics (Motion Blur, Rolling Shutter)
     sensor_dynamics: SensorDynamicsConfig = Field(

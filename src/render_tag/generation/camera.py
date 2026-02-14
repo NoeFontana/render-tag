@@ -77,11 +77,19 @@ def sample_camera_pose(
 
     # Apply inplane rotation (roll) if specified
     if abs(inplane_rot) > 1e-6:
-        # Roll is rotation around the local Z axis (which is forward/backward in Blender)
-        # Actually in Blender camera local-Z is backward.
-        # Let's keep it simple for now or match Blender's rotation_from_forward_vec roll parameter
-        # For now, we'll assume the basic look_at is sufficient and add roll if needed.
-        pass
+        # Rodrigues' rotation formula around the local Z axis
+        # Local Z axis is the 3rd column of the rotation matrix
+        k = rotation_matrix[:, 2]
+        theta = inplane_rot
+        
+        K = np.array([
+            [0, -k[2], k[1]],
+            [k[2], 0, -k[0]],
+            [-k[1], k[0], 0]
+        ])
+        
+        R_roll = np.eye(3) + np.sin(theta) * K + (1 - np.cos(theta)) * np.dot(K, K)
+        rotation_matrix = np.dot(R_roll, rotation_matrix)
 
     transform_matrix = make_transformation_matrix(location, rotation_matrix)
 

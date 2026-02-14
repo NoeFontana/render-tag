@@ -1,0 +1,45 @@
+dataset:
+  num_scenes: 10
+  seeds:
+    global_seed: 42
+  evaluation_scopes: [detection, pose_estimation]
+
+camera:
+  resolution: [1920, 1080]
+  fov: 70.0
+  samples_per_scene: 5
+  min_distance: 0.5
+  max_distance: 8.0
+  min_elevation: 0.5  # Pitch/Yaw cone of 60 degrees (cos(60)=0.5)
+  max_elevation: 1.0
+  min_roll: -180.0
+  max_roll: 180.0
+  tone_mapping: filmic
+  iso: 100
+  sensor_noise_sigma: 0.002
+
+tag:
+  family: tagStandard41h12
+  size_meters: 0.16
+  material:
+    randomize: true
+    roughness_min: 0.2
+    roughness_max: 0.6
+    specular_min: 0.1
+    specular_max: 0.4
+
+scenario:
+  layout: plain
+  tag_families: [tagStandard41h12]
+  tags_per_scene: [1, 1]
+  sampling_mode: random
+
+scene:
+  lighting:
+    intensity_min: 100
+    intensity_max: 1000
+    radius_min: 0.2
+    radius_max: 0.2
+  texture_dir: assets/textures/background
+  texture_scale_min: 10.0
+  texture_scale_max: 20.0

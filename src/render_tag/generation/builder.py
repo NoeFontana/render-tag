@@ -11,7 +11,7 @@ from typing import Any
 import numpy as np
 
 from render_tag.core import TAG_GRID_SIZES
-from render_tag.core.config import GenConfig
+from render_tag.core.config import TAG_MAX_IDS, GenConfig
 from render_tag.data_io.assets import AssetProvider
 from render_tag.generation.camera import sample_camera_pose
 from render_tag.generation.layouts import apply_flying_layout, apply_grid_layout
@@ -105,6 +105,9 @@ class SceneRecipeBuilder:
 
         for i in range(num_tags):
             family = rng.choice(tag_families)
+            max_id = TAG_MAX_IDS.get(family, 100)
+            tag_id = rng.randint(0, max_id - 1)
+
             tex_base = None
             if tag_config.texture_path:
                 tex_base = str(self.asset_provider.resolve_path(str(tag_config.texture_path)))
@@ -117,7 +120,7 @@ class SceneRecipeBuilder:
                     rotation_euler=[0, 0, 0],
                     scale=[1, 1, 1],
                     properties={
-                        "tag_id": i,
+                        "tag_id": tag_id,
                         "tag_family": family,
                         "tag_size": tag_size,
                         "texture_base_path": tex_base,
@@ -186,6 +189,14 @@ class SceneRecipeBuilder:
                         camera_config.max_elevation - camera_config.min_elevation
                     )
 
+            # Sample roll if defined
+            roll = 0.0
+            if abs(camera_config.max_roll - camera_config.min_roll) > 1e-6:
+                roll = np_rng.uniform(
+                    np.radians(camera_config.min_roll), 
+                    np.radians(camera_config.max_roll)
+                )
+
             pose = sample_camera_pose(
                 look_at_point=[0, 0, 0],
                 min_distance=camera_config.min_distance,
@@ -195,6 +206,7 @@ class SceneRecipeBuilder:
                 azimuth=camera_config.azimuth,
                 distance=dist_override,
                 elevation=elev_override if elev_override is not None else camera_config.elevation,
+                inplane_rot=roll,
                 rng=np_rng,
             )
 
