@@ -58,6 +58,11 @@ def run(
         "-r",
         help="Rendering engine: cycles, workbench, eevee",
     ),
+    skip_render: bool = typer.Option(
+        False,
+        "--skip-render",
+        help="Skip the long rendering cycle (Shadow Render only)",
+    ),
 ) -> None:
     """
     Run a controlled experiment (Parameter Sweep).
@@ -141,7 +146,26 @@ def run(
             for j in range(10):  # Arbitrary small number
                 ensure_tag_asset(family_enum.value, j, assets_dir)
 
+        # 4.5 Validate Recipes (Shadow Render logic)
+        from render_tag.core.validator import validate_recipe_file
+
+        is_valid, errors, warnings = validate_recipe_file(recipe_path)
+        if warnings:
+            for w in warnings:
+                console.print(f"[yellow]Warning:[/yellow] {w}")
+        if not is_valid:
+            console.print(
+                f"[bold red]Recipe Validation Failed for variant {variant.variant_id}![/bold red]"
+            )
+            for e in errors:
+                console.print(f"[red]  - {e}[/red]")
+            raise typer.Exit(code=1) from None
+
         # 5. Run BlenderProc
+        if skip_render:
+            console.print("[green]Shadow Render Validation Complete (Skip Render enabled).[/green]")
+            continue
+
         # We need to resolve the executor script path relative to the installed package location
         # Assuming render_tag is installed, we find backend/executor.py
         import render_tag.backend

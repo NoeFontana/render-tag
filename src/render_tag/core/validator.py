@@ -59,8 +59,97 @@ class RecipeValidator:
         self._check_assets()
         self._check_geometry()
         self._check_cameras()
+        self._check_visibility()
 
         return len(self.errors) == 0
+
+    def _check_visibility(self):
+        """
+        Check if tags are visible within the camera frustum using Shadow Render logic.
+        Adds warnings if cameras see no tags meeting quality criteria.
+
+        Criteria:
+        - Fully within image bounds.
+        - Area >= min_pixels (1 pixel per tag bit).
+        - Incidence angle <= 80 degrees.
+        """
+        try:
+            import numpy as np
+
+            from render_tag.core.config import get_min_pixel_area
+            from render_tag.generation.projection_math import (
+                calculate_incidence_angle,
+                calculate_pixel_area,
+                get_world_matrix,
+                project_points,
+            )
+        except ImportError:
+            # Skip if numpy or projection_math are not available (unlikely in host)
+            return
+
+        tags = [obj for obj in self.recipe.objects if obj.type == "TAG"]
+        if not tags:
+            return
+
+        for cam_idx, cam in enumerate(self.recipe.cameras):
+            cam_matrix = np.array(cam.transform_matrix)
+            res = cam.intrinsics.resolution
+            fov = cam.intrinsics.fov
+
+            valid_tags_in_view = 0
+            min_area = 36  # Default fallback
+            for tag in tags:
+                family = tag.properties.get("tag_family", "tag36h11")
+                min_area = get_min_pixel_area(family)
+
+                size = tag.properties.get("tag_size", 0.1)
+                hs = size / 2.0
+                # Define 4 corners of the tag in local space
+                corners_local = np.array(
+                    [
+                        [-hs, -hs, 0],
+                        [hs, -hs, 0],
+                        [hs, hs, 0],
+                        [-hs, hs, 0],
+                    ]
+                )
+
+                # Transform corners to world space
+                tag_world_mat = get_world_matrix(tag.location, tag.rotation_euler, tag.scale)
+                corners_world_h = (tag_world_mat @ np.hstack([corners_local, np.ones((4, 1))]).T).T
+                corners_world = corners_world_h[:, :3]
+
+                # Project to pixel space
+                pixels = project_points(corners_world, cam_matrix, res, fov)
+
+                # 1. Check if Fully in bounds
+                fully_in_bounds = True
+                for x, y in pixels:
+                    if not (0 <= x <= res[0] and 0 <= y <= res[1]):
+                        fully_in_bounds = False
+                        break
+
+                if not fully_in_bounds:
+                    continue
+
+                # 2. Check Pixel Area
+                area = calculate_pixel_area(pixels)
+                if area < min_area:
+                    continue
+
+                # 3. Check Incidence Angle
+                angle = calculate_incidence_angle(cam_matrix, tag_world_mat)
+                if angle > 80.0:
+                    continue
+
+                # If we reach here, the tag is valid
+                valid_tags_in_view += 1
+
+            if valid_tags_in_view == 0:
+                self.warnings.append(
+                    f"Camera {cam_idx}: No tags meet visibility criteria "
+                    f"(fully in view, area >= {min_area}, angle <= 80°)"
+                )
 
     def _check_assets(self):
         """Check if referenced assets exist on disk."""

@@ -157,3 +157,147 @@ def calculate_relative_pose(
         "position": [float(p) for p in pos],
         "rotation_quaternion": quat,
     }
+
+
+def project_points(
+    points_world: np.ndarray,
+    cam_world_matrix: np.ndarray,
+    resolution: list[int],
+    fov: float,
+) -> np.ndarray:
+    """
+    Projects 3D world points to 2D pixel coordinates using OpenCV convention.
+
+    Args:
+        points_world: (N, 3) array of 3D points in world space.
+        cam_world_matrix: 4x4 Blender Camera-to-World matrix.
+        resolution: [width, height] of the image.
+        fov: Horizontal field of view in degrees.
+
+    Returns:
+        (N, 2) array of pixel coordinates [x, y].
+        Points behind the camera (Z <= 0) are set to [-1e6, -1e6].
+    """
+    # 1. Transform points to OpenCV Camera space
+    # OpenCV: Z forward, Y down, X right
+    opencv_cam_world = get_opencv_camera_matrix(cam_world_matrix)
+    world_to_cam = np.linalg.inv(opencv_cam_world)
+
+    # Convert points to homogeneous coordinates (N, 4)
+    points_h = np.hstack([points_world, np.ones((len(points_world), 1))])
+
+    # Transform: points_cam = T_world_to_cam * points_world
+    points_cam_h = (world_to_cam @ points_h.T).T
+    points_cam = points_cam_h[:, :3]
+
+    # 2. Projection
+    width, height = resolution
+    fov_rad = np.radians(fov)
+    f = width / (2.0 * np.tan(fov_rad / 2.0))
+
+    cx = width / 2.0
+    cy = height / 2.0
+
+    pixels = np.zeros((len(points_world), 2))
+    z = points_cam[:, 2]
+    mask = z > 1e-6  # Only project points in front of the camera
+
+    pixels[mask, 0] = (points_cam[mask, 0] * f / z[mask]) + cx
+    pixels[mask, 1] = (points_cam[mask, 1] * f / z[mask]) + cy
+
+    # Mark points behind camera as far outside
+    pixels[~mask] = -1e6
+
+    return pixels
+
+
+def calculate_pixel_area(pixels: np.ndarray) -> float:
+    """
+    Calculates the area of a polygon defined by 2D pixels using the Shoelace formula.
+
+    Args:
+        pixels: (N, 2) array of pixel coordinates.
+
+    Returns:
+        Area in pixels.
+    """
+    if len(pixels) < 3:
+        return 0.0
+    x = pixels[:, 0]
+    y = pixels[:, 1]
+    return 0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
+
+
+def calculate_incidence_angle(cam_world_matrix: np.ndarray, tag_world_matrix: np.ndarray) -> float:
+    """
+    Calculates the angle of incidence between the camera forward vector and the tag normal.
+
+    Args:
+        cam_world_matrix: 4x4 Blender Camera-to-World matrix.
+        tag_world_matrix: 4x4 Tag World matrix.
+
+    Returns:
+        Angle in degrees (0 = facing, 90 = side-on).
+    """
+    # 1. Tag Normal in World Space (Z-up)
+    tag_normal_world = tag_world_matrix[:3, 2]
+    tag_normal_world /= np.linalg.norm(tag_normal_world)
+
+    # 2. Camera Location
+    cam_loc = cam_world_matrix[:3, 3]
+    # 3. Tag Location
+    tag_loc = tag_world_matrix[:3, 3]
+
+    # 4. Vector from Tag to Camera
+    v_tag_cam = cam_loc - tag_loc
+    v_tag_cam_norm = np.linalg.norm(v_tag_cam)
+    if v_tag_cam_norm < 1e-6:
+        return 0.0
+    v_tag_cam /= v_tag_cam_norm
+
+    # 5. Angle is arccos of dot product
+    cos_theta = np.clip(np.dot(tag_normal_world, v_tag_cam), -1.0, 1.0)
+    angle_rad = np.arccos(cos_theta)
+    return float(np.degrees(angle_rad))
+
+
+def euler_to_matrix(euler: list[float]) -> np.ndarray:
+    """
+    Converts XYZ Euler angles (radians) to a 3x3 rotation matrix.
+    Uses Blender's default XYZ order.
+    """
+    ex, ey, ez = euler
+    cx, sx = np.cos(ex), np.sin(ex)
+    cy, sy = np.cos(ey), np.sin(ey)
+    cz, sz = np.cos(ez), np.sin(ez)
+
+    # Rx * Ry * Rz
+    # Rx
+    mat_x = np.array([[1, 0, 0], [0, cx, -sx], [0, sx, cx]])
+    # Ry
+    mat_y = np.array([[cy, 0, sy], [0, 1, 0], [-sy, 0, cy]])
+    # Rz
+    mat_z = np.array([[cz, -sz, 0], [sz, cz, 0], [0, 0, 1]])
+
+    # Blender uses XYZ order which means Rotate X then Y then Z
+    # In matrix math this is Rz * Ry * Rx @ point
+    return mat_z @ mat_y @ mat_x
+
+
+def get_world_matrix(
+    location: list[float], rotation_euler: list[float], scale: list[float] | None = None
+) -> np.ndarray:
+    """
+    Creates a 4x4 transformation matrix from location, euler rotation, and scale.
+    """
+    if scale is None:
+        scale = [1, 1, 1]
+
+    res = np.eye(4)
+    # Rotation
+    res[:3, :3] = euler_to_matrix(rotation_euler)
+    # Scale
+    res[:3, :3] = res[:3, :3] * np.array(scale)
+    # Translation
+    res[:3, 3] = location
+    return res
