@@ -145,22 +145,23 @@ class SceneRecipeBuilder:
                 tag_bit_grid_size = TAG_GRID_SIZES.get(primary_family, 8)
                 tag_spacing = (scenario.tag_spacing_bits / tag_bit_grid_size) * tag_size
                 square_size = tag_size + tag_spacing
-                objects.append(
-                    ObjectRecipe(
-                        type="BOARD",
-                        name="Board_Background",
-                        location=[0, 0, -0.005],
-                        rotation_euler=[0, 0, 0],
-                        scale=[1, 1, 1],
-                        properties={
-                            "mode": layout_mode,
-                            "cols": cols,
-                            "rows": rows,
-                            "tag_size": tag_size,
-                            "square_size": square_size,
-                        },
+                if scenario.use_board:
+                    objects.append(
+                        ObjectRecipe(
+                            type="BOARD",
+                            name="Board_Background",
+                            location=[0, 0, -0.005],
+                            rotation_euler=[0, 0, 0],
+                            scale=[1, 1, 1],
+                            properties={
+                                "mode": layout_mode,
+                                "cols": cols,
+                                "rows": rows,
+                                "tag_size": tag_size,
+                                "square_size": square_size,
+                            },
+                        )
                     )
-                )
 
         self.recipe.objects = objects
         return self

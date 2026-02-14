@@ -101,6 +101,20 @@ class RenderFacade:
         if hdri_path and Path(hdri_path).is_file():
             setup_background(Path(hdri_path))
 
+        # Handle Background Texture Plane
+        texture_path = world_recipe.get("texture_path")
+        if texture_path and world_recipe.get("use_nodes", True):
+            from render_tag.backend.scene import create_floor, randomize_floor_material
+            
+            # Create a large floor plane for the background
+            floor = create_floor(size=20.0, location=(0, 0, -0.01))
+            randomize_floor_material(
+                floor,
+                texture_path=texture_path,
+                scale=world_recipe.get("texture_scale", 1.0),
+                rotation=world_recipe.get("texture_rotation", 0.0)
+            )
+
         lighting = world_recipe.get("lighting", {})
         setup_lighting(
             intensity_min=lighting.get("intensity", 100),

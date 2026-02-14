@@ -7,7 +7,7 @@ dataset:
 camera:
   resolution: [1920, 1080]
   fov: 70.0
-  samples_per_scene: 1  # Reduced samples per scene to speed up rendering if we do it
+  samples_per_scene: 1
   min_distance: 0.5
   max_distance: 8.0
   min_elevation: 0.5  # Pitch/Yaw cone of 60 degrees (cos(60)=0.5)
@@ -33,6 +33,7 @@ scenario:
   tag_families: [tagStandard41h12]
   tags_per_scene: [1, 1]
   sampling_mode: random
+  use_board: false
 
 scene:
   lighting:

@@ -697,6 +697,10 @@ class ScenarioConfig(BaseModel):
         default=False,
         description="If True, tags fly in space without a floor board",
     )
+    use_board: bool = Field(
+        default=True,
+        description="If True, adds a board/margin behind the tags",
+    )
 
     @field_validator("tags_per_scene")
     @classmethod
