@@ -45,3 +45,6 @@
     - [x] Run generation with the new config
     - [x] Audit the resulting dataset to confirm uniform PPM distribution
 - [x] Task: Conductor - User Manual Verification 'Phase 5: Verification and Benchmarking' (Protocol in workflow.md) 83e543a
+
+## Phase: Review Fixes
+- [x] Task: Apply review suggestions e7813e3
