@@ -1,11 +1,11 @@
 # Implementation Plan: PPM-Driven Generation
 
-## Phase 1: Schema and Contract Update
-- [ ] Task: Define `PPMConstraint` and update `CameraConfig`
-    - [ ] Create `PPMConstraint` Pydantic model in `src/render_tag/core/config.py`
-    - [ ] Add `ppm_constraint` field to `CameraConfig`
-    - [ ] Implement validation logic to prioritize PPM over manual distance when present
-- [ ] Task: Conductor - User Manual Verification 'Phase 1: Schema and Contract Update' (Protocol in workflow.md)
+## Phase 1: Schema and Contract Update [checkpoint: 1ffe64b]
+- [x] Task: Define `PPMConstraint` and update `CameraConfig` 7977977
+    - [x] Create `PPMConstraint` Pydantic model in `src/render_tag/core/config.py`
+    - [x] Add `ppm_constraint` field to `CameraConfig`
+    - [x] Implement validation logic to prioritize PPM over manual distance when present
+- [x] Task: Conductor - User Manual Verification 'Phase 1: Schema and Contract Update' (Protocol in workflow.md) 1ffe64b
 
 ## Phase 2: Math Kernel Implementation
 - [ ] Task: Write Tests for PPM Math
