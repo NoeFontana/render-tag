@@ -120,6 +120,8 @@ class DashboardGenerator:
             fig.add_trace(go.Histogram(x=df["distance"], name="Dist"), row=1, col=1)
         if "angle_of_incidence" in df.columns:
             fig.add_trace(go.Histogram(x=df["angle_of_incidence"], name="Angle"), row=1, col=2)
+        if "ppm" in df.columns:
+            fig.add_trace(go.Histogram(x=df["ppm"], name="PPM"), row=2, col=1)
 
         report = self.result.report
         fig.add_trace(go.Table(

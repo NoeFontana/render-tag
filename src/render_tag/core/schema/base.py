@@ -230,6 +230,7 @@ class DetectionRecord(BaseModel):
     angle_of_incidence: float = 0.0
     pixel_area: float = 0.0
     occlusion_ratio: float = 0.0
+    ppm: float = 0.0
 
     # Phase 2 Pose Baseline: High-Precision Pose
     position: list[float] | None = Field(default=None, description="[x, y, z] position in meters")
@@ -249,7 +250,7 @@ class DetectionRecord(BaseModel):
         """Convert to CSV row format (normalized and optionally clipped)."""
         from render_tag.data_io.annotations import normalize_corner_order
 
-        row: list[str | int | float] = [self.image_id, self.tag_id, self.tag_family]
+        row: list[str | int | float] = [self.image_id, self.tag_id, self.tag_family, float(f"{self.ppm:.4f}")]
 
         # CSV format uses standard CCW order from BL
         ordered_corners = normalize_corner_order(self.corners, target_order="ccw_bl")
@@ -270,6 +271,7 @@ class DetectionRecord(BaseModel):
             "image_id",
             "tag_id",
             "tag_family",
+            "ppm",
             "x1",
             "y1",
             "x2",

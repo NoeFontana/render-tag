@@ -122,6 +122,14 @@ def run(
             f"{g.incidence_angle.mean:.1f}",
             f"{g.incidence_angle.std:.1f}",
         )
+        if g.ppm:
+            geom_table.add_row(
+                "PPM",
+                f"{g.ppm.min:.1f}",
+                f"{g.ppm.max:.1f}",
+                f"{g.ppm.mean:.1f}",
+                f"{g.ppm.std:.1f}",
+            )
         console.print(geom_table)
 
         # Environmental

@@ -41,6 +41,7 @@ class GeometricAudit(BaseModel):
     """Audit results for geometric coverage."""
     distance: DistributionStats
     incidence_angle: DistributionStats
+    ppm: DistributionStats | None = None
     tag_count: int
     image_count: int
 
@@ -187,6 +188,7 @@ class DatasetAuditor:
         geom = GeometricAudit(
             distance=get_stats("distance"),
             incidence_angle=get_stats("angle_of_incidence"),
+            ppm=get_stats("ppm"),
             tag_count=len(df),
             image_count=df["image_id"].n_unique() if "image_id" in df.columns else 0
         )
