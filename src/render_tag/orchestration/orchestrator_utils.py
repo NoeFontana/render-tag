@@ -23,7 +23,9 @@ except ImportError:
     zmq = None
 
 from render_tag.audit.telemetry_auditor import TelemetryAuditor
+from render_tag.common.resilience import retry_with_backoff
 from render_tag.core.config import load_config
+from render_tag.core.errors import WorkerStartupError
 from render_tag.orchestration.persistent_worker import PersistentWorkerProcess
 from render_tag.schema.hot_loop import CommandType, Response, ResponseStatus
 
@@ -152,42 +154,42 @@ class UnifiedWorkerOrchestrator:
         port_offset = int(hashlib.md5(seed_str.encode()).hexdigest(), 16) % 10000
         return self.base_port + port_offset
 
+    @retry_with_backoff(
+        retries=3, initial_delay=1.0, exceptions=(RuntimeError, WorkerStartupError)
+    )
     def start(self, shard_id: str = "main"):
         """Starts the worker pool with retry logic."""
         with self._lock:
             if self.running:
                 return
-            max_retries = 3
-            last_error = None
+
             resolved_port = self._resolve_base_port(shard_id)
-            for attempt in range(max_retries):
-                try:
-                    current_base_port = resolved_port + (attempt * 100)
-                    logger.info(f"Starting pool on ports {current_base_port}+.")
-                    self.workers.clear()
-                    for i in range(self.num_workers):
-                        worker = PersistentWorkerProcess(
-                            worker_id=f"worker-{i}",
-                            port=current_base_port + i,
-                            blender_script=self.blender_script,
-                            blender_executable=self.blender_executable,
-                            use_blenderproc=self.use_blenderproc,
-                            mock=self.mock,
-                            max_renders=self.max_renders_per_worker,
-                            context=self.context,
-                        )
-                        worker.start()
-                        self.workers.append(worker)
-                        self.worker_queue.put(worker)
-                    self.running = True
-                    return
-                except Exception as e:
-                    last_error = e
-                    for w in self.workers:
-                        w.stop()
-                    time.sleep(1)
-            if last_error:
-                raise last_error
+            # Add a small random offset per attempt to avoid sticky conflicts
+            import random
+            current_base_port = resolved_port + random.randint(0, 50) * 10
+
+            try:
+                logger.info(f"Starting pool on ports {current_base_port}+.")
+                self.workers.clear()
+                for i in range(self.num_workers):
+                    worker = PersistentWorkerProcess(
+                        worker_id=f"worker-{i}",
+                        port=current_base_port + i,
+                        blender_script=self.blender_script,
+                        blender_executable=self.blender_executable,
+                        use_blenderproc=self.use_blenderproc,
+                        mock=self.mock,
+                        max_renders=self.max_renders_per_worker,
+                        context=self.context,
+                    )
+                    worker.start()
+                    self.workers.append(worker)
+                    self.worker_queue.put(worker)
+                self.running = True
+            except Exception as e:
+                for w in self.workers:
+                    w.stop()
+                raise WorkerStartupError(f"Failed to start worker pool: {e}") from e
 
     def stop(self):
         """Stops all workers."""

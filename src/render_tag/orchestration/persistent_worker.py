@@ -18,6 +18,8 @@ except ImportError:
 import orjson
 from tqdm import tqdm
 
+from render_tag.common.resilience import retry_with_backoff
+from render_tag.core.errors import WorkerCommunicationError
 from render_tag.orchestration.zmq_client import ZmqHostClient
 from render_tag.schema.hot_loop import CommandType, Response, ResponseStatus
 
@@ -289,6 +291,7 @@ class PersistentWorkerProcess:
             self._pbar.close()
             self._pbar = None
 
+    @retry_with_backoff(retries=2, initial_delay=0.1, backoff_factor=1.5, exceptions=(Exception,))
     def is_healthy(self) -> bool:
         """Checks if the worker is still alive and responsive."""
         if not self.process or self.process.poll() is not None:
@@ -297,17 +300,10 @@ class PersistentWorkerProcess:
         if not self.client:
             return False
 
-        # Staff Engineer: Use small retry for health check to avoid transient failures
-        for _ in range(2):
-            try:
-                resp = self.client.send_command(
-                    CommandType.STATUS, timeout_ms=self.client.timeout_ms
-                )
-                if resp.status == ResponseStatus.SUCCESS:
-                    return True
-            except Exception:
-                time.sleep(0.1)
-        return False
+        resp = self.client.send_command(
+            CommandType.STATUS, timeout_ms=self.client.timeout_ms
+        )
+        return resp.status == ResponseStatus.SUCCESS
 
     def send_command(
         self,
