@@ -7,15 +7,15 @@
     - [x] Implement validation logic to prioritize PPM over manual distance when present
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Schema and Contract Update' (Protocol in workflow.md) 1ffe64b
 
-## Phase 2: Math Kernel Implementation
-- [ ] Task: Write Tests for PPM Math
-    - [ ] Create `tests/unit/test_ppm_math.py`
-    - [ ] Define test cases for `calculate_ppm` and `solve_distance_for_ppm` with known constants
-- [ ] Task: Implement PPM Solver in `projection_math.py`
-    - [ ] Implement `calculate_ppm` logic
-    - [ ] Implement `solve_distance_for_ppm` logic
-    - [ ] Verify tests pass
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Math Kernel Implementation' (Protocol in workflow.md)
+## Phase 2: Math Kernel Implementation [checkpoint: 947401c]
+- [x] Task: Write Tests for PPM Math 3dc1ecd
+    - [x] Create `tests/unit/test_ppm_math.py`
+    - [x] Define test cases for `calculate_ppm` and `solve_distance_for_ppm` with known constants
+- [x] Task: Implement PPM Solver in `projection_math.py` 1ffe64b
+    - [x] Implement `calculate_ppm` logic
+    - [x] Implement `solve_distance_for_ppm` logic
+    - [x] Verify tests pass
+- [x] Task: Conductor - User Manual Verification 'Phase 2: Math Kernel Implementation' (Protocol in workflow.md) 947401c
 
 ## Phase 3: Generator Logic Integration
 - [ ] Task: Write Integration Tests for PPM Sampling
