@@ -84,14 +84,39 @@ class Generator:
         return recipes
 
     def generate_scene(self, scene_id: int) -> SceneRecipe:
-        """Generate a single scene recipe using the Builder Pattern."""
-        builder = SceneRecipeBuilder(scene_id, self.config, self.asset_provider)
-        return (
-            builder.build_world(self.textures)
-            .build_objects()
-            .build_cameras()
-            .get_result()
-        )
+        """Generate a single scene recipe using the Builder Pattern.
+        
+        Guarantees validity by re-sampling if pre-flight checks fail.
+        """
+        from render_tag.core.validator import RecipeValidator
+        
+        max_retries = 50
+        for attempt in range(max_retries):
+            # Use a derived seed for each attempt to ensure variety
+            # We add attempt*1000 to the scene_id to avoid seed collisions
+            attempt_scene_id = scene_id + (attempt * 10000)
+            
+            builder = SceneRecipeBuilder(attempt_scene_id, self.config, self.asset_provider)
+            recipe = (
+                builder.build_world(self.textures)
+                .build_objects()
+                .build_cameras()
+                .get_result()
+            )
+            
+            # Reset the real scene_id for the final recipe
+            recipe.scene_id = scene_id
+            
+            # Validate (Strict: Treat warnings as reasons to re-sample)
+            validator = RecipeValidator(recipe)
+            validator.validate()
+            if not validator.errors and not validator.warnings:
+                return recipe
+            
+            logger.debug(f"Scene {scene_id} attempt {attempt} failed validation (Errors: {len(validator.errors)}, Warnings: {len(validator.warnings)}). Re-sampling...")
+            
+        logger.warning(f"Could not generate a valid scene for ID {scene_id} after {max_retries} attempts. Returning last attempt.")
+        return recipe
 
     def save_recipe_json(self, recipes: list[SceneRecipe], filename: str = "scene_recipes.json"):
         path = self.output_dir / filename

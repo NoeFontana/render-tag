@@ -1,5 +1,5 @@
 dataset:
-  num_scenes: 250
+  num_scenes: 200
   seeds:
     global_seed: 42
   evaluation_scopes: [detection, pose_estimation]
