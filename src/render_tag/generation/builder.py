@@ -1,0 +1,234 @@
+"""
+Fluent Builder for Scene Recipes.
+
+Provides a step-by-step interface for constructing complex SceneRecipe objects,
+encapsulating the logic for isolated RNG states and component generation.
+"""
+
+import random
+from typing import Any
+
+import numpy as np
+
+from render_tag.common import TAG_GRID_SIZES
+from render_tag.core.config import GenConfig
+from render_tag.data_io.assets import AssetProvider
+from render_tag.geometry.camera import sample_camera_pose
+from render_tag.geometry.layouts import apply_flying_layout, apply_grid_layout
+from render_tag.schema import (
+    CameraIntrinsics,
+    CameraRecipe,
+    LightingConfig,
+    ObjectRecipe,
+    SceneRecipe,
+    SeedManager,
+    SensorDynamicsRecipe,
+    WorldRecipe,
+)
+
+
+class SceneRecipeBuilder:
+    """
+    Staff Engineer Pattern: Builder for SceneRecipes.
+    Isolates the 'how' of construction from the 'what'.
+    """
+
+    def __init__(self, scene_id: int, config: GenConfig, asset_provider: AssetProvider):
+        self.scene_id = scene_id
+        self.config = config
+        self.asset_provider = asset_provider
+        self.recipe = SceneRecipe(scene_id=scene_id)
+
+    def build_world(self, textures: list[Any]) -> "SceneRecipeBuilder":
+        """Generates random world environment parameters."""
+        seed = SeedManager(self.config.dataset.seeds.lighting_seed).get_shard_seed(self.scene_id)
+        rng = random.Random(seed)
+        scene_config = self.config.scene
+        lighting_config = scene_config.lighting
+
+        texture_path = None
+        texture_scale = 1.0
+        texture_rotation = 0.0
+
+        if textures:
+            raw_path = str(rng.choice(textures))
+            texture_path = str(self.asset_provider.resolve_path(raw_path))
+            texture_scale = rng.uniform(
+                scene_config.texture_scale_min, scene_config.texture_scale_max
+            )
+            if scene_config.random_texture_rotation:
+                texture_rotation = rng.uniform(0, 2 * np.pi)
+
+        background_hdri = None
+        if scene_config.background_hdri:
+            background_hdri = str(
+                self.asset_provider.resolve_path(str(scene_config.background_hdri))
+            )
+
+        self.recipe.world = WorldRecipe(
+            background_hdri=background_hdri,
+            lighting=LightingConfig(
+                intensity=rng.uniform(lighting_config.intensity_min, lighting_config.intensity_max),
+                radius=rng.uniform(lighting_config.radius_min, lighting_config.radius_max),
+            ),
+            texture_path=texture_path,
+            texture_scale=texture_scale,
+            texture_rotation=texture_rotation,
+        )
+        return self
+
+    def build_objects(self) -> "SceneRecipeBuilder":
+        """Generates and places tag objects within the scene."""
+        seed = SeedManager(self.config.dataset.seeds.layout_seed).get_shard_seed(self.scene_id)
+        rng = random.Random(seed)
+        tag_config = self.config.tag
+        scenario = self.config.scenario
+
+        if scenario.layouts:
+            layout_mode = scenario.layouts[self.scene_id % len(scenario.layouts)]
+        else:
+            layout_mode = scenario.layout
+
+        objects = []
+        grid_size = scenario.grid_size
+        cols, rows = grid_size[0], grid_size[1]
+        tag_size = tag_config.size_meters
+        tag_families = [f.value for f in scenario.tag_families]
+
+        if layout_mode == "cb":
+            num_tags = (cols * rows + 1) // 2
+        elif layout_mode == "aprilgrid":
+            num_tags = cols * rows
+        else:
+            tags_range = scenario.tags_per_scene
+            num_tags = rng.randint(tags_range[0], tags_range[1])
+
+        for i in range(num_tags):
+            family = rng.choice(tag_families)
+            tex_base = None
+            if tag_config.texture_path:
+                tex_base = str(self.asset_provider.resolve_path(str(tag_config.texture_path)))
+
+            objects.append(
+                ObjectRecipe(
+                    type="TAG",
+                    name=f"Tag_{i}",
+                    location=[0, 0, 0],
+                    rotation_euler=[0, 0, 0],
+                    scale=[1, 1, 1],
+                    properties={
+                        "tag_id": i,
+                        "tag_family": family,
+                        "tag_size": tag_size,
+                        "texture_base_path": tex_base,
+                    },
+                )
+            )
+
+        if scenario.flying:
+            apply_flying_layout(objects, self.config.physics.scatter_radius, rng=rng)
+        else:
+            apply_grid_layout(
+                objects,
+                layout_mode,
+                cols,
+                rows,
+                tag_size,
+                tag_spacing_bits=scenario.tag_spacing_bits or 2.0,
+                tag_families=tag_families,
+            )
+            if layout_mode in ("cb", "aprilgrid", "plain"):
+                primary_family = tag_families[0]
+                tag_bit_grid_size = TAG_GRID_SIZES.get(primary_family, 8)
+                tag_spacing = (scenario.tag_spacing_bits / tag_bit_grid_size) * tag_size
+                square_size = tag_size + tag_spacing
+                objects.append(
+                    ObjectRecipe(
+                        type="BOARD",
+                        name="Board_Background",
+                        location=[0, 0, -0.005],
+                        rotation_euler=[0, 0, 0],
+                        scale=[1, 1, 1],
+                        properties={
+                            "mode": layout_mode,
+                            "cols": cols,
+                            "rows": rows,
+                            "tag_size": tag_size,
+                            "square_size": square_size,
+                        },
+                    )
+                )
+
+        self.recipe.objects = objects
+        return self
+
+    def build_cameras(self) -> "SceneRecipeBuilder":
+        """Generates multiple camera poses and sensor configurations."""
+        seed = SeedManager(self.config.dataset.seeds.camera_seed).get_shard_seed(self.scene_id)
+        np_rng = np.random.default_rng(seed)
+        camera_config = self.config.camera
+        scenario = self.config.scenario
+        num_scenes = self.config.dataset.num_scenes
+
+        recipes = []
+        for _ in range(camera_config.samples_per_scene):
+            dist_override = None
+            elev_override = None
+
+            if num_scenes > 1:
+                t = self.scene_id / (num_scenes - 1)
+                if scenario.sampling_mode == "distance":
+                    dist_override = camera_config.min_distance + t * (
+                        camera_config.max_distance - camera_config.min_distance
+                    )
+                elif scenario.sampling_mode == "angle":
+                    elev_override = camera_config.min_elevation + t * (
+                        camera_config.max_elevation - camera_config.min_elevation
+                    )
+
+            pose = sample_camera_pose(
+                look_at_point=[0, 0, 0],
+                min_distance=camera_config.min_distance,
+                max_distance=camera_config.max_distance,
+                min_elevation=camera_config.min_elevation,
+                max_elevation=camera_config.max_elevation,
+                azimuth=camera_config.azimuth,
+                distance=dist_override,
+                elevation=elev_override if elev_override is not None else camera_config.elevation,
+                rng=np_rng,
+            )
+
+            velocity = None
+            if camera_config.velocity_mean > 0 or camera_config.velocity_std > 0:
+                direction = np_rng.normal(size=3)
+                norm = np.linalg.norm(direction)
+                direction = direction / norm if norm > 1e-6 else np.array([0.0, 0.0, 1.0])
+                magnitude = max(0.0, np_rng.normal(camera_config.velocity_mean, camera_config.velocity_std))
+                velocity = (direction * magnitude).tolist()
+
+            dynamics = SensorDynamicsRecipe(
+                velocity=velocity,
+                shutter_time_ms=camera_config.sensor_dynamics.shutter_time_ms,
+                rolling_shutter_duration_ms=camera_config.sensor_dynamics.rolling_shutter_duration_ms,
+            )
+
+            recipes.append(
+                CameraRecipe(
+                    transform_matrix=pose.transform_matrix.tolist(),
+                    intrinsics=CameraIntrinsics(
+                        resolution=list(camera_config.resolution),
+                        fov=camera_config.fov,
+                        intrinsics=camera_config.intrinsics.model_dump(),
+                    ),
+                    sensor_dynamics=dynamics,
+                    fstop=camera_config.fstop,
+                    focus_distance=camera_config.focus_distance,
+                    iso_noise=camera_config.iso_noise,
+                    sensor_noise=camera_config.sensor_noise,
+                )
+            )
+        self.recipe.cameras = recipes
+        return self
+
+    def get_result(self) -> SceneRecipe:
+        return self.recipe

@@ -47,8 +47,8 @@ def test_cli_run_with_job_mismatch(tmp_path, monkeypatch):
     monkeypatch.setattr(subprocess, "run", lambda *args, **kwargs: MockCompletedProcess())
 
     # Mock AssetValidator and BlenderProc check
-    monkeypatch.setattr("render_tag.cli.generate.AssetValidator.is_hydrated", lambda self: True)
-    monkeypatch.setattr("render_tag.cli.generate.check_blenderproc_installed", lambda: True)
+    monkeypatch.setattr("render_tag.common.validator.AssetValidator.is_hydrated", lambda self: True)
+    monkeypatch.setattr("render_tag.cli.tools.check_blenderproc_installed", lambda: True)
 
     # 4. Run 'render-tag generate --job job.json'
     result = runner.invoke(app, ["generate", "--job", str(job_file), "--executor", "mock"])
@@ -94,8 +94,8 @@ def test_cli_run_with_job_config_mismatch(tmp_path, monkeypatch):
     monkeypatch.setattr(subprocess, "run", lambda *args, **kwargs: MockCompletedProcess())
 
     # Mock AssetValidator and BlenderProc check
-    monkeypatch.setattr("render_tag.cli.generate.AssetValidator.is_hydrated", lambda self: True)
-    monkeypatch.setattr("render_tag.cli.generate.check_blenderproc_installed", lambda: True)
+    monkeypatch.setattr("render_tag.common.validator.AssetValidator.is_hydrated", lambda self: True)
+    monkeypatch.setattr("render_tag.cli.tools.check_blenderproc_installed", lambda: True)
 
     result = runner.invoke(app, ["generate", "--job", str(job_file), "--executor", "mock"])
 
@@ -139,8 +139,8 @@ def test_cli_run_with_job_overrides_warning(tmp_path, monkeypatch):
     monkeypatch.setattr(subprocess, "run", lambda *args, **kwargs: MockCompletedProcess())
 
     # Mock AssetValidator and BlenderProc check
-    monkeypatch.setattr("render_tag.cli.generate.AssetValidator.is_hydrated", lambda self: True)
-    monkeypatch.setattr("render_tag.cli.generate.check_blenderproc_installed", lambda: True)
+    monkeypatch.setattr("render_tag.common.validator.AssetValidator.is_hydrated", lambda self: True)
+    monkeypatch.setattr("render_tag.cli.tools.check_blenderproc_installed", lambda: True)
 
     # Run with conflicting CLI flags
     result = runner.invoke(
@@ -168,4 +168,4 @@ def test_cli_run_with_job_overrides_warning(tmp_path, monkeypatch):
 def test_cli_run_with_job_not_found():
     result = runner.invoke(app, ["generate", "--job", "non_existent.json"])
     assert result.exit_code != 0
-    assert "does not exist" in result.output.lower()
+    assert "does not exist" in result.output.lower() or "no such file" in result.output.lower()

@@ -5,6 +5,8 @@ Mock for Blender's bpy module.
 from dataclasses import dataclass, field
 from typing import Any
 
+__mock__ = True
+
 
 @dataclass
 class MockObject:

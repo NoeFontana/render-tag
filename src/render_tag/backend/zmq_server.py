@@ -1,101 +1,156 @@
 """
-ZeroMQ Server running inside Blender for Hot Loop optimization.
+ZMQ Backend Server for render-tag.
+
+Acts as a persistent Blender process that receives rendering recipes
+via ZMQ and executes them, returning telemetry and status.
 """
+
+from __future__ import annotations
 
 import logging
 import sys
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 import zmq
+
+from render_tag.backend.assets import global_pool
+from render_tag.backend.bridge import bridge
+from render_tag.backend.render_loop import execute_recipe
+from render_tag.backend.scene import setup_background
+from render_tag.data_io.writers import (
+    COCOWriter,
+    CSVWriter,
+    RichTruthWriter,
+    SidecarWriter,
+)
+from render_tag.schema.hot_loop import (
+    Command,
+    CommandType,
+    Response,
+    ResponseStatus,
+    Telemetry,
+    calculate_state_hash,
+)
 
 try:
     import GPUtil
 except ImportError:
     GPUtil = None
 
-# 1. BOOTSTRAP: Synchronize environment first
-try:
-    # We must ensure the project src is available to find the bootstrap module
-    import os
-
-    # Locate src/ so we can import render_tag.backend.bootstrap
-    # zmq_server.py is at src/render_tag/backend/zmq_server.py
-    _src_path = str(Path(__file__).resolve().parents[2])
-    if _src_path not in sys.path:
-        sys.path.insert(0, _src_path)
-
-    # MOCK INJECTION: If running in mock mode, inject mocks BEFORE bootstrap or other imports
-    # to avoid conflicts with fake-bpy-module
-    if os.environ.get("RENDER_TAG_BACKEND_MOCK") == "1":
-        # Add project root to path to find 'tests.mocks'
-        project_root = str(Path(_src_path).parent)
-        if project_root not in sys.path:
-            sys.path.append(project_root)
-
-        from tests.mocks import (
-            blender_api as bpy_m,
-        )
-        from tests.mocks import (
-            blenderproc_api as bproc_m,
-        )
-        from tests.mocks import (
-            mathutils_api as math_m,
-        )
-
-        sys.modules["bpy"] = bpy_m
-        sys.modules["blenderproc"] = bproc_m
-        sys.modules["mathutils"] = math_m
-
-    from render_tag.backend import bootstrap
-
-    bootstrap.setup_environment()
-except Exception as e:
-    # Fallback logging if bootstrap fails early
-    try:
-        with open("/tmp/debug_backend.log", "a") as f:
-            f.write(f"BOOTSTRAP FAILED: {e}\n")
-    except Exception:
-        pass
-    sys.stderr.write(f"BOOTSTRAP FAILED: {e}\n")
-    # Don't exit yet, try to proceed with standard imports if possible
-
-
 logger = logging.getLogger(__name__)
 
-try:
-    from render_tag.backend.assets import global_pool
-    from render_tag.backend.bridge import bridge
-    from render_tag.backend.render_loop import execute_recipe
-    from render_tag.backend.scene import setup_background
-    from render_tag.data_io.writers import (
-        COCOWriter,
-        CSVWriter,
-        RichTruthWriter,
-        SidecarWriter,
-    )
-    from render_tag.schema.hot_loop import (
-        Command,
-        CommandType,
-        Response,
-        ResponseStatus,
-        Telemetry,
-        calculate_state_hash,
-    )
-except Exception as e:
-    with open("/tmp/debug_backend.log", "a") as f:
-        import traceback
 
-        f.write(f"IMPORT ERROR: {e}\n")
-        f.write(traceback.format_exc())
-    logging.error(f"IMPORT ERROR: {e}")
-    sys.exit(1)
+class CommandHandler(Protocol):
+    """Protocol for backend command handlers."""
+
+    def handle(self, server: ZmqBackendServer, cmd: Command) -> Response:
+        """Process the command and return a response."""
+        ...
+
+
+class StatusHandler:
+    def handle(self, server: ZmqBackendServer, cmd: Command) -> Response:
+        return Response(
+            status=ResponseStatus.SUCCESS,
+            request_id=cmd.request_id,
+            message="Backend is alive",
+            data=server.get_telemetry().model_dump(),
+        )
+
+
+class InitHandler:
+    def handle(self, server: ZmqBackendServer, cmd: Command) -> Response:
+        payload = cmd.payload or {}
+        assets = payload.get("assets", [])
+        parameters = payload.get("parameters", {})
+
+        new_assets = []
+        for asset_path in assets:
+            if asset_path not in server.assets_loaded:
+                p = Path(asset_path)
+                if p.exists() and p.suffix.lower() in [".exr", ".hdr"]:
+                    if bridge.bpy:
+                        setup_background(p)
+                    new_assets.append(asset_path)
+
+        server.assets_loaded.extend(new_assets)
+        server.parameters.update(parameters)
+
+        return Response(
+            status=ResponseStatus.SUCCESS,
+            request_id=cmd.request_id,
+            message=f"Initialized. {len(server.assets_loaded)} assets resident.",
+            data={"state_hash": calculate_state_hash(server.assets_loaded, server.parameters)},
+        )
+
+
+class RenderHandler:
+    def handle(self, server: ZmqBackendServer, cmd: Command) -> Response:
+        payload = cmd.payload or {}
+        recipe = payload.get("recipe")
+        output_dir = payload.get("output_dir")
+        renderer_mode = payload.get("renderer_mode", "cycles")
+        shard_id = payload.get("shard_id", "main")
+        skip_visibility = payload.get("skip_visibility", False)
+
+        if not recipe or not output_dir:
+            return Response(
+                status=ResponseStatus.FAILURE,
+                request_id=cmd.request_id,
+                message="Missing recipe or output_dir in RENDER payload",
+            )
+
+        server._setup_writers(Path(output_dir), shard_id=shard_id)
+
+        # Execute the recipe using our reusable loop
+        execute_recipe(
+            recipe,
+            Path(output_dir),
+            renderer_mode,
+            server.writers["csv"],
+            server.writers["coco"],
+            server.writers["rich"],
+            server.writers["sidecar"],
+            skip_visibility=skip_visibility,
+        )
+
+        server.renders_completed += 1
+
+        return Response(
+            status=ResponseStatus.SUCCESS,
+            request_id=cmd.request_id,
+            message=f"Rendered scene {recipe['scene_id']}",
+            data={"state_hash": calculate_state_hash(server.assets_loaded, server.parameters)},
+        )
+
+
+class ResetHandler:
+    def handle(self, server: ZmqBackendServer, cmd: Command) -> Response:
+        global_pool.release_all()
+        return Response(
+            status=ResponseStatus.SUCCESS,
+            request_id=cmd.request_id,
+            message="Volatile state reset (object pool cleared).",
+            data={"state_hash": calculate_state_hash(server.assets_loaded, server.parameters)},
+        )
+
+
+class ShutdownHandler:
+    def handle(self, server: ZmqBackendServer, cmd: Command) -> Response:
+        server.running = False
+        return Response(
+            status=ResponseStatus.SUCCESS,
+            request_id=cmd.request_id,
+            message="Shutting down...",
+        )
 
 
 class ZmqBackendServer:
     """
-    Persistent backend server running inside Blender.
+    Persistent ZMQ server running inside Blender.
+    Refactored to use Command Pattern for extensibility.
     """
 
     def __init__(self, port: int = 5555, bproc_mock=None, bpy_mock=None):
@@ -107,11 +162,20 @@ class ZmqBackendServer:
         self.assets_loaded = []
         self.parameters = {}
         self.start_time = time.time()
+        self.renders_completed = 0
+
+        # Command Dispatcher
+        self._handlers: dict[CommandType, CommandHandler] = {
+            CommandType.STATUS: StatusHandler(),
+            CommandType.INIT: InitHandler(),
+            CommandType.RENDER: RenderHandler(),
+            CommandType.RESET: ResetHandler(),
+            CommandType.SHUTDOWN: ShutdownHandler(),
+        }
 
         if bproc_mock or bpy_mock:
             bridge.inject_mocks(bproc_mock, bpy_mock)
 
-        # Persistent writers to avoid file handle overhead
         self.current_output_dir: Path | None = None
         self.writers: dict[str, Any] = {}
 
@@ -145,7 +209,7 @@ class ZmqBackendServer:
         )
 
     def _setup_writers(self, output_dir: Path, shard_id: str = "main"):
-        """Initializes or updates persistent writers for an output directory."""
+        """Initializes or updates persistent writers."""
         if self.current_output_dir == output_dir:
             return
 
@@ -158,129 +222,30 @@ class ZmqBackendServer:
             "rich": RichTruthWriter(output_dir / "rich_truth.json"),
             "sidecar": SidecarWriter(output_dir),
         }
-        # Force initialization of CSV to ensure file exists even if no detections
         self.writers["csv"]._ensure_initialized()
 
     def handle_command(self, cmd: Command) -> Response:
-        """Processes a single command."""
-        logger.info(f"Handling command: {cmd.command_type}")
+        """Processes a single command using the Command Pattern dispatcher."""
+        handler = self._handlers.get(cmd.command_type)
+        if not handler:
+            return Response(
+                status=ResponseStatus.FAILURE,
+                request_id=cmd.request_id,
+                message=f"Command {cmd.command_type} not implemented",
+            )
 
         try:
-            if cmd.command_type == CommandType.STATUS:
-                return Response(
-                    status=ResponseStatus.SUCCESS,
-                    request_id=cmd.request_id,
-                    message="Backend is alive",
-                    data=self.get_telemetry().model_dump(),
-                )
-
-            elif cmd.command_type == CommandType.SHUTDOWN:
-                self.running = False
-                # Finalize writers
-                if "coco" in self.writers:
-                    self.writers["coco"].save()
-                if "rich" in self.writers:
-                    self.writers["rich"].save()
-                return Response(
-                    status=ResponseStatus.SUCCESS,
-                    request_id=cmd.request_id,
-                    message="Shutting down...",
-                )
-
-            elif cmd.command_type == CommandType.INIT:
-                payload = cmd.payload or {}
-                assets = payload.get("assets", [])
-                parameters = payload.get("parameters", {})
-
-                new_assets = []
-                for asset_path in assets:
-                    if asset_path not in self.assets_loaded:
-                        p = Path(asset_path)
-                        if p.exists() and p.suffix.lower() in [".exr", ".hdr"]:
-                            import render_tag.backend.bridge as bridge
-
-                            if bridge.bpy:
-                                setup_background(p)
-                            new_assets.append(asset_path)
-
-                self.assets_loaded.extend(new_assets)
-                self.parameters.update(parameters)
-
-                return Response(
-                    status=ResponseStatus.SUCCESS,
-                    request_id=cmd.request_id,
-                    message=f"Initialized. {len(self.assets_loaded)} assets resident.",
-                    data={"state_hash": calculate_state_hash(self.assets_loaded, self.parameters)},
-                )
-
-            elif cmd.command_type == CommandType.RENDER:
-                payload = cmd.payload or {}
-                recipe = payload.get("recipe")
-                output_dir = payload.get("output_dir")
-                renderer_mode = payload.get("renderer_mode", "cycles")
-                shard_id = payload.get("shard_id", "main")
-                skip_visibility = payload.get("skip_visibility", False)
-
-                if not recipe or not output_dir:
-                    return Response(
-                        status=ResponseStatus.FAILURE,
-                        request_id=cmd.request_id,
-                        message="Missing recipe or output_dir in RENDER payload",
-                    )
-
-                self._setup_writers(Path(output_dir), shard_id=shard_id)
-
-                # Execute the recipe using our reusable loop
-                execute_recipe(
-                    recipe,
-                    Path(output_dir),
-                    renderer_mode,
-                    self.writers["csv"],
-                    self.writers["coco"],
-                    self.writers["rich"],
-                    self.writers["sidecar"],
-                    skip_visibility=skip_visibility,
-                )
-
-                return Response(
-                    status=ResponseStatus.SUCCESS,
-                    request_id=cmd.request_id,
-                    message=f"Rendered scene {recipe['scene_id']}",
-                    data={"state_hash": calculate_state_hash(self.assets_loaded, self.parameters)},
-                )
-
-            elif cmd.command_type == CommandType.RESET:
-                # Partial reset: Just clear the object pool
-                global_pool.release_all()
-                return Response(
-                    status=ResponseStatus.SUCCESS,
-                    request_id=cmd.request_id,
-                    message="Volatile state reset (object pool cleared).",
-                    data={"state_hash": calculate_state_hash(self.assets_loaded, self.parameters)},
-                )
-
+            return handler.handle(self, cmd)
         except Exception as e:
             logger.error(f"Error executing {cmd.command_type}: {e}", exc_info=True)
             return Response(
                 status=ResponseStatus.FAILURE, request_id=cmd.request_id, message=str(e)
             )
 
-        return Response(
-            status=ResponseStatus.FAILURE,
-            request_id=cmd.request_id,
-            message=f"Command {cmd.command_type} not implemented",
-        )
-
     def run(self, max_renders: int | None = None):
-        """
-        Main server loop.
-
-        Args:
-            max_renders: If set, the server will shutdown after N successful RENDER commands.
-                         Used for 'Ephemeral Worker' mode.
-        """
+        """Main server loop."""
         self.running = True
-        renders_completed = 0
+        self.max_renders = max_renders
         logger.info(f"Backend ZMQ Server started on port {self.port}")
         if max_renders:
             logger.info(f"Running in ephemeral mode (max_renders={max_renders})")
@@ -293,26 +258,20 @@ class ZmqBackendServer:
                     resp = self.handle_command(cmd)
                     self.socket.send_string(resp.model_dump_json())
 
-                    is_success = resp.status == ResponseStatus.SUCCESS
-                    if cmd.command_type == CommandType.RENDER and is_success:
-                        renders_completed += 1
-                        if max_renders and renders_completed >= max_renders:
-                            logger.info(f"Reached max_renders ({max_renders}). Shutting down soon.")
-                            # Staff Engineer: Finalize writers immediately before shutdown
-                            if "coco" in self.writers:
-                                self.writers["coco"].save()
-                            if "rich" in self.writers:
-                                self.writers["rich"].save()
-
-                            # Give host a tiny bit of time to collect final telemetry
-                            time.sleep(1.0)
-                            self.running = False
+                    if self.max_renders and self.renders_completed >= self.max_renders:
+                        logger.info(f"Reached max_renders ({self.max_renders}). Shutting down.")
+                        # Finalize immediately
+                        self._finalize_writers()
+                        time.sleep(1.0)
+                        self.running = False
 
             except Exception as e:
                 logger.error(f"Error in server loop: {e}")
-                pass
 
-        # Finalize writers
+        self._finalize_writers()
+
+    def _finalize_writers(self):
+        """Ensures all persistent data is saved."""
         if "coco" in self.writers:
             self.writers["coco"].save()
         if "rich" in self.writers:
@@ -333,43 +292,24 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=5555)
     parser.add_argument("--mock", action="store_true")
-    parser.add_argument("--max-renders", type=int, default=None, help="Shutdown after N renders")
+    parser.add_argument(
+        "--max-renders", type=int, default=None, help="Shutdown after N renders"
+    )
 
-    # Only parse arguments after '--' to avoid Blender args
-    # This prevents Blender's own flags from confusing argparse
     argv = sys.argv[sys.argv.index("--") + 1 :] if "--" in sys.argv else sys.argv[1:]
-
-    # Use parse_known_args to ignore Blender arguments if they leak into sys.argv
     args, unknown = parser.parse_known_args(argv)
-
-    if unknown:
-        logger.warning(f"Ignored unknown arguments: {unknown}")
 
     logger.info(f"Initializing ZmqBackendServer on port {args.port}")
 
     try:
         server = ZmqBackendServer(port=args.port)
-        logger.info("Entering server run loop...")
         try:
             server.run(max_renders=args.max_renders)
         finally:
-            # Staff Engineer: Guaranteed finalization of writers
-            if hasattr(server, "writers"):
-                if "coco" in server.writers:
-                    server.writers["coco"].save()
-                if "rich" in server.writers:
-                    server.writers["rich"].save()
-        logger.info("Server run loop exited normally")
+            server._finalize_writers()
     except KeyboardInterrupt:
-        logger.info("KeyboardInterrupt received, stopping...")
         if "server" in locals():
             server.stop()
     except Exception as e:
         logger.exception(f"Server crashed: {e}")
-        # Ensure we exit with error code logic if needed, but logging detail helps
-        import traceback
-
-        with open("/tmp/debug_backend.log", "a") as f:
-            f.write(f"FATAL CRASH: {e}\n")
-            f.write(traceback.format_exc())
         sys.exit(1)

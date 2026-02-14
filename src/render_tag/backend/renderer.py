@@ -7,7 +7,7 @@ abstracting away the details of BlenderProc and Blender internals.
 
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol, runtime_checkable
 
 from render_tag.backend.assets import create_tag_plane, get_tag_texture_path, global_pool
 from render_tag.backend.bridge import bproc, bpy, np
@@ -22,6 +22,39 @@ from render_tag.backend.sensors import apply_parametric_noise
 logger = logging.getLogger(__name__)
 
 
+@runtime_checkable
+class RenderEngineStrategy(Protocol):
+    """Protocol for rendering engine configuration strategies."""
+
+    def configure(self) -> None:
+        """Configure the Blender scene for this specific engine."""
+        ...
+
+
+class CyclesRenderStrategy:
+    """Configures the high-fidelity Cycles path tracer."""
+
+    def configure(self) -> None:
+        bpy.context.scene.render.engine = "CYCLES"
+
+
+class EeveeRenderStrategy:
+    """Configures the real-time Eevee engine (supports EEVEE_NEXT for 4.2+)."""
+
+    def configure(self) -> None:
+        try:
+            bpy.context.scene.render.engine = "BLENDER_EEVEE_NEXT"
+        except Exception:
+            bpy.context.scene.render.engine = "BLENDER_EEVEE"
+
+
+class WorkbenchRenderStrategy:
+    """Configures the fast Workbench engine for non-photorealistic preview."""
+
+    def configure(self) -> None:
+        bpy.context.scene.render.engine = "BLENDER_WORKBENCH"
+
+
 class RenderFacade:
     """
     High-level interface for rendering fiducial tag scenes.
@@ -29,19 +62,17 @@ class RenderFacade:
 
     def __init__(self, renderer_mode: str = "cycles"):
         self.renderer_mode = renderer_mode
+        self._engine_strategies = {
+            "cycles": CyclesRenderStrategy(),
+            "eevee": EeveeRenderStrategy(),
+            "workbench": WorkbenchRenderStrategy(),
+        }
         self._configure_engine()
 
     def _configure_engine(self):
-        """Standardizes engine-specific settings."""
-        if self.renderer_mode == "workbench":
-            bpy.context.scene.render.engine = "BLENDER_WORKBENCH"
-        elif self.renderer_mode == "eevee":
-            try:
-                bpy.context.scene.render.engine = "BLENDER_EEVEE_NEXT"
-            except Exception:
-                bpy.context.scene.render.engine = "BLENDER_EEVEE"
-        else:
-            bpy.context.scene.render.engine = "CYCLES"
+        """Standardizes engine-specific settings using the Strategy Pattern."""
+        strategy = self._engine_strategies.get(self.renderer_mode, CyclesRenderStrategy())
+        strategy.configure()
 
     def reset_volatile_state(self):
         """Clears objects from the scene but keeps heavy environment assets resident."""

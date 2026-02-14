@@ -76,8 +76,10 @@ class BlenderBridge:
             # Fallback to Mocks
             logger.info("Blender environment not detected. Serving mock objects.")
 
-            # Check if mocks were already injected into sys.modules
-            if "bpy" in sys.modules and "blenderproc" in sys.modules:
+            # Check if mocks were already injected into sys.modules (via inject_mocks)
+            # Staff Engineer: We must differentiate between "injected mocks" and "bad stubs"
+            # If the module in sys.modules is the real stub that failed validation, we ignore it.
+            if "bpy" in sys.modules and getattr(sys.modules["bpy"], "__mock__", False):
                 self.bpy = sys.modules["bpy"]
                 self.bproc = sys.modules["blenderproc"]
                 if "mathutils" in sys.modules:

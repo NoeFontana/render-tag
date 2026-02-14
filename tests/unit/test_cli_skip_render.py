@@ -23,7 +23,7 @@ def minimal_fast_config(tmp_path):
     return config_path
 
 
-@patch("render_tag.cli.generate.AssetValidator")
+@patch("render_tag.common.validator.AssetValidator")
 def test_generate_skip_render_creates_recipes(mock_validator, tmp_path, minimal_fast_config):
     """Verify that --skip-render generates recipe files but doesn't run Blender."""
     mock_validator.return_value.is_hydrated.return_value = True
@@ -58,7 +58,7 @@ def test_generate_skip_render_creates_recipes(mock_validator, tmp_path, minimal_
         assert recipes[1]["scene_id"] == 1
 
 
-@patch("render_tag.cli.generate.AssetValidator")
+@patch("render_tag.common.validator.AssetValidator")
 def test_generate_skip_render_respects_shards(mock_validator, tmp_path, minimal_fast_config):
     """Verify that --skip-render works correctly with sharding."""
     mock_validator.return_value.is_hydrated.return_value = True
