@@ -1,8 +1,33 @@
 # Benchmarking
 
-`render-tag` includes utilities to track the performance of the generation pipeline.
+`render-tag` includes utilities to track the performance of the generation pipeline and predefined experiments to benchmark detector performance.
 
-## Usage
+## Standard Benchmarking Datasets
+
+The project defines several "Gold Standard" datasets used for cross-version performance tracking (The Locus Bench). These are the most important datasets for ensuring detector stability.
+
+| Dataset Name | Config Path | Focus |
+|--------------|-------------|-------|
+| **Locus Bench Phase 1** | `configs/experiments/locus_bench_p1.yaml` | Calibration accuracy and ground truth consistency. |
+| **Locus Pose Baseline** | `configs/experiments/locus_pose_baseline.yaml` | Pose estimation stability under distance and angle sweeps. |
+
+## Generating Benchmark Datasets
+
+Benchmark datasets are defined as experiments and should be run using the `experiment run` command.
+
+### 1. Fast Verification (Workbench)
+Use the `workbench` renderer for rapid logic verification or if you only need bounding boxes without photorealistic noise.
+```bash
+uv run render-tag experiment run --config configs/experiments/locus_bench_p1.yaml --renderer-mode workbench
+```
+
+### 2. Production Baseline (Cycles)
+Generate high-fidelity data for training or final verification using the `cycles` renderer. Use `--workers` to parallelize the generation.
+```bash
+uv run render-tag experiment run --config configs/experiments/locus_pose_baseline.yaml --workers 4 --renderer-mode cycles
+```
+
+## Performance Tracking
 
 The `Benchmarker` utility is used internally to measure the duration of different pipeline stages.
 
@@ -17,18 +42,15 @@ with bench.measure("Scene Generation"):
 bench.report.log_summary()
 ```
 
-## Performance Report
-
-The summary includes time spent in:
+The performance summary includes breakdown of:
 - Scene recipe generation
-- Blender startup/cleanup
-- Rendering (per frame)
-- Sidecar metadata calculation
-- Disk I/O (writing images and CSVs)
+- Blender context stabilization
+- Rendering time per frame
+- VRAM usage and telemetry
 
 ## Optimizations
 
 `render-tag` implements several performance optimizations:
-- **Lazy HDRI Loading**: Backgrounds are only reloaded if the path changes.
-- **Mesh Pooling**: Blender mesh objects are reused across scenes to avoid overhead.
-- **Parallel Sharding**: Datasets can be split into independent shards and rendered in parallel.
+- **ZMQ Hot Loop**: Persistent workers avoid Blender startup overhead.
+- **Mesh Pooling**: Blender objects are reused across scenes.
+- **Lazy Assets**: HDRIs and textures are cached in VRAM.
