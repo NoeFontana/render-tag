@@ -329,6 +329,7 @@ class UnifiedWorkerOrchestrator:
         vram_threshold_mb: float = None,
         ephemeral: bool = False,
         max_renders_per_worker: int = None,
+        worker_id_prefix: str = "worker",
     ):
         self.num_workers, self.base_port = num_workers, base_port
         self.mock = mock or (os.environ.get("RENDER_TAG_FORCE_MOCK") == "1")
@@ -342,6 +343,7 @@ class UnifiedWorkerOrchestrator:
             ephemeral,
         )
         self.max_renders_per_worker = max_renders_per_worker
+        self.worker_id_prefix = worker_id_prefix
         self.context = zmq.Context() if zmq else None
         self.workers, self.worker_queue = [], queue.Queue()
         self.auditor = TelemetryAuditor()
@@ -384,7 +386,7 @@ class UnifiedWorkerOrchestrator:
                 try:
                     for i in range(self.num_workers):
                         worker = PersistentWorkerProcess(
-                            f"worker-{i}",
+                            f"{self.worker_id_prefix}-{i}",
                             current_base_port + i,
                             self.blender_script,
                             self.blender_executable,
@@ -587,6 +589,7 @@ class LocalExecutor:
             ephemeral=True,
             max_renders_per_worker=len(recipes),
             mock=not use_bproc,
+            worker_id_prefix=f"worker-{shard_id}",
         ) as orchestrator:
             orchestrator.start(shard_id=shard_id)
             for recipe in recipes:
@@ -766,14 +769,24 @@ def run_local_parallel(
     recipes = gen.generate_all(exclude_ids=get_completed_scene_ids(output_dir) if resume else set())
     if not recipes:
         return
+
+    # Staff Engineer: Ensure batch_size utilizes all workers
+    # If using default (10) but it would leave workers idle, shrink it.
+    actual_batch_size = batch_size
+    if batch_size == 10 and len(recipes) > 0:
+        # Target roughly one batch per worker, or more if many scenes
+        actual_batch_size = max(1, len(recipes) // workers)
+        # But don't exceed the user's likely intent for small batches
+        actual_batch_size = min(actual_batch_size, 10)
+
     batches = [
         (
-            i // batch_size,
+            i // actual_batch_size,
             gen.save_recipe_json(
-                recipes[i : i + batch_size], f"recipes_batch_{i // batch_size}.json"
+                recipes[i : i + actual_batch_size], f"recipes_batch_{i // actual_batch_size}.json"
             ),
         )
-        for i in range(0, len(recipes), batch_size)
+        for i in range(0, len(recipes), actual_batch_size)
     ]
     executor = ExecutorFactory.get_executor(executor_type)
     q = queue.Queue()
