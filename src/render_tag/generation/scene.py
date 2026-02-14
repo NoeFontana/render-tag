@@ -42,7 +42,7 @@ class Generator:
         if self.config.scene.texture_dir and self.config.scene.texture_dir.exists():
             valid_exts = {".png", ".jpg", ".jpeg", ".tif", ".tiff"}
             self.textures = [
-                p for p in self.config.scene.texture_dir.iterdir() if p.suffix.lower() in valid_exts
+                p for p in self.config.scene.texture_dir.rglob("*") if p.suffix.lower() in valid_exts
             ]
 
     def generate_all(self, exclude_ids: set[int] | None = None) -> list[SceneRecipe]:

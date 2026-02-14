@@ -656,6 +656,63 @@ class MockExecutor:
         verbose: bool = False,
     ) -> None:
         logger.info(f"[MOCK] Render: {recipe_path.name} -> {output_dir.name}")
+        
+        # Simulate output for auditing
+        output_dir.mkdir(parents=True, exist_ok=True)
+        images_dir = output_dir / "images"
+        images_dir.mkdir(parents=True, exist_ok=True)
+        
+        with open(recipe_path) as f:
+            recipes = json.load(f)
+            
+        rich_truth = []
+        tags_csv_rows = [["image_id", "tag_id", "tag_family", "x1", "y1", "x2", "y2", "x3", "y3", "x4", "y4"]]
+        
+        for recipe in recipes:
+            sid = recipe["scene_id"]
+            for cam_idx in range(len(recipe.get("cameras", [0]))):
+                image_id = f"scene_{sid:04d}_cam_{cam_idx:04d}"
+                
+                # Create dummy meta file
+                meta_path = images_dir / f"{image_id}_meta.json"
+                with open(meta_path, "w") as f_meta:
+                    json.dump({"scene_id": sid}, f_meta)
+                
+                # Add dummy detections for tags
+                for obj in recipe.get("objects", []):
+                    if obj["type"] == "TAG":
+                        props = obj["properties"]
+                        # Generate some random quality metrics
+                        dist = random.uniform(0.5, 8.0)
+                        angle = random.uniform(0, 90)
+                        occlusion = random.uniform(0, 0.5)
+                        
+                        det = {
+                            "image_id": image_id,
+                            "tag_id": props["tag_id"],
+                            "tag_family": props["tag_family"],
+                            "distance": dist,
+                            "angle_of_incidence": angle,
+                            "occlusion_ratio": occlusion,
+                            "pixel_area": 1000.0 / (dist * dist),
+                            "lighting_intensity": random.uniform(100, 1000),
+                            "corners": [[0,0], [100,0], [100,100], [0,100]]
+                        }
+                        rich_truth.append(det)
+                        tags_csv_rows.append([
+                            image_id, props["tag_id"], props["tag_family"],
+                            0, 0, 100, 0, 100, 100, 0, 100
+                        ])
+        
+        # Save rich truth
+        with open(output_dir / "rich_truth.json", "w") as f_rich:
+            json.dump(rich_truth, f_rich)
+            
+        # Save tags.csv
+        import csv
+        with open(output_dir / "tags.csv", "w", newline="") as f_csv:
+            writer = csv.writer(f_csv)
+            writer.writerows(tags_csv_rows)
 
 
 # --- UTILS ---

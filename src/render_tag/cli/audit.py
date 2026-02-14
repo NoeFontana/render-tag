@@ -9,16 +9,14 @@ import typer
 import yaml
 from rich.table import Table
 
-try:
-    from render_tag.audit.auditor import AuditDiff, DatasetAuditor
-    from render_tag.audit.auditor import AuditResult, QualityGateConfig
-    from render_tag.audit.reporting import DashboardGenerator
-except ImportError:
-    AuditDiff = None
-    DatasetAuditor = None
-    AuditResult = None
-    QualityGateConfig = None
-    DashboardGenerator = None
+from render_tag.audit.auditor import (
+    AuditDiff,
+    AuditResult,
+    DatasetAuditor,
+    DatasetReader,
+    QualityGateConfig,
+)
+from render_tag.audit.reporting import DashboardGenerator
 
 from .tools import check_audit_installed, console
 
@@ -210,6 +208,93 @@ def diff(
         diff_table.add_row("Quality Score", fmt_delta(deltas["score_diff"]))
 
         console.print(diff_table)
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1) from None
+
+
+@app.command(name="prune")
+def prune(
+    path: Path = typer.Argument(
+        ...,
+        help="Path to the dataset directory to prune",
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+        resolve_path=True,
+    ),
+    limit: int = typer.Option(200, "--limit", "-l", help="Target number of images"),
+    min_dist: float = typer.Option(None, "--min-dist", help="Min distance"),
+    max_dist: float = typer.Option(None, "--max-dist", help="Max distance"),
+    max_occlusion: float = typer.Option(0.1, "--max-occlusion", help="Max occlusion ratio"),
+    max_angle: float = typer.Option(80.0, "--max-angle", help="Max incidence angle"),
+) -> None:
+    """
+    Prune invalid/low-quality samples and truncate to a fixed size.
+    """
+    _ensure_audit()
+    import polars as pl
+
+    try:
+        reader = DatasetReader(path)
+        df = reader.load_rich_detections()
+        initial_count = df["image_id"].n_unique()
+
+        # Apply Filters
+        mask = pl.col("occlusion_ratio") <= max_occlusion
+        mask = mask & (pl.col("angle_of_incidence") <= max_angle)
+
+        if min_dist is not None:
+            mask = mask & (pl.col("distance") >= min_dist)
+        if max_dist is not None:
+            mask = mask & (pl.col("distance") <= max_dist)
+
+        filtered_df = df.filter(mask)
+
+        # Get unique valid images
+        valid_images = filtered_df["image_id"].unique().to_list()
+
+        # Diversify selection (shuffle)
+        import random
+
+        random.seed(42)
+        random.shuffle(valid_images)
+
+        # Truncate
+        selected_images = valid_images[:limit]
+        final_count = len(selected_images)
+
+        if final_count < limit:
+            console.print(
+                f"[yellow]Warning: Only {final_count} images passed filters (limit {limit})[/yellow]"
+            )
+
+        # Update Files (tags.csv, rich_truth.json)
+        # Note: In a real scenario we might delete the actual images too
+        # but for this CLI tool we focus on updating metadata.
+
+        selected_set = set(selected_images)
+
+        # Update rich_truth.json
+        rich_path = path / "rich_truth.json"
+        if rich_path.exists():
+            with open(rich_path) as f:
+                rich_data = json.load(f)
+            new_rich = [d for d in rich_data if d["image_id"] in selected_set]
+            with open(rich_path, "w") as f:
+                json.dump(new_rich, f, indent=2)
+
+        # Update tags.csv
+        tags_path = path / "tags.csv"
+        if tags_path.exists():
+            tags_df = pl.read_csv(tags_path)
+            new_tags_df = tags_df.filter(pl.col("image_id").is_in(selected_images))
+            new_tags_df.write_csv(tags_path)
+
+        console.print(f"[bold green]Pruning Complete[/bold green]")
+        console.print(f"  Initial: {initial_count} images")
+        console.print(f"  Final:   {final_count} images")
 
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
