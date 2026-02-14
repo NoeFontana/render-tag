@@ -19,6 +19,7 @@ Procedural 3D data generation for AprilTag training (Offline).
 - **Dataset Auditing:** Integrated "Contract of Trust" validation to verify geometric coverage (incidence angles, distances), environmental variance, and data integrity via automated Quality Gates.
 - **Calibration & Ground Truth Suite:** Dedicated campaigns for generating sub-pixel accurate calibration datasets (Checkerboard, AprilGrid) with COCO-compliant keypoint annotations.
 - **Pose Estimation Baseline:** Systematic sweeps (distance, angle) with high-precision quaternion ground truth for absolute pose verification.
+- **PPM-Driven Generation:** Goal-oriented visual resolution targets (Pixels Per Module) that linearize dataset difficulty and ensure uniform coverage across detection scenarios.
 - **Managed Assets:** Single Source of Truth (SSoT) for HDRIs, textures, and models via Hugging Face, ensuring zero-config onboarding and deterministic results across environments.
 
 ## Supported Environments
