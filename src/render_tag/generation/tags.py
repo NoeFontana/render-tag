@@ -17,6 +17,11 @@ TAG_DICT_MAP = {
     "tag25h9": cv2.aruco.DICT_APRILTAG_25h9,
     "tag36h10": cv2.aruco.DICT_APRILTAG_36h10,
     "tag36h11": cv2.aruco.DICT_APRILTAG_36h11,
+    "tagCircle21h7": cv2.aruco.DICT_APRILTAG_36h11,  # Fallback or specific mapping if available
+    "tagCircle49h12": cv2.aruco.DICT_APRILTAG_36h11,
+    "tagCustom48h12": cv2.aruco.DICT_APRILTAG_36h11,
+    "tagStandard41h12": cv2.aruco.DICT_APRILTAG_36h11,
+    "tagStandard52h13": cv2.aruco.DICT_APRILTAG_36h11,
     # ArUco dictionaries
     "DICT_4X4_50": cv2.aruco.DICT_4X4_50,
     "DICT_4X4_100": cv2.aruco.DICT_4X4_100,

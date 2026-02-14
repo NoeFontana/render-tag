@@ -12,6 +12,7 @@ from rich.console import Console
 
 from render_tag.cli.pipeline import GenerationContext, PipelineStage
 from render_tag.cli.tools import get_asset_manager
+from render_tag.core.schema import SceneRecipe
 from render_tag.core.validator import AssetValidator, validate_recipe_file
 from render_tag.generation.scene import Generator
 from render_tag.generation.tags import ensure_tag_asset
@@ -61,8 +62,32 @@ class PreparationStage(PipelineStage):
         generator.save_recipe_json(recipes, filename)
         console.print(f"[dim]Recipe saved to:[/dim] {ctx.recipes_path}")
 
-        # 4. Validation
+        # 4. Pre-generate specific tags from recipes
+        self._pregenerate_tags(recipes)
+
+        # 5. Validation
         self._validate_recipes(ctx.recipes_path)
+
+    def _pregenerate_tags(self, recipes: list[SceneRecipe]) -> None:
+        """Scan recipes and pre-generate every required tag PNG."""
+        assets_tag_dir = Path("assets/tags")
+        assets_tag_dir.mkdir(parents=True, exist_ok=True)
+        
+        required_tags = set()
+        for recipe in recipes:
+            for obj in recipe.objects:
+                if obj.type == "TAG":
+                    family = obj.properties.get("tag_family")
+                    tag_id = obj.properties.get("tag_id")
+                    if family and tag_id is not None:
+                        required_tags.add((family, tag_id))
+        
+        if not required_tags:
+            return
+            
+        console.print(f"[dim]Pre-generating {len(required_tags)} unique tags...[/dim]")
+        for family, tag_id in required_tags:
+            ensure_tag_asset(family, tag_id, assets_tag_dir)
 
     def _ensure_assets(self, ctx: GenerationContext) -> None:
         default_dir = Path(__file__).parents[4] / "assets"
@@ -84,20 +109,6 @@ class PreparationStage(PipelineStage):
                     raise typer.Exit(code=1) from None
             else:
                 raise typer.Exit(code=1)
-
-        # Specific Tags
-        assets_tag_dir = Path("assets/tags")
-        assets_tag_dir.mkdir(parents=True, exist_ok=True)
-        scenario = ctx.gen_config.scenario
-        families = scenario.tag_families if scenario else [ctx.gen_config.tag.family]
-        tags_per_scene = scenario.tags_per_scene[1] if scenario else 1
-
-        for family_enum in families:
-            family = family_enum.value
-            for i in range(max(tags_per_scene, 10)):
-                path = ensure_tag_asset(family, i, assets_tag_dir)
-                if ctx.verbose:
-                    console.print(f"  [dim]Checked asset:[/dim] {path.name}")
 
     def _validate_recipes(self, path) -> None:
         is_valid, errors, warnings = validate_recipe_file(path)
