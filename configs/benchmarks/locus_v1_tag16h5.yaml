@@ -33,10 +33,10 @@ tag:
   margin_bits: 1
   material:
     randomize: true
-    roughness_min: 0.2
-    roughness_max: 0.6
+    roughness_min: 0.4
+    roughness_max: 0.8
     specular_min: 0.1
-    specular_max: 0.4
+    specular_max: 0.3
 
 scenario:
   layout: plain

@@ -69,6 +69,10 @@ def setup_lighting(
     """
     lights = []
 
+    # Divide total requested energy among the lights
+    energy_min = intensity_min / num_lights
+    energy_max = intensity_max / num_lights
+
     for _ in range(num_lights):
         # Random position in a hemisphere above the scene
         theta = random.uniform(0, 2 * 3.14159)
@@ -85,7 +89,7 @@ def setup_lighting(
             z = radius * math.cos(phi)
 
         # Random intensity
-        intensity = random.uniform(intensity_min, intensity_max)
+        intensity = random.uniform(energy_min, energy_max)
 
         # Random color temperature (warm to cool white)
         color_temp = random.uniform(0.9, 1.0)
