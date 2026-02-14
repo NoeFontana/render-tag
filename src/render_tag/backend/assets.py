@@ -67,6 +67,9 @@ class AssetPool:
         for obj in self._tag_pool:
             obj.blender_obj.hide_render = True
             obj.blender_obj.hide_viewport = True
+            # Reset transforms to avoid state leak
+            obj.set_location([0, 0, 0])
+            obj.set_scale([1, 1, 1])
             # Reset parent if any
             obj.blender_obj.parent = None
 
@@ -149,9 +152,6 @@ def create_tag_plane(
     # Scale to desired size
     # PLANE primitive is 2x2 (-1 to 1), so we scale by size/2
     plane.set_scale([size_meters / 2.0, size_meters / 2.0, 1])
-
-    # Apply the scale to make it permanent
-    plane.persist_transformation_into_mesh()
 
     # Store corner coordinates as custom properties
     # After persist_transformation_into_mesh, the mesh is already scaled.
