@@ -18,6 +18,7 @@ class AssetProvider:
     ):
         self.local_dir = Path(local_dir).absolute()
         self.repo_id = repo_id
+        self._cache: dict[str, Path] = {}
 
     def resolve_path(self, asset_path: str) -> Path:
         """
@@ -30,6 +31,9 @@ class AssetProvider:
         Returns:
             Path: The absolute path to the local file.
         """
+        if asset_path in self._cache:
+            return self._cache[asset_path]
+
         p = Path(asset_path)
 
         # 1. Absolute path check
@@ -37,14 +41,23 @@ class AssetProvider:
             return p
 
         # 2. Local check
-        # Staff Engineer: Avoid double-prepending local_dir if the path already starts with it
         local_p = self.local_dir / p
         if p.parts and p.parts[0] == self.local_dir.name:
-            # If path is 'assets/hdri/studio.exr' and local_dir is '/.../assets'
-            # we should use self.local_dir.parent / p
             local_p = self.local_dir.parent / p
 
-        if local_p.exists():
+        # Robust check: exact match OR prefix match for collections
+        exists = local_p.exists()
+        if not exists and not p.suffix:
+            # Check if any file starts with this prefix in the parent directory
+            pattern = f"{local_p.name}*"
+            try:
+                if any(local_p.parent.glob(pattern)):
+                    exists = True
+            except Exception:
+                pass
+
+        if exists:
+            self._cache[asset_path] = local_p
             return local_p
 
         # 3. Remote download
@@ -73,7 +86,9 @@ class AssetProvider:
                     local_dir=str(self.local_dir),
                     repo_type="dataset",
                 )
-            return Path(downloaded_path)
+            res_path = Path(downloaded_path)
+            self._cache[asset_path] = res_path
+            return res_path
         except Exception as e:
             logger.error("Failed to download asset %s from HF: %s", asset_path, e)
             # Return the local path anyway, it will probably fail later but we tried
