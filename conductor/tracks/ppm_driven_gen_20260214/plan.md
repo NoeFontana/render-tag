@@ -17,15 +17,15 @@
     - [x] Verify tests pass
 - [x] Task: Conductor - User Manual Verification 'Phase 2: Math Kernel Implementation' (Protocol in workflow.md) 947401c
 
-## Phase 3: Generator Logic Integration
-- [ ] Task: Write Integration Tests for PPM Sampling
-    - [ ] Create test case ensuring `SceneRecipeBuilder` produces distances consistent with PPM targets
-- [ ] Task: Update `SceneRecipeBuilder.build_cameras`
-    - [ ] Retrieve camera intrinsics (focal length)
-    - [ ] Implement conditional sampling logic: PPM vs pure distance
-    - [ ] Add safety clips against camera near/far planes
-    - [ ] Verify integration tests pass
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: Generator Logic Integration' (Protocol in workflow.md)
+## Phase 3: Generator Logic Integration [checkpoint: 83e543a]
+- [x] Task: Write Integration Tests for PPM Sampling 3dc1ecd
+    - [x] Create test case ensuring `SceneRecipeBuilder` produces distances consistent with PPM targets
+- [x] Task: Update `SceneRecipeBuilder.build_cameras` 1ffe64b
+    - [x] Retrieve camera intrinsics (focal length)
+    - [x] Implement conditional sampling logic: PPM vs pure distance
+    - [x] Add safety clips against camera near/far planes
+    - [x] Verify integration tests pass
+- [x] Task: Conductor - User Manual Verification 'Phase 3: Generator Logic Integration' (Protocol in workflow.md) 83e543a
 
 ## Phase 4: Data Export and Auditing
 - [ ] Task: Update Data Writers
