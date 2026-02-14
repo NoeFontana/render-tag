@@ -4,7 +4,8 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ## Active Tracks
 
-(None)
+- [ ] **Track: PPM-Driven Generation**
+  *Link: [./tracks/ppm_driven_gen_20260214/](./tracks/ppm_driven_gen_20260214/)*
 
 ## Archived Tracks
 
