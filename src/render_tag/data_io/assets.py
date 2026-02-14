@@ -5,10 +5,7 @@ Asset provider for on-demand downloading of assets from Hugging Face.
 import logging
 from pathlib import Path
 
-try:
-    from huggingface_hub import hf_hub_download
-except ImportError:
-    hf_hub_download = None
+from huggingface_hub import hf_hub_download, snapshot_download
 
 logger = logging.getLogger(__name__)
 
@@ -51,12 +48,6 @@ class AssetProvider:
             return local_p
 
         # 3. Remote download
-        if hf_hub_download is None:
-            logger.error(
-                "huggingface_hub not installed, cannot download missing asset: %s", asset_path
-            )
-            return local_p
-
         logger.info(
             "Asset %s not found locally. Attempting download from %s", asset_path, self.repo_id
         )
@@ -66,12 +57,22 @@ class AssetProvider:
             if p.parts and p.parts[0] == self.local_dir.name:
                 hf_filename = str(Path(*p.parts[1:]))
 
-            downloaded_path = hf_hub_download(
-                repo_id=self.repo_id,
-                filename=hf_filename,
-                local_dir=str(self.local_dir),
-                repo_type="dataset",
-            )
+            # Staff Engineer: if it's a collection (no extension), use snapshot_download
+            if not p.suffix:
+                logger.info("Downloading collection prefix: %s*", hf_filename)
+                downloaded_path = snapshot_download(
+                    repo_id=self.repo_id,
+                    allow_patterns=[f"{hf_filename}*"],
+                    local_dir=str(self.local_dir),
+                    repo_type="dataset",
+                )
+            else:
+                downloaded_path = hf_hub_download(
+                    repo_id=self.repo_id,
+                    filename=hf_filename,
+                    local_dir=str(self.local_dir),
+                    repo_type="dataset",
+                )
             return Path(downloaded_path)
         except Exception as e:
             logger.error("Failed to download asset %s from HF: %s", asset_path, e)
