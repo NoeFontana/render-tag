@@ -32,6 +32,7 @@ class AssetPool:
     def __init__(self):
         self._tag_pool: list[Any] = []
         self._active_count = 0
+        self._bg_plane: Any | None = None
 
     def get_tag(self) -> Any:
         """Get an available tag plane from the pool or create a new one."""
@@ -47,6 +48,20 @@ class AssetPool:
         self._active_count += 1
         return obj
 
+    def get_background_plane(self) -> Any:
+        """Get or create the singleton background plane."""
+        if self._bg_plane is None:
+            self._bg_plane = bridge.bproc.object.create_primitive("PLANE")
+            self._bg_plane.blender_obj.name = "Background_Plane_Persistent"
+            # Initial setup
+            self._bg_plane.set_scale([20, 20, 1])
+            self._bg_plane.set_location([0, 0, -0.01])
+            self._bg_plane.persist_transformation_into_mesh()
+        
+        self._bg_plane.blender_obj.hide_render = False
+        self._bg_plane.blender_obj.hide_viewport = False
+        return self._bg_plane
+
     def release_all(self):
         """Reset the pool, hiding all objects for the next scene."""
         for obj in self._tag_pool:
@@ -54,6 +69,11 @@ class AssetPool:
             obj.blender_obj.hide_viewport = True
             # Reset parent if any
             obj.blender_obj.parent = None
+        
+        if self._bg_plane:
+            self._bg_plane.blender_obj.hide_render = True
+            self._bg_plane.blender_obj.hide_viewport = True
+            
         self._active_count = 0
 
 

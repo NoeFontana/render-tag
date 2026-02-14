@@ -17,6 +17,7 @@ camera:
   tone_mapping: filmic
   iso: 100
   sensor_noise_sigma: 0.002
+  min_tag_pixels: 16  # Exactly num bits for this family
 
 tag:
   family: tag16h5

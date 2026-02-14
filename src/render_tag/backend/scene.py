@@ -255,10 +255,13 @@ def randomize_floor_material(
         return
 
     # 1. Setup Material
-    if floor_obj.blender_obj.data.materials:
-        mat = floor_obj.blender_obj.data.materials[0]
-    else:
-        mat = bridge.bpy.data.materials.new(name="RandomFloorMat")
+    mat_name = "RandomFloorMat_Pooled"
+    mat = bridge.bpy.data.materials.get(mat_name)
+    if not mat:
+        mat = bridge.bpy.data.materials.new(name=mat_name)
+
+    if not floor_obj.blender_obj.data.materials or floor_obj.blender_obj.data.materials[0] != mat:
+        floor_obj.blender_obj.data.materials.clear()
         floor_obj.blender_obj.data.materials.append(mat)
 
     mat.use_nodes = True

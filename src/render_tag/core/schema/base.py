@@ -155,6 +155,8 @@ class CameraRecipe(BaseModel):
     sensor_noise: SensorNoiseConfig | None = Field(
         default=None, description="Parametric sensor noise config"
     )
+    min_tag_pixels: float | None = None
+    max_tag_pixels: float | None = None
 
 
 class LightingConfig(BaseModel):

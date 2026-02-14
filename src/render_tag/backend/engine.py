@@ -104,12 +104,12 @@ class RenderFacade:
         # Handle Background Texture Plane
         texture_path = world_recipe.get("texture_path")
         if texture_path and world_recipe.get("use_nodes", True):
-            from render_tag.backend.scene import create_floor, randomize_floor_material
+            from render_tag.backend.scene import randomize_floor_material
             
-            # Create a large floor plane for the background
-            floor = create_floor(size=20.0, location=(0, 0, -0.01))
+            # Use managed background plane from pool
+            bg_plane = global_pool.get_background_plane()
             randomize_floor_material(
-                floor,
+                bg_plane,
                 texture_path=texture_path,
                 scale=world_recipe.get("texture_scale", 1.0),
                 rotation=world_recipe.get("texture_rotation", 0.0)

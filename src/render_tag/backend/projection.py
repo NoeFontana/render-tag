@@ -134,7 +134,7 @@ def get_valid_detections(tag_objects: list[Any]) -> list[tuple[Any, list[tuple[f
     for tag_obj in tag_objects:
         corners_2d = project_corners_to_image(tag_obj)
 
-        if corners_2d is not None and check_tag_visibility(tag_obj):
+        if corners_2d is not None and check_tag_visibility(tag_obj) and check_tag_facing_camera(tag_obj):
             valid_detections.append((tag_obj, corners_2d))
 
     return valid_detections

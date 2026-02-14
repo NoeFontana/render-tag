@@ -41,8 +41,11 @@ class SceneRecipeBuilder:
 
     def build_world(self, textures: list[Any]) -> "SceneRecipeBuilder":
         """Generates random world environment parameters."""
-        seed = SeedManager(self.config.dataset.seeds.lighting_seed).get_shard_seed(self.scene_id)
+        # Use lighting seed for world randomization
+        lighting_seed = self.config.dataset.seeds.lighting_seed
+        seed = SeedManager(lighting_seed).get_shard_seed(self.scene_id)
         rng = random.Random(seed)
+        
         scene_config = self.config.scene
         lighting_config = scene_config.lighting
 
@@ -51,7 +54,13 @@ class SceneRecipeBuilder:
         texture_rotation = 0.0
 
         if textures:
-            raw_path = str(rng.choice(textures))
+            # SHUFFLE the textures list deterministically based on lighting_seed 
+            # to avoid every shard having the same texture for scene 0
+            pool = list(textures)
+            random.Random(lighting_seed).shuffle(pool)
+            
+            # Pick texture for this scene
+            raw_path = str(pool[self.scene_id % len(pool)])
             texture_path = str(self.asset_provider.resolve_path(raw_path))
             texture_scale = rng.uniform(
                 scene_config.texture_scale_min, scene_config.texture_scale_max
@@ -174,6 +183,13 @@ class SceneRecipeBuilder:
         scenario = self.config.scenario
         num_scenes = self.config.dataset.num_scenes
 
+        # Get first tag for sizing constraints (typical for single-tag scenes)
+        target_tag = None
+        for obj in self.recipe.objects:
+            if obj.type == "TAG":
+                target_tag = obj
+                break
+
         recipes = []
         for _ in range(camera_config.samples_per_scene):
             dist_override = None
@@ -190,26 +206,69 @@ class SceneRecipeBuilder:
                         camera_config.max_elevation - camera_config.min_elevation
                     )
 
-            # Sample roll if defined
-            roll = 0.0
-            if abs(camera_config.max_roll - camera_config.min_roll) > 1e-6:
-                roll = np_rng.uniform(
-                    np.radians(camera_config.min_roll), 
-                    np.radians(camera_config.max_roll)
+            # Rejection Sampling for Tag Size
+            pose = None
+            max_attempts = 20
+            for attempt in range(max_attempts):
+                # Sample roll if defined
+                roll = 0.0
+                if abs(camera_config.max_roll - camera_config.min_roll) > 1e-6:
+                    roll = np_rng.uniform(
+                        np.radians(camera_config.min_roll), 
+                        np.radians(camera_config.max_roll)
+                    )
+
+                pose = sample_camera_pose(
+                    look_at_point=[0, 0, 0],
+                    min_distance=camera_config.min_distance,
+                    max_distance=camera_config.max_distance,
+                    min_elevation=camera_config.min_elevation,
+                    max_elevation=camera_config.max_elevation,
+                    azimuth=camera_config.azimuth,
+                    distance=dist_override,
+                    elevation=elev_override if elev_override is not None else camera_config.elevation,
+                    inplane_rot=roll,
+                    rng=np_rng,
                 )
 
-            pose = sample_camera_pose(
-                look_at_point=[0, 0, 0],
-                min_distance=camera_config.min_distance,
-                max_distance=camera_config.max_distance,
-                min_elevation=camera_config.min_elevation,
-                max_elevation=camera_config.max_elevation,
-                azimuth=camera_config.azimuth,
-                distance=dist_override,
-                elevation=elev_override if elev_override is not None else camera_config.elevation,
-                inplane_rot=roll,
-                rng=np_rng,
-            )
+                # If we have a target tag and sizing constraints, validate area
+                if target_tag and (camera_config.min_tag_pixels or camera_config.max_tag_pixels):
+                    from render_tag.core.config import get_min_pixel_area
+                    from render_tag.generation.projection_math import (
+                        calculate_pixel_area,
+                        get_world_matrix,
+                        project_points,
+                    )
+
+                    # Projection logic
+                    family = target_tag.properties.get("tag_family", "tag36h11")
+                    min_allowed = camera_config.min_tag_pixels or get_min_pixel_area(family)
+                    max_allowed = camera_config.max_tag_pixels or (camera_config.resolution[0] * camera_config.resolution[1])
+
+                    size = target_tag.properties.get("tag_size", 0.1)
+                    hs = size / 2.0
+                    corners_local = np.array([[-hs, -hs, 0], [hs, -hs, 0], [hs, hs, 0], [-hs, hs, 0]])
+                    tag_world_mat = get_world_matrix(target_tag.location, target_tag.rotation_euler, target_tag.scale)
+                    corners_world_h = (tag_world_mat @ np.hstack([corners_local, np.ones((4, 1))]).T).T
+                    corners_world = corners_world_h[:, :3]
+
+                    pixels = project_points(
+                        corners_world, 
+                        pose.transform_matrix, 
+                        list(camera_config.resolution), 
+                        camera_config.fov
+                    )
+                    area = calculate_pixel_area(pixels)
+
+                    if area >= min_allowed and area <= max_allowed:
+                        break # Valid pose found
+                    
+                    if attempt == max_attempts - 1:
+                        # Fallback to last pose if all attempts fail, but log warning
+                        # or we could keep pose as None and handle it.
+                        pass
+                else:
+                    break # No constraints, take first pose
 
             velocity = None
             if camera_config.velocity_mean > 0 or camera_config.velocity_std > 0:
@@ -238,6 +297,8 @@ class SceneRecipeBuilder:
                     focus_distance=camera_config.focus_distance,
                     iso_noise=camera_config.iso_noise,
                     sensor_noise=camera_config.sensor_noise,
+                    min_tag_pixels=camera_config.min_tag_pixels,
+                    max_tag_pixels=camera_config.max_tag_pixels,
                 )
             )
         self.recipe.cameras = recipes

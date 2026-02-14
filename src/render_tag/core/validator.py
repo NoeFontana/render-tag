@@ -81,8 +81,10 @@ class RecipeValidator:
                 calculate_incidence_angle,
                 calculate_pixel_area,
                 get_world_matrix,
+                get_world_normal,
                 project_points,
             )
+            from render_tag.generation.visibility import is_facing_camera
         except ImportError:
             # Skip if numpy or projection_math are not available (unlikely in host)
             return
@@ -93,14 +95,18 @@ class RecipeValidator:
 
         for cam_idx, cam in enumerate(self.recipe.cameras):
             cam_matrix = np.array(cam.transform_matrix)
+            cam_location = cam_matrix[:3, 3]
             res = cam.intrinsics.resolution
             fov = cam.intrinsics.fov
 
             valid_tags_in_view = 0
-            min_area = 36  # Default fallback
+            
             for tag in tags:
                 family = tag.properties.get("tag_family", "tag36h11")
-                min_area = get_min_pixel_area(family)
+                
+                # Priority: CameraRecipe override -> tag bit count
+                min_area = cam.min_tag_pixels or get_min_pixel_area(family)
+                max_area = cam.max_tag_pixels or (res[0] * res[1])
 
                 size = tag.properties.get("tag_size", 0.1)
                 hs = size / 2.0
@@ -116,7 +122,14 @@ class RecipeValidator:
 
                 # Transform corners to world space
                 tag_world_mat = get_world_matrix(tag.location, tag.rotation_euler, tag.scale)
+                tag_normal = get_world_normal(tag_world_mat)
+
+                # Facing Check
+                if not is_facing_camera(np.array(tag.location), tag_normal, cam_location):
+                    continue
+
                 corners_world_h = (tag_world_mat @ np.hstack([corners_local, np.ones((4, 1))]).T).T
+            
                 corners_world = corners_world_h[:, :3]
 
                 # Project to pixel space
@@ -134,7 +147,7 @@ class RecipeValidator:
 
                 # 2. Check Pixel Area
                 area = calculate_pixel_area(pixels)
-                if area < min_area:
+                if area < min_area or area > max_area:
                     continue
 
                 # 3. Check Incidence Angle

@@ -401,6 +401,14 @@ class CameraConfig(BaseModel):
     # Simulates the sensor's ability to recover shadow detail
     dynamic_range_db: float = Field(default=120.0, description="Sensor dynamic range in dB")
 
+    # Tag Sizing Constraints (Staff Engineer Pattern: Quality Gates at Sampling)
+    min_tag_pixels: float | None = Field(
+        default=None, description="Minimum area in pixels for a tag to be valid"
+    )
+    max_tag_pixels: float | None = Field(
+        default=None, description="Maximum area in pixels for a tag to be valid"
+    )
+
     # Tone Mapping: 'linear' for raw, 'srgb' for standard, 'filmic' for modern ISP simulation
     tone_mapping: Literal["linear", "srgb", "filmic"] = Field(
         default="filmic", description="Tone mapping operator"
