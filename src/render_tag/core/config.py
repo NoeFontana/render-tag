@@ -88,6 +88,14 @@ class SamplingMode(str, Enum):
     ANGLE = "angle"  # Varying tilt angle to target
 
 
+class PPMConstraint(BaseModel):
+    """Configuration for Pixels Per Module (PPM) driven sampling."""
+
+    min: float = Field(default=5.0, gt=0, description="Minimum target PPM")
+    max: float = Field(default=100.0, gt=0, description="Maximum target PPM")
+    distribution: Literal["uniform"] = Field(default="uniform", description="Sampling distribution")
+
+
 class EvaluationScope(str, Enum):
     """Explicit capability contracts for multi-functional datasets."""
 
@@ -367,6 +375,10 @@ class CameraConfig(BaseModel):
     azimuth: float | None = Field(default=None, description="Fixed azimuth")
     min_roll: float = Field(default=0.0, description="Minimum in-plane rotation (degrees)")
     max_roll: float = Field(default=0.0, description="Maximum in-plane rotation (degrees)")
+
+    ppm_constraint: PPMConstraint | None = Field(
+        default=None, description="Constraint for Pixels Per Module (PPM) driven sampling"
+    )
 
     # Sensor Dynamics (Motion Blur, Rolling Shutter)
     sensor_dynamics: SensorDynamicsConfig = Field(
