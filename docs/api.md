@@ -4,7 +4,8 @@ Auto-generated documentation for `render-tag` core modules.
 
 ## Key Modules
 
-- `render_tag.generation.scene`: Procedural scene generation.
-- `render_tag.geometry.board`: Calibration board layouts.
-- `render_tag.schema.base`: Pydantic models for scene recipes.
-- `render_tag.data_io.writers`: Dataset exporters (CSV, COCO).
+- `render_tag.core.schema`: Pydantic models for scene recipes and telemetry.
+- `render_tag.generation.scene`: Procedural scene generation and recipe construction.
+- `render_tag.orchestration.orchestrator`: Worker lifecycle and parallel execution.
+- `render_tag.data_io.writers`: Dataset exporters (CSV, COCO, Manifests).
+- `render_tag.backend.engine`: Unified rendering driver (runs inside Blender).

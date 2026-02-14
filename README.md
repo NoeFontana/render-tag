@@ -40,6 +40,14 @@ uv run render-tag generate --config configs/default.yaml --output output/dataset
 uv run render-tag viz --output output/dataset_01
 ```
 
+## Architecture
+
+`render-tag` uses a decoupled **Host-Backend** architecture for high-performance rendering:
+
+*   **Host (Python 3.12)**: Procedural math, recipe generation, and worker orchestration.
+*   **Backend (Blender/ZMQ)**: Persistent 3D workers running a "Hot Loop" to avoid Blender startup overhead.
+*   **Unified Orchestrator**: Manages parallel sharding, VRAM guardrails, and telemetry.
+
 ## CLI Commands
 
 ### `render-tag generate`
@@ -50,39 +58,27 @@ Generate synthetic fiducial marker training data.
 uv run render-tag generate [OPTIONS]
 
 Options:
-  -c, --config PATH     Path to config YAML file [default: configs/default.yaml]
-  -o, --output PATH     Output directory [default: output/dataset_01]
-  -n, --scenes INTEGER  Number of scenes to generate [default: 1]
-  -v, --verbose         Enable verbose output from BlenderProc
-  -e, --executor TEXT   Execution engine: local, docker, mock [default: local]
-
-### Execution Engines
-
-render-tag supports different execution engines to suit your environment:
-
-| Executor | Description | Use Case |
-|----------|-------------|----------|
-| `local` | Uses local BlenderProc installation | Fast local development |
-| `docker` | Runs BlenderProc inside a container | Hermetic, reproducible runs |
-| `mock` | No-op execution (logs only) | Testing pipeline logic |
-
-#### Running with Docker
-
-To run rendering inside a container (requires Docker installed):
-
-```bash
-uv run render-tag generate --executor docker --scenes 10
+  -c, --config PATH      Path to config YAML file [default: configs/default.yaml]
+  -o, --output PATH      Output directory [default: output/dataset_01]
+  -n, --scenes INTEGER   Number of scenes to generate [default: 1]
+  -w, --workers INTEGER  Number of parallel workers [default: 1]
+  -v, --verbose          Enable verbose output
+  -e, --executor TEXT    Execution engine: local, docker, mock [default: local]
 ```
 
-*Note: Ensure the `render-tag:latest` image is built or available.*
+### Advanced Features
 
-#### Running with Mock (Fast Test)
-
-To verify configuration and recipe generation without rendering:
-
+#### Parallel Local Execution
+Run multiple Blender instances locally to maximize throughput:
 ```bash
-uv run render-tag generate --executor mock --scenes 5
+uv run render-tag generate --workers 4 --scenes 1000
 ```
+
+#### Deterministic Sharding
+Reproduce any scene from a dataset by using the same config and seed. `render-tag` ensures seeds are consistent across parallel shards.
+
+#### VRAM Guardrails
+Workers automatically restart if they exceed a VRAM threshold (default: 90% of total VRAM), preventing OOM crashes during long generation runs.
 ```
 
 ### `render-tag validate`

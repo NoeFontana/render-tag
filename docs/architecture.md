@@ -21,17 +21,20 @@ graph TD
 
 ## Components
 
-### 1. Schema (`src/render_tag/schema/`)
-The single source of truth. Defined using Pydantic models. Every scene is described by a `SceneRecipe`, which is a hermetic description of world, objects, and cameras.
+### 1. Core (`src/render_tag/core/`)
+The foundation of the system. Contains the single source of truth **Schemas** (Pydantic models), configuration logic, and fundamental utilities like resilience and resource management.
 
-### 2. Generator (`src/render_tag/generation/`)
-Pure Python logic that samples parameters (camera poses, lighting, tag IDs) and builds `SceneRecipe` objects. It has **no** dependency on Blender.
+### 2. Generation (`src/render_tag/generation/`)
+Pure Python procedural logic. Samples parameters (camera poses, lighting, tag IDs) and builds `SceneRecipe` objects. It has **no** dependency on Blender, allowing for fast "Shadow Renders" (2D bounding box verification without 3D).
 
 ### 3. Backend (`src/render_tag/backend/`)
-The rendering driver. It consumes a `SceneRecipe` and uses `BlenderProc` to build the 3D scene and execute the render. This component runs inside the Blender Python environment.
+The 3D rendering engine. It consumes a `SceneRecipe` and uses `BlenderProc` via `backend/engine.py` to build the scene. This code runs exclusively inside the Blender Python environment.
 
 ### 4. Orchestration (`src/render_tag/orchestration/`)
-Handles the lifecycle of rendering jobs, including parallelization (sharding) and execution environments (Local vs. Docker).
+The `UnifiedWorkerOrchestrator` manages the lifecycle of `PersistentWorkerProcess` instances. It handles ZMQ communication, VRAM guardrails, and parallel sharding.
+
+### 5. Data I/O (`src/render_tag/data_io/`)
+Handles asset loading, caching, and writing final annotations (COCO, CSV).
 
 ## The "Hot Loop" (Persistent Workers)
 
