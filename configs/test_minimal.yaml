@@ -1,7 +1,24 @@
+# Minimal test config for CI/CD
 dataset:
   num_scenes: 1
+  output_dir: output/test_minimal
+
+camera:
+  resolution: [320, 240]
+  samples_per_scene: 1
+
+tag:
+  family: tag36h11
+  size_meters: 0.1
+
+scenario:
+  layout: plain
+  tag_families: [tag36h11]
+  tags_per_scene: [1, 1]
+
 scene:
+  lighting:
+    intensity_min: 100
+    intensity_max: 100
   background_hdri: null
   texture_dir: null
-camera:
-  samples_per_scene: 1

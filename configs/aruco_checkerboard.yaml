@@ -1,28 +1,46 @@
+# render-tag: ArUco ChArUco (cb) Calibration Baseline
+# Optimized for high-precision corner extraction.
+
 dataset:
-  output_dir: output/aruco_checkerboard
-  seed: 101
+  output_dir: output/aruco_cb
   num_scenes: 1
+  seeds:
+    global_seed: 42
+  evaluation_scopes: [calibration, corner_accuracy]
 
 camera:
-  resolution: [1280, 720]
-  samples_per_scene: 5
-  fov: 60
+  resolution: [1920, 1080]
+  fov: 65.0
+  samples_per_scene: 10
+  
+  min_distance: 0.4
+  max_distance: 1.5
+  min_elevation: 0.3
+  max_elevation: 0.9
 
 tag:
-  size_meters: 0.06
-  texture_path: assets/tags/DICT_4X4_50
+  family: DICT_6X6_250
+  size_meters: 0.08
+  material:
+    randomize: false
+    roughness_min: 0.8
+    specular_min: 0.1
 
 scenario:
   layout: cb
-  tag_families: [DICT_4X4_50]
-  tags_per_scene: [9, 9] # 3x3 grid
-  grid_size: [3, 3]
-  corner_size: 0.015
+  tag_families: [DICT_6X6_250]
+  grid_size: [6, 6]
+  square_size: 0.12
+  marker_margin: 0.01
+  sampling_mode: random
 
 scene:
   lighting:
-    intensity_min: 100
-    intensity_max: 800
+    intensity_min: 200
+    intensity_max: 600
+    radius_min: 0.2
+    radius_max: 0.4
+  texture_dir: assets/textures/background
 
 physics:
   drop_height: 0.05

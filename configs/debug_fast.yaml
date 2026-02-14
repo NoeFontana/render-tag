@@ -1,28 +1,31 @@
+# render-tag: Debug Fast
+# Low resolution, single sample for rapid pipeline iteration.
+
 dataset:
   output_dir: output/debug_fast
-  seed: 42
   num_scenes: 1
+  seeds:
+    global_seed: 42
 
 camera:
   resolution: [640, 480]
   samples_per_scene: 1
-  fov: 60
+  fov: 60.0
 
 tag:
+  family: tag36h11
   size_meters: 0.1
-  texture_path: assets/tags/tag36h11
 
 scenario:
-  layout: cb
+  layout: plain
   tag_families: [tag36h11]
-  tags_per_scene: [2, 2]
-  grid_size: [2, 1]
-  corner_size: 0.01
+  tags_per_scene: [1, 3]
 
 scene:
   lighting:
-    intensity_min: 100
-    intensity_max: 800
+    intensity_min: 200
+    intensity_max: 400
+  texture_dir: null
 
 physics:
-  drop_height: 0.05
+  drop_height: 0.1
