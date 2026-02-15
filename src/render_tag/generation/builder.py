@@ -12,9 +12,6 @@ import numpy as np
 
 from render_tag.core import TAG_GRID_SIZES
 from render_tag.core.config import TAG_MAX_IDS, GenConfig
-from render_tag.data_io.assets import AssetProvider
-from render_tag.generation.camera import sample_camera_pose
-from render_tag.generation.layouts import apply_flying_layout, apply_grid_layout
 from render_tag.core.schema import (
     CameraIntrinsics,
     CameraRecipe,
@@ -25,6 +22,9 @@ from render_tag.core.schema import (
     SensorDynamicsRecipe,
     WorldRecipe,
 )
+from render_tag.data_io.assets import AssetProvider
+from render_tag.generation.camera import sample_camera_pose
+from render_tag.generation.layouts import apply_flying_layout, apply_grid_layout
 
 
 class SceneRecipeBuilder:
@@ -45,7 +45,7 @@ class SceneRecipeBuilder:
         lighting_seed = self.config.dataset.seeds.lighting_seed
         seed = SeedManager(lighting_seed).get_shard_seed(self.scene_id)
         rng = random.Random(seed)
-        
+
         scene_config = self.config.scene
         lighting_config = scene_config.lighting
 
@@ -54,17 +54,28 @@ class SceneRecipeBuilder:
         texture_rotation = 0.0
 
         if textures:
-            # SHUFFLE the textures list deterministically based on lighting_seed 
+            # SHUFFLE the textures list deterministically based on lighting_seed
             # to avoid every shard having the same texture for scene 0
             pool = list(textures)
             random.Random(lighting_seed).shuffle(pool)
-            
+
             # Pick texture for this scene
             raw_path = str(pool[self.scene_id % len(pool)])
             texture_path = str(self.asset_provider.resolve_path(raw_path))
-            texture_scale = rng.uniform(
-                scene_config.texture_scale_min, scene_config.texture_scale_max
-            )
+            # Log-Uniform Sampling for Texture Scale (Staff Engineer Pattern)
+            # If the range spans more than 1 order of magnitude, use log-uniform
+            # to ensure we get enough samples in the lower (macro) range.
+            min_s = scene_config.texture_scale_min
+            max_s = scene_config.texture_scale_max
+
+            if max_s / min_s > 10.0:
+                import math
+
+                log_min = math.log(min_s)
+                log_max = math.log(max_s)
+                texture_scale = math.exp(rng.uniform(log_min, log_max))
+            else:
+                texture_scale = rng.uniform(min_s, max_s)
             if scene_config.random_texture_rotation:
                 texture_rotation = rng.uniform(0, 2 * np.pi)
 
@@ -210,28 +221,27 @@ class SceneRecipeBuilder:
             # PPM Constraint Calculation
             if camera_config.ppm_constraint and target_tag:
                 from render_tag.generation.projection_math import solve_distance_for_ppm
-                
+
                 # 1. Retrieve Tag Grid Size
                 family = target_tag.properties.get("tag_family", "tag36h11")
                 tag_grid_size = TAG_GRID_SIZES.get(family, 8)
-                
+
                 # 2. Calculate effective focal length
                 width = camera_config.resolution[0]
                 fov_rad = np.radians(camera_config.fov)
                 f_px = width / (2.0 * np.tan(fov_rad / 2.0))
-                
+
                 # 3. Sample Target PPM
                 target_ppm = np_rng.uniform(
-                    camera_config.ppm_constraint.min,
-                    camera_config.ppm_constraint.max
+                    camera_config.ppm_constraint.min, camera_config.ppm_constraint.max
                 )
-                
+
                 # 4. Solve for distance
                 dist_override = solve_distance_for_ppm(
                     target_ppm=target_ppm,
                     tag_size_m=target_tag.properties.get("tag_size", 0.1),
                     focal_length_px=f_px,
-                    tag_grid_size=tag_grid_size
+                    tag_grid_size=tag_grid_size,
                 )
 
             # Rejection Sampling for Tag Size
@@ -242,8 +252,7 @@ class SceneRecipeBuilder:
                 roll = 0.0
                 if abs(camera_config.max_roll - camera_config.min_roll) > 1e-6:
                     roll = np_rng.uniform(
-                        np.radians(camera_config.min_roll), 
-                        np.radians(camera_config.max_roll)
+                        np.radians(camera_config.min_roll), np.radians(camera_config.max_roll)
                     )
 
                 pose = sample_camera_pose(
@@ -254,7 +263,9 @@ class SceneRecipeBuilder:
                     max_elevation=camera_config.max_elevation,
                     azimuth=camera_config.azimuth,
                     distance=dist_override,
-                    elevation=elev_override if elev_override is not None else camera_config.elevation,
+                    elevation=elev_override
+                    if elev_override is not None
+                    else camera_config.elevation,
                     inplane_rot=roll,
                     rng=np_rng,
                 )
@@ -271,39 +282,61 @@ class SceneRecipeBuilder:
                     # Projection logic
                     family = target_tag.properties.get("tag_family", "tag36h11")
                     min_allowed = camera_config.min_tag_pixels or get_min_pixel_area(family)
-                    max_allowed = camera_config.max_tag_pixels or (camera_config.resolution[0] * camera_config.resolution[1])
+                    max_allowed = camera_config.max_tag_pixels or (
+                        camera_config.resolution[0] * camera_config.resolution[1]
+                    )
 
                     size = target_tag.properties.get("tag_size", 0.1)
                     hs = size / 2.0
-                    corners_local = np.array([[-hs, -hs, 0], [hs, -hs, 0], [hs, hs, 0], [-hs, hs, 0]])
-                    tag_world_mat = get_world_matrix(target_tag.location, target_tag.rotation_euler, target_tag.scale)
-                    corners_world_h = (tag_world_mat @ np.hstack([corners_local, np.ones((4, 1))]).T).T
+                    corners_local = np.array(
+                        [[-hs, -hs, 0], [hs, -hs, 0], [hs, hs, 0], [-hs, hs, 0]]
+                    )
+                    tag_world_mat = get_world_matrix(
+                        target_tag.location, target_tag.rotation_euler, target_tag.scale
+                    )
+                    corners_world_h = (
+                        tag_world_mat @ np.hstack([corners_local, np.ones((4, 1))]).T
+                    ).T
                     corners_world = corners_world_h[:, :3]
 
                     pixels = project_points(
-                        corners_world, 
-                        pose.transform_matrix, 
-                        list(camera_config.resolution), 
-                        camera_config.fov
+                        corners_world,
+                        pose.transform_matrix,
+                        list(camera_config.resolution),
+                        camera_config.fov,
                     )
+
+                    # Check 1. Bounds (Must be fully in view)
+                    in_bounds = True
+                    w, h = camera_config.resolution
+                    for px, py in pixels:
+                        if not (0 <= px <= w and 0 <= py <= h):
+                            in_bounds = False
+                            break
+
+                    if not in_bounds:
+                        continue
+
                     area = calculate_pixel_area(pixels)
 
                     if area >= min_allowed and area <= max_allowed:
-                        break # Valid pose found
-                    
+                        break  # Valid pose found
+
                     if attempt == max_attempts - 1:
                         # Fallback to last pose if all attempts fail, but log warning
                         # or we could keep pose as None and handle it.
                         pass
                 else:
-                    break # No constraints, take first pose
+                    break  # No constraints, take first pose
 
             velocity = None
             if camera_config.velocity_mean > 0 or camera_config.velocity_std > 0:
                 direction = np_rng.normal(size=3)
                 norm = np.linalg.norm(direction)
                 direction = direction / norm if norm > 1e-6 else np.array([0.0, 0.0, 1.0])
-                magnitude = max(0.0, np_rng.normal(camera_config.velocity_mean, camera_config.velocity_std))
+                magnitude = max(
+                    0.0, np_rng.normal(camera_config.velocity_mean, camera_config.velocity_std)
+                )
                 velocity = (direction * magnitude).tolist()
 
             dynamics = SensorDynamicsRecipe(
