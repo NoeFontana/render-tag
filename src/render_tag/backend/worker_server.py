@@ -125,14 +125,21 @@ class ZmqBackendServer:
                     self.logger.debug(f"Received msg: {message[:100]}...")
                     cmd = Command.model_validate_json(message)
                     resp = self.handle_command(cmd)
-                    self.socket.send_string(resp.model_dump_json())
-                    if self.max_renders and self.renders_completed >= self.max_renders:
+
+                    # Staff Engineer: If this was the final render, finalize BEFORE replying.
+                    # This ensures the orchestrator doesn't start a replacement worker
+                    # until this one has finished all disk I/O and released file locks.
+                    at_limit = self.max_renders and self.renders_completed >= self.max_renders
+                    if at_limit:
                         self.logger.info(f"Reached max renders ({self.max_renders}). Finalizing...")
                         self.status = WorkerStatus.FINISHED
                         self._finalize_writers()
-                        # Staff Engineer: Ensure the final ZMQ message (response) is sent
-                        # and the status update is available for one last poll if needed.
-                        time.sleep(0.5)
+
+                    self.socket.send_string(resp.model_dump_json())
+
+                    if at_limit:
+                        # Graceful exit
+                        time.sleep(0.1)
                         self.running = False
                 else:
                     # Staff Engineer: Heartbeat logging

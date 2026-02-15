@@ -427,6 +427,7 @@ class UnifiedWorkerOrchestrator:
             with ResourceStack() as attempt_stack:
                 try:
                     for i in range(self.num_workers):
+                        unique_shard_id = f"{i}_{uuid.uuid4().hex[:6]}"
                         worker = PersistentWorkerProcess(
                             f"{self.worker_id_prefix}-{i}",
                             current_base_port + i,
@@ -435,7 +436,7 @@ class UnifiedWorkerOrchestrator:
                             use_blenderproc=self.use_blenderproc,
                             mock=self.mock,
                             max_renders=self.max_renders_per_worker,
-                            shard_id=f"{i}",
+                            shard_id=unique_shard_id,
                             context=self.context,
                             thread_budget=self.thread_budget,
                             seed=self.seed,
@@ -486,7 +487,8 @@ class UnifiedWorkerOrchestrator:
         )
 
         # 1. Collect Telemetry & Check VRAM
-        if not intentional_exit:
+        # Staff Engineer: If already stopped, skipped telemetry.
+        if not intentional_exit and worker.client:
             try:
                 # Staff Engineer: Use 2.5s timeout. Worker might be busy saving large shards.
                 resp = worker.send_command(CommandType.STATUS, timeout_ms=2500)
@@ -525,85 +527,38 @@ class UnifiedWorkerOrchestrator:
                         )
             except Exception as e:
                 logger.error(f"Telemetry check failed for {worker.worker_id}: {e}")
-                # Fallback for tests
-                if self.mock:
-                    from render_tag.core.schema.hot_loop import calculate_state_hash
 
-                    self.auditor.add_entry(
-                        worker.worker_id,
-                        Telemetry(
-                            vram_used_mb=0,
-                            vram_total_mb=0,
-                            cpu_usage_percent=0,
-                            state_hash=calculate_state_hash([], {}),
-                            uptime_seconds=0,
-                        ),
-                    )
-
-        # 2. Check Health
-        if not should_restart and not intentional_exit and not worker.is_healthy():
-            should_restart = True
-            reason = "Worker is unhealthy"
+        # 2. Check Health (Unhealthy if client/process is gone, or is_healthy() fails)
+        if not should_restart and not intentional_exit:
+            if not worker.client or not worker.process or not worker.is_healthy():
+                should_restart = True
+                reason = "Worker is unhealthy or already stopped"
 
         # 3. Execute Restart if needed
-        if should_restart:
-            logger.warning(f"Worker {worker.worker_id} restarting. Reason: {reason}")
-            try:
-                worker.stop()
-                # Ensure OS releases resources/PID
-                time.sleep(0.5)
+        if should_restart or intentional_exit:
+            if intentional_exit:
+                logger.info(f"Worker {worker.worker_id} reached limit. Refreshing process...")
+            else:
+                logger.warning(f"Worker {worker.worker_id} restarting. Reason: {reason}")
 
-                # Create replacement with fresh state
-                new_worker = PersistentWorkerProcess(
-                    worker.worker_id,
-                    worker.port,
-                    worker.blender_script,
-                    worker.blender_executable,
-                    use_blenderproc=worker.use_blenderproc,
-                    mock=worker.mock,
-                    max_renders=worker.max_renders,
-                    shard_id=worker.shard_id,
-                    context=worker.context,
-                    thread_budget=self.thread_budget,
-                )
-                new_worker.start()
-
-                # Update registry
-                for idx, w in enumerate(self.workers):
-                    if w.worker_id == worker.worker_id:
-                        self.workers[idx] = new_worker
-                        break
-
-                worker = new_worker
-
-                # Initial telemetry for new worker
+            # Staff Engineer: Wait for natural exit if intentional.
+            # This avoids SIGKILLing while it might still be flushing ZMQ buffers.
+            if worker.process:
                 try:
-                    r = worker.send_command(CommandType.STATUS, timeout_ms=1000)
-                    if r.status == ResponseStatus.SUCCESS and r.data:
-                        self.auditor.add_entry(worker.worker_id, Telemetry(**r.data))
-                except Exception:
-                    pass
+                    worker.process.wait(timeout=2.0)
+                except subprocess.TimeoutExpired:
+                    logger.warning(
+                        f"Worker {worker.worker_id} didn't exit after refresh, forcing stop."
+                    )
+                    worker.stop()
+            else:
+                worker.stop()
 
-            except Exception as e:
-                logger.error(f"Failed to replace worker {worker.worker_id}: {e}")
+            # Staff Engineer: Use a unique shard ID for the new worker to avoid overwriting
+            # data from the previous worker instance in the same slot.
+            slot_id = worker.shard_id.split("_")[0]
+            unique_shard_id = f"{slot_id}_{uuid.uuid4().hex[:6]}"
 
-        # If it was an intentional exit and we DON'T need more work from this specific slot
-        # in an ephemeral context, we could cull it. But for UnifiedOrchestrator,
-        # we usually want to keep the num_workers constant until stop().
-        if (
-            intentional_exit
-            and not should_restart
-            and worker.process
-            and worker.process.poll() is not None
-        ):
-            should_restart = True
-            reason = "Refreshing completed worker for next batch"
-            # Fall through to a recursive call or just trigger the restart logic above
-            # Let's just force should_restart and jump back up (refactoring needed)
-            # To keep it simple: if intentional and dead, we RESTART to keep the slot alive.
-            # BUT we change the log level to INFO.
-            logger.info(f"Worker {worker.worker_id} reached limit. Refreshing process...")
-            worker.stop()
             new_worker = PersistentWorkerProcess(
                 worker.worker_id,
                 worker.port,
@@ -612,42 +567,75 @@ class UnifiedWorkerOrchestrator:
                 use_blenderproc=worker.use_blenderproc,
                 mock=worker.mock,
                 max_renders=worker.max_renders,
-                shard_id=worker.shard_id,
+                shard_id=unique_shard_id,
                 context=worker.context,
                 thread_budget=self.thread_budget,
                 seed=self.seed,
                 job_id=worker.job_id,
             )
             new_worker.start()
+
+            # Update registry
             for idx, w in enumerate(self.workers):
                 if w.worker_id == worker.worker_id:
                     self.workers[idx] = new_worker
                     break
+
             worker = new_worker
+
+            # Initial telemetry for new worker
+            try:
+                r = worker.send_command(CommandType.STATUS, timeout_ms=1000)
+                if r.status == ResponseStatus.SUCCESS and r.data:
+                    self.auditor.add_entry(worker.worker_id, Telemetry(**r.data))
+            except Exception:
+                pass
 
         self.worker_queue.put(worker)
 
     def execute_recipe(
         self, recipe: dict, output_dir: Path, rm: str = "cycles", sid: str | None = None
     ) -> Response:
-        worker = self.get_worker()
-        try:
-            effective_shard_id = sid if sid is not None else worker.shard_id
-            resp = worker.send_command(
-                CommandType.RENDER,
-                {
-                    "recipe": recipe,
-                    "output_dir": str(output_dir),
-                    "renderer_mode": rm,
-                    "shard_id": effective_shard_id,
-                    "skip_visibility": self.mock,
-                },
-            )
-            if resp.status == ResponseStatus.SUCCESS:
-                worker.renders_completed += 1
-            return resp
-        finally:
-            self.release_worker(worker)
+        # Staff Engineer: Add retry logic to handle transient worker deaths
+        # (e.g. crashing during first render after refresh).
+        max_retries = 2
+        last_error = None
+
+        for attempt in range(max_retries + 1):
+            worker = self.get_worker()
+            try:
+                effective_shard_id = sid if sid is not None else worker.shard_id
+                resp = worker.send_command(
+                    CommandType.RENDER,
+                    {
+                        "recipe": recipe,
+                        "output_dir": str(output_dir),
+                        "renderer_mode": rm,
+                        "shard_id": effective_shard_id,
+                        "skip_visibility": self.mock,
+                    },
+                )
+                if resp.status == ResponseStatus.SUCCESS:
+                    worker.renders_completed += 1
+                return resp
+            except Exception as e:
+                last_error = e
+                logger.warning(
+                    f"Render attempt {attempt + 1} failed for {worker.worker_id}: {e}. "
+                    "Replacing worker and retrying..."
+                )
+                # Force replace this worker
+                worker.stop()  # This is fine here, we are in an error state.
+                # release_worker will handle the replacement if we set some flag?
+                # Actually, let's just use the existing logic but force unhealthy.
+                # We need to make sure release_worker replaces it.
+                # is_healthy() will return False now.
+            finally:
+                self.release_worker(worker)
+
+        raise WorkerCommunicationError(
+            f"Execute recipe failed after {max_retries} retries: {last_error}"
+        )
 
     def __enter__(self):
         if not self.running:
