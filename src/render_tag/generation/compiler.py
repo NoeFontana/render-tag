@@ -6,14 +6,13 @@ from the Blender runtime to the pure-Python preparation phase.
 """
 
 import math
-import random
 from pathlib import Path
 
 import numpy as np
 
-from render_tag.core import TAG_GRID_SIZES
-from render_tag.core.config import TAG_MAX_IDS, GenConfig
-from render_tag.core.schema import (
+from ..core.constants import TAG_GRID_SIZES
+from ..core.config import TAG_MAX_IDS, GenConfig
+from ..core.schema import (
     CameraIntrinsics,
     CameraRecipe,
     LightRecipe,
@@ -22,10 +21,10 @@ from render_tag.core.schema import (
     SensorDynamicsRecipe,
     WorldRecipe,
 )
-from render_tag.core.seeding import derive_seed
-from render_tag.data_io.assets import AssetProvider
-from render_tag.generation.camera import sample_camera_pose
-from render_tag.generation.layouts import apply_flying_layout, apply_grid_layout
+from ..core.seeding import derive_seed
+from ..data_io.assets import AssetProvider
+from .camera import sample_camera_pose
+from .layouts import apply_flying_layout, apply_grid_layout
 
 
 class SceneCompiler:
@@ -102,7 +101,7 @@ class SceneCompiler:
 
         # 1. World
         world_seed = derive_seed(seed, "world", 0)
-        rng = random.Random(world_seed)
+        rng = np.random.default_rng(world_seed)
 
         scene_config = self.config.scene
         lighting_config = scene_config.lighting
@@ -140,7 +139,7 @@ class SceneCompiler:
         for l_idx in range(num_lights):
             # Deterministic light positions
             l_seed = derive_seed(world_seed, "light", l_idx)
-            l_rng = random.Random(l_seed)
+            l_rng = np.random.default_rng(l_seed)
 
             theta = l_rng.uniform(0, 2 * math.pi)
             phi = l_rng.uniform(0.2, 0.8) * math.pi / 2
@@ -174,7 +173,7 @@ class SceneCompiler:
 
         # 2. Objects
         layout_seed = derive_seed(seed, "layout", 0)
-        rng = random.Random(layout_seed)
+        rng = np.random.default_rng(layout_seed)
 
         tag_config = self.config.tag
         scenario = self.config.scenario
@@ -195,15 +194,15 @@ class SceneCompiler:
         elif layout_mode == "aprilgrid":
             num_tags = cols * rows
         else:
-            num_tags = rng.randint(scenario.tags_per_scene[0], scenario.tags_per_scene[1])
+            num_tags = int(rng.integers(scenario.tags_per_scene[0], scenario.tags_per_scene[1], endpoint=True))
 
         for i in range(num_tags):
             obj_seed = derive_seed(layout_seed, "tag_obj", i)
-            obj_rng = random.Random(obj_seed)
+            obj_rng = np.random.default_rng(obj_seed)
 
             family = obj_rng.choice(tag_families)
             max_id = TAG_MAX_IDS.get(family, 100)
-            tag_id = obj_rng.randint(0, max_id - 1)
+            tag_id = int(obj_rng.integers(0, max_id))
 
             tex_base = None
             if tag_config.texture_path:
@@ -314,7 +313,7 @@ class SceneCompiler:
                     )
 
             if camera_config.ppm_constraint and target_tag:
-                from render_tag.generation.projection_math import solve_distance_for_ppm
+                from .projection_math import solve_distance_for_ppm
 
                 f_px = camera_config.resolution[0] / (
                     2.0 * np.tan(np.radians(camera_config.fov) / 2.0)
@@ -357,8 +356,8 @@ class SceneCompiler:
 
                 # Sizing constraints validation...
                 if target_tag and (camera_config.min_tag_pixels or camera_config.max_tag_pixels):
-                    from render_tag.core.config import get_min_pixel_area
-                    from render_tag.generation.projection_math import (
+                    from ..core.config import get_min_pixel_area
+                    from .projection_math import (
                         calculate_pixel_area,
                         get_world_matrix,
                         project_points,

@@ -10,11 +10,11 @@ from pathlib import Path
 
 import numpy as np
 
-from render_tag.core.config import GenConfig
-from render_tag.core.logging import get_logger
-from render_tag.core.schema import SceneRecipe
-from render_tag.core.seeding import derive_seed
-from render_tag.generation.compiler import SceneCompiler
+from ..core.config import GenConfig
+from ..core.logging import get_logger
+from ..core.schema import SceneRecipe
+from ..core.seeding import derive_seed
+from .compiler import SceneCompiler
 
 logger = get_logger(__name__)
 
@@ -67,7 +67,7 @@ class Generator:
 
         Guarantees validity by re-sampling if pre-flight checks fail.
         """
-        from render_tag.core.validator import RecipeValidator
+        from ..core.validator import RecipeValidator
 
         # Phase 2: Derive Scene Seed
         scene_seed = derive_seed(self.global_seed, "scene", scene_id)

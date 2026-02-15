@@ -2,14 +2,13 @@
 Layout algorithms for render-tag scene generation.
 """
 
-import random
 from typing import Any
 
 import numpy as np
 
-from render_tag.core import TAG_GRID_SIZES
-from render_tag.core.schema import ObjectRecipe
-from render_tag.generation.board import (
+from ..core.constants import TAG_GRID_SIZES
+from ..core.schema import ObjectRecipe
+from .board import (
     BoardSpec,
     BoardType,
     compute_aprilgrid_layout,
@@ -18,11 +17,11 @@ from render_tag.generation.board import (
 
 
 def apply_flying_layout(
-    objects: list[ObjectRecipe], radius: float, rng: random.Random | None = None
+    objects: list[ObjectRecipe], radius: float, rng: np.random.Generator | None = None
 ):
     """Apply a random 3D distribution to objects."""
     if rng is None:
-        rng = random.Random()
+        rng = np.random.default_rng()
 
     for obj in objects:
         obj.location = [

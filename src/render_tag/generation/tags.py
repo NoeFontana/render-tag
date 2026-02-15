@@ -66,7 +66,7 @@ def generate_tag_image(
         return None
 
     # 1. Resolve Grid Size (bits across)
-    from render_tag.core import TAG_GRID_SIZES
+    from ..core.constants import TAG_GRID_SIZES
 
     grid_size = TAG_GRID_SIZES.get(family, 8)
     total_bits = grid_size + (2 * margin_bits)
