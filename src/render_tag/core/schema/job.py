@@ -35,6 +35,7 @@ class JobSpec(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
+    version: str = Field(default="1.0", description="Schema version")
     job_id: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
