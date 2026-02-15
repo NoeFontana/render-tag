@@ -781,6 +781,7 @@ class GenConfig(BaseModel):
     This is the single source of truth for all generation parameters.
     """
 
+    version: str = Field(default="1.0", description="Schema version")
     dataset: DatasetConfig = Field(default_factory=DatasetConfig)
     camera: CameraConfig = Field(default_factory=CameraConfig)
     tag: TagConfig = Field(default_factory=TagConfig)
