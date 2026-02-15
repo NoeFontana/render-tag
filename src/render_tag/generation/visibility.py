@@ -9,7 +9,6 @@ from __future__ import annotations
 import numpy as np
 
 from render_tag.generation.math import compute_polygon_area
-from render_tag.generation.projection_math import project_points
 
 
 def is_facing_camera(

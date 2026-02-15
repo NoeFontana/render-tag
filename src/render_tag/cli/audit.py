@@ -391,3 +391,36 @@ def logs(
     except Exception as e:
         console.print(f"[bold red]Error reading logs:[/bold red] {e}")
         raise typer.Exit(code=1) from None
+
+
+@app.command(name="recipes")
+def audit_recipes(
+    path: Path = typer.Argument(
+        ..., help="Path to scene_recipes.json", exists=True, dir_okay=False
+    ),
+) -> None:
+    """
+    Audit scene recipes for statistical distributions before rendering.
+    """
+    from render_tag.audit.recipe_auditor import RecipeAuditor
+    from render_tag.core.schema import SceneRecipe
+
+    console.print(f"[dim]Auditing recipes in:[/dim] {path}")
+    try:
+        with open(path) as f:
+            data = json.load(f)
+
+        recipes_data = data if isinstance(data, list) else [data]
+        recipes = [SceneRecipe.model_validate(item) for item in recipes_data]
+
+        auditor = RecipeAuditor(recipes)
+        report = auditor.run_audit()
+
+        console.print(auditor.render_table(report))
+        console.print(f"Total Scenes: {report.scene_count}")
+        console.print(f"Total Cameras: {report.camera_count}")
+        console.print(f"Total Tags:    {report.tag_count}")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1) from None

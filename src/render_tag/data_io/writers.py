@@ -388,7 +388,7 @@ def merge_coco_shards(
     categories_set = False
 
     for shard_path in shard_files:
-        with open(shard_path, "r") as f:
+        with open(shard_path) as f:
             shard_data = json.load(f)
 
         if not categories_set:
@@ -472,7 +472,7 @@ def merge_rich_truth_shards(
 
     master_data = []
     for shard_path in shard_files:
-        with open(shard_path, "r") as f:
+        with open(shard_path) as f:
             shard_data = json.load(f)
             master_data.extend(shard_data)
 

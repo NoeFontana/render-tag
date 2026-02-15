@@ -5,7 +5,6 @@ Unit tests for the experiment CLI.
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 from typer.testing import CliRunner
 
 from render_tag.cli.main import app

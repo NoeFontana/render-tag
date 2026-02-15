@@ -7,9 +7,9 @@ that the "Executor" (Blender) or "Shadow Renderer" (Visualization) can consume s
 """
 
 from enum import Enum
-from typing import Any, Literal
+from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 
 
 class TagFamily(str, Enum):
@@ -60,139 +60,8 @@ class NoiseType(str, Enum):
     SALT_AND_PEPPER = "salt_and_pepper"
 
 
-class SensorNoiseConfig(BaseModel):
-    """Configuration for parametric sensor noise."""
-
-    model: NoiseType = Field(default=NoiseType.GAUSSIAN, description="Noise model type")
-
-    # Gaussian parameters
-    mean: float = Field(default=0.0, description="Mean for Gaussian noise")
-    stddev: float = Field(default=0.0, description="Standard deviation for Gaussian noise")
-
-    # Salt and Pepper parameters
-    salt_vs_pepper: float = Field(
-        default=0.5, ge=0.0, le=1.0, description="Probability of salt vs pepper"
-    )
-    amount: float = Field(default=0.0, ge=0.0, le=1.0, description="Proportion of pixels to affect")
-
-
-class SensorDynamicsRecipe(BaseModel):
-    """Recipe for dynamic sensor artifacts (Motion Blur, Rolling Shutter)."""
-
-    velocity: list[float] | None = Field(
-        default=None, description="[vx, vy, vz] velocity vector in m/s"
-    )
-    shutter_time_ms: float | None = Field(default=None, description="Shutter time in ms")
-    rolling_shutter_duration_ms: float | None = Field(
-        default=None, description="Rolling shutter duration in ms"
-    )
-
-
-class TagSurfaceConfig(BaseModel):
-    """Configuration for tag surface imperfections."""
-
-    scratches: float = Field(default=0.0, ge=0.0, le=1.0, description="Intensity of scratches")
-    dust: float = Field(default=0.0, ge=0.0, le=1.0, description="Intensity of dust")
-    grunge: float = Field(default=0.0, ge=0.0, le=1.0, description="Intensity of grunge/stains")
-
-
-class ObjectRecipe(BaseModel):
-    """Recipe for a single object in the scene."""
-
-    type: str = Field(description="Object type: TAG, BOARD, PLANE, etc.")
-    name: str = Field(description="Unique name for the object")
-    location: list[float] = Field(
-        min_length=3, max_length=3, description="[x, y, z] location in meters"
-    )
-    rotation_euler: list[float] = Field(
-        min_length=3, max_length=3, description="[x, y, z] euler rotation in radians"
-    )
-    scale: list[float] = Field(default=[1.0, 1.0, 1.0], min_length=3, max_length=3)
-    properties: dict[str, Any] = Field(
-        default_factory=dict, description="Custom properties: tag_id, family, etc."
-    )
-    material: str | None = None
-    texture_path: str | None = None
-
-
-class CameraIntrinsics(BaseModel):
-    """Camera intrinsic parameters (baked into final K-matrix)."""
-
-    resolution: list[int] = Field(
-        min_length=2, max_length=2, description="[width, height] in pixels"
-    )
-    k_matrix: list[list[float]] = Field(
-        description="3x3 Intrinsic matrix [[fx, 0, cx], [0, fy, cy], [0, 0, 1]]"
-    )
-
-
-class CameraRecipe(BaseModel):
-    """Recipe for a camera pose and configuration."""
-
-    transform_matrix: list[list[float]] = Field(
-        description="4x4 Camera-to-World transformation matrix"
-    )
-    intrinsics: CameraIntrinsics
-
-    # Sensor Dynamics (Motion Blur, Rolling Shutter)
-    sensor_dynamics: SensorDynamicsRecipe | None = Field(
-        default=None, description="Dynamic sensor artifacts recipe"
-    )
-
-    # Depth of Field
-    fstop: float | None = Field(default=None, description="Aperture f-stop")
-    focus_distance: float | None = Field(default=None, description="Focus distance in meters")
-    iso_noise: float | None = Field(default=None, description="ISO noise level (0-1)")
-    sensor_noise: SensorNoiseConfig | None = Field(
-        default=None, description="Parametric sensor noise config"
-    )
-    min_tag_pixels: float | None = None
-    max_tag_pixels: float | None = None
-
-
-class LightingConfig(BaseModel):
-    """Lighting configuration for the scene."""
-
-    intensity: float = Field(default=100.0, description="Light intensity/strength")
-    color: list[float] = Field(default=[1.0, 1.0, 1.0], min_length=3, max_length=3)
-    radius: float = Field(default=0.0, description="Light source radius (shadow softness)")
-
-
-class WorldRecipe(BaseModel):
-    """World environment configuration."""
-
-    background_hdri: str | None = Field(default=None, description="Path to HDRI file")
-    lighting: LightingConfig = Field(default_factory=LightingConfig)
-
-    # Resolved Texture Parameters
-    texture_path: str | None = Field(default=None, description="Path to chosen background texture")
-    texture_scale: float = Field(default=1.0, description="Tiling scale for the texture")
-    texture_rotation: float = Field(default=0.0, description="Rotation for the texture (radians)")
-
-    use_nodes: bool = True
-
-
-class RendererConfig(BaseModel):
-    """Configuration for the rendering engine."""
-
-    mode: Literal["cycles", "eevee", "workbench"] = Field(
-        default="cycles", description="Rendering engine to use"
-    )
-    # Future: samples, denoising, etc.
-    samples: int = Field(default=128, gt=0, description="Render samples (Cycles)")
-    denoising: bool = Field(default=True, description="Enable denoising")
-
-
-class SceneRecipe(BaseModel):
-    """Complete recipe for a single generated scene."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    scene_id: int = Field(description="Unique ID for this scene")
-    world: WorldRecipe = Field(default_factory=WorldRecipe)
-    renderer: RendererConfig = Field(default_factory=RendererConfig)
-    objects: list[ObjectRecipe] = Field(default_factory=list)
-    cameras: list[CameraRecipe] = Field(default_factory=list)
+# These models have been moved to .recipe for the "Move-Left" architecture.
+# See src/render_tag/core/schema/recipe.py
 
 
 class SceneProvenance(BaseModel):

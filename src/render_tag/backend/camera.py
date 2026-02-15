@@ -1,7 +1,7 @@
 """
 Camera utilities for render-tag.
 
-This module handles camera pose sampling and intrinsics configuration.
+This module handles camera intrinsics and sensor dynamics configuration.
 """
 
 from __future__ import annotations
@@ -10,10 +10,6 @@ from typing import Any
 
 from render_tag.backend.bridge import bridge
 from render_tag.core.logging import get_logger
-from render_tag.generation.camera import (
-    sample_camera_pose,
-    validate_camera_pose,
-)
 
 logger = get_logger(__name__)
 
@@ -41,99 +37,6 @@ def set_camera_intrinsics(camera_config: dict) -> None:
         image_width=res[0],
         image_height=res[1],
     )
-
-
-def sample_camera_poses(
-    num_samples: int,
-    look_at_point: list[float],
-    min_distance: float = 0.5,
-    max_distance: float = 2.0,
-    min_elevation: float = 0.3,
-    max_elevation: float = 0.9,
-    sampling_mode: str = "random",
-    sample_idx: int = 0,
-    total_samples: int = 1,
-    elevation: float | None = None,
-    azimuth: float | None = None,
-) -> list[bridge.np.ndarray]:
-    """Sample camera poses from a partial sphere looking at a point.
-
-    Args:
-        num_samples: Number of camera poses to sample
-        look_at_point: The 3D point cameras should look at
-        min_distance: Minimum distance from look_at_point
-        max_distance: Maximum distance from look_at_point
-        min_elevation: Minimum elevation (0=horizontal, 1=directly above)
-        max_elevation: Maximum elevation
-        sampling_mode: "random", "distance", or "angle"
-        sample_idx: Current sample index (for distance/angle modes)
-        total_samples: Total number of samples in the sequence
-
-    Returns:
-        List of 4x4 camera-to-world transformation matrices
-    """
-    poses = []
-    attempts = 0
-    max_attempts = num_samples * 50
-
-    # Pre-calculate steps for structured sampling if num_samples > 1
-    if num_samples > 1:
-        dist_steps = bridge.np.linspace(min_distance, max_distance, num_samples)
-        elev_steps = bridge.np.linspace(min_elevation, max_elevation, num_samples)
-    else:
-        t = sample_idx / (total_samples - 1) if total_samples > 1 else 0.5
-        dist_steps = [min_distance + t * (max_distance - min_distance)]
-        elev_steps = [min_elevation + t * (max_elevation - min_elevation)]
-
-    while len(poses) < num_samples and attempts < max_attempts:
-        i = len(poses)
-        attempts += 1
-
-        # Determine sampling parameters based on mode
-        curr_dist = None
-        curr_elev = None
-
-        if sampling_mode == "distance":
-            curr_dist = dist_steps[i]
-        elif sampling_mode == "angle":
-            curr_elev = elev_steps[i]
-
-        # 1. Use pure-Python geometry for sampling
-        pose = sample_camera_pose(
-            look_at_point=look_at_point,
-            min_distance=min_distance,
-            max_distance=max_distance,
-            min_elevation=min_elevation,
-            max_elevation=max_elevation,
-            distance=curr_dist,
-            elevation=curr_elev if curr_elev is not None else elevation,
-            azimuth=azimuth,
-        )
-
-        # 2. Use pure-Python geometry for validation
-        if validate_camera_pose(pose, look_at_point, min_distance):
-            poses.append(pose.transform_matrix)
-
-    return poses
-
-
-def add_camera_poses_to_scene(poses: list[bridge.np.ndarray]) -> None:
-    """Add multiple camera poses to the BlenderProc scene.
-
-    Args:
-        poses: List of 4x4 camera-to-world matrices
-    """
-    for pose in poses:
-        bridge.bproc.camera.add_camera_pose(pose)
-
-
-def get_camera_k_matrix() -> bridge.np.ndarray:
-    """Get the current camera's intrinsic matrix.
-
-    Returns:
-        3x3 camera intrinsic matrix K
-    """
-    return bridge.bproc.camera.get_intrinsics_as_K_matrix()
 
 
 def setup_sensor_dynamics(
@@ -193,20 +96,3 @@ def setup_sensor_dynamics(
                 f"Rolling shutter simulation requested for {engine}, but it is only "
                 "supported natively in CYCLES. Effect will be ignored."
             )
-
-
-def setup_motion_blur(
-    pose_matrix: bridge.np.ndarray | list[list[float]],
-    velocity: list[float] | None,
-    shutter_time_ms: float,
-) -> None:
-    """Legacy stub for motion blur setup.
-
-    Deprecated: Use setup_sensor_dynamics instead.
-    """
-    dynamics = {
-        "velocity": velocity,
-        "shutter_time_ms": shutter_time_ms,
-        "rolling_shutter_duration_ms": 0.0,
-    }
-    setup_sensor_dynamics(pose_matrix, dynamics)

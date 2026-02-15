@@ -21,7 +21,6 @@ except ImportError:
 
     bootstrap.setup_environment()
 
-import logging
 
 from render_tag.backend.worker_server import ZmqBackendServer
 from render_tag.core.logging import get_logger, setup_logging
@@ -31,7 +30,6 @@ def main():
     import argparse
 
     from render_tag.core.schema.job import JobSpec
-    from render_tag.generation.scene import Generator
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=5555)

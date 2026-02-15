@@ -1,10 +1,12 @@
-from render_tag.core.schema.base import ObjectRecipe, SceneRecipe, WorldRecipe
+from render_tag.core.schema import ObjectRecipe, SceneRecipe, WorldRecipe
 from render_tag.core.validator import RecipeValidator
 
 
 def test_validator_detects_missing_hdri():
     """Verify validator catches missing HDRI background."""
-    recipe = SceneRecipe(scene_id=0, world=WorldRecipe(background_hdri="nonexistent_studio.exr"))
+    recipe = SceneRecipe(
+        scene_id=0, random_seed=42, world=WorldRecipe(background_hdri="nonexistent_studio.exr")
+    )
     validator = RecipeValidator(recipe)
     validator._check_assets()
     assert any("HDRI" in e for e in validator.errors), "Should have reported missing HDRI"
@@ -31,7 +33,7 @@ def test_validator_detects_overlap():
         properties={"tag_size": 0.1},
     )
 
-    recipe = SceneRecipe(scene_id=0, objects=[obj1, obj2])
+    recipe = SceneRecipe(scene_id=0, random_seed=42, objects=[obj1, obj2])
     validator = RecipeValidator(recipe)
     validator._check_geometry()
 
@@ -40,7 +42,9 @@ def test_validator_detects_overlap():
 
 def test_validator_detects_missing_texture_path():
     """Verify validator catches missing background texture."""
-    recipe = SceneRecipe(scene_id=0, world=WorldRecipe(texture_path="nonexistent_floor.png"))
+    recipe = SceneRecipe(
+        scene_id=0, random_seed=42, world=WorldRecipe(texture_path="nonexistent_floor.png")
+    )
     validator = RecipeValidator(recipe)
     validator._check_assets()
     assert any("texture" in e.lower() for e in validator.errors)
@@ -65,7 +69,7 @@ def test_validator_detects_outside_board():
         properties={"tag_size": 0.05},
     )
 
-    recipe = SceneRecipe(scene_id=0, objects=[board, tag])
+    recipe = SceneRecipe(scene_id=0, random_seed=42, objects=[board, tag])
     validator = RecipeValidator(recipe)
     validator._check_geometry()
 

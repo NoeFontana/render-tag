@@ -4,7 +4,7 @@ Centralized provider for Blender and BlenderProc dependencies.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from render_tag.core.logging import get_logger
 

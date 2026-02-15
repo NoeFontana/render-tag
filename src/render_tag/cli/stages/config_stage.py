@@ -3,14 +3,12 @@ Configuration loading stage for the generation pipeline.
 """
 
 import hashlib
-import tempfile
 from pathlib import Path
 
 import typer
 
 from render_tag.cli.pipeline import GenerationContext, PipelineStage
-from render_tag.cli.tools import console, serialize_config_to_json
-from render_tag.core.config import load_config
+from render_tag.cli.tools import console
 from render_tag.core.schema.job import JobSpec, get_env_fingerprint
 
 

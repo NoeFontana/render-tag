@@ -160,43 +160,40 @@ def run(
                 console.print(f"[red]  - {e}[/red]")
             raise typer.Exit(code=1) from None
 
-        # 5. Run BlenderProc
+        # 5. Run BlenderProc (via Orchestrator)
         if skip_render:
             console.print("[green]Shadow Render Validation Complete (Skip Render enabled).[/green]")
             continue
 
-        # We need to resolve the executor script path relative to the installed package location
-        # Assuming render_tag is installed, we find backend/executor.py
-        import render_tag.backend
-
-        script_path = Path(render_tag.backend.__file__).parent / "executor.py"
-        cmd = [
-            "blenderproc",
-            "run",
-            str(script_path),
-            "--recipe",
-            str(recipe_path),
-            "--output",
-            str(variant_dir),
-            "--renderer-mode",
-            renderer_mode,
-        ]
+        from render_tag.orchestration.orchestrator import ResponseStatus, UnifiedWorkerOrchestrator
 
         try:
-            print(f"DEBUG SUBPROCESS: {subprocess}")
-            result = subprocess.run(
-                cmd,
-                check=False,
-                capture_output=not verbose,
-                text=True,
-            )
-            if result.returncode != 0:
-                console.print(f"[bold red]Variant {variant.variant_id} Failed![/bold red]")
-                if result.stderr:
-                    console.print(f"[red]{result.stderr[:1000]}[/red]")
-                # We might want to continue to next variant or stop?
-                # Stopping is probably safer for experiments
-                raise typer.Exit(code=1) from None
+            # Use Orchestrator to execute recipes
+            # We use a unique base port to avoid collisions if running multiple experiments
+            with UnifiedWorkerOrchestrator(
+                num_workers=1,
+                base_port=21000 + (i * 10),
+                ephemeral=True,
+                max_renders_per_worker=len(recipes),
+                mock=(renderer_mode == "mock"),
+                seed=variant.config.seed,
+            ) as orchestrator:
+                orchestrator.start(shard_id=f"exp_{variant.variant_id}")
+
+                for recipe in recipes:
+                    # execute_recipe expects a dict
+                    recipe_dict = recipe.model_dump(mode="json")
+                    resp = orchestrator.execute_recipe(
+                        recipe_dict,
+                        variant_dir,
+                        renderer_mode,
+                        sid=f"exp_{variant.variant_id}",
+                    )
+
+                    if resp.status != ResponseStatus.SUCCESS:
+                        console.print(f"[bold red]Variant {variant.variant_id} Failed![/bold red]")
+                        console.print(f"[red]Render error: {resp.message}[/red]")
+                        raise typer.Exit(code=1) from None
 
             # 6. Generate Unified Manifest
             generate_dataset_info(
@@ -219,8 +216,8 @@ def run(
 
             console.print(f"[green]✓ {variant.variant_id} Complete[/green]")
 
-        except subprocess.SubprocessError as e:
-            console.print(f"[bold red]Error running BlenderProc:[/bold red] {e}")
+        except Exception as e:
+            console.print(f"[bold red]Error running experiment variant:[/bold red] {e}")
             raise typer.Exit(code=1) from None
 
     console.print("\n[bold green]Experiment Completed Successfully![/bold green]")

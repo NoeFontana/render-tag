@@ -1,5 +1,3 @@
-import csv
-import hashlib
 import logging
 import os
 import sys

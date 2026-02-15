@@ -6,7 +6,6 @@ into a single, high-performance module.
 """
 
 import logging
-import random
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -15,13 +14,14 @@ from typing import Any, Protocol, runtime_checkable
 
 from PIL import Image
 
-from render_tag.backend.assets import create_tag_plane, get_tag_texture_path, global_pool
+from render_tag.backend.assets import create_tag_plane, global_pool
 from render_tag.backend.bridge import bridge
 from render_tag.backend.camera import setup_sensor_dynamics
 from render_tag.backend.projection import compute_geometric_metadata
 from render_tag.backend.scene import (
     create_board,
     setup_background,
+    setup_floor_material,
     setup_lighting,
 )
 from render_tag.backend.sensors import apply_parametric_noise
@@ -120,24 +120,16 @@ class RenderFacade:
         # Handle Background Texture Plane
         texture_path = world_recipe.get("texture_path")
         if texture_path and world_recipe.get("use_nodes", True):
-            from render_tag.backend.scene import randomize_floor_material
-
             # Use managed background plane from pool
             bg_plane = global_pool.get_background_plane()
-            randomize_floor_material(
+            setup_floor_material(
                 bg_plane,
                 texture_path=texture_path,
                 scale=world_recipe.get("texture_scale", 1.0),
                 rotation=world_recipe.get("texture_rotation", 0.0),
             )
 
-        lighting = world_recipe.get("lighting", {})
-        setup_lighting(
-            intensity_min=lighting.get("intensity", 100),
-            intensity_max=lighting.get("intensity", 100),
-            radius_min=lighting.get("radius", 0.0),
-            radius_max=lighting.get("radius", 0.0),
-        )
+        setup_lighting(world_recipe.get("lights", []))
 
     def spawn_objects(self, object_recipes: list[dict[str, Any]]):
         """Creates tags and boards in the scene."""
@@ -146,9 +138,13 @@ class RenderFacade:
             if obj_recipe["type"] == "TAG":
                 props = obj_recipe["properties"]
                 margin_bits = props.get("margin_bits", 0)
-                texture_path = get_tag_texture_path(
-                    props["tag_family"], tag_id=props["tag_id"], margin_bits=margin_bits
-                )
+
+                # Priority 1: Recipe-resolved texture_path (Move-Left)
+                # Backend-resolved discovery is REMOVED.
+                texture_path = obj_recipe.get("texture_path")
+                if texture_path:
+                    texture_path = Path(texture_path)
+
                 tag_obj = create_tag_plane(
                     props["tag_size"],
                     texture_path,
@@ -163,7 +159,15 @@ class RenderFacade:
                 tag_objects.append(tag_obj)
             elif obj_recipe["type"] == "BOARD":
                 props = obj_recipe["properties"]
-                create_board(props["cols"], props["rows"], props["square_size"], props["mode"])
+                board_obj = create_board(
+                    props["cols"],
+                    props["rows"],
+                    props["square_size"],
+                    props["mode"],
+                    location=obj_recipe.get("location"),
+                )
+                if obj_recipe.get("rotation_euler"):
+                    board_obj.set_rotation_euler(obj_recipe["rotation_euler"])
         return tag_objects
 
     def render_camera(self, camera_recipe: dict[str, Any]) -> dict[str, Any]:
@@ -218,13 +222,15 @@ def execute_recipe(
     )
     scene_logger.info(f"--- Executing Scene {scene_idx} ---")
 
-    # 2. Setup Deterministic Seeds
-    # We use provided scene seed or fallback to scene_id (least robust fallback)
-    execution_seed = seed if seed is not None else scene_idx
+    # All randomness is now resolved on the host side (Compiler).
+    # The backend is a pure, reactive executor.
+    if seed is not None:
+        import random
 
-    bridge.np.random.seed(execution_seed)
-    random.seed(execution_seed)
-    bridge.bpy.context.scene.cycles.seed = execution_seed
+        import numpy as np
+        random.seed(seed)
+        np.random.seed(seed)
+
     bridge.bpy.context.scene.cycles.use_animated_seed = False
 
     # 3. Initialize Renderer
@@ -245,7 +251,7 @@ def execute_recipe(
         "recipe_snapshot": recipe,
         "seeds": {
             "global_seed": ctx.global_seed,
-            "scene_seed": execution_seed,
+            "scene_seed": recipe.get("random_seed", 0),
         },
     }
 
@@ -319,7 +325,7 @@ def execute_recipe(
                 position=geom["position"],
                 rotation_quaternion=geom["rotation_quaternion"],
                 global_seed=ctx.global_seed,
-                scene_seed=execution_seed,
+                scene_seed=recipe.get("random_seed", 0),
             )
             ctx.csv_writer.write_detection(det, res[0], res[1])
             ctx.coco_writer.add_annotation(

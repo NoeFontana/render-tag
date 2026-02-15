@@ -8,7 +8,6 @@ import sys
 from pathlib import Path
 
 import typer
-from rich.console import Console
 
 from render_tag.cli.pipeline import GenerationContext, PipelineStage
 from render_tag.cli.tools import console, get_asset_manager
@@ -67,15 +66,18 @@ class PreparationStage(PipelineStage):
         console.print(f"[dim]Recipe saved to:[/dim] {ctx.recipes_path}")
 
         # 4. Pre-generate specific tags from recipes
-        self._pregenerate_tags(recipes)
+        self._pregenerate_tags(ctx, recipes)
 
         # 5. Validation
         self._validate_recipes(ctx.recipes_path)
 
-    def _pregenerate_tags(self, recipes: list[SceneRecipe]) -> None:
-        """Scan recipes and pre-generate every required tag PNG."""
-        assets_tag_dir = Path("assets/tags")
-        assets_tag_dir.mkdir(parents=True, exist_ok=True)
+        # 6. Bill of Materials (BoM) Audit
+        self._audit_assets(recipes)
+
+    def _pregenerate_tags(self, ctx: GenerationContext, recipes: list[SceneRecipe]) -> None:
+        """Scan recipes and pre-generate every required tag PNG in the dataset cache."""
+        cache_tag_dir = ctx.output_dir / "cache" / "tags"
+        cache_tag_dir.mkdir(parents=True, exist_ok=True)
 
         required_tags = set()
         for recipe in recipes:
@@ -92,7 +94,7 @@ class PreparationStage(PipelineStage):
 
         console.print(f"[dim]Pre-generating {len(required_tags)} unique tags...[/dim]")
         for family, tag_id, margin_bits in required_tags:
-            ensure_tag_asset(family, tag_id, assets_tag_dir, margin_bits=margin_bits)
+            ensure_tag_asset(family, tag_id, cache_tag_dir, margin_bits=margin_bits)
 
     def _ensure_assets(self, ctx: GenerationContext) -> None:
         default_dir = Path(__file__).parents[4] / "assets"
@@ -126,3 +128,36 @@ class PreparationStage(PipelineStage):
                 console.print(f"[red]Error:[/red] {e}")
             raise typer.Exit(code=1)
         console.print("[green]✓ Pre-flight validation passed[/green]")
+
+    def _audit_assets(self, recipes: list[SceneRecipe]) -> None:
+        """Verify all referenced assets in recipes exist on disk (BoM check)."""
+        missing_assets = set()
+        total_assets = 0
+
+        for recipe in recipes:
+            # Check World Assets
+            if recipe.world.background_hdri:
+                total_assets += 1
+                if not Path(recipe.world.background_hdri).exists():
+                    missing_assets.add(recipe.world.background_hdri)
+
+            if recipe.world.texture_path:
+                total_assets += 1
+                if not Path(recipe.world.texture_path).exists():
+                    missing_assets.add(recipe.world.texture_path)
+
+            # Check Object Assets
+            for obj in recipe.objects:
+                if obj.texture_path:
+                    total_assets += 1
+                    if not Path(obj.texture_path).exists():
+                        missing_assets.add(obj.texture_path)
+
+        if missing_assets:
+            console.print("[bold red]Bill of Materials Audit Failed![/bold red]")
+            console.print(f"Found {len(missing_assets)} missing asset files.")
+            for missing in sorted(list(missing_assets)):
+                console.print(f"  [red]MISSING:[/red] {missing}")
+            raise typer.Exit(code=1)
+
+        console.print(f"[green]✓ BoM Audit passed ({total_assets} assets verified)[/green]")

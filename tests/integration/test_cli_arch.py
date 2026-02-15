@@ -3,7 +3,6 @@ Integration tests for the architectural linter CLI command.
 """
 
 import subprocess
-from pathlib import Path
 
 
 def test_lint_arch_passes_on_clean_codebase():

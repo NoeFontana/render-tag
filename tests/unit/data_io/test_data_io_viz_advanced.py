@@ -75,6 +75,7 @@ def test_visualize_recipe_complex(mock_plt, tmp_path: Path):
     # Create a recipe with multiple objects and cameras
     recipe = {
         "scene_id": 1,
+        "random_seed": 42,
         "objects": [
             {
                 "name": "board",
@@ -96,7 +97,6 @@ def test_visualize_recipe_complex(mock_plt, tmp_path: Path):
         "cameras": [
             {
                 "transform_matrix": [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 5], [0, 0, 0, 1]],
-                "scene_id": 1,
                 "intrinsics": {
                     "fov": 60.0,
                     "resolution": [640, 480],

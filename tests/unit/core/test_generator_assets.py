@@ -4,12 +4,12 @@ from unittest.mock import patch
 import pytest
 
 from render_tag.core.config import GenConfig
-from render_tag.generation.scene import Generator
+from render_tag.generation.compiler import SceneCompiler
 
 
 @pytest.fixture
 def mock_asset_provider():
-    with patch("render_tag.generation.scene.AssetProvider") as mock:
+    with patch("render_tag.generation.compiler.AssetProvider") as mock:
         provider_instance = mock.return_value
         # Default behavior: just return the path as is (simulating local hit)
         provider_instance.resolve_path.side_effect = lambda x: Path("/mock/assets") / x
@@ -29,8 +29,8 @@ def basic_config():
 
 
 def test_generator_uses_asset_provider_for_hdri(mock_asset_provider, basic_config, tmp_path):
-    gen = Generator(basic_config, output_dir=tmp_path)
-    scene = gen.generate_scene(0)
+    compiler = SceneCompiler(basic_config)
+    scene = compiler.compile_scene(0)
 
     # Check if AssetProvider was used for HDRI
     mock_asset_provider.resolve_path.assert_any_call("hdri/test.exr")
@@ -41,26 +41,26 @@ def test_generator_uses_asset_provider_for_textures(mock_asset_provider, basic_c
     # Setup some mock textures to be picked
     mock_asset_provider.resolve_path.side_effect = lambda x: Path("/mock/assets") / x
 
-    # We need to mock the texture listing since it uses .iterdir() on the config path
+    # We need to mock the texture listing since it uses .iterdir() or rglob on the config path
     with (
         patch.object(Path, "exists", return_value=True),
         patch.object(Path, "rglob", return_value=[Path("textures/background/tex1.png")]),
     ):
-        gen = Generator(basic_config, output_dir=tmp_path)
-        scene = gen.generate_scene(0)
+        compiler = SceneCompiler(basic_config)
+        scene = compiler.compile_scene(0)
 
-        # In generate_scene -> _generate_world_config
+        # In compile_scene -> _build_recipe
         # It picks a random texture from self.textures and resolves it
         mock_asset_provider.resolve_path.assert_any_call("textures/background/tex1.png")
         assert scene.world.texture_path == str(Path("/mock/assets/textures/background/tex1.png"))
 
 
 def test_generator_uses_asset_provider_for_tags(mock_asset_provider, basic_config, tmp_path):
-    gen = Generator(basic_config, output_dir=tmp_path)
-    scene = gen.generate_scene(0)
+    compiler = SceneCompiler(basic_config)
+    scene = compiler.compile_scene(0)
 
     # Check if AssetProvider was used for tag textures
-    # Tag texture resolution happens in _generate_layout_objects
+    # Tag texture resolution happens in _build_recipe
     mock_asset_provider.resolve_path.assert_any_call("tags/tag36h11")
     assert scene.objects[0].properties["texture_base_path"] == str(
         Path("/mock/assets/tags/tag36h11")

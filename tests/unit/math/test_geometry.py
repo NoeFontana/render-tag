@@ -36,10 +36,10 @@ from render_tag.generation.projection_math import (
     calculate_angle_of_incidence,
     get_opencv_camera_matrix,
     get_world_normal,
+    project_points,
 )
 from render_tag.generation.visibility import (
     is_facing_camera,
-    project_points,
     validate_visibility_metrics,
 )
 

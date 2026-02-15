@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 import numpy as np
 
 from render_tag.core.config import GenConfig
-from render_tag.generation.builder import SceneRecipeBuilder
+from render_tag.generation.compiler import SceneCompiler
 
 
 def test_generator_samples_velocity(tmp_path):
@@ -11,13 +11,12 @@ def test_generator_samples_velocity(tmp_path):
     config = GenConfig()
     config.camera.velocity_mean = 1.0
     config.camera.velocity_std = 0.0  # Constant speed
-    config.camera.shutter_time_ms = 10.0
+    config.camera.sensor_dynamics.shutter_time_ms = 10.0
 
-    mock_assets = MagicMock()
-    builder = SceneRecipeBuilder(0, config, mock_assets, seed=42)
-    builder.build_cameras()
+    compiler = SceneCompiler(config, global_seed=42)
+    recipe = compiler.compile_scene(0)
 
-    recipes = builder.recipe.cameras
+    recipes = recipe.cameras
 
     assert len(recipes) > 0
     cam = recipes[0]
@@ -39,11 +38,10 @@ def test_generator_passes_dof_and_noise(tmp_path):
     config.camera.focus_distance = 1.5
     config.camera.iso_noise = 0.5
 
-    mock_assets = MagicMock()
-    builder = SceneRecipeBuilder(0, config, mock_assets, seed=42)
-    builder.build_cameras()
+    compiler = SceneCompiler(config, global_seed=42)
+    recipe = compiler.compile_scene(0)
 
-    recipes = builder.recipe.cameras
+    recipes = recipe.cameras
 
     cam = recipes[0]
     assert cam.fstop == 2.8
@@ -52,15 +50,14 @@ def test_generator_passes_dof_and_noise(tmp_path):
 
 
 def test_generator_no_velocity_default(tmp_path):
-    """Verify defaults are None."""
+    """Verify defaults are None for velocity magnitude, but Dynamics object exists."""
     config = GenConfig()
     # Defaults are 0.0
 
-    mock_assets = MagicMock()
-    builder = SceneRecipeBuilder(0, config, mock_assets, seed=42)
-    builder.build_cameras()
+    compiler = SceneCompiler(config, global_seed=42)
+    recipe = compiler.compile_scene(0)
 
-    recipes = builder.recipe.cameras
+    recipes = recipe.cameras
 
     cam = recipes[0]
     # If mean/std are 0, velocity should be None

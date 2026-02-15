@@ -1,7 +1,7 @@
 import numpy as np
 
 from render_tag.core.config import GenConfig
-from render_tag.generation.scene import Generator
+from render_tag.generation.compiler import SceneCompiler
 
 
 def test_generator_distance_sweep(tmp_path):
@@ -14,11 +14,11 @@ def test_generator_distance_sweep(tmp_path):
         }
     )
 
-    gen = Generator(config, output_dir=tmp_path)
+    compiler = SceneCompiler(config)
 
     # Check first and last scene
-    s0 = gen.generate_scene(0)
-    s9 = gen.generate_scene(9)
+    s0 = compiler.compile_scene(0)
+    s9 = compiler.compile_scene(9)
 
     # Extrinsics extract distance
     pos0 = np.array(s0.cameras[0].transform_matrix)[:3, 3]
@@ -41,10 +41,10 @@ def test_generator_angle_sweep(tmp_path):
         }
     )
 
-    gen = Generator(config, output_dir=tmp_path)
+    compiler = SceneCompiler(config)
 
-    s0 = gen.generate_scene(0)
-    s9 = gen.generate_scene(9)
+    s0 = compiler.compile_scene(0)
+    s9 = compiler.compile_scene(9)
 
     # Elevation is pos[2] / norm(pos)
     pos0 = np.array(s0.cameras[0].transform_matrix)[:3, 3]

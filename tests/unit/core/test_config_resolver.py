@@ -1,7 +1,5 @@
 from pathlib import Path
 
-import pytest
-
 from render_tag.core.config_loader import ConfigResolver
 
 

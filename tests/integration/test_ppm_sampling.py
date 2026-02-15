@@ -5,8 +5,8 @@ Integration tests for PPM-Driven Generation.
 import numpy as np
 
 from render_tag.core.config import GenConfig, PPMConstraint
+from render_tag.generation.compiler import SceneCompiler
 from render_tag.generation.projection_math import calculate_ppm
-from render_tag.generation.scene import Generator
 
 
 def test_ppm_sampling_enforcement(tmp_path):
@@ -21,11 +21,11 @@ def test_ppm_sampling_enforcement(tmp_path):
     # Target PPM range: 10 to 20
     config.camera.ppm_constraint = PPMConstraint(min=10.0, max=20.0)
 
-    gen = Generator(config, tmp_path)
+    compiler = SceneCompiler(config)
 
     # Generate a few scenes
     num_test_scenes = 10
-    recipes = [gen.generate_scene(i) for i in range(num_test_scenes)]
+    recipes = [compiler.compile_scene(i) for i in range(num_test_scenes)]
 
     # Grid size for tag36h11 is 8
     grid_size = 8
@@ -49,8 +49,6 @@ def test_ppm_sampling_enforcement(tmp_path):
 
         # Should be within [10, 20] range (allowing for small tolerance due to facing angle etc)
         # Note: PPM formula uses direct distance.
-        # If the tag is tilted, PPM might vary slightly across the tag,
-        # but our solver uses the center distance.
         assert actual_ppm >= 9.9, f"Scene {i}: PPM {actual_ppm} too low (min 10.0)"
         assert actual_ppm <= 20.1, f"Scene {i}: PPM {actual_ppm} too high (max 20.0)"
 
@@ -63,21 +61,15 @@ def test_ppm_takes_precedence(tmp_path):
     config.camera.resolution = (1280, 720)
     config.camera.fov = 60.0
 
-    # PPM range 10-20 at 60deg FOV and 0.16m tag (grid 8)
-    # distance = (f * 0.16) / (ppm * 8)
-    # f = 1108.51
-    # dist for 10ppm = 2.217m
-    # dist for 20ppm = 1.108m
-
-    # Set distance constraints to be FAR AWAY (e.g. 10m-20m)
+    # Distance constraints set to be FAR AWAY (e.g. 10m-20m)
     config.camera.min_distance = 10.0
     config.camera.max_distance = 20.0
 
-    # BUT set PPM constraint to 10-20 (which requires 1.1m-2.2m)
+    # BUT set PPM constraint to 10-20 (which requires approx 1.1m-2.2m)
     config.camera.ppm_constraint = PPMConstraint(min=10.0, max=20.0)
 
-    gen = Generator(config, tmp_path)
-    recipe = gen.generate_scene(0)
+    compiler = SceneCompiler(config)
+    recipe = compiler.compile_scene(0)
 
     cam = recipe.cameras[0]
     cam_pos = np.array(

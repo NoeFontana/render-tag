@@ -17,7 +17,7 @@ from typer.testing import CliRunner
 from render_tag.cli import app
 from render_tag.cli.tools import check_blenderproc_installed, serialize_config_to_json
 from render_tag.core.config import GenConfig
-from render_tag.core.schema.job import JobInfrastructure, JobPaths, JobSpec
+from render_tag.core.schema.job import JobPaths, JobSpec
 
 runner = CliRunner()
 
@@ -100,7 +100,7 @@ def mock_generator():
         mock_gen = mock_gen_cls.return_value
         from render_tag.core.schema import SceneRecipe
 
-        recipe = SceneRecipe(scene_id=0, world={}, objects=[], cameras=[])
+        recipe = SceneRecipe(scene_id=0, random_seed=42, world={}, objects=[], cameras=[])
         mock_gen.generate_shards.return_value = [recipe]
 
         with patch(

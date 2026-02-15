@@ -5,7 +5,6 @@ Execution stage for the generation pipeline.
 import subprocess
 
 import typer
-from rich.console import Console
 
 from render_tag.cli.pipeline import GenerationContext, PipelineStage
 from render_tag.cli.tools import check_blenderproc_installed, check_orchestration_installed, console

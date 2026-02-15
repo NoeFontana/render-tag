@@ -89,52 +89,6 @@ class AssetPool:
 global_pool = AssetPool()
 
 
-def get_tag_texture_path(
-    tag_family: str,
-    custom_path: Path | None = None,
-    tag_id: int | None = None,
-    margin_bits: int = 0,
-) -> Path | None:
-    """Get the path to a tag texture file.
-
-    Args:
-        tag_family: The tag family identifier (e.g., "tag36h11", "DICT_4X4_50")
-        custom_path: Optional custom texture path
-        tag_id: Optional marker ID for indexed textures (e.g., "tag36h11_0.png")
-        margin_bits: Quiet zone width suffix
-
-    Returns:
-        Path to the texture file, or None if not found
-    """
-    if custom_path and Path(custom_path).exists():
-        return Path(custom_path)
-
-    # Check for specific indexed tag first
-    if tag_id is not None:
-        indexed_paths = [
-            Path("assets/tags") / f"{tag_family}_{tag_id}_m{margin_bits}.png",
-            Path("assets/tags") / f"{tag_family}_{tag_id}.png",
-            Path("assets/textures") / f"{tag_family}_{tag_id}.png",
-        ]
-        for path in indexed_paths:
-            if path.exists():
-                return path
-
-    # Default texture locations
-    default_paths = [
-        Path("assets/textures/background/adversarial") / f"{tag_family}.png",
-        Path("assets/textures/background/natural") / f"{tag_family}.png",
-        Path("assets/textures") / f"{tag_family}.png",
-        Path("assets/tags") / f"{tag_family}.png",
-    ]
-
-    for path in default_paths:
-        if path.exists():
-            return path
-
-    return None
-
-
 def create_tag_plane(
     size_meters: float,
     texture_path: Path | None,
@@ -242,16 +196,14 @@ def apply_tag_texture(obj: Any, texture_path: Path, config: dict | None = None) 
     tex_node.interpolation = "Closest"  # Sharp pixels for tags
 
     # Set material properties for a printed tag
-    # Defaults (Backward Compatibility for existing hardcoded values)
+    # Move-Left: These are now resolved by the Compiler.
     roughness = 0.8
     specular = 0.2
 
-    if config and config.get("randomize", False):
-        # Sample from configured ranges
-        roughness = random.uniform(
-            config.get("roughness_min", 0.6), config.get("roughness_max", 1.0)
-        )
-        specular = random.uniform(config.get("specular_min", 0.1), config.get("specular_max", 0.3))
+    if config:
+        # Use absolute values from recipe if present
+        roughness = config.get("roughness", roughness)
+        specular = config.get("specular", specular)
 
     bsdf_node.inputs["Roughness"].default_value = roughness
     bsdf_node.inputs["Specular IOR Level"].default_value = specular
@@ -322,81 +274,3 @@ def get_corner_world_coords(tag_obj: Any) -> list[list[float]]:
         corners_world.append(world_pos.tolist())
 
     return corners_world
-
-
-def apply_surface_imperfections(
-    obj: Any,
-    scratches: float = 0.0,
-    dust: float = 0.0,
-    grunge: float = 0.0,
-) -> None:
-    """Apply procedural surface imperfections to the object's material.
-
-    Args:
-        obj: BlenderProc mesh object
-        scratches: Intensity of scratches (0-1)
-        dust: Intensity of dust (0-1)
-        grunge: Intensity of grunge (0-1)
-    """
-    if not (scratches > 0 or dust > 0 or grunge > 0):
-        return
-
-    # Check for material
-    if not obj.blender_obj.data.materials:
-        return
-
-    mat = obj.blender_obj.data.materials[0]
-    if not mat.use_nodes:
-        return
-
-    nodes = mat.node_tree.nodes
-    links = mat.node_tree.links
-
-    # Find Principled BSDF
-    # Note: In Blender 4.0+ it might be named differently, but "Principled BSDF" is standard
-    # We iterate to find type 'BSDF_PRINCIPLED'
-    bsdf = None
-    for node in nodes:
-        if node.type == "BSDF_PRINCIPLED":
-            bsdf = node
-            break
-
-    if not bsdf:
-        return
-
-    # Implementation:
-    # We use Noise and Musgrave textures to perturb Roughness and Color
-
-    # 1. Scratches (Roughness)
-    if scratches > 0 and bpy:
-        # Create Scratch Noise
-        scratch_tex = nodes.new("ShaderNodeTexNoise")
-        scratch_tex.inputs["Scale"].default_value = 50.0
-        scratch_tex.inputs["Detail"].default_value = 10.0
-        scratch_tex.inputs["Roughness"].default_value = 0.6
-        scratch_tex.inputs["Distortion"].default_value = 2.0
-
-        # ColorRamp to sharpen scratches
-        ramp = nodes.new("ShaderNodeValToRGB")
-        ramp.color_ramp.elements[0].position = 0.4
-        ramp.color_ramp.elements[1].position = 0.6
-        links.new(scratch_tex.outputs["Fac"], ramp.inputs["Fac"])
-
-        # Mix with current roughness
-        # We need a Mix Node. In older Blender it's MixRGB, newer is Mix
-        try:
-            mix = nodes.new("ShaderNodeMix")
-            mix.data_type = "FLOAT"
-            mix.inputs["Factor"].default_value = scratches
-            # If nothing connected to roughness, get default
-            current_roughness = bsdf.inputs["Roughness"].default_value
-            mix.inputs[4].default_value = current_roughness  # A
-            links.new(ramp.outputs["Alpha"], mix.inputs[5])  # B (using alpha as value)
-            links.new(mix.outputs[0], bsdf.inputs["Roughness"])
-        except Exception:
-            # Fallback for older Blender versions (MixRGB)
-            pass
-
-    # 2. Dust (Color overlay)
-    # Placeholder logic
-    pass

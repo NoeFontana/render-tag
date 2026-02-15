@@ -14,7 +14,6 @@ from render_tag.generation.projection_math import (
     calculate_angle_of_incidence,
     calculate_distance,
     calculate_relative_pose,
-    get_opencv_camera_matrix,
     get_world_normal,
     project_points,
 )

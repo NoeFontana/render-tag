@@ -3,12 +3,6 @@ Core data schemas for render-tag.
 """
 
 from .base import (
-    CameraIntrinsics as CameraIntrinsics,
-)
-from .base import (
-    CameraRecipe as CameraRecipe,
-)
-from .base import (
     Corner as Corner,
 )
 from .base import (
@@ -18,40 +12,16 @@ from .base import (
     EvaluationScope as EvaluationScope,
 )
 from .base import (
-    LightingConfig as LightingConfig,
-)
-from .base import (
     NoiseType as NoiseType,
-)
-from .base import (
-    ObjectRecipe as ObjectRecipe,
 )
 from .base import (
     ObjectType as ObjectType,
 )
 from .base import (
-    RendererConfig as RendererConfig,
-)
-from .base import (
     SceneProvenance as SceneProvenance,
 )
 from .base import (
-    SceneRecipe as SceneRecipe,
-)
-from .base import (
-    SensorDynamicsRecipe as SensorDynamicsRecipe,
-)
-from .base import (
-    SensorNoiseConfig as SensorNoiseConfig,
-)
-from .base import (
     TagFamily as TagFamily,
-)
-from .base import (
-    TagSurfaceConfig as TagSurfaceConfig,
-)
-from .base import (
-    WorldRecipe as WorldRecipe,
 )
 from .hot_loop import (
     Command as Command,
@@ -70,4 +40,31 @@ from .hot_loop import (
 )
 from .hot_loop import (
     calculate_state_hash as calculate_state_hash,
+)
+from .recipe import (
+    CameraIntrinsics as CameraIntrinsics,
+)
+from .recipe import (
+    CameraRecipe as CameraRecipe,
+)
+from .recipe import (
+    LightRecipe as LightRecipe,
+)
+from .recipe import (
+    ObjectRecipe as ObjectRecipe,
+)
+from .recipe import (
+    RendererConfig as RendererConfig,
+)
+from .recipe import (
+    SceneRecipe as SceneRecipe,
+)
+from .recipe import (
+    SensorDynamicsRecipe as SensorDynamicsRecipe,
+)
+from .recipe import (
+    SensorNoiseConfig as SensorNoiseConfig,
+)
+from .recipe import (
+    WorldRecipe as WorldRecipe,
 )

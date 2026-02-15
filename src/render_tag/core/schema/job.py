@@ -2,7 +2,7 @@ import hashlib
 import json
 import shutil
 import subprocess
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -36,7 +36,7 @@ class JobSpec(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     job_id: str
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     paths: JobPaths
     infrastructure: JobInfrastructure = Field(default_factory=JobInfrastructure)

@@ -2,8 +2,6 @@ import os
 import sys
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from render_tag.backend.bootstrap import setup_environment
 
 

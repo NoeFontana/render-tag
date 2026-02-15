@@ -3,13 +3,9 @@ Finalization stage for the generation pipeline.
 Handles manifest generation and checksums.
 """
 
-import csv
 import hashlib
-import json
 import sys
 from pathlib import Path
-
-from rich.console import Console
 
 from render_tag.audit.reporting import generate_dataset_info
 from render_tag.cli.pipeline import GenerationContext, PipelineStage
