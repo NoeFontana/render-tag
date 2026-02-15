@@ -781,7 +781,7 @@ class GenConfig(BaseModel):
     This is the single source of truth for all generation parameters.
     """
 
-    version: str = Field(default="1.0", description="Schema version")
+    version: str = Field(description="Schema version")
     dataset: DatasetConfig = Field(default_factory=DatasetConfig)
     camera: CameraConfig = Field(default_factory=CameraConfig)
     tag: TagConfig = Field(default_factory=TagConfig)
@@ -828,6 +828,12 @@ def load_config(path: Path | str) -> GenConfig:
     # Handle flat config format (legacy compatibility)
     if "resolution" in data and "camera" not in data:
         data = _convert_flat_config(data)
+
+    # Apply schema migrations
+    from render_tag.core.migration import SchemaMigrator
+
+    migrator = SchemaMigrator()
+    data = migrator.migrate(data)
 
     return GenConfig.model_validate(data)
 
