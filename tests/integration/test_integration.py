@@ -284,12 +284,23 @@ scene:
         with open(out_shard1 / "recipes_shard_1.json") as f:
             recipes_m1 = json.load(f)
 
+        def normalize_recipe(r):
+            """Remove environment-specific absolute paths for comparison."""
+            if "world" in r and "texture_path" in r["world"]:
+                r["world"]["texture_path"] = None
+            for obj in r.get("objects", []):
+                if "texture_path" in obj:
+                    obj["texture_path"] = None
+                if "properties" in obj and "texture_base_path" in obj["properties"]:
+                    obj["properties"]["texture_base_path"] = None
+            return r
+
         assert recipes_s[0]["scene_id"] == 0
         assert recipes_m0[0]["scene_id"] == 0
-        assert recipes_s[0] == recipes_m0[0]
+        assert normalize_recipe(recipes_s[0]) == normalize_recipe(recipes_m0[0])
         assert recipes_s[2]["scene_id"] == 2
         assert recipes_m1[0]["scene_id"] == 2
-        assert recipes_s[2] == recipes_m1[0]
+        assert normalize_recipe(recipes_s[2]) == normalize_recipe(recipes_m1[0])
 
 
 class TestValidateCommand:

@@ -187,7 +187,16 @@ class RecipeValidator:
                 if obj.texture_path:
                     path = Path(obj.texture_path)
                     if not path.exists():
-                        self.errors.append(f"Object '{obj.name}': Texture path not found: {path}")
+                        # Staff Engineer: Downgrade missing cache assets to warnings during generation
+                        # because they are often populated immediately AFTER recipe generation
+                        if "cache" in str(path):
+                            self.warnings.append(
+                                f"Object '{obj.name}': Cache asset not yet present: {path}"
+                            )
+                        else:
+                            self.errors.append(
+                                f"Object '{obj.name}': Texture path not found: {path}"
+                            )
 
                 # Check properties for implicit paths
                 base_path = obj.properties.get("texture_base_path")

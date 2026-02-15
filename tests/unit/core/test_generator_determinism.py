@@ -22,6 +22,7 @@ def test_generator_determinism(tmp_path):
 def test_sharding_invariance(tmp_path):
     """Test that scenes generated via sharded calls match global calls."""
     config = GenConfig()
+    config.dataset.num_scenes = 10
     config.dataset.seeds.global_seed = 12345
 
     compiler = SceneCompiler(config, global_seed=12345)

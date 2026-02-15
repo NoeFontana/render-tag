@@ -19,6 +19,7 @@ from render_tag.orchestration.experiment import (
     load_experiment_config,
 )
 from render_tag.orchestration.experiment_schema import Campaign
+from render_tag.orchestration.orchestrator import ResponseStatus, UnifiedWorkerOrchestrator
 
 from .tools import (
     check_blenderproc_installed,
@@ -136,16 +137,24 @@ def run(
         job_config_path = variant_dir / "generation_config.json"
         serialize_config_to_json(variant.config, job_config_path)
 
-        # 4. Ensure Assets (Optimized: only check once? No, easy to check every time)
-        scenario = variant.config.scenario
-        families = scenario.tag_families if scenario else [variant.config.tag.family]
-        assets_dir = Path("assets/tags")
-        assets_dir.mkdir(parents=True, exist_ok=True)
-        # Assuming we can just ensure generic usage for now
-        # Ideally we check what tags are actually in the recipe
-        for family_enum in families:
-            for j in range(10):  # Arbitrary small number
-                ensure_tag_asset(family_enum.value, j, assets_dir)
+        # 4. Ensure Assets (Pre-generate tags into cache matching recipes)
+        cache_tag_dir = variant_dir / "cache" / "tags"
+        cache_tag_dir.mkdir(parents=True, exist_ok=True)
+
+        required_tags = set()
+        for recipe in recipes:
+            for obj in recipe.objects:
+                if obj.type == "TAG":
+                    family = obj.properties.get("tag_family")
+                    tag_id = obj.properties.get("tag_id")
+                    margin_bits = obj.properties.get("margin_bits", 0)
+                    if family and tag_id is not None:
+                        required_tags.add((family, tag_id, margin_bits))
+
+        if required_tags:
+            console.print(f"[dim]Pre-generating {len(required_tags)} unique tags...[/dim]")
+            for family, tag_id, margin_bits in required_tags:
+                ensure_tag_asset(family, tag_id, cache_tag_dir, margin_bits=margin_bits)
 
         # 4.5 Validate Recipes (Shadow Render logic)
         is_valid, errors, warnings = validate_recipe_file(recipe_path)
@@ -164,8 +173,6 @@ def run(
         if skip_render:
             console.print("[green]Shadow Render Validation Complete (Skip Render enabled).[/green]")
             continue
-
-        from render_tag.orchestration.orchestrator import ResponseStatus, UnifiedWorkerOrchestrator
 
         try:
             # Use Orchestrator to execute recipes

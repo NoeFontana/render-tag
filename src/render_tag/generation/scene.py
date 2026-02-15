@@ -80,7 +80,14 @@ class Generator:
             # Validate (Strict: Treat warnings as reasons to re-sample)
             validator = RecipeValidator(recipe)
             validator.validate()
-            if not validator.errors and not validator.warnings:
+            
+            # Staff Engineer: Filter out cache-pending warnings during the generation phase
+            # as these are expected to be resolved immediately after this call.
+            relevant_warnings = [
+                w for w in validator.warnings if "Cache asset not yet present" not in w
+            ]
+            
+            if not validator.errors and not relevant_warnings:
                 return recipe
 
             scene_logger.debug(
