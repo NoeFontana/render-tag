@@ -10,7 +10,7 @@ Isolate the migration logic and update the core models to support version metada
 - [x] Task: Update `GenConfig` Schema (43b034f)
     - [x] Add `version: str = "1.0"` to `GenConfig` in `src/render_tag/core/config.py`.
     - [x] Update `GenConfig` validators to handle version strings.
-- [ ] Task: Update `JobSpec` Schema
+- [x] Task: Update `JobSpec` Schema (2b70d8d)
     - [ ] Add `version: str = "1.0"` to `JobSpec` in `src/render_tag/core/schema/job.py`.
 - [ ] Task: Conductor - User Manual Verification 'Phase 1' (Protocol in workflow.md)
 
