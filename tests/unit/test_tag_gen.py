@@ -28,7 +28,7 @@ def test_ensure_tag_asset(tmp_path):
     asset_path = ensure_tag_asset("tag36h11", 5, asset_dir, size_pixels=64)
 
     assert asset_path.exists()
-    assert asset_path.name == "tag36h11_5.png"
+    assert asset_path.name == "tag36h11_5_m0.png"
 
     # Load and verify
     img = cv2.imread(str(asset_path), cv2.IMREAD_GRAYSCALE)

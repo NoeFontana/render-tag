@@ -1,4 +1,4 @@
-from render_tag.core.schema import ObjectRecipe, SceneRecipe, WorldRecipe
+from render_tag.core.schema.base import ObjectRecipe, SceneRecipe, WorldRecipe
 from render_tag.core.validator import RecipeValidator
 
 

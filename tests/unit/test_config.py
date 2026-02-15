@@ -149,14 +149,14 @@ class TestTagConfig:
 
 class TestTagSurfaceConfig:
     def test_surface_config_defaults(self) -> None:
-        from render_tag.core.schema import TagSurfaceConfig
+        from render_tag.core.schema.base import TagSurfaceConfig
 
         cfg = TagSurfaceConfig()
         assert cfg.scratches == 0.0
         assert cfg.dust == 0.0
 
     def test_surface_config_custom(self) -> None:
-        from render_tag.core.schema import TagSurfaceConfig
+        from render_tag.core.schema.base import TagSurfaceConfig
 
         cfg = TagSurfaceConfig(scratches=0.5, dust=0.2)
         assert cfg.scratches == 0.5

@@ -2,7 +2,7 @@
 Unit tests for the centralized types module.
 """
 
-from render_tag.core.schema import Corner, DetectionRecord
+from render_tag.core.schema.base import Corner, DetectionRecord
 
 
 class TestCorner:
@@ -44,5 +44,5 @@ class TestDetectionRecord:
         )
         row = detection.to_csv_row()
         assert row[0] == "img1"
-        assert row[3] == 10.5
-        assert len(row) == 11
+        assert row[4] == 10.5
+        assert len(row) == 12

@@ -294,7 +294,11 @@ def test_cli_run_with_job_config_mismatch(tmp_path, monkeypatch):
     assert "Config hash mismatch" in re.sub(r"\s+", " ", result.output)
 
 
-def test_cli_run_with_job_overrides_warning(tmp_path, monkeypatch):
+@patch(
+    "render_tag.cli.stages.config_stage.get_env_fingerprint",
+    return_value=("dummy_env", "dummy_ver"),
+)
+def test_cli_run_with_job_overrides_warning(mock_fp, tmp_path, monkeypatch):
     # Setup valid job and config
     config_dir = tmp_path / "configs"
     config_dir.mkdir()
@@ -305,6 +309,12 @@ def test_cli_run_with_job_overrides_warning(tmp_path, monkeypatch):
     config_hash = hashlib.sha256(GenConfig().model_dump_json().encode()).hexdigest()
 
     job_file = tmp_path / "job.json"
+    # Configure scene_config to have shard_size=42
+    scene_config = GenConfig()
+    scene_config.dataset.num_scenes = 42
+    # Recalculate hash for modified config
+    config_hash = hashlib.sha256(scene_config.model_dump_json().encode()).hexdigest()
+
     spec = JobSpec(
         job_id="test-job",
         paths=JobPaths(
@@ -313,9 +323,9 @@ def test_cli_run_with_job_overrides_warning(tmp_path, monkeypatch):
             assets_dir=Path("/tmp/out/assets"),
         ),
         global_seed=42,
-        scene_config=GenConfig(),
-        env_hash=hashlib.sha256(b"uv").hexdigest(),
-        blender_version="4.2.0",
+        scene_config=scene_config,
+        env_hash="dummy_env",
+        blender_version="dummy_ver",
         assets_hash="abc",
         config_hash=config_hash,
         shard_index=0,
@@ -355,12 +365,13 @@ def test_cli_run_with_job_overrides_warning(tmp_path, monkeypatch):
     )
 
     # It should still run (or at least pass the guard) and show warnings
-    output_normalized = re.sub(r"\s+", " ", result.output)
+    # Strip ANSI codes for robust matching
+    output_clean = re.sub(r"\x1b\[[0-9;]*m", "", result.output)
+    output_normalized = re.sub(r"\s+", " ", output_clean)
+
     assert "Warning" in output_normalized
-    assert "ignored" in output_normalized
-    # Regex might need adjustment if numbers are formatted differently
-    assert re.search(r"Using job spec value:.*1", output_normalized)
-    assert re.search(r"Using job spec value:.*42", output_normalized)
+    assert "Using job spec value: 42" in output_normalized
+    assert "Using job spec value: 42" in output_normalized
 
 
 def test_cli_run_with_job_not_found():

@@ -12,6 +12,7 @@ from render_tag.backend.assets import global_pool
 from render_tag.backend.bridge import bridge
 from render_tag.backend.engine import RenderContext, execute_recipe
 from render_tag.backend.scene import setup_background
+from render_tag.core.logging import get_logger
 from render_tag.core.schema.hot_loop import (
     Command,
     CommandType,
@@ -34,7 +35,7 @@ try:
 except ImportError:
     GPUtil = None
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class ZmqBackendServer:
@@ -52,7 +53,7 @@ class ZmqBackendServer:
         self.shard_id = shard_id
         self.seed = seed
         self.job_spec = job_spec
-        self.logger = logger or logging.getLogger(__name__)
+        self.logger = logger or get_logger(__name__)
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.REP)
         self.socket.bind(f"tcp://127.0.0.1:{port}")

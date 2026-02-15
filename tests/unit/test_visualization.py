@@ -1,4 +1,4 @@
-from render_tag.core.schema import (
+from render_tag.core.schema.base import (
     CameraIntrinsics,
     CameraRecipe,
     NoiseType,
@@ -11,7 +11,9 @@ from render_tag.data_io.visualization import ShadowRenderer
 def test_shadow_renderer_runs(tmp_path):
     cam = CameraRecipe(
         transform_matrix=[[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]],
-        intrinsics=CameraIntrinsics(resolution=[640, 480]),
+        intrinsics=CameraIntrinsics(
+            resolution=[640, 480], k_matrix=[[500, 0, 320], [0, 500, 240], [0, 0, 1]]
+        ),
         sensor_noise=SensorNoiseConfig(model=NoiseType.SALT_AND_PEPPER),
     )
     recipe = SceneRecipe(scene_id=0, cameras=[cam])

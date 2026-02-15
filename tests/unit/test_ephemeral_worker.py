@@ -25,7 +25,10 @@ def test_ephemeral_mode(tmp_path):
         "cameras": [
             {
                 "transform_matrix": [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 2], [0, 0, 0, 1]],
-                "intrinsics": {"resolution": [100, 100]},
+                "intrinsics": {
+                    "resolution": [100, 100],
+                    "k_matrix": [[100, 0, 50], [0, 100, 50], [0, 0, 1]],
+                },
             }
         ],
     }

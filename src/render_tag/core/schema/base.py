@@ -175,7 +175,7 @@ class WorldRecipe(BaseModel):
 class RendererConfig(BaseModel):
     """Configuration for the rendering engine."""
 
-    mode: Literal["cycles", "eevee"] = Field(
+    mode: Literal["cycles", "eevee", "workbench"] = Field(
         default="cycles", description="Rendering engine to use"
     )
     # Future: samples, denoising, etc.

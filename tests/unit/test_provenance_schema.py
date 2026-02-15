@@ -1,4 +1,4 @@
-from render_tag.core.schema import SceneProvenance
+from render_tag.core.schema.base import SceneProvenance
 
 
 def test_provenance_schema_validation():

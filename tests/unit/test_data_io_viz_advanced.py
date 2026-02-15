@@ -26,10 +26,36 @@ def test_visualize_dataset_data_parsing(tmp_path: Path, capsys):
     with open(csv_path, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(
-            ["image_id", "tag_id", "tag_family", "x1", "y1", "x2", "y2", "x3", "y3", "x4", "y4"]
+            [
+                "image_id",
+                "tag_id",
+                "tag_family",
+                "ppm",
+                "x1",
+                "y1",
+                "x2",
+                "y2",
+                "x3",
+                "y3",
+                "x4",
+                "y4",
+            ]
         )
         writer.writerow(
-            ["scene_0001", "42", "tag36h11", "100", "100", "200", "100", "200", "200", "100", "200"]
+            [
+                "scene_0001",
+                "42",
+                "tag36h11",
+                "0.0",
+                "100",
+                "100",
+                "200",
+                "100",
+                "200",
+                "200",
+                "100",
+                "200",
+            ]
         )
 
     visualize_dataset(tmp_path, save_viz=True)
@@ -71,7 +97,11 @@ def test_visualize_recipe_complex(mock_plt, tmp_path: Path):
             {
                 "transform_matrix": [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 5], [0, 0, 0, 1]],
                 "scene_id": 1,
-                "intrinsics": {"fov": 60.0, "resolution": [640, 480]},
+                "intrinsics": {
+                    "fov": 60.0,
+                    "resolution": [640, 480],
+                    "k_matrix": [[500, 0, 320], [0, 500, 240], [0, 0, 1]],
+                },
             }
         ],
     }

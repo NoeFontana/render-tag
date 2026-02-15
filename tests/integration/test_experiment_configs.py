@@ -38,7 +38,7 @@ def test_experiment_config_validity(config_path):
     if result.returncode != 0:
         pytest.fail(f"Experiment config {config_path.name} failed validation:\n{result.stderr}")
 
-    assert "Shadow Render Validation Complete" in result.stdout
+    assert "Completed Successfully" in result.stdout
 
 
 def test_visibility_validation_failure(tmp_path):

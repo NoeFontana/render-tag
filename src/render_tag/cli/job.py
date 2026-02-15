@@ -7,7 +7,7 @@ import typer
 from rich.panel import Panel
 
 from render_tag.cli.tools import console
-from render_tag.core.schema.job import JobSpec, get_env_fingerprint
+from render_tag.core.schema.job import JobPaths, JobSpec, calculate_job_id, get_env_fingerprint
 from render_tag.orchestration.assets import AssetManager
 
 app = typer.Typer(help="Manage and lock rendering jobs.")
@@ -47,16 +47,34 @@ def lock(
     with open(config, "rb") as f:
         config_hash = hashlib.sha256(f.read()).hexdigest()
 
-    # 4. Create Job Spec
-    spec = JobSpec(
+    # 4. Create Job Spec (Two-pass for ID)
+    from render_tag.core.config import load_config
+
+    scene_config = load_config(config)
+
+    # Pass 1: Create spec with placeholder ID to calculate hash
+    # We infer paths from the output job.json location
+    job_dir = output.parent.resolve()
+    paths = JobPaths(
+        output_dir=job_dir,
+        logs_dir=job_dir / "logs",
+        assets_dir=assets_dir.resolve(),
+    )
+
+    temp_spec = JobSpec(
+        job_id="pending",
+        paths=paths,
         env_hash=env_hash,
         blender_version=blender_ver,
         assets_hash=assets_hash,
         config_hash=config_hash,
-        seed=seed,
+        global_seed=seed,
+        scene_config=scene_config,
         shard_index=shard_index,
-        shard_size=shard_size,
     )
+
+    final_job_id = calculate_job_id(temp_spec)
+    spec = temp_spec.model_copy(update={"job_id": final_job_id})
 
     # 5. Save to disk
     with open(output, "w") as f:

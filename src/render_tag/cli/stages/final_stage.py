@@ -13,7 +13,7 @@ from rich.console import Console
 
 from render_tag.audit.reporting import generate_dataset_info
 from render_tag.cli.pipeline import GenerationContext, PipelineStage
-from render_tag.cli.tools import get_asset_manager
+from render_tag.cli.tools import console, get_asset_manager
 from render_tag.core.manifest import ChecksumManifest
 from render_tag.core.schema.job import JobSpec, calculate_job_id, get_env_fingerprint
 from render_tag.data_io.writers import (
@@ -21,8 +21,6 @@ from render_tag.data_io.writers import (
     merge_csv_shards,
     merge_rich_truth_shards,
 )
-
-console = Console()
 
 
 class FinalizationStage(PipelineStage):

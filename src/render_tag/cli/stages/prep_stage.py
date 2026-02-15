@@ -11,7 +11,7 @@ import typer
 from rich.console import Console
 
 from render_tag.cli.pipeline import GenerationContext, PipelineStage
-from render_tag.cli.tools import get_asset_manager
+from render_tag.cli.tools import console, get_asset_manager
 from render_tag.core.schema import SceneRecipe
 from render_tag.core.validator import AssetValidator, validate_recipe_file
 from render_tag.generation.scene import Generator
@@ -20,8 +20,6 @@ from render_tag.orchestration.orchestrator import (
     get_completed_scene_ids,
     resolve_shard_index,
 )
-
-console = Console()
 
 
 class PreparationStage(PipelineStage):

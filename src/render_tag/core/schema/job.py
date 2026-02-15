@@ -1,4 +1,5 @@
 import hashlib
+import json
 import shutil
 import subprocess
 from datetime import datetime, timezone
@@ -86,7 +87,9 @@ def calculate_job_id(spec: JobSpec) -> str:
     # Usually Job ID should be unique per run.
     # But if we want content-addressable, we should exclude timestamp.
     # Let's include everything for now as a UUID-like.
-    spec_json = spec.model_dump_json(serialize_as_any=True)
+    # Exclude job_id and created_at to allow deterministic generation
+    spec_dict = spec.model_dump(exclude={"job_id", "created_at"}, mode="json")
+    spec_json = json.dumps(spec_dict, sort_keys=True)
     return hashlib.sha256(spec_json.encode()).hexdigest()
 
 

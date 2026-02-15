@@ -1,6 +1,6 @@
 import json
 
-from render_tag.core.schema import SceneProvenance
+from render_tag.core.schema.base import SceneProvenance
 from render_tag.data_io.writers import SidecarWriter
 
 

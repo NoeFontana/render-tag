@@ -82,13 +82,16 @@ def test_setup_environment_fallback_to_venv(tmp_path):
         mock_addsitedir.assert_any_call(str(venv_site))
 
 
-def test_setup_environment_fails_fast():
-    """Verify that setup_environment raises RuntimeError if pydantic is missing."""
+def test_setup_environment_fails_fast(caplog):
+    """Verify that setup_environment logs warning if pydantic is missing."""
+    import logging
+
     with (
         patch("sys.path", sys.path.copy()),
         patch("site.addsitedir"),
         patch.dict(sys.modules, {"pydantic": None, "orjson": None}),
         patch("render_tag.backend.bootstrap.configure_logging"),
-        pytest.raises(RuntimeError, match="Blender Environment Bootstrap Failed"),
+        caplog.at_level(logging.WARNING),
     ):
         setup_environment()
+        assert "Bootstrap: Critical dependencies missing" in caplog.text

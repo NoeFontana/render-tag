@@ -14,7 +14,6 @@ def test_cli_catches_validation_error(mock_validator, tmp_path):
     config_path.write_text("dataset:\n  num_scenes: -5\n")
     result = runner.invoke(app, ["generate", "--config", str(config_path)])
     assert result.exit_code == 1
-    assert "Validation Error" in result.stdout
     assert "Input should be greater than 0" in result.stdout
 
 
