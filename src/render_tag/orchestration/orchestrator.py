@@ -10,6 +10,7 @@ import os
 import queue
 import random
 import re
+import shutil
 import signal
 import sys
 import threading
@@ -38,7 +39,7 @@ console = Console()
 
 class UnifiedWorkerOrchestrator:
     """Manages a pool of persistent Blender workers."""
-    
+
     _instances: ClassVar[list["UnifiedWorkerOrchestrator"]] = []
 
     def __init__(
@@ -58,7 +59,8 @@ class UnifiedWorkerOrchestrator:
         self.num_workers, self.base_port = num_workers, base_port
         self.mock = mock or (os.environ.get("RENDER_TAG_FORCE_MOCK") == "1")
         self.blender_script = (
-            blender_script or Path(__file__).resolve().parents[3] / "scripts" / "worker_bootstrap.py"
+            blender_script
+            or Path(__file__).resolve().parents[3] / "scripts" / "worker_bootstrap.py"
         )
         self.blender_executable = blender_executable or (sys.executable if mock else "blenderproc")
         self.use_blenderproc, self.vram_threshold_mb, self.ephemeral = (
@@ -92,7 +94,7 @@ class UnifiedWorkerOrchestrator:
             seed_str = f"{shard_id}-{os.getpid()}-{random.random()}"
             port_offset = int(hashlib.md5(seed_str.encode()).hexdigest(), 16) % 10000
             current_base_port = self.base_port + port_offset + random.randint(0, 50) * 10
-            
+
             with ResourceStack() as attempt_stack:
                 try:
                     for i in range(self.num_workers):
@@ -112,7 +114,7 @@ class UnifiedWorkerOrchestrator:
                             job_id=self.job_id,
                         )
                         worker.start()
-                        
+
                         # Record initial telemetry
                         try:
                             resp = worker.send_command(CommandType.STATUS, timeout_ms=1000)
@@ -157,7 +159,11 @@ class UnifiedWorkerOrchestrator:
                 if resp.status == ResponseStatus.SUCCESS and resp.data:
                     telemetry = Telemetry(**resp.data)
                     self.auditor.add_entry(worker.worker_id, telemetry)
-                    if not intentional_exit and self.vram_threshold_mb and telemetry.vram_used_mb > self.vram_threshold_mb:
+                    if (
+                        not intentional_exit
+                        and self.vram_threshold_mb
+                        and telemetry.vram_used_mb > self.vram_threshold_mb
+                    ):
                         should_restart = True
             except Exception as e:
                 if not intentional_exit:
@@ -172,11 +178,18 @@ class UnifiedWorkerOrchestrator:
             slot_id = worker.shard_id.split("_")[0]
             unique_shard_id = f"{slot_id}_{uuid.uuid4().hex[:6]}"
             new_worker = PersistentWorkerProcess(
-                worker.worker_id, worker.port, self.blender_script, self.blender_executable,
-                use_blenderproc=self.use_blenderproc, mock=self.mock,
-                max_renders=self.max_renders_per_worker, shard_id=unique_shard_id,
-                context=self.context, thread_budget=self.thread_budget,
-                seed=self.seed, job_id=self.job_id,
+                worker.worker_id,
+                worker.port,
+                self.blender_script,
+                self.blender_executable,
+                use_blenderproc=self.use_blenderproc,
+                mock=self.mock,
+                max_renders=self.max_renders_per_worker,
+                shard_id=unique_shard_id,
+                context=self.context,
+                thread_budget=self.thread_budget,
+                seed=self.seed,
+                job_id=self.job_id,
             )
             new_worker.start()
             for idx, w in enumerate(self.workers):
@@ -215,7 +228,9 @@ class UnifiedWorkerOrchestrator:
                 worker.stop()
             finally:
                 self.release_worker(worker)
-        raise WorkerCommunicationError(f"Execute recipe failed after {max_retries} retries: {last_error}")
+        raise WorkerCommunicationError(
+            f"Execute recipe failed after {max_retries} retries: {last_error}"
+        )
 
     def __enter__(self):
         if not self.running:
@@ -260,6 +275,7 @@ def orchestrate(
     verbose: bool = False,
 ) -> None:
     import typer
+
     signal.signal(signal.SIGINT, _signal_handler)
     signal.signal(signal.SIGTERM, _signal_handler)
     from render_tag.generation.scene import Generator
@@ -270,19 +286,28 @@ def orchestrate(
     if not recipes:
         return
 
-    actual_batch_size = min(batch_size, max(1, len(recipes) // workers)) if batch_size == 5 else batch_size
+    actual_batch_size = (
+        min(batch_size, max(1, len(recipes) // workers)) if batch_size == 5 else batch_size
+    )
     batches = [
-        gen.save_recipe_json(recipes[i : i + actual_batch_size], f"recipes_batch_{i // actual_batch_size}.json")
+        gen.save_recipe_json(
+            recipes[i : i + actual_batch_size], f"recipes_batch_{i // actual_batch_size}.json"
+        )
         for i in range(0, len(recipes), actual_batch_size)
     ]
 
     rm = job_spec.scene_config.renderer.mode if job_spec.scene_config.renderer else "cycles"
-    force_mock = (os.environ.get("RENDER_TAG_FORCE_MOCK") == "1") or ("PYTEST_CURRENT_TEST" in os.environ)
+    force_mock = (os.environ.get("RENDER_TAG_FORCE_MOCK") == "1") or (
+        "PYTEST_CURRENT_TEST" in os.environ
+    )
     use_bproc = (shutil.which("blenderproc") is not None) and not force_mock
 
     with UnifiedWorkerOrchestrator(
-        num_workers=workers, ephemeral=True, max_renders_per_worker=batch_size,
-        mock=not use_bproc, seed=job_spec.global_seed,
+        num_workers=workers,
+        ephemeral=True,
+        max_renders_per_worker=batch_size,
+        mock=not use_bproc,
+        seed=job_spec.global_seed,
     ) as orchestrator:
         q = queue.Queue()
         for path in batches:
@@ -311,11 +336,14 @@ def orchestrate(
                     q.task_done()
 
         threads = [threading.Thread(target=worker_thread, daemon=True) for _ in range(workers)]
-        for t in threads: t.start()
-        for t in threads: t.join()
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
 
     for path in batches:
-        if path.exists(): path.unlink()
+        if path.exists():
+            path.unlink()
 
     if any_failed:
         raise typer.Exit(code=1)

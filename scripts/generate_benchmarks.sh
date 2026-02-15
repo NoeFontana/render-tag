@@ -1,21 +1,29 @@
 #!/bin/bash
 set -e
+set -o pipefail
 
-# Configuration
-BENCHMARK_DIR="${1:-configs/benchmarks}"
+# Default Configuration
+BENCHMARK_DIR="configs/benchmarks"
 OUTPUT_BASE="output/benchmarks"
 WORKERS=2
-SHIFT_ARGS=0
+DRY_RUN=false
+EXTRA_ARGS=()
 
 # Argument Parsing
-DRY_RUN=false
-BENCHMARK_DIR="configs/benchmarks"
+if [[ $# -gt 0 ]] && [[ ! "$1" =~ ^- ]]; then
+    BENCHMARK_DIR="$1"
+    shift
+fi
 
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         --dry-run) DRY_RUN=true; shift ;;
-        -*) echo "Unknown option: $1"; exit 1 ;;
-        *) BENCHMARK_DIR="$1"; shift ;;
+        -w|--workers) WORKERS="$2"; shift 2 ;;
+        -h|--help)
+            echo "Usage: $0 [BENCHMARK_DIR] [--dry-run] [--workers N] [EXTRA_ARGS]"
+            exit 0
+            ;;
+        *) EXTRA_ARGS+=("$1"); shift ;;
     esac
 done
 
@@ -43,9 +51,9 @@ find "${BENCHMARK_DIR}" -name "*.yaml" -print0 | while IFS= read -r -d '' config
     echo "----------------------------------------------------------------"
     
     if [ "$DRY_RUN" = true ]; then
-        echo "[DRY-RUN] uv run render-tag generate --config ${config_path} --output ${output_dir} --workers ${WORKERS}"
+        echo "[DRY-RUN] uv run render-tag generate --config ${config_path} --output ${output_dir} --workers ${WORKERS} ${EXTRA_ARGS[*]}"
     else
-        uv run render-tag generate --config "${config_path}" --output "${output_dir}" --workers ${WORKERS}
+        uv run render-tag generate --config "${config_path}" --output "${output_dir}" --workers ${WORKERS} "${EXTRA_ARGS[@]}"
     fi
 done
 
