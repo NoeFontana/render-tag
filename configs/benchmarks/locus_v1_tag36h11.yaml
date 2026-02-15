@@ -10,25 +10,22 @@ camera:
   samples_per_scene: 1
   min_distance: 0.5
   max_distance: 8.0
-  min_elevation: 0.5  # Pitch/Yaw cone of 60 degrees (cos(60)=0.5)
+  min_elevation: 0.5
   max_elevation: 1.0
   min_roll: -180.0
   max_roll: 180.0
   tone_mapping: filmic
   iso: 100
   sensor_noise_sigma: 0.002
-  min_tag_pixels: 41  # Exactly num bits for this family
+  min_tag_pixels: 36  # Exactly num bits for this family
 
-  # Target PPM range for AMR docking
-  # 5.0 is the detection breaking point
-  # 40.0 is the high-confidence comfort zone
   ppm_constraint:
     min: 5.0
     max: 40.0
     distribution: uniform
 
 tag:
-  family: tagStandard41h12
+  family: tag36h11
   size_meters: 0.16
   margin_bits: 1
   material:
@@ -40,7 +37,7 @@ tag:
 
 scenario:
   layout: plain
-  tag_families: [tagStandard41h12]
+  tag_families: [tag36h11]
   tags_per_scene: [1, 1]
   sampling_mode: random
   use_board: false

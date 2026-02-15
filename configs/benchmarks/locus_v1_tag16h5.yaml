@@ -1,5 +1,5 @@
 dataset:
-  num_scenes: 200
+  num_scenes: 100
   seeds:
     global_seed: 42
   evaluation_scopes: [detection, pose_estimation]
@@ -54,3 +54,5 @@ scene:
   texture_dir: assets/textures/background
   texture_scale_min: 0.1
   texture_scale_max: 20.0
+
+version: '0.1'
