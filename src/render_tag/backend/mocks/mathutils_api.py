@@ -5,7 +5,9 @@ Mock for Blender's mathutils module.
 
 class Matrix:
     def __init__(self, data=None):
-        self.data = data or [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]
+        self.data = (
+            data if data is not None else [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]
+        )
 
     def copy(self):
         return Matrix(self.data)
@@ -24,7 +26,7 @@ class Matrix:
 
 class Vector:
     def __init__(self, data=None):
-        self.data = data or (0.0, 0.0, 0.0)
+        self.data = data if data is not None else (0.0, 0.0, 0.0)
 
     def __add__(self, other):
         return Vector(tuple(a + b for a, b in zip(self.data, other.data, strict=False)))

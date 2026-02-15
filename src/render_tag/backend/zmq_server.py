@@ -69,11 +69,12 @@ def main():
     sys.excepthook = handle_exception
 
     try:
-        bproc_mock, bpy_mock = None, None
+        math_mock = None
         if args.mock or os.environ.get("RENDER_TAG_BACKEND_MOCK") == "1":
             try:
                 from render_tag.backend.mocks import blender_api as bpy_mock
                 from render_tag.backend.mocks import blenderproc_api as bproc_mock
+                from render_tag.backend.mocks import mathutils_api as math_mock
             except ImportError as e:
                 logger.error(f"Failed to load production mocks: {e}")
                 sys.exit(1)
@@ -94,6 +95,7 @@ def main():
             shard_id=args.shard_id,
             bproc_mock=bproc_mock,
             bpy_mock=bpy_mock,
+            math_mock=math_mock,
             seed=args.seed if job_spec is None else job_spec.global_seed,
             logger=logger,  # Inject bound logger
             job_spec=job_spec,

@@ -22,6 +22,11 @@ from render_tag.core.schema.job import JobInfrastructure, JobPaths, JobSpec
 runner = CliRunner()
 
 
+def strip_ansi(text):
+    ansi_escape = re.compile(r"(?:\x1B[@-_][0-?]*[ -/]*[@-~])")
+    return ansi_escape.sub("", text)
+
+
 class TestCheckBlenderprocInstalled:
     def test_blenderproc_not_installed(self) -> None:
         with patch("shutil.which", return_value=None):
@@ -463,7 +468,8 @@ def test_cli_catches_validation_error(mock_validator, tmp_path):
     assert result.exit_code == 1
     assert result.exit_code == 1
     # Pydantic validation error is printed within the exception message
-    normalized_output = re.sub(r"\s+", " ", result.stdout)
+    clean_stdout = strip_ansi(result.stdout)
+    normalized_output = re.sub(r"\s+", " ", clean_stdout)
     assert "Error resolving config" in normalized_output
     assert "Input should be greater than 0" in normalized_output
 

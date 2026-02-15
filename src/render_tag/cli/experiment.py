@@ -10,6 +10,7 @@ import typer
 
 from render_tag.audit.reporting import generate_dataset_info
 from render_tag.core.manifest import ChecksumManifest
+from render_tag.core.validator import validate_recipe_file
 from render_tag.generation.scene import Generator
 from render_tag.generation.tags import ensure_tag_asset
 from render_tag.orchestration.experiment import (
@@ -147,8 +148,6 @@ def run(
                 ensure_tag_asset(family_enum.value, j, assets_dir)
 
         # 4.5 Validate Recipes (Shadow Render logic)
-        from render_tag.core.validator import validate_recipe_file
-
         is_valid, errors, warnings = validate_recipe_file(recipe_path)
         if warnings:
             for w in warnings:
@@ -184,6 +183,7 @@ def run(
         ]
 
         try:
+            print(f"DEBUG SUBPROCESS: {subprocess}")
             result = subprocess.run(
                 cmd,
                 check=False,

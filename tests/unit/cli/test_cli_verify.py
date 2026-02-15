@@ -1,11 +1,17 @@
 import hashlib
 import json
+import re
 
 from typer.testing import CliRunner
 
 from render_tag.cli.main import app
 
 runner = CliRunner()
+
+
+def strip_ansi(text):
+    ansi_escape = re.compile(r"(?:\x1B[@-_][0-?]*[ -/]*[@-~])")
+    return ansi_escape.sub("", text)
 
 
 def test_cli_verify_success(tmp_path):
@@ -29,7 +35,7 @@ def test_cli_verify_success(tmp_path):
     result = runner.invoke(app, ["job", "verify", str(output_dir)])
 
     assert result.exit_code == 0
-    assert "Integrity check passed" in result.output
+    assert "Integrity check passed" in strip_ansi(result.output)
 
 
 def test_cli_verify_tampered(tmp_path):
@@ -52,5 +58,5 @@ def test_cli_verify_tampered(tmp_path):
     result = runner.invoke(app, ["job", "verify", str(output_dir)])
 
     assert result.exit_code != 0
-    assert "Integrity check FAILED" in result.output
+    assert "Integrity check FAILED" in strip_ansi(result.output)
     assert "tags.csv" in result.output

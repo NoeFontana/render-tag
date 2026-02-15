@@ -45,6 +45,7 @@ class ZmqBackendServer:
         shard_id: str = "main",
         bproc_mock=None,
         bpy_mock=None,
+        math_mock=None,
         seed: int = 42,
         logger: logging.Logger | None = None,
         job_spec: "JobSpec | None" = None,
@@ -69,8 +70,8 @@ class ZmqBackendServer:
             CommandType.RESET: ResetHandler(),
             CommandType.SHUTDOWN: ShutdownHandler(),
         }
-        if bproc_mock or bpy_mock:
-            bridge.stabilize(bproc_mock, bpy_mock)
+        if bproc_mock or bpy_mock or math_mock:
+            bridge.stabilize(bproc_mock, bpy_mock, math_mock)
         else:
             bridge.stabilize()
 

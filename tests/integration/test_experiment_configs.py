@@ -21,10 +21,14 @@ def test_experiment_config_validity(config_path):
     Test that each experiment config in configs/experiments produces valid
     scene recipes (Shadow Render mode).
     """
-    # Use 'uv run render-tag' to ensure we use the development environment
+    import sys
+
+    # Use 'python -m render_tag' to ensure we use the development environment
     result = subprocess.run(
         [
-            "render-tag",
+            sys.executable,
+            "-m",
+            "render_tag",
             "experiment",
             "run",
             "--config",
@@ -77,9 +81,13 @@ scenario:
     )
 
     # 2. Run generate with skip-render (it uses the same validator)
+    import sys
+
     result = subprocess.run(
         [
-            "render-tag",
+            sys.executable,
+            "-m",
+            "render_tag",
             "generate",
             "--config",
             str(broken_config_path),

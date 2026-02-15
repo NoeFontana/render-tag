@@ -52,7 +52,12 @@ def setup_environment():
         if venv_version_dir == blender_version_str:
             site.addsitedir(venv_site_packages)
 
-    # 4. Configure structured logging
+    # 4. Stabilize dependencies via BlenderBridge
+    from render_tag.backend.bridge import bridge
+
+    bridge.stabilize()
+
+    # 5. Configure structured logging
     with contextlib.suppress(Exception):
         configure_logging()
 

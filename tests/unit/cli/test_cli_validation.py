@@ -1,3 +1,4 @@
+import re
 from unittest.mock import patch
 
 from typer.testing import CliRunner
@@ -7,6 +8,11 @@ from render_tag.cli import app
 runner = CliRunner()
 
 
+def strip_ansi(text):
+    ansi_escape = re.compile(r"(?:\x1B[@-_][0-?]*[ -/]*[@-~])")
+    return ansi_escape.sub("", text)
+
+
 @patch("render_tag.core.validator.AssetValidator")
 def test_cli_catches_validation_error(mock_validator, tmp_path):
     mock_validator.return_value.is_hydrated.return_value = True
@@ -14,7 +20,7 @@ def test_cli_catches_validation_error(mock_validator, tmp_path):
     config_path.write_text("dataset:\n  num_scenes: -5\n")
     result = runner.invoke(app, ["generate", "--config", str(config_path)])
     assert result.exit_code == 1
-    assert "Input should be greater than 0" in result.stdout
+    assert "Input should be greater than 0" in strip_ansi(result.stdout)
 
 
 @patch("render_tag.core.validator.AssetValidator")

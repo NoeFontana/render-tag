@@ -66,9 +66,13 @@ physics:
         """
         output_dir = temp_output_dir / "output"
 
+        import sys
+
         result = subprocess.run(
             [
-                "render-tag",
+                sys.executable,
+                "-m",
+                "render_tag",
                 "generate",
                 "--config",
                 str(minimal_config),
@@ -135,9 +139,13 @@ physics:
         """Test that --skip-render generates recipes without Blender."""
         output_dir = temp_output_dir / "fast_output"
 
+        import sys
+
         result = subprocess.run(
             [
-                "render-tag",
+                sys.executable,
+                "-m",
+                "render_tag",
                 "generate",
                 "--config",
                 str(minimal_config),
@@ -154,7 +162,6 @@ physics:
         # Check that recipes were generated
         assert (output_dir / "recipes_shard_0.json").exists()
 
-    @pytest.mark.skip(reason="Fails in CI due to complex mock interaction")
     def test_industrial_pipeline_cycles(self, temp_output_dir):
         """Test full pipeline with industrial features (Cycles)."""
         config_content = """
@@ -174,9 +181,13 @@ scene:
         config_path.write_text(config_content)
         output_dir = temp_output_dir / "industrial_out"
 
+        import sys
+
         result = subprocess.run(
             [
-                "render-tag",
+                sys.executable,
+                "-m",
+                "render_tag",
                 "generate",
                 "--config",
                 str(config_path),
@@ -297,9 +308,11 @@ tag:
 """)
             config_path = f.name
 
+        import sys
+
         try:
             result = subprocess.run(
-                ["render-tag", "validate-config", "--config", config_path],
+                [sys.executable, "-m", "render_tag", "validate-config", "--config", config_path],
                 capture_output=True,
                 text=True,
             )
@@ -318,9 +331,11 @@ dataset:
 """)
             config_path = f.name
 
+        import sys
+
         try:
             result = subprocess.run(
-                ["render-tag", "validate-config", "--config", config_path],
+                [sys.executable, "-m", "render_tag", "validate-config", "--config", config_path],
                 capture_output=True,
                 text=True,
             )

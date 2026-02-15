@@ -77,10 +77,14 @@ camera:
     rolling_shutter_duration_ms: 5.0
 """)
 
+        import sys
+
         # Run actual rendering with workbench (should issue warning but succeed)
         result = subprocess.run(
             [
-                "render-tag",
+                sys.executable,
+                "-m",
+                "render_tag",
                 "generate",
                 "--config",
                 str(config_path),
