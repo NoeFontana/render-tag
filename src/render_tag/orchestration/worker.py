@@ -14,10 +14,10 @@ from typing import Any
 
 import orjson
 
-from render_tag.core.errors import WorkerCommunicationError, WorkerStartupError
+from render_tag.core.errors import WorkerStartupError
 from render_tag.core.logging import get_logger
 from render_tag.core.resilience import retry_with_backoff
-from render_tag.core.schema.hot_loop import CommandType, ResponseStatus, Response
+from render_tag.core.schema.hot_loop import CommandType, Response, ResponseStatus
 from render_tag.orchestration.client import ZmqHostClient
 
 

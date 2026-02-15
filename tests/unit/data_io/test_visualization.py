@@ -1,9 +1,7 @@
 from render_tag.core.schema import (
     CameraIntrinsics,
     CameraRecipe,
-    NoiseType,
     SceneRecipe,
-    SensorNoiseConfig,
 )
 from render_tag.data_io.visualization import ShadowRenderer
 

@@ -1,6 +1,7 @@
-import blenderproc as bproc  # noqa: F401
 import sys
 from pathlib import Path
+
+import blenderproc as bproc  # noqa: F401
 
 # 1. Bootstrap sys.path to include 'src'
 # resolving: scripts/worker_bootstrap.py -> project_root -> src

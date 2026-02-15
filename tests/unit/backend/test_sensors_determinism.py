@@ -1,6 +1,7 @@
 import numpy as np
-import pytest
+
 from render_tag.backend.sensors import apply_parametric_noise
+
 
 def test_noise_is_isolated_from_global_state():
     """Verify that current noise application is NOT affected by global numpy seed."""

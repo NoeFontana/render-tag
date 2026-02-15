@@ -1,8 +1,10 @@
 import json
+
 import yaml
-from pathlib import Path
+
 from render_tag.core.config import load_config
 from render_tag.core.schema.job import JobSpec
+
 
 def test_load_config_upgrades_yaml_on_disk(tmp_path):
     """Verify that load_config overwrites legacy YAML with versioned content."""

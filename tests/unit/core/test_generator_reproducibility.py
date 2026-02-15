@@ -1,8 +1,9 @@
 import json
-import pytest
 from pathlib import Path
+
 from render_tag.core.config import GenConfig
 from render_tag.generation.scene import Generator
+
 
 def test_generator_reproducibility(tmp_path):
     """Verify that Generator produces identical scene_recipes.json for same seed."""

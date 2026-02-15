@@ -1,5 +1,7 @@
 import pytest
+
 from render_tag.core.migration import SchemaMigrator
+
 
 def test_migrator_detects_legacy_version():
     """Verify that missing version defaults to 0.0."""

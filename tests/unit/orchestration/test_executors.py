@@ -45,7 +45,7 @@ def test_local_executor_handoff_to_orchestrator(mock_orch, tmp_path):
     job_spec = create_dummy_job_spec(tmp_path)
 
     # Mock file existence for recipes
-    recipe_path = job_spec.paths.output_dir / "recipes_shard_shard_1.json"
+    job_spec.paths.output_dir / "recipes_shard_shard_1.json"
 
     with (
         patch("pathlib.Path.exists") as mock_exists,

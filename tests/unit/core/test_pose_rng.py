@@ -1,5 +1,7 @@
 import numpy as np
+
 from render_tag.generation.camera import sample_camera_pose
+
 
 def test_sample_camera_pose_is_deterministic_with_rng():
     """Verify that sample_camera_pose produces identical results with same RNG state."""

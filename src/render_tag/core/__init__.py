@@ -27,10 +27,10 @@ from . import (
 from . import (
     validator as validator,
 )
-from .constants import TAG_BIT_COUNTS as TAG_BIT_COUNTS
-from .constants import TAG_GRID_SIZES as TAG_GRID_SIZES
 from .config import GenConfig as GenConfig
 from .config import load_config as load_config
+from .constants import TAG_BIT_COUNTS as TAG_BIT_COUNTS
+from .constants import TAG_GRID_SIZES as TAG_GRID_SIZES
 from .errors import RenderTagError as RenderTagError
 from .errors import WorkerError as WorkerError
 from .resources import ResourceStack as ResourceStack

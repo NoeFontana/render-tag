@@ -13,10 +13,9 @@ import re
 import signal
 import sys
 import threading
-import time
 import uuid
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import ClassVar
 
 from rich.console import Console
 
@@ -29,7 +28,7 @@ from render_tag.audit.auditor import TelemetryAuditor
 from render_tag.core.errors import WorkerCommunicationError, WorkerStartupError
 from render_tag.core.logging import get_logger
 from render_tag.core.resources import ResourceStack, get_thread_budget
-from render_tag.core.schema.hot_loop import CommandType, ResponseStatus, Response, Telemetry
+from render_tag.core.schema.hot_loop import CommandType, Response, ResponseStatus, Telemetry
 from render_tag.core.schema.job import JobSpec
 from render_tag.orchestration.worker import PersistentWorkerProcess
 
@@ -148,7 +147,6 @@ class UnifiedWorkerOrchestrator:
 
     def release_worker(self, worker: PersistentWorkerProcess):
         should_restart = False
-        reason = ""
         intentional_exit = (
             worker.max_renders is not None and worker.renders_completed >= worker.max_renders
         )
@@ -161,7 +159,6 @@ class UnifiedWorkerOrchestrator:
                     self.auditor.add_entry(worker.worker_id, telemetry)
                     if not intentional_exit and self.vram_threshold_mb and telemetry.vram_used_mb > self.vram_threshold_mb:
                         should_restart = True
-                        reason = f"VRAM threshold exceeded: {telemetry.vram_used_mb}MB"
             except Exception as e:
                 if not intentional_exit:
                     logger.error(f"Telemetry check failed for {worker.worker_id}: {e}")
@@ -169,7 +166,6 @@ class UnifiedWorkerOrchestrator:
         if not should_restart and not intentional_exit:
             if not worker.client or not worker.process or not worker.is_healthy():
                 should_restart = True
-                reason = "Worker unhealthy"
 
         if should_restart or intentional_exit:
             worker.stop()

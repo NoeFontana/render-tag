@@ -7,7 +7,6 @@ import logging
 import os
 import shutil
 import subprocess
-from pathlib import Path
 from typing import Protocol, runtime_checkable
 from unittest.mock import MagicMock
 

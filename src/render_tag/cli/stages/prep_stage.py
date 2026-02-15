@@ -156,7 +156,7 @@ class PreparationStage(PipelineStage):
         if missing_assets:
             console.print("[bold red]Bill of Materials Audit Failed![/bold red]")
             console.print(f"Found {len(missing_assets)} missing asset files.")
-            for missing in sorted(list(missing_assets)):
+            for missing in sorted(missing_assets):
                 console.print(f"  [red]MISSING:[/red] {missing}")
             raise typer.Exit(code=1)
 

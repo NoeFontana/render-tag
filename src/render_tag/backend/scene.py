@@ -61,10 +61,7 @@ def setup_lighting(lights: list[Any]) -> list:
 
     for light_data in lights:
         # Support both Pydantic model and dict
-        if hasattr(light_data, "model_dump"):
-            l_dict = light_data.model_dump()
-        else:
-            l_dict = light_data
+        l_dict = light_data.model_dump() if hasattr(light_data, "model_dump") else light_data
 
         light = bridge.bproc.types.Light()
         light.set_type(l_dict.get("type", "POINT"))

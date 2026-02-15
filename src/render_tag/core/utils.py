@@ -39,10 +39,7 @@ def get_venv_site_packages(prefix: Path | str | None = None) -> str | None:
     Detects the site-packages directory of a virtual environment.
     If prefix is None, uses sys.prefix (active venv).
     """
-    if prefix is None:
-        prefix = Path(sys.prefix)
-    else:
-        prefix = Path(prefix)
+    prefix = Path(sys.prefix) if prefix is None else Path(prefix)
 
     prefix = prefix.resolve()
 

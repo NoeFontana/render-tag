@@ -1,7 +1,10 @@
-import numpy as np
 from pathlib import Path
+
+import numpy as np
+
 from render_tag.core.config import GenConfig
 from render_tag.generation.scene import Generator
+
 
 def test_generator_initializes_rng():
     """Verify that Generator initializes a numpy RNG in __init__."""

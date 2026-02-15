@@ -1,7 +1,8 @@
-import blenderproc as bproc  # noqa: F401
 import argparse
 import os
 from pathlib import Path
+
+import blenderproc as bproc  # noqa: F401
 
 from render_tag.backend import bootstrap
 from render_tag.backend.worker_server import ZmqBackendServer
@@ -33,7 +34,11 @@ def main():
     if args.mock or os.environ.get("RENDER_TAG_BACKEND_MOCK") == "1":
         from render_tag.backend.mocks import (
             blender_api as bpy_mock,
+        )
+        from render_tag.backend.mocks import (
             blenderproc_api as bproc_mock,
+        )
+        from render_tag.backend.mocks import (
             mathutils_api as math_mock,
         )
         mocks = {"bproc_mock": bproc_mock, "bpy_mock": bpy_mock, "math_mock": math_mock}

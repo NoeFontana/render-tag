@@ -1,5 +1,5 @@
-import yaml
 from render_tag.core.config import load_config
+
 
 def test_load_config_respects_explicit_version(tmp_path):
     """Verify that versioned YAML is loaded without modification."""

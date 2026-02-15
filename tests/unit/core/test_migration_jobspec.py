@@ -1,6 +1,7 @@
 import json
-import pytest
+
 from render_tag.core.schema.job import JobSpec
+
 
 def test_job_spec_from_json_migrates_legacy(tmp_path):
     """Verify that JobSpec.from_json handles legacy JSON strings."""
@@ -27,8 +28,9 @@ def test_job_spec_from_json_migrates_legacy(tmp_path):
 def test_job_spec_includes_version_field():
     """Verify that new JobSpecs have the version field."""
     from pathlib import Path
-    from render_tag.core.schema.job import JobPaths, JobInfrastructure
+
     from render_tag.core.config import GenConfig
+    from render_tag.core.schema.job import JobInfrastructure, JobPaths
     
     paths = JobPaths(output_dir=Path("."), logs_dir=Path("."), assets_dir=Path("."))
     spec = JobSpec(

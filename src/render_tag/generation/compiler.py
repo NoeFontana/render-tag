@@ -10,8 +10,8 @@ from pathlib import Path
 
 import numpy as np
 
-from ..core.constants import TAG_GRID_SIZES
 from ..core.config import TAG_MAX_IDS, GenConfig
+from ..core.constants import TAG_GRID_SIZES
 from ..core.schema import (
     CameraIntrinsics,
     CameraRecipe,
@@ -389,9 +389,8 @@ class SceneCompiler:
                         0 <= px <= camera_config.resolution[0]
                         and 0 <= py <= camera_config.resolution[1]
                         for px, py in pixels
-                    ):
-                        if min_allowed <= calculate_pixel_area(pixels) <= max_allowed:
-                            break
+                    ) and min_allowed <= calculate_pixel_area(pixels) <= max_allowed:
+                        break
                 else:
                     break
 
