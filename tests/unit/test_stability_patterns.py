@@ -2,6 +2,7 @@ import os
 import subprocess
 import sys
 import time
+from pathlib import Path
 
 import pytest
 
@@ -71,83 +72,74 @@ while True:
         pass
 
 
-def test_suicide_pact_logic(tmp_path):
-    """Verify that a worker self-terminates if its parent dies."""
-    # We'll use a script that implements the logic
-    suicide_script = tmp_path / "suicide_script.py"
-    suicide_script.write_text("""
-import os
+def test_pdeathsig_protection(tmp_path):
+    """Verify that a worker self-terminates if its orchestrator parent dies via PR_SET_PDEATHSIG."""
+    # This script is a simple ZMQ stub that doesn't have any suicide logic
+    stub_script = tmp_path / "stub_backend.py"
+    stub_script.write_text("""
 import sys
 import time
-import threading
-import signal
+import zmq
+import json
 
-original_parent_pid = os.getppid()
-print(f"Started with parent: {original_parent_pid}")
+context = zmq.Context()
+socket = context.socket(zmq.REP)
+socket.bind("tcp://127.0.0.1:5679")
 
-def suicide_pact():
-    while True:
-        time.sleep(1)
-        if os.getppid() != original_parent_pid:
-            print("Orphaned! Self-destructing.")
-            os.kill(os.getpid(), signal.SIGKILL)
-
-t = threading.Thread(target=suicide_pact, daemon=True)
-t.start()
-
-# Keep alive
 while True:
-    time.sleep(0.1)
+    if socket.poll(100):
+        msg = socket.recv_string()
+        socket.send_string(json.dumps({"status": "SUCCESS", "request_id": "test"}))
 """)
 
-    # Spawn the suicide script as a child
-    proc = subprocess.Popen(
-        [sys.executable, str(suicide_script)], stdout=subprocess.PIPE, text=True
-    )
-
-    # Wait for it to start
-    time.sleep(1)
-
-    child_pid = proc.pid
-
-    # Kill the parent (this process is the parent, but we want to simulate its death)
-    # In this test, 'proc' is the child, 'this' is the parent.
-    # If we kill 'proc', it just dies.
-    # We need a middleman.
-
+    # We need a launcher process to act as the "Orchestrator" that will die
     launcher_script = tmp_path / "launcher.py"
     launcher_script.write_text(f"""
-import subprocess
-import time
 import sys
-proc = subprocess.Popen([{sys.executable!r}, {str(suicide_script)!r}])
-print(f"CHILD_PID:{{proc.pid}}")
-time.sleep(10)
+import os
+import time
+from pathlib import Path
+# Add src to sys.path so we can import orchestrator
+sys.path.insert(0, {str(Path(__file__).resolve().parents[3] / "src")!r})
+from render_tag.orchestration.orchestrator import PersistentWorkerProcess
+
+worker = PersistentWorkerProcess(
+    worker_id="test-pdeathsig",
+    port=5679,
+    blender_script={str(stub_script)!r},
+    blender_executable={sys.executable!r},
+    use_blenderproc=False,
+)
+worker.start()
+print(f"WORKER_PID:{{worker.process.pid}}")
+sys.stdout.flush()
+
+# Stay alive for a bit, then exit (simulating crash)
+time.sleep(2)
 """)
 
     launcher = subprocess.Popen(
         [sys.executable, str(launcher_script)], stdout=subprocess.PIPE, text=True
     )
 
-    # Get the child PID from launcher output
+    # Get the worker PID from launcher output
     line = launcher.stdout.readline()
-    if "CHILD_PID:" not in line:
+    if "WORKER_PID:" not in line:
         line = launcher.stdout.readline()
+    worker_pid = int(line.strip().split(":")[1])
 
-    child_pid = int(line.strip().split(":")[1])
+    # Verify worker is alive
+    os.kill(worker_pid, 0)
 
-    # Verify child is alive
-    os.kill(child_pid, 0)
-
-    # Kill the launcher (the direct parent of the suicide script)
+    # Kill the launcher (the parent of the worker)
     launcher.terminate()
     launcher.wait()
 
-    # Now the child should be orphaned and self-destruct within 2 seconds
-    time.sleep(3)
+    # Now the worker should be dead INSTANTLY via PR_SET_PDEATHSIG
+    time.sleep(1)
 
     try:
-        os.kill(child_pid, 0)
-        pytest.fail(f"Child {child_pid} should have self-destructed")
+        os.kill(worker_pid, 0)
+        pytest.fail(f"Worker {worker_pid} should have been killed by PR_SET_PDEATHSIG")
     except ProcessLookupError:
         pass  # Success

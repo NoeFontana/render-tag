@@ -1,6 +1,5 @@
 import os
 import sys
-import threading
 from pathlib import Path
 
 # Verify and setup environment via the centralized bootstrap
@@ -42,27 +41,6 @@ def main():
 
     logger = logging.getLogger("zmq_server")
     logger.info(f"Starting ZmqBackendServer on port {args.port} (mock={args.mock})")
-
-    # --- ORPHAN PROTECTION (Stability Pattern) ---
-    original_parent_pid = os.getppid()
-
-    def monitor_parent_process():
-        """Monitor the parent process and self-destruct if orphaned."""
-        import signal
-        import time
-
-        while True:
-            time.sleep(60)
-            try:
-                # If parent PID changed, the orchestrator died and we were re-parented
-                if os.getppid() != original_parent_pid:
-                    logger.error("Orchestrator (parent) died. Self-destructing to free resources.")
-                    os.kill(os.getpid(), signal.SIGKILL)
-            except Exception:
-                pass
-
-    parent_monitor_thread = threading.Thread(target=monitor_parent_process, daemon=True)
-    parent_monitor_thread.start()
 
     try:
         bproc_mock, bpy_mock = None, None

@@ -30,6 +30,17 @@ try:
 except ImportError:
     zmq = None
 
+
+def set_pdeathsig():
+    """Linux-specific: Send SIGKILL to this process if its parent dies."""
+    import ctypes
+    import signal
+
+    # PR_SET_PDEATHSIG = 1
+    libc = ctypes.CDLL("libc.so.6")
+    libc.prctl(1, signal.SIGKILL, 0, 0, 0)
+
+
 import contextlib
 
 from render_tag.audit.auditor import TelemetryAuditor
@@ -239,6 +250,7 @@ class PersistentWorkerProcess:
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             start_new_session=True,
+            preexec_fn=set_pdeathsig,
         )
         threading.Thread(target=self._log_router, daemon=True).start()
         self.client = ZmqHostClient(port=self.port, context=self.context)
