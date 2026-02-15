@@ -22,11 +22,11 @@ Inject the migrator into the existing configuration loading sequence.
     - [x] Write failing tests for loading unversioned YAML and getting a versioned `GenConfig`.
 - [x] Task: Integrate Migrator into `load_config` (a21acd4)
     - [x] Update `load_config` in `src/render_tag/core/config.py` to run the migrator before model validation.
-- [ ] Task: Implement TDD for JobSpec Migration
-    - [ ] Create `tests/unit/core/test_migration_jobspec.py`.
-    - [ ] Write failing tests for loading unversioned `job_spec.json`.
-- [ ] Task: Integrate Migrator into `JobSpec` deserialization
-    - [ ] Update `JobSpec.model_validate_json` (or loading utility) to apply migrations.
+- [x] Task: Implement TDD for JobSpec Migration (35e01c5)
+    - [x] Create `tests/unit/core/test_migration_jobspec.py`.
+    - [x] Write failing tests for loading unversioned `job_spec.json`.
+- [x] Task: Integrate Migrator into `JobSpec` deserialization (35e01c5)
+    - [x] Update `JobSpec.model_validate_json` (or loading utility) to apply migrations.
 - [ ] Task: Conductor - User Manual Verification 'Phase 2' (Protocol in workflow.md)
 
 ## Phase 3: Automation - On-Disk Upgrades & Validation
