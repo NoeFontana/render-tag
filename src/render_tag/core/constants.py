@@ -49,3 +49,7 @@ TAG_GRID_SIZES = {
     "DICT_7X7_1000": 9,
     "DICT_ARUCO_ORIGINAL": 7,  # 5x5 data
 }
+
+# Schema Versioning
+CURRENT_SCHEMA_VERSION = "0.1"
+

@@ -12,6 +12,7 @@ from typing import Annotated, Any, Literal
 import yaml
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from render_tag.core.constants import CURRENT_SCHEMA_VERSION, TAG_BIT_COUNTS
 from render_tag.core.schema import (
     RendererConfig,
     SensorNoiseConfig,
@@ -105,38 +106,6 @@ class EvaluationScope(str, Enum):
     POSE_ACCURACY = "pose_estimation"  # Metrics: Translation Error (m), Rotation Error (deg)
     CALIBRATION = "calibration"  # Metrics: Intrinsics Convergence, Reprojection Error
 
-
-# Bit counts for each tag family (used for minimum pixel area calculation)
-TAG_BIT_COUNTS: dict[str, int] = {
-    # AprilTag families
-    "tag36h11": 36,
-    "tag36h10": 36,
-    "tag25h9": 25,
-    "tag16h5": 16,
-    "tagCircle21h7": 21,
-    "tagCircle49h12": 49,
-    "tagCustom48h12": 48,
-    "tagStandard41h12": 41,
-    "tagStandard52h13": 52,
-    # ArUco dictionaries
-    "DICT_4X4_50": 16,
-    "DICT_4X4_100": 16,
-    "DICT_4X4_250": 16,
-    "DICT_4X4_1000": 16,
-    "DICT_5X5_50": 25,
-    "DICT_5X5_100": 25,
-    "DICT_5X5_250": 25,
-    "DICT_5X5_1000": 25,
-    "DICT_6X6_50": 36,
-    "DICT_6X6_100": 36,
-    "DICT_6X6_250": 36,
-    "DICT_6X6_1000": 36,
-    "DICT_7X7_50": 49,
-    "DICT_7X7_100": 49,
-    "DICT_7X7_250": 49,
-    "DICT_7X7_1000": 49,
-    "DICT_ARUCO_ORIGINAL": 25,
-}
 
 
 # Maximum ID (exclusive) for each tag family
@@ -781,7 +750,7 @@ class GenConfig(BaseModel):
     This is the single source of truth for all generation parameters.
     """
 
-    version: str = Field(default="0.1", description="Schema version")
+    version: str = Field(default=CURRENT_SCHEMA_VERSION, description="Schema version")
     dataset: DatasetConfig = Field(default_factory=DatasetConfig)
     camera: CameraConfig = Field(default_factory=CameraConfig)
     tag: TagConfig = Field(default_factory=TagConfig)

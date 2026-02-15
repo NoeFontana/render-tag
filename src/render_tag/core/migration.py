@@ -11,6 +11,7 @@ from typing import Any, Callable
 
 import yaml
 
+from render_tag.core.constants import CURRENT_SCHEMA_VERSION
 from render_tag.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -21,7 +22,7 @@ class SchemaMigrator:
     Orchestrates sequential migration of schema dictionaries.
     """
 
-    def __init__(self, target_version: str = "0.1"):
+    def __init__(self, target_version: str = CURRENT_SCHEMA_VERSION):
         self.target_version = target_version
         # Map of (from_version) -> transformation_function
         self._registry: dict[str, Callable[[dict[str, Any]], dict[str, Any]]] = {

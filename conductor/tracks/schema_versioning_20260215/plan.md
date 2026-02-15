@@ -11,7 +11,7 @@ Isolate the migration logic and update the core models to support version metada
     - [x] Add `version: str = "1.0"` to `GenConfig` in `src/render_tag/core/config.py`.
     - [x] Update `GenConfig` validators to handle version strings.
 - [x] Task: Update `JobSpec` Schema (2b70d8d)
-    - [ ] Add `version: str = "1.0"` to `JobSpec` in `src/render_tag/core/schema/job.py`.
+    - [x] Add `version: str = "0.1"` to `JobSpec` in `src/render_tag/core/schema/job.py`.
 - [ ] Task: Conductor - User Manual Verification 'Phase 1' (Protocol in workflow.md)
 
 ## Phase 2: Integration - Migration into Resolution Phase [checkpoint: d5f2b12]
@@ -33,8 +33,8 @@ Inject the migrator into the existing configuration loading sequence.
 Enable the "Self-Healing" capability where legacy files are automatically upgraded on the filesystem.
 
 - [x] Task: Implement On-Disk Upgrade Logic (d37febb)
-    - [ ] Add `upgrade_file_on_disk` utility to `src/render_tag/core/migration.py`.
-    - [ ] Logic: If a file was migrated from `0.0`, write the new dictionary back to the source path.
+    - [x] Add `upgrade_file_on_disk` utility to `src/render_tag/core/migration.py`.
+    - [x] Logic: If a file was migrated from `0.0`, write the new dictionary back to the source path.
 - [x] Task: Final Integration Test (3ef5c1e)
-    - [ ] Verify that running `render-tag generate` with a legacy config file results in a versioned config file on disk.
+    - [x] Verify that running `render-tag generate` with a legacy config file results in a versioned config file on disk.
 - [ ] Task: Conductor - User Manual Verification 'Phase 3' (Protocol in workflow.md)
