@@ -1,6 +1,6 @@
 # Implementation Plan: Strict Schema Versioning
 
-## Phase 1: Foundation - Schema Versioning & Migration Engine
+## Phase 1: Foundation - Schema Versioning & Migration Engine [checkpoint: 02122ee]
 Isolate the migration logic and update the core models to support version metadata.
 
 - [x] Task: Create `SchemaMigrator` utility (43b034f)
