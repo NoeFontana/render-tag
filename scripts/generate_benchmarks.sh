@@ -2,26 +2,38 @@
 set -e
 
 # Configuration
-BENCHMARK_DIR="configs/benchmarks/single_tag"
+BENCHMARK_DIR="${1:-configs/benchmarks}"
 OUTPUT_BASE="output/benchmarks"
 WORKERS=2
+SHIFT_ARGS=0
 
-# Help/Dry-run support
+# Argument Parsing
 DRY_RUN=false
-if [[ "$1" == "--dry-run" ]]; then
-    DRY_RUN=true
+BENCHMARK_DIR="configs/benchmarks"
+
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        --dry-run) DRY_RUN=true; shift ;;
+        -*) echo "Unknown option: $1"; exit 1 ;;
+        *) BENCHMARK_DIR="$1"; shift ;;
+    esac
+done
+
+if [[ "$DRY_RUN" == "true" ]]; then
     echo "--- DRY RUN MODE ---"
 fi
 
+echo "Synchronizing binary assets from Hub..."
+uv run render-tag hub pull-assets
+
 echo "Discovering benchmarks in ${BENCHMARK_DIR}..."
 
-# Dynamic Discovery Loop
-for config_path in "${BENCHMARK_DIR}"/*.yaml; do
-    [ -e "$config_path" ] || continue
-    
-    # Derive identifier from filename (e.g., locus_v1_std41h12)
-    filename=$(basename -- "$config_path")
-    identifier="${filename%.*}"
+# Recursive Dynamic Discovery Loop
+find "${BENCHMARK_DIR}" -name "*.yaml" -print0 | while IFS= read -r -d '' config_path; do
+    # Derive identifier from path relative to BENCHMARK_DIR
+    rel_path=$(realpath --relative-to="${BENCHMARK_DIR}" "$config_path")
+    identifier="${rel_path%.*}"
+    identifier="${identifier//\//_}" # Replace slashes with underscores for folder naming
     output_dir="${OUTPUT_BASE}/${identifier}"
     
     echo "----------------------------------------------------------------"
