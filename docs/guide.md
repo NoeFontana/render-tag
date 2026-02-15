@@ -153,3 +153,47 @@ uv run render-tag viz dataset --output output/dataset_01
 # Visualize a scene recipe (2D preview)
 uv run render-tag viz recipe --recipe output/dataset_01/recipes_shard_0.json
 ```
+
+---
+
+## Hugging Face Hub Integration
+
+`render-tag` provides first-class support for managing datasets and binary assets on the Hugging Face Hub. This is powered by the `render-tag hub` command group.
+
+### Managing Binary Assets
+
+The `assets/` directory (HDRIs, Textures, Tags) is decoupled from the source code. You can synchronize these with a central asset repository:
+
+```bash
+# Pull assets from the default repository
+uv run render-tag hub pull-assets
+
+# Push local additions or changes
+uv run render-tag hub push-assets -m "Add custom floor textures"
+```
+
+> [!TIP]
+> You can override the default repository or local directory using `--repo-id` and `--local-dir`.
+
+### Dataset Management (Parquet)
+
+Generated datasets can be uploaded as compressed Parquet subsets. This allows for versioned, config-specific benchmarking without polluting the source tree.
+
+#### Push a Dataset
+```bash
+uv run render-tag hub push-dataset \
+    output/locus_v1/tag16h5 \
+    NoeFontana/render-tag-bench \
+    --config-name tag16h5
+```
+
+#### Pull and Restore
+Downloads a Parquet subset and reconstructs the native `render-tag` directory structure (images + `_meta.json` sidecars):
+
+```bash
+uv run render-tag hub pull-dataset \
+    NoeFontana/render-tag-bench \
+    ./restored_data \
+    --config-name tag16h5
+```
+

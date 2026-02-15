@@ -27,6 +27,18 @@ Generate high-fidelity data for training or final verification using the `cycles
 uv run render-tag experiment run --config configs/experiments/locus_pose_baseline.yaml --workers 4 --renderer-mode cycles
 ```
 
+### 3. Uploading Resulting Subsets
+
+After a benchmark generation completes, the results should be pushed to the Hugging Face Hub as a versioned subset:
+
+```bash
+uv run render-tag hub push-dataset \
+    output/locus_pose_v1 \
+    NoeFontana/render-tag-bench \
+    --config-name pose_baseline_v1
+```
+
+
 ## Performance Tracking
 
 The `Benchmarker` utility is used internally to measure the duration of different pipeline stages.

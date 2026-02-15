@@ -38,6 +38,9 @@ uv run render-tag generate --config configs/default.yaml --output output/dataset
 
 # Visualize detection annotations
 uv run render-tag viz dataset --output output/dataset_01
+
+# Synchronize assets from Hugging Face
+uv run render-tag hub pull-assets
 ```
 
 ## Architecture
@@ -109,6 +112,28 @@ uv run render-tag viz dataset --output output/dataset_01 --image scene_0001_cam_
 
 # Don't save visualization files
 uv run render-tag viz dataset --output output/dataset_01 --no-save
+```
+
+### `render-tag hub`
+
+Manage datasets and assets on Hugging Face Hub.
+
+#### Dataset Operations
+```bash
+# Push a generated subset to the Hub (Parquet)
+uv run render-tag hub push-dataset output/dataset_01 org/repo-name --config-name variant_a
+
+# Pull and restore a subset to local format
+uv run render-tag hub pull-dataset org/repo-name ./restored --config-name variant_a
+```
+
+#### Asset Operations
+```bash
+# Pull binary assets (HDRIs, Textures) to ./assets
+uv run render-tag hub pull-assets
+
+# Push local asset changes to the Hub
+uv run render-tag hub push-assets -m "Add industrial floor textures"
 ```
 
 ## Configuration

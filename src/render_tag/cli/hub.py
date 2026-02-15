@@ -1,18 +1,39 @@
+"""
+Hugging Face Hub management commands.
+"""
+
 import json
-import logging
 from collections.abc import Generator
 from pathlib import Path
 from typing import Annotated, Any
 
 import typer
-from datasets import Dataset, Features, Image, Sequence, Value, load_dataset
 
-app = typer.Typer(help="Bidirectional Dataset Infrastructure for render-tag-bench")
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("hub_manager")
+try:
+    from datasets import Dataset, Features, Image, Sequence, Value, load_dataset
+except ImportError:
+    Dataset = None
+    Features = None
+    Image = None
+    Sequence = None
+    Value = None
+    load_dataset = None
+
+from render_tag.orchestration.assets import AssetManager
+
+from .tools import check_hub_installed, console
+
+app = typer.Typer(help="Manage datasets and assets on Hugging Face Hub.")
 
 
-def get_dataset_features() -> Features:
+def _ensure_hub():
+    if not check_hub_installed():
+        console.print("[bold red]Error:[/bold red] Hub management dependencies not installed.")
+        console.print("Install with: [cyan]pip install 'render-tag[hub]'[/cyan]")
+        raise typer.Exit(code=1)
+
+
+def get_dataset_features() -> Any:
     """Define the Cog-First Dataset Features (Schema)."""
     return Features(
         {
@@ -39,12 +60,12 @@ def render_generator(data_dir: Path) -> Generator[dict[str, Any], None, None]:
     """Scans directory and yields dataset records."""
     images_dir = data_dir / "images"
     if not images_dir.exists():
-        logger.error(f"Images directory not found: {images_dir}")
+        console.print(f"[red]Error:[/red] Images directory not found: {images_dir}")
         return
 
     # Find all meta.json files
     meta_files = sorted(images_dir.glob("*_meta.json"))
-    logger.info(f"Found {len(meta_files)} metadata files in {images_dir}")
+    console.print(f"[dim]Found {len(meta_files)} metadata files in {images_dir}[/dim]")
 
     for meta_path in meta_files:
         try:
@@ -55,7 +76,9 @@ def render_generator(data_dir: Path) -> Generator[dict[str, Any], None, None]:
             image_path = images_dir / f"{image_name}.png"
 
             if not image_path.exists():
-                logger.warning(f"Image not found for meta {meta_path.name}")
+                console.print(
+                    f"[yellow]Warning:[/yellow] Image not found for meta {meta_path.name}"
+                )
                 continue
 
             parts = image_name.split("_")
@@ -87,11 +110,11 @@ def render_generator(data_dir: Path) -> Generator[dict[str, Any], None, None]:
                 yield record
 
         except Exception as e:
-            logger.error(f"Error processing {meta_path}: {e}")
+            console.print(f"[red]Error processing {meta_path.name}:[/red] {e}")
 
 
-@app.command()
-def upload(
+@app.command(name="push-dataset")
+def push_dataset(
     data_dir: Annotated[Path, typer.Argument(help="Local directory containing rendered results")],
     repo_id: Annotated[
         str, typer.Argument(help="Hugging Face repo ID (e.g. 'org/render-tag-bench')")
@@ -106,22 +129,21 @@ def upload(
         bool, typer.Option(help="Whether the repo should be private if created")
     ] = False,
 ):
-    """Staff-Level Utility to push a render subset to Hugging Face Hub."""
-    logger.info(f"🚀 Preparing upload for config: {config_name}")
+    """Push a render subset to Hugging Face Hub (Parquet)."""
+    _ensure_hub()
+    console.print(f"[bold blue]🚀 Preparing upload for config:[/bold blue] {config_name}")
 
     ds = Dataset.from_generator(
         render_generator, gen_kwargs={"data_dir": data_dir}, features=get_dataset_features()
     )
 
-    logger.info(f"📊 Created dataset with {len(ds)} records")
+    console.print(f"[bold green]📊 Created dataset with {len(ds)} records[/bold green]")
 
     if dry_run:
-        logger.info("✨ Dry run complete. No data was uploaded.")
-        if len(ds) > 0:
-            logger.info(f"Sample record: {ds[0]}")
+        console.print("[yellow]✨ Dry run complete. No data was uploaded.[/yellow]")
         return
 
-    logger.info(f"☁️ Pushing to {repo_id} ({config_name}) on branch {revision}...")
+    console.print(f"[dim]☁️ Pushing to {repo_id} ({config_name}) on branch {revision}...[/dim]")
     ds.push_to_hub(
         repo_id=repo_id,
         config_name=config_name,
@@ -130,11 +152,11 @@ def upload(
         private=private,
         embed_external_files=True,
     )
-    logger.info("✅ Upload successful!")
+    console.print("[bold green]✅ Upload successful![/bold green]")
 
 
-@app.command()
-def download(
+@app.command(name="pull-dataset")
+def pull_dataset(
     repo_id: Annotated[str, typer.Argument(help="Hugging Face repo ID")],
     output_dir: Annotated[Path, typer.Argument(help="Local directory to restore files to")],
     config_name: Annotated[str, typer.Option(help="The subset/configuration name")] = "default",
@@ -142,8 +164,11 @@ def download(
     revision: Annotated[str, typer.Option(help="The branch/revision to load from")] = "main",
     limit: Annotated[int | None, typer.Option(help="Limit number of images to download")] = None,
 ):
-    """Staff-Level Utility to download a subset and restore the local render-tag structure."""
-    logger.info(f"📥 Downloading {repo_id} ({config_name}) to {output_dir}")
+    """Download a subset and restore the local render-tag structure."""
+    _ensure_hub()
+    console.print(
+        f"[bold blue]📥 Downloading {repo_id} ({config_name}) to:[/bold blue] {output_dir}"
+    )
 
     # 1. Load dataset
     ds = load_dataset(repo_id, name=config_name, split=split, revision=revision, streaming=True)
@@ -151,12 +176,10 @@ def download(
     images_dir = output_dir / "images"
     images_dir.mkdir(parents=True, exist_ok=True)
 
-    # We use a dictionary to accumulate detections per image_id
-    # since the Hub format exploded them for Parquet.
     image_metadata = {}
     image_objects = {}
 
-    logger.info("Streaming dataset and accumulating records...")
+    console.print("[dim]Streaming dataset and accumulating records...[/dim]")
 
     for record in ds:
         image_id = record["image_id"]
@@ -184,7 +207,7 @@ def download(
         if limit and len(image_metadata) >= limit:
             break
 
-    logger.info(f"Restoring {len(image_metadata)} images and sidecars to {images_dir}...")
+    console.print(f"[dim]Restoring {len(image_metadata)} images and sidecars...[/dim]")
 
     for image_id, detections in image_metadata.items():
         # 2. Save Image
@@ -193,9 +216,6 @@ def download(
 
         # 3. Save sidecar _meta.json
         meta_path = images_dir / f"{image_id}_meta.json"
-
-        # We wrap in a default 'provenance' and 'detections' structure
-        # to match the render-tag output format.
         meta_content = {
             "detections": detections,
             "provenance": {
@@ -209,8 +229,37 @@ def download(
         with open(meta_path, "w") as f:
             json.dump(meta_content, f, indent=2)
 
-    logger.info(f"✅ Successfully restored {len(image_metadata)} scenes (images + metadata).")
+    console.print(
+        f"[bold green]✅ Successfully restored {len(image_metadata)} scenes.[/bold green]"
+    )
 
 
-if __name__ == "__main__":
-    app()
+@app.command(name="pull-assets")
+def pull_assets(
+    repo_id: Annotated[
+        str, typer.Option(help="Hugging Face Asset Repo")
+    ] = "NoeFontana/render-tag-assets",
+    local_dir: Annotated[Path, typer.Option(help="Local assets directory")] = Path("assets"),
+    token: Annotated[str | None, typer.Option(envvar="HF_TOKEN")] = None,
+):
+    """Synchronize binary assets (textures, HDRIs) from the Hub to local."""
+    console.print(f"[bold blue]📥 Pulling assets from {repo_id} to:[/bold blue] {local_dir}")
+    manager = AssetManager(local_dir=local_dir, repo_id=repo_id)
+    manager.pull(token=token)
+    console.print("[bold green]✅ Assets synchronized![/bold green]")
+
+
+@app.command(name="push-assets")
+def push_assets(
+    repo_id: Annotated[
+        str, typer.Option(help="Hugging Face Asset Repo")
+    ] = "NoeFontana/render-tag-assets",
+    local_dir: Annotated[Path, typer.Option(help="Local assets directory")] = Path("assets"),
+    commit_message: Annotated[str, typer.Option("-m", help="Commit message")] = "Update assets",
+    token: Annotated[str | None, typer.Option(envvar="HF_TOKEN")] = None,
+):
+    """Upload local binary assets to the Hub."""
+    console.print(f"[bold blue]📤 Pushing assets from {local_dir} to:[/bold blue] {repo_id}")
+    manager = AssetManager(local_dir=local_dir, repo_id=repo_id)
+    manager.push(token=token, commit_message=commit_message)
+    console.print("[bold green]✅ Assets pushed![/bold green]")

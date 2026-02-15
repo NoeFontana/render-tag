@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 from PIL import Image
 
-from scripts.hub_manager import get_dataset_features, render_generator
+from render_tag.cli.hub import get_dataset_features, render_generator
 
 
 class TestHubManager(unittest.TestCase):
@@ -63,17 +63,17 @@ class TestHubManager(unittest.TestCase):
         self.assertIn("ppm", features)
         self.assertIn("corners", features)
 
-    @patch("scripts.hub_manager.Dataset")
+    @patch("render_tag.cli.hub.Dataset")
     def test_upload_command_flow(self, mock_dataset_class):
         """Mock the Hub interaction to verify the command-line flow."""
-        from scripts.hub_manager import upload
+        from render_tag.cli.hub import push_dataset
 
         mock_ds = MagicMock()
         mock_dataset_class.from_generator.return_value = mock_ds
 
         # We need to use a Typer test runner for proper CLI testing,
         # but here we test the function directly for logic verification
-        upload(
+        push_dataset(
             data_dir=self.test_dir, repo_id="test/repo", config_name="test_config", dry_run=False
         )
 
@@ -83,10 +83,10 @@ class TestHubManager(unittest.TestCase):
         self.assertEqual(kwargs["config_name"], "test_config")
         self.assertEqual(kwargs["repo_id"], "test/repo")
 
-    @patch("scripts.hub_manager.load_dataset")
+    @patch("render_tag.cli.hub.load_dataset")
     def test_download_restoration(self, mock_load_dataset):
         """Verify that download restores local files correctly."""
-        from scripts.hub_manager import download
+        from render_tag.cli.hub import pull_dataset
 
         # Mock record from Hub
         mock_record = {
@@ -107,7 +107,7 @@ class TestHubManager(unittest.TestCase):
         mock_load_dataset.return_value = [mock_record]
 
         out_dir = self.test_dir / "restored"
-        download(repo_id="test/repo", output_dir=out_dir)
+        pull_dataset(repo_id="test/repo", output_dir=out_dir)
 
         # Verify files exist
         images_dir = out_dir / "images"
@@ -120,6 +120,32 @@ class TestHubManager(unittest.TestCase):
             self.assertEqual(len(restored_meta["detections"]), 1)
             self.assertEqual(restored_meta["detections"][0]["tag_id"], 1)
             self.assertTrue(restored_meta["provenance"]["restored_from_hub"])
+
+    @patch("render_tag.cli.hub.AssetManager")
+    def test_pull_assets(self, mock_asset_manager_class):
+        """Verify asset pull command correctly calls AssetManager."""
+        from render_tag.cli.hub import pull_assets
+
+        mock_manager = MagicMock()
+        mock_asset_manager_class.return_value = mock_manager
+
+        pull_assets(local_dir=self.test_dir / "assets", token="dummy_token")
+
+        mock_asset_manager_class.assert_called_once()
+        mock_manager.pull.assert_called_once_with(token="dummy_token")
+
+    @patch("render_tag.cli.hub.AssetManager")
+    def test_push_assets(self, mock_asset_manager_class):
+        """Verify asset push command correctly calls AssetManager."""
+        from render_tag.cli.hub import push_assets
+
+        mock_manager = MagicMock()
+        mock_asset_manager_class.return_value = mock_manager
+
+        push_assets(local_dir=self.test_dir, token="dummy_token", commit_message="test commit")
+
+        mock_asset_manager_class.assert_called_once()
+        mock_manager.push.assert_called_once_with(token="dummy_token", commit_message="test commit")
 
 
 if __name__ == "__main__":

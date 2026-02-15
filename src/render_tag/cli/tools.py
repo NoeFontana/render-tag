@@ -62,6 +62,17 @@ def check_orchestration_installed() -> bool:
         return False
 
 
+def check_hub_installed() -> bool:
+    """Check if Hub management dependencies (datasets, huggingface_hub) are installed."""
+    try:
+        import datasets as _  # noqa: F401
+        import huggingface_hub as _  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
 def check_assets_installed() -> bool:
     """Check if asset sync dependencies (huggingface_hub) are installed."""
     try:
