@@ -1,3 +1,7 @@
+---
+trigger: always_on
+---
+
 # Agent Rules
 
 Always maintain high code quality and respect the system architecture.

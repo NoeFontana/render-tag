@@ -1,3 +1,7 @@
+---
+trigger: always_on
+---
+
 # Core Rules & Directives
 
 ## The Law (Immutable Constraints)

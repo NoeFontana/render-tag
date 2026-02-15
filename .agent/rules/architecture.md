@@ -1,3 +1,7 @@
+---
+trigger: always_on
+---
+
 # Architectural Guidelines
 
 ## Host vs Backend Separation
