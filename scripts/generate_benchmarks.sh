@@ -1,16 +1,41 @@
 #!/bin/bash
 set -e
 
-# Generate locus_v1/std41h12
-echo "Generating locus_v1/std41h12..."
-uv run render-tag generate --config configs/benchmarks/single_tag/locus_v1_std41h12.yaml --output output/locus_v1/std41h12 --workers 2
+# Configuration
+BENCHMARK_DIR="configs/benchmarks/single_tag"
+OUTPUT_BASE="output/benchmarks"
+WORKERS=2
 
-# Generate locus_v1/tag16h5
-echo "Generating locus_v1/tag16h5..."
-uv run render-tag generate --config configs/benchmarks/single_tag/locus_v1_tag16h5.yaml --output output/locus_v1/tag16h5 --workers 2
+# Help/Dry-run support
+DRY_RUN=false
+if [[ "$1" == "--dry-run" ]]; then
+    DRY_RUN=true
+    echo "--- DRY RUN MODE ---"
+fi
 
-# Generate locus_v1/tag36h11
-echo "Generating locus_v1/tag36h11..."
-uv run render-tag generate --config configs/benchmarks/single_tag/locus_v1_tag36h11.yaml --output output/locus_v1/tag36h11 --workers 2
+echo "Discovering benchmarks in ${BENCHMARK_DIR}..."
 
-echo "Benchmark generation complete!"
+# Dynamic Discovery Loop
+for config_path in "${BENCHMARK_DIR}"/*.yaml; do
+    [ -e "$config_path" ] || continue
+    
+    # Derive identifier from filename (e.g., locus_v1_std41h12)
+    filename=$(basename -- "$config_path")
+    identifier="${filename%.*}"
+    output_dir="${OUTPUT_BASE}/${identifier}"
+    
+    echo "----------------------------------------------------------------"
+    echo "Benchmark: ${identifier}"
+    echo "Config:    ${config_path}"
+    echo "Output:    ${output_dir}"
+    echo "----------------------------------------------------------------"
+    
+    if [ "$DRY_RUN" = true ]; then
+        echo "[DRY-RUN] uv run render-tag generate --config ${config_path} --output ${output_dir} --workers ${WORKERS}"
+    else
+        uv run render-tag generate --config "${config_path}" --output "${output_dir}" --workers ${WORKERS}
+    fi
+done
+
+echo ""
+echo "Benchmark generation process complete!"
