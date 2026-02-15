@@ -833,7 +833,11 @@ def load_config(path: Path | str) -> GenConfig:
     from render_tag.core.migration import SchemaMigrator
 
     migrator = SchemaMigrator()
+    original_version = migrator.get_version(data)
     data = migrator.migrate(data)
+
+    if original_version != migrator.target_version:
+        migrator.upgrade_file_on_disk(path, data)
 
     return GenConfig.model_validate(data)
 

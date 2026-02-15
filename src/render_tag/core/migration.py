@@ -5,7 +5,11 @@ Handles upgrading legacy configuration dictionaries to the current standard
 before Pydantic validation.
 """
 
+import json
+from pathlib import Path
 from typing import Any, Callable
+
+import yaml
 
 from render_tag.core.logging import get_logger
 
@@ -52,6 +56,20 @@ class SchemaMigrator:
             current_version = self.get_version(current_data)
 
         return current_data
+
+    def upgrade_file_on_disk(self, path: Path | str, migrated_data: dict[str, Any]) -> None:
+        """Saves the migrated data back to disk if it was upgraded."""
+        path = Path(path)
+        if not path.exists():
+            return
+
+        logger.warning(f"Upgrading legacy file on disk: {path}")
+        if path.suffix.lower() in [".yaml", ".yml"]:
+            with open(path, "w") as f:
+                yaml.dump(migrated_data, f, sort_keys=False)
+        elif path.suffix.lower() == ".json":
+            with open(path, "w") as f:
+                json.dump(migrated_data, f, indent=2)
 
     def _migrate_0_0_to_1_0(self, data: dict[str, Any]) -> dict[str, Any]:
         """Base migration: Adds the mandatory version field."""

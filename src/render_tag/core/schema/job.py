@@ -66,6 +66,24 @@ class JobSpec(BaseModel):
         data = migrator.migrate(data)
         return cls.model_validate(data)
 
+    @classmethod
+    def from_file(cls, path: Path | str) -> "JobSpec":
+        """Load, migrate, and potentially upgrade JobSpec from a file."""
+        path = Path(path)
+        with open(path) as f:
+            data = json.load(f)
+
+        from render_tag.core.migration import SchemaMigrator
+
+        migrator = SchemaMigrator()
+        original_version = migrator.get_version(data)
+        data = migrator.migrate(data)
+
+        if original_version != migrator.target_version:
+            migrator.upgrade_file_on_disk(path, data)
+
+        return cls.model_validate(data)
+
 
 class SeedManager:
     """Manages deterministic seed generation hierarchy."""

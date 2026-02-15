@@ -29,8 +29,7 @@ def main():
     # 2. Load Job Spec
     job_spec = None
     if args.job_spec and args.job_spec.exists():
-        with open(args.job_spec) as f:
-            job_spec = JobSpec.from_json(f.read())
+        job_spec = JobSpec.from_file(args.job_spec)
 
     # 3. Handle Mocks
     mocks = {}
