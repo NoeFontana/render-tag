@@ -57,6 +57,7 @@ class PersistentWorkerProcess:
         job_id: str | None = None,
     ):
         self.worker_id, self.port = worker_id, port
+        self.mgmt_port = port + 100
         self.job_id = job_id
         self.blender_script, self.blender_executable = blender_script, blender_executable
         self.startup_timeout, self.use_blenderproc, self.mock = (
@@ -101,7 +102,7 @@ class PersistentWorkerProcess:
                 if self.use_blenderproc
                 else [exec_to_use, str(self.blender_script)]
             )
-            cmd = [*base, "--port", str(self.port)]
+            cmd = [*base, "--port", str(self.port), "--mgmt-port", str(self.mgmt_port)]
 
         if self.mock:
             cmd.append("--mock")
@@ -130,7 +131,7 @@ class PersistentWorkerProcess:
             preexec_fn=set_worker_priority,
         )
         threading.Thread(target=self._log_router, daemon=True).start()
-        self.client = ZmqHostClient(port=self.port, context=self.context)
+        self.client = ZmqHostClient(port=self.port, mgmt_port=self.mgmt_port, context=self.context)
         self.client.connect()
 
         start = time.time()
@@ -145,7 +146,9 @@ class PersistentWorkerProcess:
                 if self.is_healthy():
                     init_resp = self.send_command(CommandType.INIT, {}, timeout_ms=10000)
                     if init_resp.status != ResponseStatus.SUCCESS:
-                        raise WorkerStartupError(f"Worker initialization failed: {init_resp.message}")
+                        raise WorkerStartupError(
+                            f"Worker initialization failed: {init_resp.message}"
+                        )
                     return
             except Exception:
                 pass

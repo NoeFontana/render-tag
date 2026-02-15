@@ -1,3 +1,4 @@
+import threading
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -33,7 +34,7 @@ logger = get_logger(__name__)
 
 
 class ZmqBackendServer:
-    """ZeroMQ-based rendering server for Blender workers."""
+    """ZeroMQ-based rendering server for Blender workers with Dual-Socket Architecture."""
 
     def __init__(
         self,
@@ -41,17 +42,29 @@ class ZmqBackendServer:
         shard_id: str = "main",
         seed: int = 42,
         job_spec: "JobSpec | None" = None,
+        mgmt_port: int | None = None,
         **mocks,
     ):
         self.port, self.shard_id, self.seed = port, shard_id, seed
         self.job_spec = job_spec
+        self.mgmt_port = mgmt_port or (port + 100)
+
         self.context = zmq.Context()
-        self.socket = self.context.socket(zmq.REP)
-        self.socket.bind(f"tcp://127.0.0.1:{port}")
-        
+
+        # 1. Task Socket (REP) - Handles RENDER, INIT, SHUTDOWN
+        self.task_socket = self.context.socket(zmq.REP)
+        self.task_socket.bind(f"tcp://127.0.0.1:{port}")
+
+        # 2. Management Socket (REP) - Handles STATUS (Telemetry)
+        self.mgmt_socket = self.context.socket(zmq.REP)
+        self.mgmt_socket.bind(f"tcp://127.0.0.1:{self.mgmt_port}")
+
         bridge.stabilize(mocks.get("bproc_mock"), mocks.get("bpy_mock"), mocks.get("math_mock"))
 
         self.running = False
+        self._lock = threading.Lock()
+
+        # Shared State (Protected by self._lock)
         self.status = WorkerStatus.IDLE
         self.renders_completed = 0
         self.start_time = time.time()
@@ -60,15 +73,16 @@ class ZmqBackendServer:
         self.bproc_initialized = False
 
     def get_telemetry(self) -> Telemetry:
-        """Returns current worker health and state metrics."""
-        return Telemetry(
-            status=self.status,
-            vram_used_mb=0.0,  # Placeholder
-            vram_total_mb=0.0,
-            cpu_usage_percent=0.0,
-            state_hash=calculate_state_hash(self.assets_loaded, self.parameters),
-            uptime_seconds=time.time() - self.start_time,
-        )
+        """Returns current worker health and state metrics (Thread Safe)."""
+        with self._lock:
+            return Telemetry(
+                status=self.status,
+                vram_used_mb=0.0,  # Placeholder
+                vram_total_mb=0.0,
+                cpu_usage_percent=0.0,
+                state_hash=calculate_state_hash(self.assets_loaded, self.parameters),
+                uptime_seconds=time.time() - self.start_time,
+            )
 
     def _setup_writers(self, output_dir: Path, shard_id: str):
         if self.current_output_dir == output_dir:
@@ -92,39 +106,77 @@ class ZmqBackendServer:
         """Stops the server loop and closes sockets."""
         self.running = False
         try:
-            self.socket.close(linger=0)
+            self.task_socket.close(linger=0)
+            self.mgmt_socket.close(linger=0)
             self.context.term()
         except Exception:
             pass
 
+    def _mgmt_loop(self):
+        """Dedicated thread for handling management requests (Heartbeats)."""
+        logger.info(f"Management thread started on port {self.mgmt_port}")
+        poller = zmq.Poller()
+        poller.register(self.mgmt_socket, zmq.POLLIN)
+
+        while self.running:
+            try:
+                socks = dict(poller.poll(500))
+                if self.mgmt_socket in socks:
+                    msg = self.mgmt_socket.recv_string()
+                    cmd = Command.model_validate_json(msg)
+
+                    if cmd.command_type == CommandType.STATUS:
+                        resp = self._on_status(cmd)
+                        self.mgmt_socket.send_string(resp.model_dump_json())
+                    else:
+                        resp = Response(
+                            status=ResponseStatus.FAILURE,
+                            request_id=cmd.request_id,
+                            message=f"Command {cmd.command_type} not supported on MGMT channel",
+                        )
+                        self.mgmt_socket.send_string(resp.model_dump_json())
+            except (zmq.ZMQError, zmq.ContextTerminated):
+                break
+            except Exception as e:
+                logger.error(f"MGMT loop error: {e}")
+
     def run(self, max_renders: int | None = None):
         """Starts the server loop."""
         self.running = True
-        logger.info(f"Worker server started on port {self.port}")
+        logger.info(f"Worker task server started on port {self.port}")
+
+        # Start management thread
+        mgmt_thread = threading.Thread(target=self._mgmt_loop, daemon=True)
+        mgmt_thread.start()
+
         while self.running:
             try:
-                if not self.socket.poll(1000):
+                if not self.task_socket.poll(1000):
                     continue
-                
-                msg = self.socket.recv_string()
+
+                msg = self.task_socket.recv_string()
                 cmd = Command.model_validate_json(msg)
+
+                # Execute command (Blocks the task loop, but mgmt thread stays alive)
                 resp = self._handle_command(cmd)
-                
-                at_limit = max_renders and self.renders_completed >= max_renders
-                if at_limit:
-                    self.status = WorkerStatus.FINISHED
-                    self._finalize_writers()
-                
-                self.socket.send_string(resp.model_dump_json())
-                if at_limit:
+
+                with self._lock:
+                    at_limit = max_renders and self.renders_completed >= max_renders
+                    if at_limit:
+                        self.status = WorkerStatus.FINISHED
+                        self._finalize_writers()
+
+                self.task_socket.send_string(resp.model_dump_json())
+
+                if at_limit or cmd.command_type == CommandType.SHUTDOWN:
                     time.sleep(0.1)
                     self.running = False
             except (zmq.ZMQError, zmq.ContextTerminated):
                 if not self.running:
                     break
-                logger.error("ZMQ error in server loop", exc_info=True)
+                logger.error("ZMQ error in task loop", exc_info=True)
             except Exception as e:
-                logger.error(f"Server loop error: {e}", exc_info=True)
+                logger.error(f"Task loop error: {e}", exc_info=True)
 
         self._finalize_writers()
 
@@ -138,13 +190,17 @@ class ZmqBackendServer:
         }
         handler = handlers.get(cmd.command_type)
         if not handler:
-            return Response(status=ResponseStatus.FAILURE, request_id=cmd.request_id, message="Unknown command")
-        
+            return Response(
+                status=ResponseStatus.FAILURE, request_id=cmd.request_id, message="Unknown command"
+            )
+
         try:
             return handler(cmd)
         except Exception as e:
             logger.exception(f"Command {cmd.command_type} failed: {e}")
-            return Response(status=ResponseStatus.FAILURE, request_id=cmd.request_id, message=str(e))
+            return Response(
+                status=ResponseStatus.FAILURE, request_id=cmd.request_id, message=str(e)
+            )
 
     def _on_status(self, cmd: Command) -> Response:
         return Response(
@@ -155,54 +211,66 @@ class ZmqBackendServer:
         )
 
     def _on_init(self, cmd: Command) -> Response:
-        if not self.bproc_initialized and bridge.bproc:
-            bridge.bproc.init()
-            bridge.bproc.clean_up()
-            self.bproc_initialized = True
+        with self._lock:
+            if not self.bproc_initialized and bridge.bproc:
+                bridge.bproc.init()
+                bridge.bproc.clean_up()
+                self.bproc_initialized = True
 
-        payload = cmd.payload or {}
-        for path in payload.get("assets", []):
-            if path not in self.assets_loaded:
-                p = Path(path)
-                if p.exists() and p.suffix.lower() in [".exr", ".hdr"] and bridge.bpy:
-                    setup_background(p)
-                self.assets_loaded.append(path)
-        self.parameters.update(payload.get("parameters", {}))
-        return Response(
-            status=ResponseStatus.SUCCESS,
-            request_id=cmd.request_id,
-            message=f"{len(self.assets_loaded)} assets resident",
-        )
+            payload = cmd.payload or {}
+            for path in payload.get("assets", []):
+                if path not in self.assets_loaded:
+                    p = Path(path)
+                    if p.exists() and p.suffix.lower() in [".exr", ".hdr"] and bridge.bpy:
+                        setup_background(p)
+                    self.assets_loaded.append(path)
+            self.parameters.update(payload.get("parameters", {}))
+
+            return Response(
+                status=ResponseStatus.SUCCESS,
+                request_id=cmd.request_id,
+                message=f"{len(self.assets_loaded)} assets resident",
+            )
 
     def _on_render(self, cmd: Command) -> Response:
-        self.status = WorkerStatus.BUSY
-        p = cmd.payload or {}
-        recipe, output_dir = p.get("recipe"), Path(p.get("output_dir", "."))
-        shard_id = p.get("shard_id", self.shard_id)
-        
-        self._setup_writers(output_dir, shard_id)
-        scene_id = recipe.get("scene_id", 0)
-        render_seed = derive_seed(self.seed, "render", scene_id)
-        
-        ctx = RenderContext(
-            output_dir=output_dir,
-            renderer_mode=p.get("renderer_mode", "cycles"),
-            csv_writer=self.writers["csv"],
-            coco_writer=self.writers["coco"],
-            rich_writer=self.writers["rich"],
-            sidecar_writer=self.writers["sidecar"],
-            global_seed=self.seed,
-            skip_visibility=p.get("skip_visibility", False),
-        )
-        
-        execute_recipe(recipe, ctx=ctx, seed=render_seed)
-        self.renders_completed += 1
-        self.status = WorkerStatus.IDLE
-        return Response(
-            status=ResponseStatus.SUCCESS,
-            request_id=cmd.request_id,
-            message=f"Rendered scene {scene_id}",
-        )
+        with self._lock:
+            self.status = WorkerStatus.BUSY
+
+        try:
+            p = cmd.payload or {}
+            recipe, output_dir = p.get("recipe"), Path(p.get("output_dir", "."))
+            shard_id = p.get("shard_id", self.shard_id)
+
+            self._setup_writers(output_dir, shard_id)
+            scene_id = recipe.get("scene_id", 0)
+            render_seed = derive_seed(self.seed, "render", scene_id)
+
+            ctx = RenderContext(
+                output_dir=output_dir,
+                renderer_mode=p.get("renderer_mode", "cycles"),
+                csv_writer=self.writers["csv"],
+                coco_writer=self.writers["coco"],
+                rich_writer=self.writers["rich"],
+                sidecar_writer=self.writers["sidecar"],
+                global_seed=self.seed,
+                skip_visibility=p.get("skip_visibility", False),
+            )
+
+            execute_recipe(recipe, ctx=ctx, seed=render_seed)
+
+            with self._lock:
+                self.renders_completed += 1
+                self.status = WorkerStatus.IDLE
+
+            return Response(
+                status=ResponseStatus.SUCCESS,
+                request_id=cmd.request_id,
+                message=f"Rendered scene {scene_id}",
+            )
+        finally:
+            with self._lock:
+                if self.status == WorkerStatus.BUSY:
+                    self.status = WorkerStatus.IDLE
 
     def _on_reset(self, cmd: Command) -> Response:
         global_pool.release_all()
@@ -210,4 +278,6 @@ class ZmqBackendServer:
 
     def _on_shutdown(self, cmd: Command) -> Response:
         self.running = False
-        return Response(status=ResponseStatus.SUCCESS, request_id=cmd.request_id, message="Shutdown")
+        return Response(
+            status=ResponseStatus.SUCCESS, request_id=cmd.request_id, message="Shutdown"
+        )

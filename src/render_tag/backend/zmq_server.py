@@ -13,6 +13,7 @@ from render_tag.core.schema.job import JobSpec
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=5555)
+    parser.add_argument("--mgmt-port", type=int, default=None)
     parser.add_argument("--shard-id", type=str, default="0")
     parser.add_argument("--mock", action="store_true")
     parser.add_argument("--max-renders", type=int, default=None)
@@ -47,6 +48,7 @@ def main():
     # 4. Start Server
     server = ZmqBackendServer(
         port=args.port,
+        mgmt_port=args.mgmt_port,
         shard_id=args.shard_id,
         seed=job_spec.global_seed if job_spec else args.seed,
         job_spec=job_spec,
