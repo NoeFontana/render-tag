@@ -7,10 +7,10 @@ This file tracks all major tracks for the project. Each track has its own detail
 - [x] **Track: Strict Schema Versioning**
   *Link: [./tracks/schema_versioning_20260215/](./tracks/schema_versioning_20260215/)*
 
-- [x] **Track: Dependency Injection for Randomness**
-  *Link: [./tracks/random_di_20260215/](./tracks/random_di_20260215/)*
-
 ## Archived Tracks
+
+- [x] **Track: Dependency Injection for Randomness**
+  *Link: [./archive/random_di_20260215/](./random_di_20260215/)*
 
 - [x] **Track: PPM-Driven Generation**
   *Link: [./archive/ppm_driven_gen_20260214/](./ppm_driven_gen_20260214/)*
