@@ -35,7 +35,7 @@ from render_tag.audit.auditor import TelemetryAuditor
 from render_tag.core.config import load_config
 from render_tag.core.errors import WorkerCommunicationError, WorkerStartupError
 from render_tag.core.resilience import retry_with_backoff
-from render_tag.core.resources import ResourceStack
+from render_tag.core.resources import ResourceStack, get_thread_budget
 from render_tag.core.schema.hot_loop import (
     Command,
     CommandType,
@@ -45,14 +45,22 @@ from render_tag.core.schema.hot_loop import (
 )
 
 
-def set_pdeathsig():
-    """Linux-specific: Send SIGKILL to this process if its parent dies."""
+def set_worker_priority():
+    """Linux-specific: Set process priority for workers and ensure death with parent."""
     import ctypes
+    import os
     import signal
 
-    # PR_SET_PDEATHSIG = 1
-    libc = ctypes.CDLL("libc.so.6")
-    libc.prctl(1, signal.SIGKILL, 0, 0, 0)
+    # 1. De-escalate priority (niceness)
+    # Higher niceness = lower priority. +10 is a standard "polite background" level.
+    with contextlib.suppress(Exception):
+        os.nice(10)
+
+    # 2. PR_SET_PDEATHSIG = 1
+    # Send SIGKILL to this process if its parent dies.
+    with contextlib.suppress(Exception):
+        libc = ctypes.CDLL("libc.so.6")
+        libc.prctl(1, signal.SIGKILL, 0, 0, 0)
 
 
 logger = logging.getLogger(__name__)
@@ -155,6 +163,7 @@ class PersistentWorkerProcess:
         mock: bool = False,
         max_renders: int | None = None,
         context: zmq.Context | None = None,
+        thread_budget: int = 1,
     ):
         self.worker_id, self.port = worker_id, port
         self.blender_script, self.blender_executable = blender_script, blender_executable
@@ -164,6 +173,7 @@ class PersistentWorkerProcess:
             mock,
         )
         self.max_renders, self.context = max_renders, context
+        self.thread_budget = thread_budget
         self.process, self.client = None, None
         self._stop_event = threading.Event()
         self._startup_logs = []  # Buffer for startup logs
@@ -230,6 +240,10 @@ class PersistentWorkerProcess:
 
         env["PYTHONNOUSERSITE"] = "1"
 
+        # Auto-Throttling Injection
+        env["OMP_NUM_THREADS"] = str(self.thread_budget)
+        env["BLENDER_CPU_THREADS"] = str(self.thread_budget)
+
         from render_tag.core.utils import get_venv_site_packages
 
         with contextlib.suppress(Exception):
@@ -249,7 +263,7 @@ class PersistentWorkerProcess:
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             start_new_session=True,
-            preexec_fn=set_pdeathsig,
+            preexec_fn=set_worker_priority,
         )
         threading.Thread(target=self._log_router, daemon=True).start()
         self.client = ZmqHostClient(port=self.port, context=self.context)
@@ -354,6 +368,10 @@ class UnifiedWorkerOrchestrator:
         self.max_renders_per_worker = max_renders_per_worker
         self.worker_id_prefix = worker_id_prefix
         self.context = zmq.Context() if zmq else None
+
+        # Auto-Throttling: Calculate thread budget based on hardware
+        self.thread_budget = get_thread_budget(num_workers=self.num_workers)
+
         self.workers, self.worker_queue = [], queue.Queue()
         self.auditor = TelemetryAuditor()
         self._lock, self.running = threading.Lock(), False
@@ -401,6 +419,7 @@ class UnifiedWorkerOrchestrator:
                             mock=self.mock,
                             max_renders=self.max_renders_per_worker,
                             context=self.context,
+                            thread_budget=self.thread_budget,
                         )
                         worker.start()
 
@@ -511,6 +530,7 @@ class UnifiedWorkerOrchestrator:
                     mock=worker.mock,
                     max_renders=worker.max_renders,
                     context=worker.context,
+                    thread_budget=self.thread_budget,
                 )
                 new_worker.start()
 
@@ -593,8 +613,10 @@ class LocalExecutor:
             "PYTEST_CURRENT_TEST" in os.environ
         )
         use_bproc = (shutil.which("blenderproc") is not None) and not force_mock
+        # Staff Engineer: Ensure we respect the worker count if we are in a parallel context
+        workers_to_use = getattr(self, "num_workers", 1)
         with UnifiedWorkerOrchestrator(
-            num_workers=1,
+            num_workers=workers_to_use,
             base_port=20000,
             ephemeral=True,
             max_renders_per_worker=len(recipes),
@@ -836,30 +858,54 @@ def run_local_parallel(
         )
         for i in range(0, len(recipes), actual_batch_size)
     ]
-    executor = ExecutorFactory.get_executor(executor_type)
-    q = queue.Queue()
-    for b in batches:
-        q.put(b)
+    # Staff Engineer: Refactor to use a SINGLE Orchestrator for the whole job.
+    # This ensures thread budget is calculated correctly for the total worker count.
+    # We still use a small thread pool to feed the orchestrator if we want to parallelize
+    # the IO/communication, but they all share the same orchestrator instance.
+    with UnifiedWorkerOrchestrator(
+        num_workers=workers,
+        base_port=20000,
+        blender_script=None,  # Use default
+        blender_executable=None,  # Use default
+        use_blenderproc=True,
+        mock=False,
+        max_renders_per_worker=batch_size,
+    ) as orchestrator:
+        q = queue.Queue()
+        for _, path in batches:
+            q.put(path)
 
-    any_failed = False
+        any_failed = False
 
-    def worker_thread():
-        nonlocal any_failed
-        while not q.empty():
-            try:
-                bid, path = q.get_nowait()
-                executor.execute(path, output_dir, renderer_mode, f"{bid}", verbose)
-            except Exception as e:
-                console.print(f"[red]Batch {bid} failed: {e}[/red]")
-                any_failed = True
-            finally:
-                q.task_done()
+        def worker_thread():
+            nonlocal any_failed
+            while not q.empty():
+                try:
+                    path = q.get_nowait()
+                    with open(path) as f:
+                        batch_recipes = json.load(f)
 
-    threads = [threading.Thread(target=worker_thread, daemon=True) for _ in range(workers)]
-    for t in threads:
-        t.start()
-    for t in threads:
-        t.join()
+                    for recipe in batch_recipes:
+                        resp = orchestrator.execute_recipe(
+                            recipe, output_dir, renderer_mode, f"batch"
+                        )
+                        if resp.status != ResponseStatus.SUCCESS:
+                            console.print(f"[red]Render failed: {resp.message}[/red]")
+                            any_failed = True
+                except queue.Empty:
+                    break
+                except Exception as e:
+                    console.print(f"[red]Batch processing failed: {e}[/red]")
+                    any_failed = True
+                finally:
+                    q.task_done()
+
+        # We can use a few threads to pump commands to the orchestrator workers
+        comm_threads = [threading.Thread(target=worker_thread, daemon=True) for _ in range(workers)]
+        for t in comm_threads:
+            t.start()
+        for t in comm_threads:
+            t.join()
 
     for _, path in batches:
         if path.exists():

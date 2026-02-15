@@ -1,3 +1,5 @@
+import blenderproc as bproc  # noqa: F401, I001
+
 import os
 import sys
 from pathlib import Path
@@ -8,8 +10,6 @@ try:
 
     bootstrap.setup_environment()
 except ImportError:
-    # If bootstrap fails, we might be in an environment where PYTHONPATH isn't set yet.
-    # We attempt a minimal discovery to find ourselves.
     _curr = Path(__file__).resolve().parent
     while _curr.parent != _curr:
         if (_curr / "render_tag").is_dir():
@@ -35,7 +35,6 @@ def main():
     parser.add_argument("--max-renders", type=int, default=None)
     args, _unknown = parser.parse_known_args()
 
-    # Configure basic fallback logging if bootstrap didn't setup JSON logging
     if not logging.getLogger().handlers:
         logging.basicConfig(level=logging.INFO)
 

@@ -7,10 +7,34 @@ and guaranteed cleanup using ExitStack.
 
 import contextlib
 import logging
+import os
 from collections.abc import Generator
 from typing import Any, Protocol, runtime_checkable
 
 logger = logging.getLogger(__name__)
+
+
+def get_thread_budget(num_workers: int = 1, system_reserve: int = 2) -> int:
+    """
+    Calculate the optimal number of threads per worker based on hardware.
+    Shifts the burden from user config to runtime calculation.
+
+    Args:
+        num_workers: Number of active workers.
+        system_reserve: Number of cores to leave for the OS and Orchestrator.
+
+    Returns:
+        Number of threads per worker (minimum 1).
+    """
+    total_cores = os.cpu_count() or 1
+    safe_cores = max(1, total_cores - system_reserve)
+    budget = max(1, safe_cores // num_workers)
+
+    logger.info(
+        f"Auto-Throttling: {total_cores} cores detected. "
+        f"Reserving {system_reserve}. Budget: {budget} threads/worker."
+    )
+    return budget
 
 
 @runtime_checkable
