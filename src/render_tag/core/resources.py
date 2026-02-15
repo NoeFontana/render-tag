@@ -7,7 +7,8 @@ and guaranteed cleanup using ExitStack.
 
 import contextlib
 import logging
-from typing import Any, Generator, Protocol, runtime_checkable
+from collections.abc import Generator
+from typing import Any, Protocol, runtime_checkable
 
 logger = logging.getLogger(__name__)
 

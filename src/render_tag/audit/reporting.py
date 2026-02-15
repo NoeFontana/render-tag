@@ -4,7 +4,6 @@ Unified reporting and dataset inspection for render-tag.
 Provides manifest generation, directory hashing, and interactive HTML dashboards.
 """
 
-import hashlib
 import subprocess
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
@@ -25,6 +24,7 @@ from render_tag.core.metadata import (
     TagSpecificationMetadata,
 )
 from render_tag.core.schema.job import get_env_fingerprint
+
 from .auditor import AuditResult, DatasetReader
 
 

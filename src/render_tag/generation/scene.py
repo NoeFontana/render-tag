@@ -6,17 +6,14 @@ by a separate Blender process. This isolates logical calculations from Blender.
 """
 
 import json
-import random
 from pathlib import Path
 from typing import Any
 
-import numpy as np
-
-from render_tag.core.logging import get_logger
 from render_tag.core.config import GenConfig
+from render_tag.core.logging import get_logger
+from render_tag.core.schema import SceneRecipe
 from render_tag.data_io.assets import AssetProvider
 from render_tag.generation.builder import SceneRecipeBuilder
-from render_tag.core.schema import SceneRecipe
 
 logger = get_logger(__name__)
 

@@ -83,7 +83,7 @@ def test_apply_poisson_noise():
 
 def test_noise_engine_direct():
     """Verify that NoiseEngine correctly selects and applies strategies."""
-    from render_tag.backend.sensors import NoiseEngine, GaussianNoiseStrategy
+    from render_tag.backend.sensors import NoiseEngine
 
     engine = NoiseEngine()
     img = np.zeros((64, 64, 3), dtype=np.uint8)
@@ -99,9 +99,9 @@ def test_noise_strategy_interface():
     """Verify that concrete strategies adhere to the protocol."""
     from render_tag.backend.sensors import (
         GaussianNoiseStrategy,
+        NoiseStrategy,
         PoissonNoiseStrategy,
         SaltAndPepperNoiseStrategy,
-        NoiseStrategy,
     )
 
     assert isinstance(GaussianNoiseStrategy(), NoiseStrategy)

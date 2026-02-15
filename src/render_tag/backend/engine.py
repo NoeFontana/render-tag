@@ -8,7 +8,6 @@ into a single, high-performance module.
 import logging
 import random
 import time
-import traceback
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
@@ -27,7 +26,6 @@ from render_tag.backend.scene import (
 from render_tag.backend.sensors import apply_parametric_noise
 from render_tag.core.schema import DetectionRecord
 from render_tag.core.utils import get_git_hash
-from render_tag.core.validator import validate_recipe_file
 from render_tag.data_io.writers import (
     COCOWriter,
     CSVWriter,

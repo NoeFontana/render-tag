@@ -1,8 +1,7 @@
 import logging
-import sys
 import time
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Protocol
 
 import zmq
 

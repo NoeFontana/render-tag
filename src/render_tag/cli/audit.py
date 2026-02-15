@@ -300,7 +300,7 @@ def prune(
             new_tags_df = tags_df.filter(pl.col("image_id").is_in(selected_images))
             new_tags_df.write_csv(tags_path)
 
-        console.print(f"[bold green]Pruning Complete[/bold green]")
+        console.print("[bold green]Pruning Complete[/bold green]")
         console.print(f"  Initial: {initial_count} images")
         console.print(f"  Final:   {final_count} images")
 

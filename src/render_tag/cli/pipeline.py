@@ -11,7 +11,6 @@ import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
 
 from render_tag.core.config import GenConfig
 from render_tag.core.schema.job import JobSpec
@@ -71,7 +70,7 @@ class GenerationPipeline:
     def __init__(self):
         self.stages: list[PipelineStage] = []
 
-    def add_stage(self, stage: PipelineStage) -> "GenerationPipeline":
+    def add_stage(self, stage: PipelineStage) -> GenerationPipeline:
         self.stages.append(stage)
         return self
 

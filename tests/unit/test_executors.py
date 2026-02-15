@@ -1,4 +1,3 @@
-import shutil
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -29,15 +28,14 @@ def test_local_executor_handoff_to_orchestrator(mock_orch):
     output_dir = Path("output")
 
     # We need a real-ish recipe file for json.load
-    with patch("builtins.open", MagicMock()):
-        with patch("json.load") as mock_json:
-            mock_json.return_value = [{"scene_id": 1}]
-            executor.execute(
-                recipe_path=recipe_path,
-                output_dir=output_dir,
-                renderer_mode="cycles",
-                shard_id="shard_1",
-            )
+    with patch("builtins.open", MagicMock()), patch("json.load") as mock_json:
+        mock_json.return_value = [{"scene_id": 1}]
+        executor.execute(
+            recipe_path=recipe_path,
+            output_dir=output_dir,
+            renderer_mode="cycles",
+            shard_id="shard_1",
+        )
 
     # Verify orchestrator was called with num_workers=1
     assert mock_orch.called

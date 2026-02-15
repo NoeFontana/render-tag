@@ -24,12 +24,13 @@ from unittest.mock import MagicMock
 
 import orjson
 from rich.console import Console
-from tqdm import tqdm
 
 try:
     import zmq
 except ImportError:
     zmq = None
+
+import contextlib
 
 from render_tag.audit.auditor import TelemetryAuditor
 from render_tag.core.config import load_config
@@ -64,10 +65,8 @@ class ZmqHostClient:
     def _recreate_socket(self):
         """Recreate REQ socket to recover from timeout/EFSM states."""
         if self.socket:
-            try:
+            with contextlib.suppress(Exception):
                 self.socket.close(linger=0)
-            except Exception:
-                pass
         self.socket = self.context.socket(zmq.REQ)
         self.socket.setsockopt(zmq.RCVTIMEO, self.timeout_ms)
         self.socket.setsockopt(zmq.SNDTIMEO, self.timeout_ms)
@@ -223,10 +222,8 @@ class PersistentWorkerProcess:
 
         from render_tag.core.utils import get_venv_site_packages
 
-        try:
+        with contextlib.suppress(Exception):
             env["RENDER_TAG_VENV_SITE_PACKAGES"] = get_venv_site_packages()
-        except Exception:
-            pass
 
         # Probe for immediate failure
         try:
@@ -237,7 +234,11 @@ class PersistentWorkerProcess:
 
         logger.info(f"Launching worker with command: {cmd}")
         self.process = subprocess.Popen(
-            cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+            cmd,
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            start_new_session=True,
         )
         threading.Thread(target=self._log_router, daemon=True).start()
         self.client = ZmqHostClient(port=self.port, context=self.context)
@@ -248,10 +249,8 @@ class PersistentWorkerProcess:
             if self.process.poll() is not None:
                 out = "\n".join(self._startup_logs)
                 if not out and self.process.stdout:
-                    try:
+                    with contextlib.suppress(Exception):
                         out = self.process.stdout.read(1000).decode()
-                    except Exception:
-                        pass
                 raise WorkerStartupError(f"Worker crashed during startup. Output:\n{out}")
             try:
                 if self.is_healthy():
@@ -275,19 +274,18 @@ class PersistentWorkerProcess:
         self._stop_event.set()
         if self.client:
             if self.process and self.process.poll() is None:
-                try:
+                with contextlib.suppress(Exception):
                     self.client.send_command(CommandType.SHUTDOWN, timeout_ms=500)
-                except Exception:
-                    pass
             self.client.disconnect()
             self.client = None
         if self.process:
             if self.process.poll() is None:
-                self.process.terminate()
                 try:
+                    # Send SIGKILL to the entire process group
+                    os.killpg(self.process.pid, signal.SIGKILL)
                     self.process.wait(timeout=2)
-                except subprocess.TimeoutExpired:
-                    self.process.kill()
+                except (subprocess.TimeoutExpired, ProcessLookupError):
+                    pass
             self.process = None
 
     @retry_with_backoff(retries=2, initial_delay=0.1, exceptions=(Exception,))
@@ -302,7 +300,7 @@ class PersistentWorkerProcess:
             return False
 
     def send_command(
-        self, ct: CommandType, payload: dict = None, timeout_ms: int = None
+        self, ct: CommandType, payload: dict | None = None, timeout_ms: int | None = None
     ) -> Response:
         return self.client.send_command(
             ct,
@@ -322,13 +320,13 @@ class UnifiedWorkerOrchestrator:
         self,
         num_workers: int = 1,
         base_port: int = 20000,
-        blender_script: Path = None,
-        blender_executable: str = None,
+        blender_script: Path | None = None,
+        blender_executable: str | None = None,
         use_blenderproc: bool = True,
         mock: bool = False,
-        vram_threshold_mb: float = None,
+        vram_threshold_mb: float | None = None,
         ephemeral: bool = False,
-        max_renders_per_worker: int = None,
+        max_renders_per_worker: int | None = None,
         worker_id_prefix: str = "worker",
     ):
         self.num_workers, self.base_port = num_workers, base_port
@@ -362,7 +360,7 @@ class UnifiedWorkerOrchestrator:
             if self.running:
                 return
             if not self.mock and self.use_blenderproc:
-                try:
+                with contextlib.suppress(BaseException):
                     subprocess.run(
                         [
                             self.blender_executable,
@@ -376,8 +374,6 @@ class UnifiedWorkerOrchestrator:
                         capture_output=True,
                         check=False,
                     )
-                except:
-                    pass
 
             seed_str = f"{shard_id}-{os.getpid()}-{random.random()}"
             port_offset = int(hashlib.md5(seed_str.encode()).hexdigest(), 16) % 10000
@@ -659,24 +655,39 @@ class MockExecutor:
         verbose: bool = False,
     ) -> None:
         logger.info(f"[MOCK] Render: {recipe_path.name} -> {output_dir.name}")
-        
+
         # Simulate output for auditing
         output_dir.mkdir(parents=True, exist_ok=True)
         images_dir = output_dir / "images"
         images_dir.mkdir(parents=True, exist_ok=True)
-        
+
         with open(recipe_path) as f:
             recipes = json.load(f)
-            
+
         rich_truth = []
-        tags_csv_rows = [["image_id", "tag_id", "tag_family", "ppm", "x1", "y1", "x2", "y2", "x3", "y3", "x4", "y4"]]
-        
+        tags_csv_rows = [
+            [
+                "image_id",
+                "tag_id",
+                "tag_family",
+                "ppm",
+                "x1",
+                "y1",
+                "x2",
+                "y2",
+                "x3",
+                "y3",
+                "x4",
+                "y4",
+            ]
+        ]
+
         for recipe in recipes:
             sid = recipe["scene_id"]
             for cam_idx in range(len(recipe.get("cameras", [0]))):
-                cam_recipe = recipe.get("cameras")[cam_idx]
+                recipe.get("cameras")[cam_idx]
                 image_id = f"scene_{sid:04d}_cam_{cam_idx:04d}"
-                
+
                 # Create dummy meta file
                 meta_path = images_dir / f"{image_id}_meta.json"
                 with open(meta_path, "w") as f_meta:
@@ -686,7 +697,7 @@ class MockExecutor:
                     # but we can grab it from cam_recipe if we were to store it there in generator.
                     # For mock, we'll just simulate it or calculate it if possible.
                     json.dump(meta_data, f_meta)
-                
+
                 # Add dummy detections for tags
                 for obj in recipe.get("objects", []):
                     if obj["type"] == "TAG":
@@ -695,10 +706,10 @@ class MockExecutor:
                         dist = random.uniform(0.5, 8.0)
                         angle = random.uniform(0, 90)
                         occlusion = random.uniform(0, 0.5)
-                        
+
                         # Simulate PPM based on distance if not provided
-                        ppm = 160.0 / (dist * 8.0) # Dummy approx
-                        
+                        ppm = 160.0 / (dist * 8.0)  # Dummy approx
+
                         det = {
                             "image_id": image_id,
                             "tag_id": props["tag_id"],
@@ -709,21 +720,33 @@ class MockExecutor:
                             "pixel_area": 1000.0 / (dist * dist),
                             "ppm": ppm,
                             "lighting_intensity": random.uniform(100, 1000),
-                            "corners": [[0,0], [100,0], [100,100], [0,100]]
+                            "corners": [[0, 0], [100, 0], [100, 100], [0, 100]],
                         }
                         rich_truth.append(det)
-                        tags_csv_rows.append([
-                            image_id, props["tag_id"], props["tag_family"],
-                            float(f"{ppm:.4f}"),
-                            0, 0, 100, 0, 100, 100, 0, 100
-                        ])
-        
+                        tags_csv_rows.append(
+                            [
+                                image_id,
+                                props["tag_id"],
+                                props["tag_family"],
+                                float(f"{ppm:.4f}"),
+                                0,
+                                0,
+                                100,
+                                0,
+                                100,
+                                100,
+                                0,
+                                100,
+                            ]
+                        )
+
         # Save rich truth
         with open(output_dir / "rich_truth.json", "w") as f_rich:
             json.dump(rich_truth, f_rich)
-            
+
         # Save tags.csv
         import csv
+
         with open(output_dir / "tags.csv", "w", newline="") as f_csv:
             writer = csv.writer(f_csv)
             writer.writerows(tags_csv_rows)

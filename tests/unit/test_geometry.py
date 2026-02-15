@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 """
 Advanced unit tests for board geometry, focusing on malformed specs and failures.
 """
@@ -77,17 +78,12 @@ All tests run WITHOUT Blender.
 """
 
 from render_tag.generation.board import (
-    BoardSpec,
     BoardType,
     compute_aprilgrid_layout,
-    compute_charuco_layout,
     validate_aprilgrid_filling,
-    validate_board_dimensions,
-    validate_board_is_centered,
     validate_board_plausibility,
     validate_charuco_tag_filling,
     validate_charuco_white_border,
-    validate_marker_fits_in_square,
     validate_no_overlaps,
 )
 
@@ -447,7 +443,6 @@ def test_validate_camera_pose():
 Advanced unit tests for geometry math, focusing on edge cases.
 """
 
-import numpy as np
 
 from render_tag.generation.math import look_at_rotation, rotation_matrix_from_vectors
 
@@ -531,12 +526,10 @@ Unit tests for math_utils module.
 """
 
 
-import numpy as np
 import pytest
 
 from render_tag.generation.math import (
     compute_polygon_area,
-    look_at_rotation,
     make_transformation_matrix,
 )
 
@@ -599,7 +592,6 @@ def test_look_at_rotation_alignment():
 Advanced tests for projection math and coordinate transformations.
 """
 
-import numpy as np
 
 from render_tag.generation.projection_math import (
     calculate_angle_of_incidence,
@@ -663,8 +655,6 @@ logic instantly.
 """
 
 import math
-
-import numpy as np
 
 # ============================================================================
 # Pure Math Projection Utilities (no Blender dependency)
@@ -1083,8 +1073,6 @@ Unit tests for visibility_geometry module.
 """
 
 
-import numpy as np
-import pytest
 
 from render_tag.generation.visibility import (
     is_facing_camera,

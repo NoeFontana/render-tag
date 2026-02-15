@@ -2,19 +2,17 @@
 Unit tests for the experiment module.
 """
 
-from pathlib import Path
-from unittest.mock import MagicMock, patch
 
-import pytest
 import json
 
-from render_tag.orchestration.experiment import (
-    expand_experiment,
-    load_experiment_config,
-    save_manifest
-)
-from render_tag.orchestration.experiment_schema import Experiment, Sweep, SweepType, ExperimentVariant
 from render_tag.core.config import GenConfig
+from render_tag.orchestration.experiment import expand_experiment, save_manifest
+from render_tag.orchestration.experiment_schema import (
+    Experiment,
+    ExperimentVariant,
+    Sweep,
+    SweepType,
+)
 
 
 def test_expand_experiment_no_sweeps():

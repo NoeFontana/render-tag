@@ -1,3 +1,4 @@
+import contextlib
 import os
 import site
 import sys
@@ -52,10 +53,8 @@ def setup_environment():
             site.addsitedir(venv_site_packages)
 
     # 4. Configure structured logging
-    try:
+    with contextlib.suppress(Exception):
         configure_logging()
-    except Exception:
-        pass
 
     # 5. Verify critical dependencies
     try:

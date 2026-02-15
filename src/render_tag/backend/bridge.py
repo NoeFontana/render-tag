@@ -5,13 +5,10 @@ Centralized provider for Blender and BlenderProc dependencies.
 from __future__ import annotations
 
 import logging
-import sys
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    import bpy
-    import mathutils
-    import numpy as np
+    pass
 
 logger = logging.getLogger(__name__)
 

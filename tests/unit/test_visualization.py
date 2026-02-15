@@ -1,4 +1,3 @@
-from render_tag.data_io.visualization import ShadowRenderer
 from render_tag.core.schema import (
     CameraIntrinsics,
     CameraRecipe,
@@ -6,6 +5,7 @@ from render_tag.core.schema import (
     SceneRecipe,
     SensorNoiseConfig,
 )
+from render_tag.data_io.visualization import ShadowRenderer
 
 
 def test_shadow_renderer_runs(tmp_path):

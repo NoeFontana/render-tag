@@ -3,10 +3,10 @@ Core utilities and models for render-tag.
 Consolidated from common and core packages.
 """
 
-from . import config, errors, resilience, resources, utils, validator, metadata, manifest
+from . import config, errors, manifest, metadata, resilience, resources, utils, validator
 from .config import GenConfig, load_config
-from .resources import ResourceStack
 from .errors import RenderTagError, WorkerError
+from .resources import ResourceStack
 
 # Bit counts for each tag family (used for minimum pixel area calculation)
 TAG_BIT_COUNTS = {

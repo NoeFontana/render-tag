@@ -9,7 +9,8 @@ import functools
 import logging
 import random
 import time
-from typing import Callable, Type, TypeVar
+from collections.abc import Callable
+from typing import TypeVar
 
 from render_tag.core.errors import RenderTagError
 
@@ -22,7 +23,7 @@ def retry_with_backoff(
     initial_delay: float = 1.0,
     backoff_factor: float = 2.0,
     jitter: bool = True,
-    exceptions: tuple[Type[Exception], ...] = (Exception,),
+    exceptions: tuple[type[Exception], ...] = (Exception,),
 ) -> Callable[[Callable[..., T]], Callable[..., T]]:
     """
     Decorator that retries a function call with exponential backoff.

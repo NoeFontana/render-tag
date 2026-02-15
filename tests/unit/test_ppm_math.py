@@ -3,8 +3,9 @@ Unit tests for PPM (Pixels Per Module) mathematics.
 """
 
 import pytest
-import numpy as np
+
 from render_tag.generation.projection_math import calculate_ppm, solve_distance_for_ppm
+
 
 def test_calculate_ppm():
     # Known scenario:

@@ -9,8 +9,7 @@ from rich.console import Console
 
 from render_tag.cli.pipeline import GenerationContext, PipelineStage
 from render_tag.cli.tools import check_blenderproc_installed, check_orchestration_installed
-from render_tag.orchestration.orchestrator import ExecutorFactory
-from render_tag.orchestration.orchestrator import run_local_parallel
+from render_tag.orchestration.orchestrator import ExecutorFactory, run_local_parallel
 
 console = Console()
 

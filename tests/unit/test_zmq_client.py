@@ -1,14 +1,17 @@
 import threading
 import time
+
 import pytest
-from render_tag.core.schema.hot_loop import CommandType, Response, ResponseStatus
-from render_tag.orchestration.orchestrator import ZmqHostClient
+
 from render_tag.core.errors import WorkerCommunicationError
+from render_tag.core.schema.hot_loop import CommandType, ResponseStatus
+from render_tag.orchestration.orchestrator import ZmqHostClient
 
 
 def mock_zmq_server(port, delay=0):
-    import zmq
     import json
+
+    import zmq
     context = zmq.Context()
     socket = context.socket(zmq.REP)
     socket.bind(f"tcp://127.0.0.1:{port}")
@@ -16,7 +19,7 @@ def mock_zmq_server(port, delay=0):
     try:
         # Wait for a message
         if socket.poll(2000):
-            msg = socket.recv_string()
+            socket.recv_string()
             if delay > 0:
                 time.sleep(delay)
             

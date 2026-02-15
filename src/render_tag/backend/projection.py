@@ -113,7 +113,7 @@ def compute_geometric_metadata(tag_obj: Any) -> dict[str, Any]:
     
     tag_family = tag_obj.blender_obj.get("tag_family", "tag36h11")
     grid_size = TAG_GRID_SIZES.get(tag_family, 8)
-    margin_bits = tag_obj.blender_obj.get("margin_bits", 0)
+    tag_obj.blender_obj.get("margin_bits", 0)
     
     # PPM is calculated for the modules (grid), not the white margin
     # So we use the original grid size.
@@ -122,7 +122,7 @@ def compute_geometric_metadata(tag_obj: Any) -> dict[str, Any]:
     f_px = intrinsics[0][0] # fx
     
     # Tag size in object is total including margin
-    tag_size_total = tag_obj.blender_obj.get("corner_coords")[1][0] * 2.0 # simplified from [half, half]
+    tag_obj.blender_obj.get("corner_coords")[1][0] * 2.0 # simplified from [half, half]
     # Wait, corner_coords are the BLACK BORDER corners already
     # Let's re-verify from assets.py
     # half_black = (size_meters * black_border_scale) / 2.0

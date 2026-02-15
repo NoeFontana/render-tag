@@ -24,7 +24,6 @@ if str(src_path) not in sys.path:
 sys.path.append(str(Path(__file__).parent.parent))
 from render_tag.backend.mocks import (  # noqa: E402
     blender_api,
-    blenderproc,
     blenderproc_api,
     mathutils_api,
 )

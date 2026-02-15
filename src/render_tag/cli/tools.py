@@ -65,7 +65,7 @@ def check_orchestration_installed() -> bool:
 def check_hub_installed() -> bool:
     """Check if Hub management dependencies (datasets, huggingface_hub) are installed."""
     try:
-        import datasets as _  # noqa: F401
+        import datasets as _
         import huggingface_hub as _  # noqa: F401
 
         return True

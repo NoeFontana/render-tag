@@ -6,8 +6,8 @@ import json
 import tempfile
 from pathlib import Path
 
-from render_tag.data_io.writers import COCOWriter, CSVWriter
 from render_tag.core.schema import DetectionRecord
+from render_tag.data_io.writers import COCOWriter, CSVWriter
 
 
 class TestCSVWriter:
