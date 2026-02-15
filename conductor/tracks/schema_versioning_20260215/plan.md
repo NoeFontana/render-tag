@@ -17,11 +17,11 @@ Isolate the migration logic and update the core models to support version metada
 ## Phase 2: Integration - Migration into Resolution Phase
 Inject the migrator into the existing configuration loading sequence.
 
-- [ ] Task: Implement TDD for YAML Migration
-    - [ ] Create `tests/unit/core/test_migration_yaml.py`.
-    - [ ] Write failing tests for loading unversioned YAML and getting a versioned `GenConfig`.
-- [ ] Task: Integrate Migrator into `load_config`
-    - [ ] Update `load_config` in `src/render_tag/core/config.py` to run the migrator before model validation.
+- [x] Task: Implement TDD for YAML Migration (a21acd4)
+    - [x] Create `tests/unit/core/test_migration_yaml.py`.
+    - [x] Write failing tests for loading unversioned YAML and getting a versioned `GenConfig`.
+- [x] Task: Integrate Migrator into `load_config` (a21acd4)
+    - [x] Update `load_config` in `src/render_tag/core/config.py` to run the migrator before model validation.
 - [ ] Task: Implement TDD for JobSpec Migration
     - [ ] Create `tests/unit/core/test_migration_jobspec.py`.
     - [ ] Write failing tests for loading unversioned `job_spec.json`.
