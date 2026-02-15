@@ -15,6 +15,7 @@ from render_tag.core.schema.hot_loop import (
     Response,
     ResponseStatus,
     Telemetry,
+    WorkerStatus,
     calculate_state_hash,
 )
 from render_tag.data_io.writers import (
@@ -33,14 +34,17 @@ logger = logging.getLogger(__name__)
 
 
 class ZmqBackendServer:
-    def __init__(self, port: int = 5555, bproc_mock=None, bpy_mock=None):
+    def __init__(self, port: int = 5555, shard_id: str = "main", bproc_mock=None, bpy_mock=None):
         self.port = port
+        self.shard_id = shard_id
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.REP)
         self.socket.bind(f"tcp://127.0.0.1:{port}")
         self.running = False
         self.assets_loaded, self.parameters = [], {}
-        self.start_time, self.renders_completed = time.time(), 0
+        self.start_time = time.time()
+        self.renders_completed = 0
+        self.status = WorkerStatus.IDLE
         self._handlers = {
             CommandType.STATUS: StatusHandler(),
             CommandType.INIT: InitHandler(),
@@ -60,6 +64,7 @@ class ZmqBackendServer:
         # Staff Engineer: Temporarily bypass GPUtil to diagnose potential driver hangs
         vram_used, vram_total = 0.0, 0.0
         return Telemetry(
+            status=self.status,
             vram_used_mb=vram_used,
             vram_total_mb=vram_total,
             cpu_usage_percent=0.0,
@@ -67,7 +72,10 @@ class ZmqBackendServer:
             uptime_seconds=time.time() - self.start_time,
         )
 
-    def _setup_writers(self, output_dir: Path, shard_id: str = "main"):
+    def _setup_writers(self, output_dir: Path, shard_id: str | None = None):
+        if shard_id is None or shard_id == "main":
+            shard_id = self.shard_id
+
         if self.current_output_dir == output_dir:
             return
         self.current_output_dir = output_dir
@@ -75,7 +83,7 @@ class ZmqBackendServer:
         self.writers = {
             "csv": CSVWriter(output_dir / f"tags_shard_{shard_id}.csv"),
             "coco": COCOWriter(output_dir, filename=f"coco_shard_{shard_id}.json"),
-            "rich": RichTruthWriter(output_dir / "rich_truth.json"),
+            "rich": RichTruthWriter(output_dir / f"rich_truth_shard_{shard_id}.json"),
             "sidecar": SidecarWriter(output_dir),
         }
         self.writers["csv"]._ensure_initialized()
@@ -107,8 +115,11 @@ class ZmqBackendServer:
                     resp = self.handle_command(cmd)
                     self.socket.send_string(resp.model_dump_json())
                     if self.max_renders and self.renders_completed >= self.max_renders:
-                        # Staff Engineer: Finalize immediately for ephemeral workers
+                        logger.info(f"Reached max renders ({self.max_renders}). Finalizing...")
+                        self.status = WorkerStatus.FINISHED
                         self._finalize_writers()
+                        # Staff Engineer: Ensure the final ZMQ message (response) is sent
+                        # and the status update is available for one last poll if needed.
                         time.sleep(0.5)
                         self.running = False
                 else:
@@ -183,6 +194,7 @@ class InitHandler:
 
 class RenderHandler:
     def handle(self, server: ZmqBackendServer, cmd: Command) -> Response:
+        server.status = WorkerStatus.BUSY
         payload = cmd.payload or {}
         recipe, output_dir = payload.get("recipe"), payload.get("output_dir")
         renderer_mode, shard_id = (
@@ -205,6 +217,7 @@ class RenderHandler:
             skip_visibility=payload.get("skip_visibility", False),
         )
         server.renders_completed += 1
+        server.status = WorkerStatus.IDLE
         return Response(
             status=ResponseStatus.SUCCESS,
             request_id=cmd.request_id,

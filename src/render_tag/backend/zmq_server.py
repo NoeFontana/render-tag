@@ -31,6 +31,7 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=5555)
+    parser.add_argument("--shard-id", type=str, default="0")
     parser.add_argument("--mock", action="store_true")
     parser.add_argument("--max-renders", type=int, default=None)
     args, _unknown = parser.parse_known_args()
@@ -39,7 +40,9 @@ def main():
         logging.basicConfig(level=logging.INFO)
 
     logger = logging.getLogger("zmq_server")
-    logger.info(f"Starting ZmqBackendServer on port {args.port} (mock={args.mock})")
+    logger.info(
+        f"Starting ZmqBackendServer on port {args.port} (shard_id={args.shard_id}, mock={args.mock})"
+    )
 
     try:
         bproc_mock, bpy_mock = None, None
@@ -51,7 +54,9 @@ def main():
                 logger.error(f"Failed to load production mocks: {e}")
                 sys.exit(1)
 
-        server = ZmqBackendServer(port=args.port, bproc_mock=bproc_mock, bpy_mock=bpy_mock)
+        server = ZmqBackendServer(
+            port=args.port, shard_id=args.shard_id, bproc_mock=bproc_mock, bpy_mock=bpy_mock
+        )
         server.run(max_renders=args.max_renders)
     except Exception as e:
         logger.exception(f"ZMQ Server failed to start: {e}")

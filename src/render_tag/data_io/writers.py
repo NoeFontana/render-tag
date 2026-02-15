@@ -110,6 +110,7 @@ class COCOWriter:
         self._category_map: dict[str, int] = {}
         self._next_image_id = 1
         self._next_annotation_id = 1
+        self._dirty = False
 
     def add_category(self, name: str, supercategory: str = "fiducial_marker") -> int:
         """Add a category and return its ID."""
@@ -147,6 +148,7 @@ class COCOWriter:
                 "height": height,
             }
         )
+        self._dirty = True
         return image_id
 
     def add_annotation(
@@ -242,6 +244,7 @@ class COCOWriter:
                 "attributes": attributes,
             }
         )
+        self._dirty = True
 
         return annotation_id
 
@@ -259,6 +262,10 @@ class COCOWriter:
             len(self.annotations),
         )
 
+        if not self._dirty:
+            logger.debug("COCOWriter: No new annotations, skipping save")
+            return output_path
+
         coco_data = {
             "images": self.images,
             "annotations": self.annotations,
@@ -268,6 +275,7 @@ class COCOWriter:
         with open(output_path, "w") as f:
             json.dump(coco_data, f, indent=2)
 
+        self._dirty = False
         return output_path
 
 
@@ -361,3 +369,117 @@ class SidecarWriter:
                 f.write(provenance.model_dump_json(indent=2))
 
         return path
+
+
+def merge_coco_shards(
+    output_dir: Path, final_filename: str = "coco_labels.json", cleanup: bool = False
+):
+    """Merge multiple COCO JSON shards into a single canonical file."""
+    shard_files = sorted(output_dir.glob("coco_shard_*.json"))
+    if not shard_files:
+        logger.warning(f"No COCO shards found in {output_dir}")
+        return
+
+    master_data = {"images": [], "annotations": [], "categories": []}
+    global_image_id_offset = 0
+    global_ann_id_offset = 0
+    categories_set = False
+
+    for shard_path in shard_files:
+        with open(shard_path, "r") as f:
+            shard_data = json.load(f)
+
+        if not categories_set:
+            master_data["categories"] = shard_data.get("categories", [])
+            categories_set = True
+
+        image_id_map = {}
+        max_image_id = 0
+        for img in shard_data.get("images", []):
+            old_id = img["id"]
+            new_id = old_id + global_image_id_offset
+            image_id_map[old_id] = new_id
+            img["id"] = new_id
+            master_data["images"].append(img)
+            max_image_id = max(max_image_id, old_id)
+
+        max_ann_id = 0
+        for ann in shard_data.get("annotations", []):
+            old_id = ann["id"]
+            new_id = old_id + global_ann_id_offset
+            ann["id"] = new_id
+            ann["image_id"] = image_id_map.get(ann["image_id"], ann["image_id"])
+            master_data["annotations"].append(ann)
+            max_ann_id = max(max_ann_id, old_id)
+
+        global_image_id_offset += max_image_id + 1
+        global_ann_id_offset += max_ann_id + 1
+
+    final_path = output_dir / final_filename
+    with open(final_path, "w") as f:
+        json.dump(master_data, f, indent=2)
+    logger.info(f"Merged {len(shard_files)} shards into {final_path}")
+
+    if cleanup:
+        for shard_path in shard_files:
+            shard_path.unlink()
+        logger.info("Cleaned up COCO shard files.")
+
+
+def merge_csv_shards(
+    output_dir: Path, final_filename: str = "ground_truth.csv", cleanup: bool = False
+):
+    """Merge multiple CSV shards into a single canonical file."""
+    shard_files = sorted(output_dir.glob("tags_shard_*.csv"))
+    if not shard_files:
+        logger.warning(f"No CSV shards found in {output_dir}")
+        return
+
+    final_path = output_dir / final_filename
+    with open(final_path, "w", newline="") as fout:
+        writer = csv.writer(fout)
+        header_written = False
+
+        for shard_path in shard_files:
+            with open(shard_path, "r", newline="") as fin:
+                reader = csv.reader(fin)
+                header = next(reader, None)
+                if not header_written and header:
+                    writer.writerow(header)
+                    header_written = True
+
+                for row in reader:
+                    writer.writerow(row)
+
+    logger.info(f"Merged {len(shard_files)} shards into {final_path}")
+
+    if cleanup:
+        for shard_path in shard_files:
+            shard_path.unlink()
+        logger.info("Cleaned up CSV shard files.")
+
+
+def merge_rich_truth_shards(
+    output_dir: Path, final_filename: str = "rich_truth.json", cleanup: bool = False
+):
+    """Merge multiple RichTruth JSON shards into a single canonical file."""
+    shard_files = sorted(output_dir.glob("rich_truth_shard_*.json"))
+    if not shard_files:
+        logger.warning(f"No RichTruth shards found in {output_dir}")
+        return
+
+    master_data = []
+    for shard_path in shard_files:
+        with open(shard_path, "r") as f:
+            shard_data = json.load(f)
+            master_data.extend(shard_data)
+
+    final_path = output_dir / final_filename
+    with open(final_path, "w") as f:
+        json.dump(master_data, f, indent=2)
+    logger.info(f"Merged {len(shard_files)} shards into {final_path}")
+
+    if cleanup:
+        for shard_path in shard_files:
+            shard_path.unlink()
+        logger.info("Cleaned up RichTruth shard files.")

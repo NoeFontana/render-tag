@@ -162,6 +162,7 @@ class PersistentWorkerProcess:
         use_blenderproc: bool = True,
         mock: bool = False,
         max_renders: int | None = None,
+        shard_id: str = "main",
         context: zmq.Context | None = None,
         thread_budget: int = 1,
     ):
@@ -172,9 +173,10 @@ class PersistentWorkerProcess:
             use_blenderproc,
             mock,
         )
-        self.max_renders, self.context = max_renders, context
+        self.max_renders, self.shard_id, self.context = max_renders, shard_id, context
         self.thread_budget = thread_budget
         self.process, self.client = None, None
+        self.renders_completed = 0
         self._stop_event = threading.Event()
         self._startup_logs = []  # Buffer for startup logs
 
@@ -219,6 +221,8 @@ class PersistentWorkerProcess:
             cmd.append("--mock")
         if self.max_renders:
             cmd.extend(["--max-renders", str(self.max_renders)])
+        if self.shard_id:
+            cmd.extend(["--shard-id", str(self.shard_id)])
 
         env = os.environ.copy()
         if self.mock:
@@ -418,6 +422,7 @@ class UnifiedWorkerOrchestrator:
                             use_blenderproc=self.use_blenderproc,
                             mock=self.mock,
                             max_renders=self.max_renders_per_worker,
+                            shard_id=f"{i}",
                             context=self.context,
                             thread_budget=self.thread_budget,
                         )
@@ -458,6 +463,12 @@ class UnifiedWorkerOrchestrator:
     def release_worker(self, worker: PersistentWorkerProcess):
         should_restart = False
         reason = ""
+
+        # Staff Engineer: If the worker hit its limit, it's expected to exit.
+        # We don't want to trigger "unhealthy" alerts for a job well done.
+        intentional_exit = (
+            worker.max_renders is not None and worker.renders_completed >= worker.max_renders
+        )
 
         # 1. Collect Telemetry & Check VRAM
         try:
@@ -508,7 +519,7 @@ class UnifiedWorkerOrchestrator:
                 )
 
         # 2. Check Health
-        if not should_restart and not worker.is_healthy():
+        if not should_restart and not intentional_exit and not worker.is_healthy():
             should_restart = True
             reason = "Worker is unhealthy"
 
@@ -529,6 +540,7 @@ class UnifiedWorkerOrchestrator:
                     use_blenderproc=worker.use_blenderproc,
                     mock=worker.mock,
                     max_renders=worker.max_renders,
+                    shard_id=worker.shard_id,
                     context=worker.context,
                     thread_budget=self.thread_budget,
                 )
@@ -553,23 +565,61 @@ class UnifiedWorkerOrchestrator:
             except Exception as e:
                 logger.error(f"Failed to replace worker {worker.worker_id}: {e}")
 
+        # If it was an intentional exit and we DON'T need more work from this specific slot
+        # in an ephemeral context, we could cull it. But for UnifiedOrchestrator,
+        # we usually want to keep the num_workers constant until stop().
+        if intentional_exit and not should_restart:
+            # If it's dead, we MUST restart it to keep the pool size if the queue isn't empty.
+            # However, in run_local_parallel, workers are released AFTER the task is done.
+            # If the process is dead, we can't put it back as "healthy".
+            if worker.process and worker.process.poll() is not None:
+                should_restart = True
+                reason = "Refreshing completed worker for next batch"
+                # Fall through to a recursive call or just trigger the restart logic above
+                # Let's just force should_restart and jump back up (refactoring needed)
+                # To keep it simple: if intentional and dead, we RESTART to keep the slot alive.
+                # BUT we change the log level to INFO.
+                logger.info(f"Worker {worker.worker_id} reached limit. Refreshing process...")
+                worker.stop()
+                new_worker = PersistentWorkerProcess(
+                    worker.worker_id,
+                    worker.port,
+                    worker.blender_script,
+                    worker.blender_executable,
+                    use_blenderproc=worker.use_blenderproc,
+                    mock=worker.mock,
+                    max_renders=worker.max_renders,
+                    shard_id=worker.shard_id,
+                    context=worker.context,
+                    thread_budget=self.thread_budget,
+                )
+                new_worker.start()
+                for idx, w in enumerate(self.workers):
+                    if w.worker_id == worker.worker_id:
+                        self.workers[idx] = new_worker
+                        break
+                worker = new_worker
+
         self.worker_queue.put(worker)
 
     def execute_recipe(
-        self, recipe: dict, output_dir: Path, rm: str = "cycles", sid: str = "main"
+        self, recipe: dict, output_dir: Path, rm: str = "cycles", sid: str | None = None
     ) -> Response:
         worker = self.get_worker()
         try:
+            effective_shard_id = sid if sid is not None else worker.shard_id
             resp = worker.send_command(
                 CommandType.RENDER,
                 {
                     "recipe": recipe,
                     "output_dir": str(output_dir),
                     "renderer_mode": rm,
-                    "shard_id": sid,
+                    "shard_id": effective_shard_id,
                     "skip_visibility": self.mock,
                 },
             )
+            if resp.status == ResponseStatus.SUCCESS:
+                worker.renders_completed += 1
             return resp
         finally:
             self.release_worker(worker)
@@ -885,9 +935,7 @@ def run_local_parallel(
                         batch_recipes = json.load(f)
 
                     for recipe in batch_recipes:
-                        resp = orchestrator.execute_recipe(
-                            recipe, output_dir, renderer_mode, "batch"
-                        )
+                        resp = orchestrator.execute_recipe(recipe, output_dir, renderer_mode)
                         if resp.status != ResponseStatus.SUCCESS:
                             console.print(f"[red]Render failed: {resp.message}[/red]")
                             any_failed = True

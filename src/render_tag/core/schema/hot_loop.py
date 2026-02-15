@@ -4,13 +4,13 @@ ZeroMQ Protocol Schemas for Hot Loop Optimization.
 
 import hashlib
 import json
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, Field
 
 
-class CommandType(str, Enum):
+class CommandType(StrEnum):
     """Types of commands that can be sent to the Backend."""
 
     INIT = "INIT"  # Pre-load heavy assets
@@ -28,7 +28,7 @@ class Command(BaseModel):
     request_id: str = Field(description="Unique ID for tracking the request/response pair")
 
 
-class ResponseStatus(str, Enum):
+class ResponseStatus(StrEnum):
     """Status of a command execution."""
 
     SUCCESS = "SUCCESS"
@@ -44,9 +44,19 @@ class Response(BaseModel):
     data: dict[str, Any] | None = None
 
 
+class WorkerStatus(StrEnum):
+    """Execution state of the worker."""
+
+    IDLE = "IDLE"
+    BUSY = "BUSY"
+    FINISHED = "FINISHED"  # About to exit after success
+    ERROR = "ERROR"
+
+
 class Telemetry(BaseModel):
     """Telemetry data reported by the Backend."""
 
+    status: WorkerStatus = WorkerStatus.IDLE
     vram_used_mb: float
     vram_total_mb: float
     cpu_usage_percent: float
