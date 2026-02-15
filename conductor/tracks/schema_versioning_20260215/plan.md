@@ -32,9 +32,9 @@ Inject the migrator into the existing configuration loading sequence.
 ## Phase 3: Automation - On-Disk Upgrades & Validation
 Enable the "Self-Healing" capability where legacy files are automatically upgraded on the filesystem.
 
-- [ ] Task: Implement On-Disk Upgrade Logic
+- [x] Task: Implement On-Disk Upgrade Logic (d37febb)
     - [ ] Add `upgrade_file_on_disk` utility to `src/render_tag/core/migration.py`.
     - [ ] Logic: If a file was migrated from `0.0`, write the new dictionary back to the source path.
-- [ ] Task: Final Integration Test
+- [x] Task: Final Integration Test (3ef5c1e)
     - [ ] Verify that running `render-tag generate` with a legacy config file results in a versioned config file on disk.
 - [ ] Task: Conductor - User Manual Verification 'Phase 3' (Protocol in workflow.md)
