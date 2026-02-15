@@ -24,6 +24,7 @@ except ImportError:
 import logging
 
 from render_tag.backend.worker_server import ZmqBackendServer
+from render_tag.core.logging import get_logger, setup_logging
 
 
 def main():
@@ -37,13 +38,30 @@ def main():
     parser.add_argument("--seed", type=int, default=42)
     args, _unknown = parser.parse_known_args()
 
-    if not logging.getLogger().handlers:
-        logging.basicConfig(level=logging.INFO)
+    # Setup structured logging
+    setup_logging()
 
-    logger = logging.getLogger("zmq_server")
-    logger.info(
-        f"Starting ZmqBackendServer on port {args.port} (shard_id={args.shard_id}, mock={args.mock}, seed={args.seed})"
-    )
+    # Retrieve job_id from environment
+    job_id = os.environ.get("RENDER_TAG_JOB_ID", "local")
+
+    # Create context-bound logger
+    logger = get_logger("zmq_server").bind(job_id=job_id, worker_id=args.shard_id, mock=args.mock)
+
+    logger.info(f"Starting ZmqBackendServer on port {args.port}", extra={"seed": args.seed})
+
+    # Global Exception Hook for Crash Reporting
+    def handle_exception(exc_type, exc_value, exc_traceback):
+        if issubclass(exc_type, KeyboardInterrupt):
+            sys.__excepthook__(exc_type, exc_value, exc_traceback)
+            return
+
+        logger.critical(
+            "Uncaught exception",
+            exc_info=(exc_type, exc_value, exc_traceback),
+            event="worker_crash",
+        )
+
+    sys.excepthook = handle_exception
 
     try:
         bproc_mock, bpy_mock = None, None
@@ -61,10 +79,11 @@ def main():
             bproc_mock=bproc_mock,
             bpy_mock=bpy_mock,
             seed=args.seed,
+            logger=logger,  # Inject bound logger
         )
         server.run(max_renders=args.max_renders)
     except Exception as e:
-        logger.exception(f"ZMQ Server failed to start: {e}")
+        logger.exception(f"ZMQ Server failed to start: {e}", event="startup_failure")
         sys.exit(1)
 
 

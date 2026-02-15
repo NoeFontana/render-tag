@@ -100,6 +100,9 @@ class Generator:
         # This seed is unique to this scene index and deterministic given the global seed.
         scene_seed = derive_seed(self.global_seed, "scene", scene_id)
 
+        # Create context-bound logger for this scene
+        scene_logger = logger.bind(scene_id=scene_id, seed=scene_seed)
+
         max_retries = 50
         for attempt in range(max_retries):
             # Derive a specific seed for this attempt if we need to retry
@@ -122,13 +125,14 @@ class Generator:
             if not validator.errors and not validator.warnings:
                 return recipe
 
-            logger.debug(
+            scene_logger.debug(
                 f"Scene {scene_id} attempt {attempt} failed validation "
                 f"(Errors: {len(validator.errors)}, "
-                f"Warnings: {len(validator.warnings)}). Re-sampling..."
+                f"Warnings: {len(validator.warnings)}). Re-sampling...",
+                attempt=attempt,
             )
 
-        logger.warning(
+        scene_logger.warning(
             f"Could not generate a valid scene for ID {scene_id} after "
             f"{max_retries} attempts. Returning last attempt."
         )

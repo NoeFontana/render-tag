@@ -8,7 +8,6 @@ parallel execution, and pluggable render executors into a single module.
 import contextlib
 import hashlib
 import json
-import logging
 import os
 import queue
 import random
@@ -19,6 +18,7 @@ import subprocess
 import sys
 import threading
 import time
+import uuid
 from pathlib import Path
 from typing import Any, ClassVar, Protocol, runtime_checkable
 from unittest.mock import MagicMock
@@ -34,6 +34,7 @@ except ImportError:
 from render_tag.audit.auditor import TelemetryAuditor
 from render_tag.core.config import load_config
 from render_tag.core.errors import WorkerCommunicationError, WorkerStartupError
+from render_tag.core.logging import get_logger
 from render_tag.core.resilience import retry_with_backoff
 from render_tag.core.resources import ResourceStack, get_thread_budget
 from render_tag.core.schema.hot_loop import (
@@ -63,7 +64,7 @@ def set_worker_priority():
         libc.prctl(1, signal.SIGKILL, 0, 0, 0)
 
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 console = Console()
 
 
@@ -166,8 +167,10 @@ class PersistentWorkerProcess:
         context: zmq.Context | None = None,
         thread_budget: int = 1,
         seed: int = 42,
+        job_id: str | None = None,
     ):
         self.worker_id, self.port = worker_id, port
+        self.job_id = job_id
         self.blender_script, self.blender_executable = blender_script, blender_executable
         self.startup_timeout, self.use_blenderproc, self.mock = (
             startup_timeout,
@@ -181,6 +184,7 @@ class PersistentWorkerProcess:
         self.renders_completed = 0
         self._stop_event = threading.Event()
         self._startup_logs = []  # Buffer for startup logs
+        self.logger = get_logger(f"worker.{worker_id}").bind(worker_id=worker_id, job_id=job_id)
 
     def _log_router(self):
         if not self.process or not self.process.stdout:
@@ -193,12 +197,12 @@ class PersistentWorkerProcess:
                 continue
             try:
                 data = orjson.loads(line)
-                logger.info(f"[{self.worker_id}] {data.get('message', '')}")
+                self.logger.info(f"[{self.worker_id}] {data.get('message', '')}")
             except (orjson.JSONDecodeError, ValueError):
                 # Buffer non-JSON output for error reporting
                 if len(self._startup_logs) < 50:
                     self._startup_logs.append(line)
-                logger.debug(f"[{self.worker_id}] {line}")
+                self.logger.debug(f"[{self.worker_id}] {line}")
 
     def start(self):
         project_root = Path(__file__).resolve().parents[3]
@@ -256,6 +260,9 @@ class PersistentWorkerProcess:
         with contextlib.suppress(Exception):
             env["RENDER_TAG_VENV_SITE_PACKAGES"] = get_venv_site_packages()
 
+        if self.job_id:
+            env["RENDER_TAG_JOB_ID"] = self.job_id
+
         # Probe for immediate failure
         try:
             probe_cmd = cmd[:2] if not self.mock else [cmd[0], "-c", "import sys; sys.exit(0)"]
@@ -263,7 +270,7 @@ class PersistentWorkerProcess:
         except Exception:
             pass
 
-        logger.info(f"Launching worker with command: {cmd}")
+        self.logger.info(f"Launching worker with command: {cmd}")
         self.process = subprocess.Popen(
             cmd,
             env=env,
@@ -376,6 +383,7 @@ class UnifiedWorkerOrchestrator:
         self.max_renders_per_worker = max_renders_per_worker
         self.worker_id_prefix = worker_id_prefix
         self.seed = seed
+        self.job_id = str(uuid.uuid4())
         self.context = zmq.Context() if zmq else None
 
         # Auto-Throttling: Calculate thread budget based on hardware
@@ -431,6 +439,7 @@ class UnifiedWorkerOrchestrator:
                             context=self.context,
                             thread_budget=self.thread_budget,
                             seed=self.seed,
+                            job_id=self.job_id,
                         )
                         worker.start()
 
@@ -581,37 +590,40 @@ class UnifiedWorkerOrchestrator:
         # If it was an intentional exit and we DON'T need more work from this specific slot
         # in an ephemeral context, we could cull it. But for UnifiedOrchestrator,
         # we usually want to keep the num_workers constant until stop().
-        if intentional_exit and not should_restart:
-            # If it's dead, we MUST restart it to keep the pool size if the queue isn't empty.
-            # However, in run_local_parallel, workers are released AFTER the task is done.
-            # If the process is dead, we can't put it back as "healthy".
-            if worker.process and worker.process.poll() is not None:
-                should_restart = True
-                reason = "Refreshing completed worker for next batch"
-                # Fall through to a recursive call or just trigger the restart logic above
-                # Let's just force should_restart and jump back up (refactoring needed)
-                # To keep it simple: if intentional and dead, we RESTART to keep the slot alive.
-                # BUT we change the log level to INFO.
-                logger.info(f"Worker {worker.worker_id} reached limit. Refreshing process...")
-                worker.stop()
-                new_worker = PersistentWorkerProcess(
-                    worker.worker_id,
-                    worker.port,
-                    worker.blender_script,
-                    worker.blender_executable,
-                    use_blenderproc=worker.use_blenderproc,
-                    mock=worker.mock,
-                    max_renders=worker.max_renders,
-                    shard_id=worker.shard_id,
-                    context=worker.context,
-                    thread_budget=self.thread_budget,
-                )
-                new_worker.start()
-                for idx, w in enumerate(self.workers):
-                    if w.worker_id == worker.worker_id:
-                        self.workers[idx] = new_worker
-                        break
-                worker = new_worker
+        if (
+            intentional_exit
+            and not should_restart
+            and worker.process
+            and worker.process.poll() is not None
+        ):
+            should_restart = True
+            reason = "Refreshing completed worker for next batch"
+            # Fall through to a recursive call or just trigger the restart logic above
+            # Let's just force should_restart and jump back up (refactoring needed)
+            # To keep it simple: if intentional and dead, we RESTART to keep the slot alive.
+            # BUT we change the log level to INFO.
+            logger.info(f"Worker {worker.worker_id} reached limit. Refreshing process...")
+            worker.stop()
+            new_worker = PersistentWorkerProcess(
+                worker.worker_id,
+                worker.port,
+                worker.blender_script,
+                worker.blender_executable,
+                use_blenderproc=worker.use_blenderproc,
+                mock=worker.mock,
+                max_renders=worker.max_renders,
+                shard_id=worker.shard_id,
+                context=worker.context,
+                thread_budget=self.thread_budget,
+                seed=self.seed,
+                job_id=worker.job_id,
+            )
+            new_worker.start()
+            for idx, w in enumerate(self.workers):
+                if w.worker_id == worker.worker_id:
+                    self.workers[idx] = new_worker
+                    break
+            worker = new_worker
 
         self.worker_queue.put(worker)
 

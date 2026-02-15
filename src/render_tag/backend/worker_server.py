@@ -42,10 +42,12 @@ class ZmqBackendServer:
         bproc_mock=None,
         bpy_mock=None,
         seed: int = 42,
+        logger: logging.Logger | None = None,
     ):
         self.port = port
         self.shard_id = shard_id
         self.seed = seed
+        self.logger = logger or logging.getLogger(__name__)
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.REP)
         self.socket.bind(f"tcp://127.0.0.1:{port}")
@@ -105,27 +107,27 @@ class ZmqBackendServer:
                 status=ResponseStatus.FAILURE, request_id=cmd.request_id, message="Not implemented"
             )
         try:
-            logger.info(f"Handling command: {cmd.command_type}")
+            self.logger.debug(f"Handling command: {cmd.command_type}")
             return handler.handle(self, cmd)
         except Exception as e:
-            logger.error(f"Error handling {cmd.command_type}: {e}", exc_info=True)
+            self.logger.error(f"Error handling {cmd.command_type}: {e}", exc_info=True)
             return Response(
                 status=ResponseStatus.FAILURE, request_id=cmd.request_id, message=str(e)
             )
 
     def run(self, max_renders: int | None = None):
         self.running, self.max_renders = True, max_renders
-        logger.info("Entering ZMQ server loop")
+        self.logger.info(f"Entering ZMQ server loop (port={self.port})")
         while self.running:
             try:
                 if self.socket.poll(1000):
                     message = self.socket.recv_string()
-                    logger.debug(f"Received msg: {message[:100]}...")
+                    self.logger.debug(f"Received msg: {message[:100]}...")
                     cmd = Command.model_validate_json(message)
                     resp = self.handle_command(cmd)
                     self.socket.send_string(resp.model_dump_json())
                     if self.max_renders and self.renders_completed >= self.max_renders:
-                        logger.info(f"Reached max renders ({self.max_renders}). Finalizing...")
+                        self.logger.info(f"Reached max renders ({self.max_renders}). Finalizing...")
                         self.status = WorkerStatus.FINISHED
                         self._finalize_writers()
                         # Staff Engineer: Ensure the final ZMQ message (response) is sent
@@ -134,9 +136,9 @@ class ZmqBackendServer:
                         self.running = False
                 else:
                     # Staff Engineer: Heartbeat logging
-                    logger.debug("Worker idle, waiting for command...")
+                    self.logger.debug("Worker idle, waiting for command...")
             except Exception as e:
-                logger.error(f"Error in server loop: {e}")
+                self.logger.error(f"Error in server loop: {e}")
         self._finalize_writers()
 
     def _finalize_writers(self):
@@ -181,7 +183,7 @@ class InitHandler:
                     bridge.bproc.clean_up()
                 server.bproc_initialized = True
             except Exception as e:
-                logger.error(f"BlenderProc initialization failed: {e}")
+                server.logger.error(f"BlenderProc initialization failed: {e}")
                 return Response(
                     status=ResponseStatus.FAILURE,
                     request_id=cmd.request_id,
@@ -236,6 +238,9 @@ class RenderHandler:
             skip_visibility=payload.get("skip_visibility", False),
             seed=render_seed,
             global_seed=server.seed,
+            logger=server.logger.bind(scene_id=scene_id)
+            if hasattr(server.logger, "bind")
+            else server.logger,
         )
         server.renders_completed += 1
         server.status = WorkerStatus.IDLE

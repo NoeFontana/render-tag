@@ -308,3 +308,86 @@ def prune(
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
         raise typer.Exit(code=1) from None
+
+
+@app.command(name="logs")
+def logs(
+    path: Path = typer.Option(..., "--path", "-p", help="Path to log file (JSONL)", exists=True),
+    level: str = typer.Option(
+        None, "--level", "-l", help="Filter by log level (INFO, WARNING, ERROR)"
+    ),
+    query: str = typer.Option(
+        None,
+        "--query",
+        "-q",
+        help="Python expression to filter logs (e.g. 'context[\"scene_id\"] == 5')",
+    ),
+    limit: int = typer.Option(100, "--limit", "-n", help="Max number of logs to show"),
+) -> None:
+    """
+    Query and filter structured JSON logs.
+    """
+    import orjson
+    from rich.syntax import Syntax
+
+    console.print(f"[bold]Querying Logs:[/bold] {path}")
+    if level:
+        console.print(f"  Filter: Level={level.upper()}")
+    if query:
+        console.print(f"  Filter: Query='{query}'")
+    console.print("────────────────────────────────────────")
+
+    count = 0
+    try:
+        with open(path) as f:
+            for line in f:
+                if not line.strip():
+                    continue
+                try:
+                    record = orjson.loads(line)
+                except orjson.JSONDecodeError:
+                    continue
+
+                # Filter by level
+                if level and record.get("level", "").upper() != level.upper():
+                    continue
+
+                # Filter by query
+                if query:
+                    try:
+                        # Construct evaluation context
+                        # Allow direct access to top-level keys, context keys, and payload keys
+                        eval_ctx = {
+                            "record": record,
+                            "context": record.get("context", {}),
+                            "payload": record.get("payload", {}),
+                        }
+                        # Merge flattened view for convenience
+                        eval_ctx.update(record)
+                        eval_ctx.update(record.get("context", {}))
+                        eval_ctx.update(record.get("payload", {}))
+
+                        if not eval(query, {}, eval_ctx):
+                            continue
+                    except Exception:
+                        # If query fails (e.g. missing key), safely skip
+                        continue
+
+                # Pretty print result
+                # We format it back to JSON for syntax highlighting
+                formatted_json = orjson.dumps(record, option=orjson.OPT_INDENT_2).decode("utf-8")
+                console.print(Syntax(formatted_json, "json", theme="monokai", word_wrap=True))
+
+                count += 1
+                if count >= limit:
+                    console.print(
+                        f"\n[yellow]Limit reached ({limit}). Use --limit to see more.[/yellow]"
+                    )
+                    break
+
+        if count == 0:
+            console.print("[yellow]No logs matched criteria.[/yellow]")
+
+    except Exception as e:
+        console.print(f"[bold red]Error reading logs:[/bold red] {e}")
+        raise typer.Exit(code=1) from None
