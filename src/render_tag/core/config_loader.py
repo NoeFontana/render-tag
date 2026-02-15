@@ -117,6 +117,7 @@ class ConfigResolver:
         job_id = f"job-{job_id_hash[:8]}"
 
         spec = JobSpec(
+            version="1.0",
             job_id=job_id,
             paths=job_paths,
             infrastructure=infra,
