@@ -11,3 +11,11 @@ source_modules =
 forbidden_modules =
     bpy
     render_tag.backend
+
+[importlinter:contract:determinism-enforcement]
+name = Determinism enforcement (Generation)
+type = forbidden
+source_modules =
+    render_tag.generation
+forbidden_modules =
+    random

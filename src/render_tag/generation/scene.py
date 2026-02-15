@@ -8,6 +8,8 @@ by a separate Blender process. This isolates logical calculations from Blender.
 import json
 from pathlib import Path
 
+import numpy as np
+
 from render_tag.core.config import GenConfig
 from render_tag.core.logging import get_logger
 from render_tag.core.schema import SceneRecipe
@@ -33,6 +35,7 @@ class Generator:
         self.output_dir = output_dir
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.global_seed = global_seed
+        self.rng = np.random.default_rng(global_seed)
         self.compiler = SceneCompiler(config, global_seed=global_seed, output_dir=output_dir)
 
     def generate_all(self, exclude_ids: set[int] | None = None) -> list[SceneRecipe]:
