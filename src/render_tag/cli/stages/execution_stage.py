@@ -9,7 +9,7 @@ from rich.console import Console
 
 from render_tag.cli.pipeline import GenerationContext, PipelineStage
 from render_tag.cli.tools import check_blenderproc_installed, check_orchestration_installed
-from render_tag.orchestration.orchestrator import ExecutorFactory, run_local_parallel
+from render_tag.orchestration.orchestrator import ExecutorFactory, orchestrate
 
 console = Console()
 
@@ -23,17 +23,13 @@ class ExecutionStage(PipelineStage):
         # Local Parallel Manager Mode
         if ctx.workers > 1 and ctx.total_shards == 1:
             console.print(f"[bold]Running Local Parallel Manager ({ctx.workers} workers)[/bold]")
-            run_local_parallel(
-                config_path=ctx.config_path,
-                output_dir=ctx.output_dir,
-                num_scenes=ctx.num_scenes,
+            orchestrate(
+                job_spec=ctx.job_spec,
                 workers=ctx.workers,
-                renderer_mode=ctx.renderer_mode,
-                verbose=ctx.verbose,
                 executor_type=ctx.executor_type,
                 resume=ctx.resume,
                 batch_size=ctx.batch_size,
-                seed=ctx.seed,
+                verbose=ctx.verbose,
             )
             return
 
@@ -41,19 +37,21 @@ class ExecutionStage(PipelineStage):
             console.print("[yellow]--skip-render provided. Skipping Blender launch.[/yellow]")
             return
 
-        if not ctx.recipes_path or not ctx.recipes_path.exists():
-            return
+        # Check if recipes generation was needed?
+        # With JobSpec, we might assume executor handles input retrieval.
+        # But ValidationStage might have checked recipes?
+        # Let's keep existing check if recipes_path is set.
+        # But typically orchestration handles recipes.
+        # If we are in single worker mode, and pipeline ran generation stage...
+        # GenerationStage (not modified yet) produces recipes.
 
         # Standard Sharded Execution
         try:
             executor = ExecutorFactory.get_executor(ctx.executor_type)
             executor.execute(
-                recipe_path=ctx.recipes_path,
-                output_dir=ctx.output_dir,
-                renderer_mode=ctx.renderer_mode,
+                job_spec=ctx.job_spec,
                 shard_id=str(ctx.shard_index),
                 verbose=ctx.verbose,
-                seed=ctx.seed,
             )
             console.print("\n[bold green]✓ Dataset generated successfully![/bold green]")
             self._finalize_results(ctx)

@@ -1,7 +1,10 @@
 import logging
 import time
 from pathlib import Path
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
+
+if TYPE_CHECKING:
+    from render_tag.core.schema.job import JobSpec
 
 import zmq
 
@@ -43,10 +46,12 @@ class ZmqBackendServer:
         bpy_mock=None,
         seed: int = 42,
         logger: logging.Logger | None = None,
+        job_spec: "JobSpec | None" = None,
     ):
         self.port = port
         self.shard_id = shard_id
         self.seed = seed
+        self.job_spec = job_spec
         self.logger = logger or logging.getLogger(__name__)
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.REP)

@@ -29,7 +29,7 @@ def run(
     ),
     num_scenes: int = typer.Option(-1, "--scenes", "-n"),
     verbose: bool = typer.Option(False, "--verbose", "-v"),
-    renderer_mode: str = typer.Option("cycles", "--renderer-mode", "-r"),
+    renderer_mode: str | None = typer.Option(None, "--renderer-mode", "-r"),
     workers: int = typer.Option(1, "--workers", "-w"),
     shard_index: int = typer.Option(-1, "--shard-index"),
     total_shards: int = typer.Option(1, "--total-shards"),

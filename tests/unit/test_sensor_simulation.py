@@ -14,7 +14,7 @@ def test_generator_samples_velocity(tmp_path):
     config.camera.shutter_time_ms = 10.0
 
     mock_assets = MagicMock()
-    builder = SceneRecipeBuilder(0, config, mock_assets)
+    builder = SceneRecipeBuilder(0, config, mock_assets, seed=42)
     builder.build_cameras()
 
     recipes = builder.recipe.cameras
@@ -40,7 +40,7 @@ def test_generator_passes_dof_and_noise(tmp_path):
     config.camera.iso_noise = 0.5
 
     mock_assets = MagicMock()
-    builder = SceneRecipeBuilder(0, config, mock_assets)
+    builder = SceneRecipeBuilder(0, config, mock_assets, seed=42)
     builder.build_cameras()
 
     recipes = builder.recipe.cameras
@@ -57,7 +57,7 @@ def test_generator_no_velocity_default(tmp_path):
     # Defaults are 0.0
 
     mock_assets = MagicMock()
-    builder = SceneRecipeBuilder(0, config, mock_assets)
+    builder = SceneRecipeBuilder(0, config, mock_assets, seed=42)
     builder.build_cameras()
 
     recipes = builder.recipe.cameras

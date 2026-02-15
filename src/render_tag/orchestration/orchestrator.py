@@ -32,7 +32,6 @@ except ImportError:
     zmq = None
 
 from render_tag.audit.auditor import TelemetryAuditor
-from render_tag.core.config import load_config
 from render_tag.core.errors import WorkerCommunicationError, WorkerStartupError
 from render_tag.core.logging import get_logger
 from render_tag.core.resilience import retry_with_backoff
@@ -649,37 +648,56 @@ class UnifiedWorkerOrchestrator:
 # --- EXECUTORS ---
 
 
+from render_tag.core.schema.job import JobSpec
+
+# ... (existing imports)
+
+
 @runtime_checkable
 class RenderExecutor(Protocol):
     def execute(
         self,
-        recipe_path: Path,
-        output_dir: Path,
-        renderer_mode: str,
+        job_spec: JobSpec,
         shard_id: str,
         verbose: bool = False,
-        seed: int = 42,
     ) -> None: ...
 
 
 class LocalExecutor:
     def execute(
         self,
-        recipe_path: Path,
-        output_dir: Path,
-        renderer_mode: str,
+        job_spec: JobSpec,
         shard_id: str,
         verbose: bool = False,
-        seed: int = 42,
     ) -> None:
+        # Determine recipe path
+        # Assuming standard naming convention or single recipe file if shard_id is 'main'?
+        # If shard_id is an index (int-like), we look for recipes_shard_{id}.json
+        # If shard_id is 'main' or 0, maybe recipes.json?
+        # Let's standardize: output_dir / f"recipes_shard_{shard_id}.json"
+
+        output_dir = job_spec.paths.output_dir
+        recipe_path = output_dir / f"recipes_shard_{shard_id}.json"
+        if not recipe_path.exists():
+            # Fallback for old behavior?
+            recipe_path = output_dir / "recipes.json"
+
+        if not recipe_path.exists():
+            raise FileNotFoundError(f"Recipes not found for shard {shard_id} at {recipe_path}")
+
         with open(recipe_path) as f:
             recipes = json.load(f)
+
         force_mock = (os.environ.get("RENDER_TAG_FORCE_MOCK") == "1") or (
             "PYTEST_CURRENT_TEST" in os.environ
         )
         use_bproc = (shutil.which("blenderproc") is not None) and not force_mock
         # Staff Engineer: Ensure we respect the worker count if we are in a parallel context
         workers_to_use = getattr(self, "num_workers", 1)
+
+        # Derive seed for orchestrator
+        # We can use job_spec.global_seed
+
         with UnifiedWorkerOrchestrator(
             num_workers=workers_to_use,
             base_port=20000,
@@ -687,11 +705,23 @@ class LocalExecutor:
             max_renders_per_worker=len(recipes),
             mock=not use_bproc,
             worker_id_prefix=f"worker-{shard_id}",
-            seed=seed,
+            seed=job_spec.global_seed,
         ) as orchestrator:
             orchestrator.start(shard_id=shard_id)
             for recipe in recipes:
-                resp = orchestrator.execute_recipe(recipe, output_dir, renderer_mode, shard_id)
+                # We need renderer_mode? It was passed before.
+                # Now it should be in JobSpec?
+                # JobSpec.scene_config.renderer.mode?
+                # Or just assume "cycles" if not in spec?
+                # JobInfrastructure doesn't have renderer mode.
+                # GenConfig has `renderer`.
+                rm = (
+                    job_spec.scene_config.renderer.mode
+                    if job_spec.scene_config.renderer
+                    else "cycles"
+                )
+
+                resp = orchestrator.execute_recipe(recipe, output_dir, rm, shard_id)
                 # Handle mocked orchestrator in tests
                 if hasattr(resp, "status") and not isinstance(resp.status, MagicMock):
                     if resp.status != ResponseStatus.SUCCESS:
@@ -706,34 +736,38 @@ class DockerExecutor:
 
     def execute(
         self,
-        recipe_path: Path,
-        output_dir: Path,
-        renderer_mode: str,
+        job_spec: JobSpec,
         shard_id: str,
         verbose: bool = False,
-        seed: int = 42,
     ) -> None:
-        logger.info(f"Docker execution (stub): image={self.image}, recipe={recipe_path.name}")
+        # Docker execution needs update to pass --job-spec
+        # Standardize job spec path mapping
+        # We need to map the output_dir and passing job_spec.json
+
+        output_dir = job_spec.paths.output_dir
+        job_spec_path = output_dir / "job_spec.json"
+
+        logger.info(f"Docker execution: image={self.image}, job={job_spec.job_id}")
+
+        # We need renderer mode
+        rm = job_spec.scene_config.renderer.mode if job_spec.scene_config.renderer else "cycles"
+
         cmd = [
             "docker",
             "run",
             "-v",
-            f"{recipe_path.parent.absolute()}:/input",
-            "-v",
             f"{output_dir.absolute()}:/output",
+            # We assume assets are available or mounted?
+            # For now, let's just mount output where job_spec lives.
             self.image,
             "python",
             "src/render_tag/backend/zmq_server.py",
-            "--recipe",
-            f"/input/{recipe_path.name}",
-            "--output",
-            "/output",
-            "--renderer-mode",
-            renderer_mode,
+            "--job-spec",
+            "/output/job_spec.json",  # Mapped path
             "--shard-id",
             shard_id,
             "--seed",
-            str(seed),
+            str(job_spec.global_seed),  # Fallback/Primary
         ]
         subprocess.run(cmd)
 
@@ -753,19 +787,23 @@ class ExecutorFactory:
 class MockExecutor:
     def execute(
         self,
-        recipe_path: Path,
-        output_dir: Path,
-        renderer_mode: str,
+        job_spec: JobSpec,
         shard_id: str,
         verbose: bool = False,
-        seed: int = 42,
     ) -> None:
+        output_dir = job_spec.paths.output_dir
+        recipe_path = output_dir / f"recipes_shard_{shard_id}.json"
+
         logger.info(f"[MOCK] Render: {recipe_path.name} -> {output_dir.name}")
 
         # Simulate output for auditing
         output_dir.mkdir(parents=True, exist_ok=True)
         images_dir = output_dir / "images"
         images_dir.mkdir(parents=True, exist_ok=True)
+
+        if not recipe_path.exists():
+            logger.warning(f"MockExecutor: Recipes not found at {recipe_path}")
+            return
 
         with open(recipe_path) as f:
             recipes = json.load(f)
@@ -886,27 +924,28 @@ def _signal_handler(sig, frame):
     sys.exit(0)
 
 
-def run_local_parallel(
-    config_path: Path,
-    output_dir: Path,
-    num_scenes: int,
-    workers: int,
-    renderer_mode: str,
-    verbose: bool,
+def orchestrate(
+    job_spec: JobSpec,
+    workers: int = 1,
     executor_type: str = "local",
     resume: bool = False,
     batch_size: int = 5,
-    seed: int = 42,
-):
+    verbose: bool = False,
+) -> None:
     import typer
 
     signal.signal(signal.SIGINT, _signal_handler)
     signal.signal(signal.SIGTERM, _signal_handler)
     from ..generation.scene import Generator
 
-    config = load_config(config_path)
-    config.dataset.num_scenes = num_scenes
-    gen = Generator(config, output_dir)
+    output_dir = job_spec.paths.output_dir
+    gen = Generator(job_spec.scene_config, output_dir)
+
+    # Generate recipes
+    # Note: Generator uses internal seeding based on config.
+    # We should ensure generator respects job_spec seed if not already in config?
+    # job_spec.scene_config.dataset.seeds.global_seed SHOULD be set by ConfigResolver.
+
     recipes = gen.generate_all(exclude_ids=get_completed_scene_ids(output_dir) if resume else set())
     if not recipes:
         return
@@ -928,19 +967,29 @@ def run_local_parallel(
         )
         for i in range(0, len(recipes), actual_batch_size)
     ]
+
     # Staff Engineer: Refactor to use a SINGLE Orchestrator for the whole job.
     # This ensures thread budget is calculated correctly for the total worker count.
     # We still use a small thread pool to feed the orchestrator if we want to parallelize
     # the IO/communication, but they all share the same orchestrator instance.
+
+    # Determine renderer mode from config
+    rm = job_spec.scene_config.renderer.mode if job_spec.scene_config.renderer else "cycles"
+
+    force_mock = (os.environ.get("RENDER_TAG_FORCE_MOCK") == "1") or (
+        "PYTEST_CURRENT_TEST" in os.environ
+    )
+    use_bproc = (shutil.which("blenderproc") is not None) and not force_mock
+
     with UnifiedWorkerOrchestrator(
         num_workers=workers,
         base_port=20000,
         blender_script=None,  # Use default
         blender_executable=None,  # Use default
-        use_blenderproc=True,
-        mock=False,
+        use_blenderproc=not force_mock,
+        mock=not use_bproc,
         max_renders_per_worker=batch_size,
-        seed=seed,
+        seed=job_spec.global_seed,
     ) as orchestrator:
         q = queue.Queue()
         for _, path in batches:
@@ -957,7 +1006,7 @@ def run_local_parallel(
                         batch_recipes = json.load(f)
 
                     for recipe in batch_recipes:
-                        resp = orchestrator.execute_recipe(recipe, output_dir, renderer_mode)
+                        resp = orchestrator.execute_recipe(recipe, output_dir, rm)
                         if resp.status != ResponseStatus.SUCCESS:
                             console.print(f"[red]Render failed: {resp.message}[/red]")
                             any_failed = True

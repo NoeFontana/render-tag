@@ -17,7 +17,7 @@ from typer.testing import CliRunner
 from render_tag.cli import app
 from render_tag.cli.tools import check_blenderproc_installed, serialize_config_to_json
 from render_tag.core.config import GenConfig
-from render_tag.core.schema.job import JobSpec
+from render_tag.core.schema.job import JobInfrastructure, JobPaths, JobSpec
 
 runner = CliRunner()
 
@@ -157,9 +157,10 @@ def test_generate_handoff_to_executor(
 
     # Verify arguments passed to executor
     call_args = mock_executor.execute.call_args.kwargs
-    assert "recipe_path" in call_args
-    assert call_args["output_dir"] == output_dir
-    assert call_args["renderer_mode"] == "eevee"
+    assert "job_spec" in call_args
+    job_spec = call_args["job_spec"]
+    assert job_spec.paths.output_dir == output_dir
+    assert job_spec.scene_config.renderer.mode == "eevee"
 
 
 @patch("render_tag.cli.tools.check_blenderproc_installed", return_value=True)
@@ -201,13 +202,19 @@ def test_cli_run_with_job_mismatch(tmp_path, monkeypatch):
     # 1. Create a job.json with a mismatched env_hash
     job_file = tmp_path / "job.json"
     spec = JobSpec(
+        job_id="test-job",
+        paths=JobPaths(
+            output_dir=Path("/tmp/out"),
+            logs_dir=Path("/tmp/out/logs"),
+            assets_dir=Path("/tmp/out/assets"),
+        ),
+        global_seed=42,
+        scene_config=GenConfig(),
         env_hash="mismatched_hash",
         blender_version="4.2.0",
         assets_hash="abc",
         config_hash=config_hash,
-        seed=42,
         shard_index=0,
-        shard_size=1,
     )
     job_file.write_text(spec.model_dump_json())
 
@@ -247,13 +254,19 @@ def test_cli_run_with_job_config_mismatch(tmp_path, monkeypatch):
     # 1. Create a job.json with a DIFFERENT config hash
     job_file = tmp_path / "job.json"
     spec = JobSpec(
+        job_id="test-job",
+        paths=JobPaths(
+            output_dir=Path("/tmp/out"),
+            logs_dir=Path("/tmp/out/logs"),
+            assets_dir=Path("/tmp/out/assets"),
+        ),
+        global_seed=42,
+        scene_config=GenConfig(),
         env_hash=hashlib.sha256(b"actual uv content").hexdigest(),
         blender_version="4.2.0",
         assets_hash="abc",
         config_hash="mismatched_config_hash",
-        seed=42,
         shard_index=0,
-        shard_size=1,
     )
     job_file.write_text(spec.model_dump_json())
 
@@ -291,13 +304,19 @@ def test_cli_run_with_job_overrides_warning(tmp_path, monkeypatch):
 
     job_file = tmp_path / "job.json"
     spec = JobSpec(
+        job_id="test-job",
+        paths=JobPaths(
+            output_dir=Path("/tmp/out"),
+            logs_dir=Path("/tmp/out/logs"),
+            assets_dir=Path("/tmp/out/assets"),
+        ),
+        global_seed=42,
+        scene_config=GenConfig(),
         env_hash=hashlib.sha256(b"uv").hexdigest(),
         blender_version="4.2.0",
         assets_hash="abc",
         config_hash=config_hash,
-        seed=42,
         shard_index=0,
-        shard_size=1,
     )
     job_file.write_text(spec.model_dump_json())
 

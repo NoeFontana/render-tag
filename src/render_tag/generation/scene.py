@@ -27,14 +27,11 @@ class Generator:
 
     def __init__(
         self,
-        config: dict[str, Any] | GenConfig,
+        config: GenConfig,
         output_dir: Path,
         global_seed: int = 42,
     ):
-        if isinstance(config, dict):
-            self.config = GenConfig.model_validate(config)
-        else:
-            self.config = config
+        self.config = config
 
         self.output_dir = output_dir
         self.output_dir.mkdir(parents=True, exist_ok=True)

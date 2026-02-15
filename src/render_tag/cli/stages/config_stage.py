@@ -24,22 +24,32 @@ class ConfigLoadingStage(PipelineStage):
         if ctx.job_spec_path:
             self._load_from_job_spec(ctx)
         else:
-            self._load_from_yaml(ctx)
+            self._load_from_resolver(ctx)
 
-        # Serialize effective config for workers
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False, prefix="render_tag_config_"
-        ) as tmp:
-            ctx.job_config_path = Path(tmp.name)
+        # Ensure JobSpec is present
+        if not ctx.job_spec:
+            raise typer.Exit(code=1)
 
-        serialize_config_to_json(ctx.gen_config, ctx.job_config_path)
-        console.print(f"[dim]Job config:[/dim] {ctx.job_config_path}")
+        # Propagate to context
+        ctx.gen_config = ctx.job_spec.scene_config
+
+        # Serialize Job Spec to disk
+        job_spec_path = ctx.output_dir / "job_spec.json"
+        with open(job_spec_path, "w") as f:
+            f.write(ctx.job_spec.model_dump_json(indent=2))
+
+        ctx.job_spec_path = job_spec_path
+        console.print(f"[green]✓ Job Spec saved to[/green] {job_spec_path}")
+        console.print(f"[dim]Job ID:[/dim] {ctx.job_spec.job_id}")
+
+        # Serialize effective config for compatibility (optional, but helper for debugging)
+        # We can remove the old job_config_path logic if workers use job-spec.
+        # But for now, workers might still expect config.json if we haven't updated them all?
+        # The plan says Update Worker to use job-spec.
+        # But we still have ctx.job_config_path used?
+        # Let's keep it for now as a fallback or debug artifact.
 
     def _load_from_job_spec(self, ctx: GenerationContext) -> None:
-        if ctx.config_path is None:
-            # Fallback if not provided, though typically required
-            ctx.config_path = Path("configs/default.yaml")
-
         console.print(f"[bold blue]Loading Job Spec:[/bold blue] {ctx.job_spec_path}")
         try:
             with open(ctx.job_spec_path) as f:
@@ -47,41 +57,16 @@ class ConfigLoadingStage(PipelineStage):
 
             self._guard_environment(ctx.job_spec)
 
-            # Validate Config Hash
-            with open(ctx.config_path, "rb") as f:
-                actual_hash = hashlib.sha256(f.read()).hexdigest()
-
-            if actual_hash != ctx.job_spec.config_hash:
-                console.print("[bold red]Error:[/bold red] Config hash mismatch.")
-                raise typer.Exit(code=1)
-
-            # Warn if CLI overrides are provided but will be ignored
-            # In pipeline context, defaults (like -1) are passed if not set by user
+            # Override context inputs with spec values where applicable
+            # (Though context inputs were CLI args...)
             if ctx.num_scenes != 1 and ctx.num_scenes != ctx.job_spec.shard_size:
                 console.print(
                     f"[bold yellow]Warning:[/bold yellow] --scenes={ctx.num_scenes} ignored. "
                     f"Using job spec value: {ctx.job_spec.shard_size}"
                 )
-            if ctx.seed != -1 and ctx.seed != ctx.job_spec.seed:
-                console.print(
-                    f"[bold yellow]Warning:[/bold yellow] --seed={ctx.seed} ignored. "
-                    f"Using job spec value: {ctx.job_spec.seed}"
-                )
-            if ctx.shard_index != -1 and ctx.shard_index != ctx.job_spec.shard_index:
-                console.print(
-                    f"[bold yellow]Warning:[/bold yellow] --shard-index={ctx.shard_index} ignored. "
-                    f"Using job spec value: {ctx.job_spec.shard_index}"
-                )
-
-            # Load and Override
-            ctx.gen_config = load_config(ctx.config_path)
-            ctx.gen_config.dataset.num_scenes = ctx.job_spec.shard_size
-            ctx.gen_config.dataset.seeds.global_seed = ctx.job_spec.seed
-            ctx.shard_index = ctx.job_spec.shard_index
-
-            # Update context inputs to match spec
+            # Update context
             ctx.num_scenes = ctx.job_spec.shard_size
-            ctx.seed = ctx.job_spec.seed
+            ctx.seed = ctx.job_spec.global_seed
 
             console.print("[green]✓ Job Spec loaded and validated[/green]")
 
@@ -89,40 +74,56 @@ class ConfigLoadingStage(PipelineStage):
             console.print(f"[bold red]Error loading job spec:[/bold red] {e}")
             raise typer.Exit(code=1) from e
 
-    def _load_from_yaml(self, ctx: GenerationContext) -> None:
-        from pydantic import ValidationError
+    def _load_from_resolver(self, ctx: GenerationContext) -> None:
+        from render_tag.core.config_loader import ConfigResolver
 
         if ctx.config_path is None:
             ctx.config_path = Path("configs/default.yaml")
 
-        console.print(f"[dim]Loading config from[/dim] {ctx.config_path}")
+        console.print(f"[dim]Resolving config from[/dim] {ctx.config_path}")
+
         try:
-            ctx.gen_config = load_config(ctx.config_path)
-        except ValidationError as e:
-            console.print("[bold red]Validation Error:[/bold red]")
-            for err in e.errors():
-                loc = ".".join(str(loc_part) for loc_part in err["loc"])
-                msg = err["msg"]
-                console.print(f"  [cyan]{loc}[/cyan]: {msg}")
-            raise typer.Exit(code=1) from None
+            resolver = ConfigResolver(ctx.config_path)
+
+            # Prepare overrides
+            overrides = {}
+            if ctx.renderer_mode:
+                overrides["renderer_mode"] = ctx.renderer_mode
+
+            seed_arg = "auto"
+            if ctx.seed != -1:
+                seed_arg = ctx.seed
+
+            ctx.job_spec = resolver.resolve(
+                output_dir=ctx.output_dir,
+                overrides=overrides,
+                seed=seed_arg,
+                shard_index=ctx.shard_index if ctx.shard_index != -1 else 0,
+                scene_limit=ctx.num_scenes if ctx.num_scenes > 0 else None,
+            )
+
+            # Update context with resolved values
+            ctx.seed = ctx.job_spec.global_seed
+            ctx.num_scenes = ctx.job_spec.shard_size
+
         except Exception as e:
-            console.print(f"[bold red]Error loading config:[/bold red] {e}")
-            raise typer.Exit(code=1) from None
-
-        # Apply CLI Overrides
-        if ctx.num_scenes > 0:
-            ctx.gen_config.dataset.num_scenes = ctx.num_scenes
-        else:
-            ctx.num_scenes = ctx.gen_config.dataset.num_scenes
-
-        if ctx.seed != -1:
-            ctx.gen_config.dataset.seeds.global_seed = ctx.seed
+            console.print(f"[bold red]Error resolving config:[/bold red] {e}")
+            raise typer.Exit(code=1) from e
 
     def _guard_environment(self, job_spec: JobSpec) -> None:
         curr_env_hash, curr_blender_ver = get_env_fingerprint()
         if curr_env_hash != job_spec.env_hash:
-            console.print("[bold red]Error:[/bold red] Environment mismatch (uv.lock).")
+            console.print(
+                f"[bold red]Validation Error:[/bold red] Environment mismatch (uv.lock).\n"
+                f"Spec: {job_spec.env_hash[:8]}\n"
+                f"Current: {curr_env_hash[:8]}"
+            )
             raise typer.Exit(code=1)
+
         if curr_blender_ver != job_spec.blender_version:
-            console.print("[bold red]Error:[/bold red] Blender version mismatch.")
+            console.print(
+                f"[bold red]Validation Error:[/bold red] Blender version mismatch.\n"
+                f"Spec: {job_spec.blender_version}\n"
+                f"Current: {curr_blender_ver}"
+            )
             raise typer.Exit(code=1)

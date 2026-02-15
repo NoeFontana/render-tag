@@ -1,21 +1,58 @@
 import hashlib
 import shutil
 import subprocess
+from datetime import datetime, timezone
 from pathlib import Path
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
+
+from render_tag.core.config import GenConfig
+
+
+class JobPaths(BaseModel):
+    """Absolute paths for job execution."""
+
+    model_config = ConfigDict(frozen=True)
+
+    output_dir: Path
+    logs_dir: Path
+    assets_dir: Path
+
+
+class JobInfrastructure(BaseModel):
+    """Infrastructure settings for the job."""
+
+    model_config = ConfigDict(frozen=True)
+
+    max_workers: int = Field(default=1, gt=0)
+    timeout_seconds: float = Field(default=3600.0, gt=0)
+    worker_memory_limit_gb: float | None = None
 
 
 class JobSpec(BaseModel):
+    """Immutable specification for a rendering job."""
+
     model_config = ConfigDict(frozen=True)
 
+    job_id: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    paths: JobPaths
+    infrastructure: JobInfrastructure = Field(default_factory=JobInfrastructure)
+
+    global_seed: int
+    scene_config: GenConfig
+
+    # Metadata for reproducibility
     env_hash: str
     blender_version: str
-    assets_hash: str
-    config_hash: str
-    seed: int
-    shard_index: int
-    shard_size: int
+    assets_hash: str = "unknown"  # Placeholder for now
+    config_hash: str | None = None
+    shard_index: int = 0
+
+    @property
+    def shard_size(self) -> int:
+        return self.scene_config.dataset.num_scenes
 
 
 class SeedManager:
@@ -44,6 +81,11 @@ class SeedManager:
 def calculate_job_id(spec: JobSpec) -> str:
     """Calculates a deterministic SHA256 hash for the given JobSpec."""
     # Ensure stable JSON serialization
+    # Exclude created_at to allow re-running same config with same ID if needed?
+    # Or include it to make every run unique?
+    # Usually Job ID should be unique per run.
+    # But if we want content-addressable, we should exclude timestamp.
+    # Let's include everything for now as a UUID-like.
     spec_json = spec.model_dump_json(serialize_as_any=True)
     return hashlib.sha256(spec_json.encode()).hexdigest()
 
@@ -62,6 +104,16 @@ def get_env_fingerprint(root_dir: Path | None = None) -> tuple[str, str]:
         root_dir = Path.cwd()
 
     uv_lock_path = root_dir / "uv.lock"
+
+    # Try to find uv.lock in parent directories if not in CWD
+    if not uv_lock_path.exists():
+        curr = root_dir
+        while curr.parent != curr:
+            if (curr / "uv.lock").exists():
+                uv_lock_path = curr / "uv.lock"
+                break
+            curr = curr.parent
+
     env_hash = "unknown"
     if uv_lock_path.exists():
         with open(uv_lock_path, "rb") as f:

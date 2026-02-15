@@ -42,11 +42,16 @@ class SceneRecipeBuilder:
         asset_provider: AssetProvider,
         seed: int,
     ):
+        if not isinstance(config, GenConfig):
+            raise TypeError(f"config must be GenConfig, got {type(config)}")
         self.scene_id = scene_id
         self.config = config
         self.asset_provider = asset_provider
         self.seed = seed
-        self.recipe = SceneRecipe(scene_id=scene_id)
+        self.recipe = SceneRecipe(
+            scene_id=scene_id,
+            renderer=config.renderer,
+        )
 
     def build_world(self, textures: list[Any]) -> "SceneRecipeBuilder":
         """Generates random world environment parameters."""

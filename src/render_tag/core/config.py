@@ -13,7 +13,8 @@ from typing import Annotated, Any, Literal
 import yaml
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from render_tag.core.schema import (
+from render_tag.core.schema.base import (
+    RendererConfig,
     SensorNoiseConfig,
 )
 
@@ -787,6 +788,7 @@ class GenConfig(BaseModel):
     scene: SceneConfig = Field(default_factory=SceneConfig)
     physics: PhysicsConfig = Field(default_factory=PhysicsConfig)
     scenario: ScenarioConfig = Field(default_factory=ScenarioConfig)
+    renderer: RendererConfig = Field(default_factory=RendererConfig)
     sequence: SequenceConfig = Field(
         default_factory=SequenceConfig, description="Temporal sequence configuration"
     )

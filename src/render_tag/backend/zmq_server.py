@@ -30,12 +30,17 @@ from render_tag.core.logging import get_logger, setup_logging
 def main():
     import argparse
 
+    from render_tag.core.schema.job import JobSpec
+    from render_tag.generation.scene import Generator
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=5555)
     parser.add_argument("--shard-id", type=str, default="0")
     parser.add_argument("--mock", action="store_true")
     parser.add_argument("--max-renders", type=int, default=None)
-    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--seed", type=int, default=42)  # Fallback if no job-spec
+    parser.add_argument("--job-spec", type=Path, default=None)
+
     args, _unknown = parser.parse_known_args()
 
     # Setup structured logging
@@ -73,13 +78,25 @@ def main():
                 logger.error(f"Failed to load production mocks: {e}")
                 sys.exit(1)
 
+        # Load Job Spec if provided
+        job_spec = None
+        if args.job_spec:
+            try:
+                with open(args.job_spec) as f:
+                    job_spec = JobSpec.model_validate_json(f.read())
+                logger.info(f"Loaded Job Spec: {job_spec.job_id}")
+            except Exception as e:
+                logger.error(f"Failed to load job spec: {e}")
+                sys.exit(1)
+
         server = ZmqBackendServer(
             port=args.port,
             shard_id=args.shard_id,
             bproc_mock=bproc_mock,
             bpy_mock=bpy_mock,
-            seed=args.seed,
+            seed=args.seed if job_spec is None else job_spec.global_seed,
             logger=logger,  # Inject bound logger
+            job_spec=job_spec,
         )
         server.run(max_renders=args.max_renders)
     except Exception as e:

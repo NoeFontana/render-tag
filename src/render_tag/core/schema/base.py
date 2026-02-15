@@ -7,7 +7,7 @@ that the "Executor" (Blender) or "Shadow Renderer" (Visualization) can consume s
 """
 
 from enum import Enum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -172,6 +172,17 @@ class WorldRecipe(BaseModel):
     use_nodes: bool = True
 
 
+class RendererConfig(BaseModel):
+    """Configuration for the rendering engine."""
+
+    mode: Literal["cycles", "eevee"] = Field(
+        default="cycles", description="Rendering engine to use"
+    )
+    # Future: samples, denoising, etc.
+    samples: int = Field(default=128, gt=0, description="Render samples (Cycles)")
+    denoising: bool = Field(default=True, description="Enable denoising")
+
+
 class SceneRecipe(BaseModel):
     """Complete recipe for a single generated scene."""
 
@@ -179,6 +190,7 @@ class SceneRecipe(BaseModel):
 
     scene_id: int = Field(description="Unique ID for this scene")
     world: WorldRecipe = Field(default_factory=WorldRecipe)
+    renderer: RendererConfig = Field(default_factory=RendererConfig)
     objects: list[ObjectRecipe] = Field(default_factory=list)
     cameras: list[CameraRecipe] = Field(default_factory=list)
 

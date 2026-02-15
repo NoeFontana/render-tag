@@ -791,13 +791,13 @@ def project_corners(
         t: 3x1 translation vector
 
     Returns:
-        List of 4 (x, y) tuples in image coordinates
+        (4, 2) array of corner coordinates
     """
     corners_2d = []
     for corner in corners_3d:
         p2d = project_point_3d_to_2d(corner, K, R, t)
-        corners_2d.append((float(p2d[0]), float(p2d[1])))
-    return corners_2d
+        corners_2d.append([float(p2d[0]), float(p2d[1])])
+    return np.array(corners_2d)
 
 
 def compute_tag_corners_3d(
@@ -953,20 +953,20 @@ class TestAreaCalculation:
 
     def test_tag_area_shoelace_unit_square(self) -> None:
         """Unit square should have area 1."""
-        corners = [(0, 0), (1, 0), (1, 1), (0, 1)]
+        corners = np.array([[0, 0], [1, 0], [1, 1], [0, 1]])
         area = compute_polygon_area(corners)
         assert abs(area - 1.0) < 1e-9
 
     def test_tag_area_shoelace_scaled(self) -> None:
         """10x10 square should have area 100."""
-        corners = [(0, 0), (10, 0), (10, 10), (0, 10)]
+        corners = np.array([[0, 0], [10, 0], [10, 10], [0, 10]])
         area = compute_polygon_area(corners)
         assert abs(area - 100.0) < 1e-9
 
     def test_tag_area_shoelace_triangle(self) -> None:
         """Triangle with base 4, height 3 should have area 6."""
         # Right triangle: (0,0), (4,0), (0,3)
-        corners = [(0, 0), (4, 0), (0, 3)]
+        corners = np.array([[0, 0], [4, 0], [0, 3]])
         area = compute_polygon_area(corners)
         assert abs(area - 6.0) < 1e-9
 
@@ -1075,7 +1075,7 @@ def test_project_points_basic():
 
     # Point at origin
     pts = np.array([[0, 0, 0]])
-    coords = project_points(pts, K, cam2world)
+    coords = project_points(pts, cam2world, [640, 480], K.tolist())
 
     # Point at origin is 1 unit in front of camera at (0,0,1)
     # In camera space it should be at (0, 0, 1) (if camera Z is forward)
