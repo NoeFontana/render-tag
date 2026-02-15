@@ -6,6 +6,7 @@ into a single, high-performance module.
 """
 
 import logging
+import os
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -105,6 +106,15 @@ class RenderFacade:
         """Standardizes engine-specific settings."""
         strategy = self._engine_strategies.get(self.renderer_mode, CyclesRenderStrategy())
         strategy.configure()
+
+        # Plumb CPU thread budget from environment if available
+        # Set in render_tag.core.utils.get_subprocess_env
+        thread_budget = os.environ.get("BLENDER_CPU_THREADS")
+        if thread_budget and thread_budget.isdigit():
+            t = int(thread_budget)
+            self.logger.info(f"Setting Blender render threads to {t}")
+            bridge.bpy.context.scene.render.threads_mode = "FIXED"
+            bridge.bpy.context.scene.render.threads = t
 
     def reset_volatile_state(self):
         """Clears objects from the scene but keeps heavy environment assets."""
