@@ -1,29 +1,23 @@
 """
-Unified orchestration and execution engine for render-tag.
+Unified orchestration engine for render-tag.
 
-Combines ZMQ communication, persistent worker management, sharding,
-parallel execution, and pluggable render executors into a single module.
+Handles worker pool management, sharding, and parallel execution.
 """
 
-import contextlib
 import hashlib
 import json
 import os
 import queue
 import random
 import re
-import shutil
 import signal
-import subprocess
 import sys
 import threading
 import time
 import uuid
 from pathlib import Path
-from typing import Any, ClassVar, Protocol, runtime_checkable
-from unittest.mock import MagicMock
+from typing import Any, ClassVar
 
-import orjson
 from rich.console import Console
 
 try:
@@ -34,324 +28,18 @@ except ImportError:
 from render_tag.audit.auditor import TelemetryAuditor
 from render_tag.core.errors import WorkerCommunicationError, WorkerStartupError
 from render_tag.core.logging import get_logger
-from render_tag.core.resilience import retry_with_backoff
 from render_tag.core.resources import ResourceStack, get_thread_budget
-from render_tag.core.schema.hot_loop import (
-    Command,
-    CommandType,
-    Response,
-    ResponseStatus,
-    Telemetry,
-)
-
-
-def set_worker_priority():
-    """Linux-specific: Set process priority for workers and ensure death with parent."""
-    import ctypes
-    import os
-    import signal
-
-    # 1. De-escalate priority (niceness)
-    # Higher niceness = lower priority. +10 is a standard "polite background" level.
-    with contextlib.suppress(Exception):
-        os.nice(10)
-
-    # 2. PR_SET_PDEATHSIG = 1
-    # Send SIGKILL to this process if its parent dies.
-    with contextlib.suppress(Exception):
-        libc = ctypes.CDLL("libc.so.6")
-        libc.prctl(1, signal.SIGKILL, 0, 0, 0)
-
+from render_tag.core.schema.hot_loop import CommandType, ResponseStatus, Response, Telemetry
+from render_tag.core.schema.job import JobSpec
+from render_tag.orchestration.worker import PersistentWorkerProcess
 
 logger = get_logger(__name__)
 console = Console()
 
 
-# --- ZMQ CLIENT ---
-
-
-class ZmqHostClient:
-    """Synchronous ZMQ client for communicating with Blender workers."""
-
-    def __init__(self, port: int, context: zmq.Context | None = None, timeout_ms: int = 300000):
-        self.port = port
-        self.context = context or zmq.Context()
-        self.timeout_ms = timeout_ms
-        self.socket = None
-        self._recreate_socket()
-
-    def _recreate_socket(self):
-        """Recreate REQ socket to recover from timeout/EFSM states."""
-        if self.socket:
-            with contextlib.suppress(Exception):
-                self.socket.close(linger=0)
-        self.socket = self.context.socket(zmq.REQ)
-        self.socket.setsockopt(zmq.RCVTIMEO, self.timeout_ms)
-        self.socket.setsockopt(zmq.SNDTIMEO, self.timeout_ms)
-        self.socket.setsockopt(zmq.LINGER, 0)
-        self.socket.connect(f"tcp://127.0.0.1:{self.port}")
-
-    def connect(self):
-        # Handled by _recreate_socket
-        pass
-
-    def disconnect(self):
-        self.socket.close()
-
-    def send_command(
-        self,
-        command_type: CommandType,
-        payload: dict[str, Any] | None = None,
-        raise_on_failure: bool = False,
-        timeout_ms: int | None = None,
-        check_liveness: Any | None = None,
-    ) -> Response:
-        request_id = f"req-{int(time.time() * 1000)}"
-        cmd = Command(command_type=command_type, payload=payload, request_id=request_id)
-
-        timeout = timeout_ms if timeout_ms is not None else self.timeout_ms
-        self.socket.setsockopt(zmq.RCVTIMEO, timeout)
-
-        try:
-            self.socket.send_string(cmd.model_dump_json())
-
-            # Poll to detect crashes early
-            start = time.time()
-            while True:
-                if self.socket.poll(100):
-                    reply = self.socket.recv_string()
-                    break
-
-                if check_liveness and not check_liveness():
-                    raise WorkerCommunicationError("Worker process died while waiting for response")
-
-                if (time.time() - start) * 1000 > timeout:
-                    raise zmq.Again
-
-            resp = Response.model_validate_json(reply)
-            if raise_on_failure and resp.status == ResponseStatus.FAILURE:
-                raise WorkerCommunicationError(f"Worker failure: {resp.message}")
-            return resp
-        except zmq.Again as err:
-            self._recreate_socket()
-            raise WorkerCommunicationError(f"TIMEOUT sending {command_type}") from err
-        finally:
-            self.socket.setsockopt(zmq.RCVTIMEO, self.timeout_ms)
-
-    def __enter__(self):
-        self.connect()
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.disconnect()
-
-
-# --- PERSISTENT WORKER ---
-
-
-class PersistentWorkerProcess:
-    """Lifecycle manager for a Blender subprocess with ZMQ IPC."""
-
-    def __init__(
-        self,
-        worker_id: str,
-        port: int,
-        blender_script: Path,
-        blender_executable: str = "blenderproc",
-        startup_timeout: int = 60,
-        use_blenderproc: bool = True,
-        mock: bool = False,
-        max_renders: int | None = None,
-        shard_id: str = "main",
-        context: zmq.Context | None = None,
-        thread_budget: int = 1,
-        seed: int = 42,
-        job_id: str | None = None,
-    ):
-        self.worker_id, self.port = worker_id, port
-        self.job_id = job_id
-        self.blender_script, self.blender_executable = blender_script, blender_executable
-        self.startup_timeout, self.use_blenderproc, self.mock = (
-            startup_timeout,
-            use_blenderproc,
-            mock,
-        )
-        self.max_renders, self.shard_id, self.context = max_renders, shard_id, context
-        self.thread_budget = thread_budget
-        self.seed = seed
-        self.process, self.client = None, None
-        self.renders_completed = 0
-        self._stop_event = threading.Event()
-        self._startup_logs = []  # Buffer for startup logs
-        self.logger = get_logger(f"worker.{worker_id}").bind(worker_id=worker_id, job_id=job_id)
-
-    def _log_router(self):
-        if not self.process or not self.process.stdout:
-            return
-        for line_bytes in iter(self.process.stdout.readline, b""):
-            if self._stop_event.is_set():
-                break
-            line = line_bytes.decode("utf-8").rstrip()
-            if not line:
-                continue
-            try:
-                data = orjson.loads(line)
-                self.logger.info(f"[{self.worker_id}] {data.get('message', '')}")
-            except (orjson.JSONDecodeError, ValueError):
-                # Buffer non-JSON output for error reporting
-                if len(self._startup_logs) < 50:
-                    self._startup_logs.append(line)
-                self.logger.debug(f"[{self.worker_id}] {line}")
-
-    def start(self):
-        project_root = Path(__file__).resolve().parents[3]
-        exec_to_use = sys.executable if self.mock else self.blender_executable
-
-        if self.mock:
-            cmd = [
-                exec_to_use,
-                str(self.blender_script),
-                "--port",
-                str(self.port),
-            ]
-        else:
-            base = (
-                [exec_to_use, "run", str(self.blender_script)]
-                if self.use_blenderproc
-                else [exec_to_use, str(self.blender_script)]
-            )
-            cmd = [*base, "--port", str(self.port)]
-
-        if self.mock:
-            cmd.append("--mock")
-        if self.max_renders:
-            cmd.extend(["--max-renders", str(self.max_renders)])
-        if self.shard_id:
-            cmd.extend(["--shard-id", str(self.shard_id)])
-        cmd.extend(["--seed", str(self.seed)])
-
-        env = os.environ.copy()
-        if self.mock:
-            env["RENDER_TAG_BACKEND_MOCK"] = "1"
-            # Bypass blenderproc's strict runtime check for mock mode
-            env["OUTSIDE_OF_THE_INTERNAL_BLENDER_PYTHON_ENVIRONMENT_BUT_IN_RUN_SCRIPT"] = "1"
-
-        # Ensure project root is in PYTHONPATH so bootstrap can find everything
-        env["RENDER_TAG_SRC_ROOT"] = str(project_root)
-        curr_pp = env.get("PYTHONPATH", "")
-        # Add src AND repo root to PYTHONPATH
-        src_path = str(project_root / "src")
-        repo_root = str(project_root)
-        env["PYTHONPATH"] = (
-            f"{src_path}{os.pathsep}{repo_root}{os.pathsep}{curr_pp}"
-            if curr_pp
-            else f"{src_path}{os.pathsep}{repo_root}"
-        )
-
-        env["PYTHONNOUSERSITE"] = "1"
-
-        # Auto-Throttling Injection
-        env["OMP_NUM_THREADS"] = str(self.thread_budget)
-        env["BLENDER_CPU_THREADS"] = str(self.thread_budget)
-
-        from render_tag.core.utils import get_venv_site_packages
-
-        with contextlib.suppress(Exception):
-            env["RENDER_TAG_VENV_SITE_PACKAGES"] = get_venv_site_packages()
-
-        if self.job_id:
-            env["RENDER_TAG_JOB_ID"] = self.job_id
-
-        # Probe for immediate failure
-        try:
-            probe_cmd = cmd[:2] if not self.mock else [cmd[0], "-c", "import sys; sys.exit(0)"]
-            subprocess.run(probe_cmd, capture_output=True, text=True, timeout=5, env=env)
-        except Exception:
-            pass
-
-        self.logger.info(f"Launching worker with command: {cmd}")
-        self.process = subprocess.Popen(
-            cmd,
-            env=env,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            start_new_session=True,
-            preexec_fn=set_worker_priority,
-        )
-        threading.Thread(target=self._log_router, daemon=True).start()
-        self.client = ZmqHostClient(port=self.port, context=self.context)
-        self.client.connect()
-
-        start = time.time()
-        while time.time() - start < self.startup_timeout:
-            if self.process.poll() is not None:
-                out = "\n".join(self._startup_logs)
-                if not out and self.process.stdout:
-                    with contextlib.suppress(Exception):
-                        out = self.process.stdout.read(1000).decode()
-                raise WorkerStartupError(f"Worker crashed during startup. Output:\n{out}")
-            try:
-                if self.is_healthy():
-                    # Initialize the worker environment (bproc.init)
-                    try:
-                        init_resp = self.send_command(CommandType.INIT, {}, timeout_ms=10000)
-                        if init_resp.status != ResponseStatus.SUCCESS:
-                            raise WorkerStartupError(
-                                f"Worker initialization failed: {init_resp.message}"
-                            )
-                    except Exception as e:
-                        raise WorkerStartupError(f"Worker initialization error: {e}") from e
-                    return
-            except Exception:
-                pass
-            time.sleep(0.5)
-        self.stop()
-        raise WorkerStartupError("Worker timeout")
-
-    def stop(self):
-        self._stop_event.set()
-        if self.client:
-            if self.process and self.process.poll() is None:
-                with contextlib.suppress(Exception):
-                    self.client.send_command(CommandType.SHUTDOWN, timeout_ms=500)
-            self.client.disconnect()
-            self.client = None
-        if self.process:
-            if self.process.poll() is None:
-                try:
-                    # Send SIGKILL to the entire process group
-                    os.killpg(self.process.pid, signal.SIGKILL)
-                    self.process.wait(timeout=2)
-                except (subprocess.TimeoutExpired, ProcessLookupError):
-                    pass
-            self.process = None
-
-    @retry_with_backoff(retries=2, initial_delay=0.1, exceptions=(Exception,))
-    def is_healthy(self) -> bool:
-        if not self.process or self.process.poll() is not None or not self.client:
-            return False
-        try:
-            # Increase timeout for stability in busy CI environments
-            resp = self.client.send_command(CommandType.STATUS, timeout_ms=2000)
-            return resp.status == ResponseStatus.SUCCESS
-        except Exception:
-            return False
-
-    def send_command(
-        self, ct: CommandType, payload: dict | None = None, timeout_ms: int | None = None
-    ) -> Response:
-        return self.client.send_command(
-            ct,
-            payload,
-            timeout_ms=timeout_ms,
-            check_liveness=lambda: self.process.poll() is None,
-        )
-
-
-# --- ORCHESTRATOR ---
-
-
 class UnifiedWorkerOrchestrator:
+    """Manages a pool of persistent Blender workers."""
+    
     _instances: ClassVar[list["UnifiedWorkerOrchestrator"]] = []
 
     def __init__(
@@ -384,10 +72,7 @@ class UnifiedWorkerOrchestrator:
         self.seed = seed
         self.job_id = str(uuid.uuid4())
         self.context = zmq.Context() if zmq else None
-
-        # Auto-Throttling: Calculate thread budget based on hardware
         self.thread_budget = get_thread_budget(num_workers=self.num_workers)
-
         self.workers, self.worker_queue = [], queue.Queue()
         self.auditor = TelemetryAuditor()
         self._lock, self.running = threading.Lock(), False
@@ -404,25 +89,11 @@ class UnifiedWorkerOrchestrator:
         with self._lock:
             if self.running:
                 return
-            if not self.mock and self.use_blenderproc:
-                with contextlib.suppress(BaseException):
-                    subprocess.run(
-                        [
-                            self.blender_executable,
-                            "pip",
-                            "install",
-                            "pyzmq",
-                            "orjson",
-                            "pydantic",
-                            "GPUtil",
-                        ],
-                        capture_output=True,
-                        check=False,
-                    )
 
             seed_str = f"{shard_id}-{os.getpid()}-{random.random()}"
             port_offset = int(hashlib.md5(seed_str.encode()).hexdigest(), 16) % 10000
             current_base_port = self.base_port + port_offset + random.randint(0, 50) * 10
+            
             with ResourceStack() as attempt_stack:
                 try:
                     for i in range(self.num_workers):
@@ -442,8 +113,8 @@ class UnifiedWorkerOrchestrator:
                             job_id=self.job_id,
                         )
                         worker.start()
-
-                        # RECORD initial telemetry for tests
+                        
+                        # Record initial telemetry
                         try:
                             resp = worker.send_command(CommandType.STATUS, timeout_ms=1000)
                             if resp.status == ResponseStatus.SUCCESS and resp.data:
@@ -478,128 +149,53 @@ class UnifiedWorkerOrchestrator:
     def release_worker(self, worker: PersistentWorkerProcess):
         should_restart = False
         reason = ""
-
-        # Staff Engineer: If the worker hit its limit, it's expected to exit.
-        # We don't want to trigger "unhealthy" alerts for a job well done.
         intentional_exit = (
             worker.max_renders is not None and worker.renders_completed >= worker.max_renders
         )
 
-        # 1. Collect Telemetry & Check VRAM
-        # Staff Engineer: If already stopped, skipped telemetry.
-        if not intentional_exit and worker.client:
+        if worker.client:
             try:
-                # Staff Engineer: Use 2.5s timeout. Worker might be busy saving large shards.
                 resp = worker.send_command(CommandType.STATUS, timeout_ms=2500)
                 if resp.status == ResponseStatus.SUCCESS and resp.data:
-                    try:
-                        telemetry = Telemetry(**resp.data)
-                        self.auditor.add_entry(worker.worker_id, telemetry)
-
-                        if (
-                            self.vram_threshold_mb
-                            and telemetry.vram_used_mb > self.vram_threshold_mb
-                        ):
-                            should_restart = True
-                            reason = (
-                                f"Exceeded VRAM threshold ({telemetry.vram_used_mb} > "
-                                f"{self.vram_threshold_mb})"
-                            )
-                    except Exception as e:
-                        logger.warning(
-                            f"Failed to parse telemetry from worker {worker.worker_id}: {e}"
-                        )
-                else:
-                    # Fallback for tests
-                    if self.mock:
-                        from render_tag.core.schema.hot_loop import calculate_state_hash
-
-                        self.auditor.add_entry(
-                            worker.worker_id,
-                            Telemetry(
-                                vram_used_mb=0,
-                                vram_total_mb=0,
-                                cpu_usage_percent=0,
-                                state_hash=calculate_state_hash([], {}),
-                                uptime_seconds=0,
-                            ),
-                        )
+                    telemetry = Telemetry(**resp.data)
+                    self.auditor.add_entry(worker.worker_id, telemetry)
+                    if not intentional_exit and self.vram_threshold_mb and telemetry.vram_used_mb > self.vram_threshold_mb:
+                        should_restart = True
+                        reason = f"VRAM threshold exceeded: {telemetry.vram_used_mb}MB"
             except Exception as e:
-                logger.error(f"Telemetry check failed for {worker.worker_id}: {e}")
+                if not intentional_exit:
+                    logger.error(f"Telemetry check failed for {worker.worker_id}: {e}")
 
-        # 2. Check Health (Unhealthy if client/process is gone, or is_healthy() fails)
         if not should_restart and not intentional_exit:
             if not worker.client or not worker.process or not worker.is_healthy():
                 should_restart = True
-                reason = "Worker is unhealthy or already stopped"
+                reason = "Worker unhealthy"
 
-        # 3. Execute Restart if needed
         if should_restart or intentional_exit:
-            if intentional_exit:
-                logger.info(f"Worker {worker.worker_id} reached limit. Refreshing process...")
-            else:
-                logger.warning(f"Worker {worker.worker_id} restarting. Reason: {reason}")
-
-            # Staff Engineer: Wait for natural exit if intentional.
-            # This avoids SIGKILLing while it might still be flushing ZMQ buffers.
-            if worker.process:
-                try:
-                    worker.process.wait(timeout=2.0)
-                except subprocess.TimeoutExpired:
-                    logger.warning(
-                        f"Worker {worker.worker_id} didn't exit after refresh, forcing stop."
-                    )
-                    worker.stop()
-            else:
-                worker.stop()
-
-            # Staff Engineer: Use a unique shard ID for the new worker to avoid overwriting
-            # data from the previous worker instance in the same slot.
+            worker.stop()
             slot_id = worker.shard_id.split("_")[0]
             unique_shard_id = f"{slot_id}_{uuid.uuid4().hex[:6]}"
-
             new_worker = PersistentWorkerProcess(
-                worker.worker_id,
-                worker.port,
-                worker.blender_script,
-                worker.blender_executable,
-                use_blenderproc=worker.use_blenderproc,
-                mock=worker.mock,
-                max_renders=worker.max_renders,
-                shard_id=unique_shard_id,
-                context=worker.context,
-                thread_budget=self.thread_budget,
-                seed=self.seed,
-                job_id=worker.job_id,
+                worker.worker_id, worker.port, self.blender_script, self.blender_executable,
+                use_blenderproc=self.use_blenderproc, mock=self.mock,
+                max_renders=self.max_renders_per_worker, shard_id=unique_shard_id,
+                context=self.context, thread_budget=self.thread_budget,
+                seed=self.seed, job_id=self.job_id,
             )
             new_worker.start()
-
-            # Update registry
             for idx, w in enumerate(self.workers):
                 if w.worker_id == worker.worker_id:
                     self.workers[idx] = new_worker
                     break
-
             worker = new_worker
-
-            # Initial telemetry for new worker
-            try:
-                r = worker.send_command(CommandType.STATUS, timeout_ms=1000)
-                if r.status == ResponseStatus.SUCCESS and r.data:
-                    self.auditor.add_entry(worker.worker_id, Telemetry(**r.data))
-            except Exception:
-                pass
 
         self.worker_queue.put(worker)
 
     def execute_recipe(
         self, recipe: dict, output_dir: Path, rm: str = "cycles", sid: str | None = None
     ) -> Response:
-        # Staff Engineer: Add retry logic to handle transient worker deaths
-        # (e.g. crashing during first render after refresh).
         max_retries = 2
         last_error = None
-
         for attempt in range(max_retries + 1):
             worker = self.get_worker()
             try:
@@ -619,22 +215,11 @@ class UnifiedWorkerOrchestrator:
                 return resp
             except Exception as e:
                 last_error = e
-                logger.warning(
-                    f"Render attempt {attempt + 1} failed for {worker.worker_id}: {e}. "
-                    "Replacing worker and retrying..."
-                )
-                # Force replace this worker
-                worker.stop()  # This is fine here, we are in an error state.
-                # release_worker will handle the replacement if we set some flag?
-                # Actually, let's just use the existing logic but force unhealthy.
-                # We need to make sure release_worker replaces it.
-                # is_healthy() will return False now.
+                logger.warning(f"Render attempt {attempt + 1} failed for {worker.worker_id}: {e}")
+                worker.stop()
             finally:
                 self.release_worker(worker)
-
-        raise WorkerCommunicationError(
-            f"Execute recipe failed after {max_retries} retries: {last_error}"
-        )
+        raise WorkerCommunicationError(f"Execute recipe failed after {max_retries} retries: {last_error}")
 
     def __enter__(self):
         if not self.running:
@@ -643,260 +228,6 @@ class UnifiedWorkerOrchestrator:
 
     def __exit__(self, et, ev, tb):
         self.stop()
-
-
-# --- EXECUTORS ---
-
-
-from render_tag.core.schema.job import JobSpec
-
-# ... (existing imports)
-
-
-@runtime_checkable
-class RenderExecutor(Protocol):
-    def execute(
-        self,
-        job_spec: JobSpec,
-        shard_id: str,
-        verbose: bool = False,
-    ) -> None: ...
-
-
-class LocalExecutor:
-    def execute(
-        self,
-        job_spec: JobSpec,
-        shard_id: str,
-        verbose: bool = False,
-    ) -> None:
-        # Determine recipe path
-        # Assuming standard naming convention or single recipe file if shard_id is 'main'?
-        # If shard_id is an index (int-like), we look for recipes_shard_{id}.json
-        # If shard_id is 'main' or 0, maybe recipes.json?
-        # Let's standardize: output_dir / f"recipes_shard_{shard_id}.json"
-
-        output_dir = job_spec.paths.output_dir
-        recipe_path = output_dir / f"recipes_shard_{shard_id}.json"
-        if not recipe_path.exists():
-            # Fallback for old behavior?
-            recipe_path = output_dir / "recipes.json"
-
-        if not recipe_path.exists():
-            raise FileNotFoundError(f"Recipes not found for shard {shard_id} at {recipe_path}")
-
-        with open(recipe_path) as f:
-            recipes = json.load(f)
-
-        force_mock = (os.environ.get("RENDER_TAG_FORCE_MOCK") == "1") or (
-            "PYTEST_CURRENT_TEST" in os.environ
-        )
-        use_bproc = (shutil.which("blenderproc") is not None) and not force_mock
-        # Staff Engineer: Ensure we respect the worker count if we are in a parallel context
-        workers_to_use = getattr(self, "num_workers", 1)
-
-        # Derive seed for orchestrator
-        # We can use job_spec.global_seed
-
-        with UnifiedWorkerOrchestrator(
-            num_workers=workers_to_use,
-            base_port=20000,
-            ephemeral=True,
-            max_renders_per_worker=len(recipes),
-            mock=not use_bproc,
-            worker_id_prefix=f"worker-{shard_id}",
-            seed=job_spec.global_seed,
-        ) as orchestrator:
-            orchestrator.start(shard_id=shard_id)
-            for recipe in recipes:
-                # We need renderer_mode? It was passed before.
-                # Now it should be in JobSpec?
-                # JobSpec.scene_config.renderer.mode?
-                # Or just assume "cycles" if not in spec?
-                # JobInfrastructure doesn't have renderer mode.
-                # GenConfig has `renderer`.
-                rm = (
-                    job_spec.scene_config.renderer.mode
-                    if job_spec.scene_config.renderer
-                    else "cycles"
-                )
-
-                resp = orchestrator.execute_recipe(recipe, output_dir, rm, shard_id)
-                # Handle mocked orchestrator in tests
-                if hasattr(resp, "status") and not isinstance(resp.status, MagicMock):
-                    if resp.status != ResponseStatus.SUCCESS:
-                        raise RuntimeError(f"Render failed: {resp.message}")
-                else:
-                    pass
-
-
-class DockerExecutor:
-    def __init__(self, image: str = "render-tag:latest"):
-        self.image = image
-
-    def execute(
-        self,
-        job_spec: JobSpec,
-        shard_id: str,
-        verbose: bool = False,
-    ) -> None:
-        # Docker execution needs update to pass --job-spec
-        # Standardize job spec path mapping
-        # We need to map the output_dir and passing job_spec.json
-
-        output_dir = job_spec.paths.output_dir
-        job_spec_path = output_dir / "job_spec.json"
-
-        logger.info(f"Docker execution: image={self.image}, job={job_spec.job_id}")
-
-        # We need renderer mode
-        rm = job_spec.scene_config.renderer.mode if job_spec.scene_config.renderer else "cycles"
-
-        cmd = [
-            "docker",
-            "run",
-            "-v",
-            f"{output_dir.absolute()}:/output",
-            # We assume assets are available or mounted?
-            # For now, let's just mount output where job_spec lives.
-            self.image,
-            "python",
-            "src/render_tag/backend/zmq_server.py",
-            "--job-spec",
-            "/output/job_spec.json",  # Mapped path
-            "--shard-id",
-            shard_id,
-            "--seed",
-            str(job_spec.global_seed),  # Fallback/Primary
-        ]
-        subprocess.run(cmd)
-
-
-class ExecutorFactory:
-    @staticmethod
-    def get_executor(et: str) -> RenderExecutor:
-        if et == "local":
-            return LocalExecutor()
-        if et == "docker":
-            return DockerExecutor()
-        if et == "mock":
-            return MockExecutor()
-        raise ValueError(f"Unknown executor type: {et}")
-
-
-class MockExecutor:
-    def execute(
-        self,
-        job_spec: JobSpec,
-        shard_id: str,
-        verbose: bool = False,
-    ) -> None:
-        output_dir = job_spec.paths.output_dir
-        recipe_path = output_dir / f"recipes_shard_{shard_id}.json"
-
-        logger.info(f"[MOCK] Render: {recipe_path.name} -> {output_dir.name}")
-
-        # Simulate output for auditing
-        output_dir.mkdir(parents=True, exist_ok=True)
-        images_dir = output_dir / "images"
-        images_dir.mkdir(parents=True, exist_ok=True)
-
-        if not recipe_path.exists():
-            logger.warning(f"MockExecutor: Recipes not found at {recipe_path}")
-            return
-
-        with open(recipe_path) as f:
-            recipes = json.load(f)
-
-        rich_truth = []
-        tags_csv_rows = [
-            [
-                "image_id",
-                "tag_id",
-                "tag_family",
-                "ppm",
-                "x1",
-                "y1",
-                "x2",
-                "y2",
-                "x3",
-                "y3",
-                "x4",
-                "y4",
-            ]
-        ]
-
-        for recipe in recipes:
-            sid = recipe["scene_id"]
-            for cam_idx in range(len(recipe.get("cameras", [0]))):
-                recipe.get("cameras")[cam_idx]
-                image_id = f"scene_{sid:04d}_cam_{cam_idx:04d}"
-
-                # Create dummy meta file
-                meta_path = images_dir / f"{image_id}_meta.json"
-                with open(meta_path, "w") as f_meta:
-                    # Include PPM in meta if available in recipe
-                    meta_data = {"scene_id": sid}
-                    # We don't strictly have the exact calculated PPM here without re-solving
-                    # but we can grab it from cam_recipe if we were to store it there in generator.
-                    # For mock, we'll just simulate it or calculate it if possible.
-                    json.dump(meta_data, f_meta)
-
-                # Add dummy detections for tags
-                for obj in recipe.get("objects", []):
-                    if obj["type"] == "TAG":
-                        props = obj["properties"]
-                        # Generate some random quality metrics
-                        dist = random.uniform(0.5, 8.0)
-                        angle = random.uniform(0, 90)
-                        occlusion = random.uniform(0, 0.5)
-
-                        # Simulate PPM based on distance if not provided
-                        ppm = 160.0 / (dist * 8.0)  # Dummy approx
-
-                        det = {
-                            "image_id": image_id,
-                            "tag_id": props["tag_id"],
-                            "tag_family": props["tag_family"],
-                            "distance": dist,
-                            "angle_of_incidence": angle,
-                            "occlusion_ratio": occlusion,
-                            "pixel_area": 1000.0 / (dist * dist),
-                            "ppm": ppm,
-                            "lighting_intensity": random.uniform(100, 1000),
-                            "corners": [[0, 0], [100, 0], [100, 100], [0, 100]],
-                        }
-                        rich_truth.append(det)
-                        tags_csv_rows.append(
-                            [
-                                image_id,
-                                props["tag_id"],
-                                props["tag_family"],
-                                float(f"{ppm:.4f}"),
-                                0,
-                                0,
-                                100,
-                                0,
-                                100,
-                                100,
-                                0,
-                                100,
-                            ]
-                        )
-
-        # Save rich truth
-        with open(output_dir / "rich_truth.json", "w") as f_rich:
-            json.dump(rich_truth, f_rich)
-
-        # Save tags.csv
-        import csv
-
-        with open(output_dir / "tags.csv", "w", newline="") as f_csv:
-            writer = csv.writer(f_csv)
-            writer.writerows(tags_csv_rows)
-
-
-# --- UTILS ---
 
 
 def get_completed_scene_ids(output_dir: Path) -> set[int]:
@@ -933,66 +264,32 @@ def orchestrate(
     verbose: bool = False,
 ) -> None:
     import typer
-
     signal.signal(signal.SIGINT, _signal_handler)
     signal.signal(signal.SIGTERM, _signal_handler)
-    from ..generation.scene import Generator
+    from render_tag.generation.scene import Generator
 
     output_dir = job_spec.paths.output_dir
     gen = Generator(job_spec.scene_config, output_dir)
-
-    # Generate recipes
-    # Note: Generator uses internal seeding based on config.
-    # We should ensure generator respects job_spec seed if not already in config?
-    # job_spec.scene_config.dataset.seeds.global_seed SHOULD be set by ConfigResolver.
-
     recipes = gen.generate_all(exclude_ids=get_completed_scene_ids(output_dir) if resume else set())
     if not recipes:
         return
 
-    # If using default (5) but it would leave workers idle, shrink it.
-    actual_batch_size = batch_size
-    if batch_size == 5 and len(recipes) > 0:
-        # Target roughly one batch per worker, or more if many scenes
-        actual_batch_size = max(1, len(recipes) // workers)
-        # But don't exceed the user's likely intent for small batches
-        actual_batch_size = min(actual_batch_size, 5)
-
+    actual_batch_size = min(batch_size, max(1, len(recipes) // workers)) if batch_size == 5 else batch_size
     batches = [
-        (
-            i // actual_batch_size,
-            gen.save_recipe_json(
-                recipes[i : i + actual_batch_size], f"recipes_batch_{i // actual_batch_size}.json"
-            ),
-        )
+        gen.save_recipe_json(recipes[i : i + actual_batch_size], f"recipes_batch_{i // actual_batch_size}.json")
         for i in range(0, len(recipes), actual_batch_size)
     ]
 
-    # Staff Engineer: Refactor to use a SINGLE Orchestrator for the whole job.
-    # This ensures thread budget is calculated correctly for the total worker count.
-    # We still use a small thread pool to feed the orchestrator if we want to parallelize
-    # the IO/communication, but they all share the same orchestrator instance.
-
-    # Determine renderer mode from config
     rm = job_spec.scene_config.renderer.mode if job_spec.scene_config.renderer else "cycles"
-
-    force_mock = (os.environ.get("RENDER_TAG_FORCE_MOCK") == "1") or (
-        "PYTEST_CURRENT_TEST" in os.environ
-    )
+    force_mock = (os.environ.get("RENDER_TAG_FORCE_MOCK") == "1") or ("PYTEST_CURRENT_TEST" in os.environ)
     use_bproc = (shutil.which("blenderproc") is not None) and not force_mock
 
     with UnifiedWorkerOrchestrator(
-        num_workers=workers,
-        base_port=20000,
-        blender_script=None,  # Use default
-        blender_executable=None,  # Use default
-        use_blenderproc=not force_mock,
-        mock=not use_bproc,
-        max_renders_per_worker=batch_size,
-        seed=job_spec.global_seed,
+        num_workers=workers, ephemeral=True, max_renders_per_worker=batch_size,
+        mock=not use_bproc, seed=job_spec.global_seed,
     ) as orchestrator:
         q = queue.Queue()
-        for _, path in batches:
+        for path in batches:
             q.put(path)
 
         any_failed = False
@@ -1004,7 +301,6 @@ def orchestrate(
                     path = q.get_nowait()
                     with open(path) as f:
                         batch_recipes = json.load(f)
-
                     for recipe in batch_recipes:
                         resp = orchestrator.execute_recipe(recipe, output_dir, rm)
                         if resp.status != ResponseStatus.SUCCESS:
@@ -1018,16 +314,12 @@ def orchestrate(
                 finally:
                     q.task_done()
 
-        # We can use a few threads to pump commands to the orchestrator workers
-        comm_threads = [threading.Thread(target=worker_thread, daemon=True) for _ in range(workers)]
-        for t in comm_threads:
-            t.start()
-        for t in comm_threads:
-            t.join()
+        threads = [threading.Thread(target=worker_thread, daemon=True) for _ in range(workers)]
+        for t in threads: t.start()
+        for t in threads: t.join()
 
-    for _, path in batches:
-        if path.exists():
-            path.unlink()
+    for path in batches:
+        if path.exists(): path.unlink()
 
     if any_failed:
         raise typer.Exit(code=1)

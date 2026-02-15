@@ -1,107 +1,56 @@
-import blenderproc as bproc  # noqa: F401, I001
+"""
+Worker Server Entry Point.
+"""
 
+import argparse
 import os
-import sys
 from pathlib import Path
 
-# Verify and setup environment via the centralized bootstrap
-try:
-    from render_tag.backend import bootstrap
-
-    bootstrap.setup_environment()
-except ImportError:
-    _curr = Path(__file__).resolve().parent
-    while _curr.parent != _curr:
-        if (_curr / "render_tag").is_dir():
-            sys.path.insert(0, str(_curr))
-            break
-        _curr = _curr.parent
-
-    from render_tag.backend import bootstrap
-
-    bootstrap.setup_environment()
-
-
+from render_tag.backend import bootstrap
 from render_tag.backend.worker_server import ZmqBackendServer
-from render_tag.core.logging import get_logger, setup_logging
+from render_tag.core.logging import setup_logging
+from render_tag.core.schema.job import JobSpec
 
 
 def main():
-    import argparse
-
-    from render_tag.core.schema.job import JobSpec
-
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=5555)
     parser.add_argument("--shard-id", type=str, default="0")
     parser.add_argument("--mock", action="store_true")
     parser.add_argument("--max-renders", type=int, default=None)
-    parser.add_argument("--seed", type=int, default=42)  # Fallback if no job-spec
+    parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--job-spec", type=Path, default=None)
+    args, _ = parser.parse_known_args()
 
-    args, _unknown = parser.parse_known_args()
-
-    # Setup structured logging
+    # 1. Setup Environment
+    bootstrap.setup_environment()
     setup_logging()
 
-    # Retrieve job_id from environment
-    job_id = os.environ.get("RENDER_TAG_JOB_ID", "local")
+    # 2. Load Job Spec
+    job_spec = None
+    if args.job_spec and args.job_spec.exists():
+        with open(args.job_spec) as f:
+            job_spec = JobSpec.model_validate_json(f.read())
 
-    # Create context-bound logger
-    logger = get_logger("zmq_server").bind(job_id=job_id, worker_id=args.shard_id, mock=args.mock)
-
-    logger.info(f"Starting ZmqBackendServer on port {args.port}", extra={"seed": args.seed})
-
-    # Global Exception Hook for Crash Reporting
-    def handle_exception(exc_type, exc_value, exc_traceback):
-        if issubclass(exc_type, KeyboardInterrupt):
-            sys.__excepthook__(exc_type, exc_value, exc_traceback)
-            return
-
-        logger.critical(
-            "Uncaught exception",
-            exc_info=(exc_type, exc_value, exc_traceback),
-            event="worker_crash",
+    # 3. Handle Mocks
+    mocks = {}
+    if args.mock or os.environ.get("RENDER_TAG_BACKEND_MOCK") == "1":
+        from render_tag.backend.mocks import (
+            blender_api as bpy_mock,
+            blenderproc_api as bproc_mock,
+            mathutils_api as math_mock,
         )
+        mocks = {"bproc_mock": bproc_mock, "bpy_mock": bpy_mock, "math_mock": math_mock}
 
-    sys.excepthook = handle_exception
-
-    try:
-        math_mock = None
-        if args.mock or os.environ.get("RENDER_TAG_BACKEND_MOCK") == "1":
-            try:
-                from render_tag.backend.mocks import blender_api as bpy_mock
-                from render_tag.backend.mocks import blenderproc_api as bproc_mock
-                from render_tag.backend.mocks import mathutils_api as math_mock
-            except ImportError as e:
-                logger.error(f"Failed to load production mocks: {e}")
-                sys.exit(1)
-
-        # Load Job Spec if provided
-        job_spec = None
-        if args.job_spec:
-            try:
-                with open(args.job_spec) as f:
-                    job_spec = JobSpec.model_validate_json(f.read())
-                logger.info(f"Loaded Job Spec: {job_spec.job_id}")
-            except Exception as e:
-                logger.error(f"Failed to load job spec: {e}")
-                sys.exit(1)
-
-        server = ZmqBackendServer(
-            port=args.port,
-            shard_id=args.shard_id,
-            bproc_mock=bproc_mock,
-            bpy_mock=bpy_mock,
-            math_mock=math_mock,
-            seed=args.seed if job_spec is None else job_spec.global_seed,
-            logger=logger,  # Inject bound logger
-            job_spec=job_spec,
-        )
-        server.run(max_renders=args.max_renders)
-    except Exception as e:
-        logger.exception(f"ZMQ Server failed to start: {e}", event="startup_failure")
-        sys.exit(1)
+    # 4. Start Server
+    server = ZmqBackendServer(
+        port=args.port,
+        shard_id=args.shard_id,
+        seed=job_spec.global_seed if job_spec else args.seed,
+        job_spec=job_spec,
+        **mocks,
+    )
+    server.run(max_renders=args.max_renders)
 
 
 if __name__ == "__main__":

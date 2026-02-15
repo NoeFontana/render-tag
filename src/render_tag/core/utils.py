@@ -21,13 +21,29 @@ def get_git_hash() -> str:
         return "unknown"
 
 
-def get_venv_site_packages() -> str | None:
+def get_project_root() -> Path:
+    """Returns the root directory of the project."""
+    # Find the directory containing pyproject.toml
+    curr = Path(__file__).resolve().parent
+    while curr.parent != curr:
+        if (curr / "pyproject.toml").exists():
+            return curr
+        curr = curr.parent
+    # Fallback to current working directory if not found
+    return Path.cwd()
+
+
+def get_venv_site_packages(prefix: Path | str | None = None) -> str | None:
     """
-    Detects the site-packages directory of the currently active virtual environment.
-    Returns None if not running in a venv.
+    Detects the site-packages directory of a virtual environment.
+    If prefix is None, uses sys.prefix (active venv).
     """
-    # sys.prefix points to the root of the venv when active
-    prefix = Path(sys.prefix).resolve()
+    if prefix is None:
+        prefix = Path(sys.prefix)
+    else:
+        prefix = Path(prefix)
+
+    prefix = prefix.resolve()
 
     site_packages = None
     if sys.platform == "win32":
@@ -44,4 +60,12 @@ def get_venv_site_packages() -> str | None:
     if site_packages and site_packages.exists():
         return str(site_packages)
 
+    return None
+
+
+def find_venv_site_packages(root: Path | str) -> str | None:
+    """Looks for a .venv directory in the root and returns its site-packages path."""
+    potential_venv = Path(root) / ".venv"
+    if potential_venv.exists():
+        return get_venv_site_packages(potential_venv)
     return None

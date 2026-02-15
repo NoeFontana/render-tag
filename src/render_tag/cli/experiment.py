@@ -19,7 +19,7 @@ from render_tag.orchestration.experiment import (
     load_experiment_config,
 )
 from render_tag.orchestration.experiment_schema import Campaign
-from render_tag.orchestration.orchestrator import ResponseStatus, UnifiedWorkerOrchestrator
+from render_tag.orchestration import ResponseStatus, UnifiedWorkerOrchestrator
 
 from .tools import (
     check_blenderproc_installed,

@@ -4,7 +4,7 @@ import pytest
 
 from render_tag.core.config import GenConfig
 from render_tag.core.schema.job import JobInfrastructure, JobPaths, JobSpec
-from render_tag.orchestration.orchestrator import ExecutorFactory, LocalExecutor
+from render_tag.orchestration import ExecutorFactory, LocalExecutor
 
 
 def create_dummy_job_spec(tmp_path):
@@ -32,10 +32,10 @@ def test_executor_factory_returns_correct_types():
         ExecutorFactory.get_executor("invalid")
 
 
-@patch("render_tag.orchestration.orchestrator.UnifiedWorkerOrchestrator")
+@patch("render_tag.orchestration.executors.UnifiedWorkerOrchestrator")
 def test_local_executor_handoff_to_orchestrator(mock_orch, tmp_path):
     """Verify that LocalExecutor correctly initializes the orchestrator."""
-    from render_tag.orchestration.orchestrator import LocalExecutor
+    from render_tag.orchestration import LocalExecutor
 
     # Setup mock orchestrator context manager
     mock_instance = mock_orch.return_value
@@ -53,12 +53,7 @@ def test_local_executor_handoff_to_orchestrator(mock_orch, tmp_path):
         patch("json.load") as mock_json,
     ):
         # Make recipe path and fallback exist checks pass
-        # The logic checks recipe_path first.
-        # We need mock_exists to return True for recipe_path
-        # But Path.exists is called on recipe_path object instance.
-        # Patching pathlib.Path.exists affects all instances.
         mock_exists.return_value = True
-
         mock_json.return_value = [{"scene_id": 1}]
 
         executor.execute(
@@ -77,7 +72,7 @@ def test_local_executor_handoff_to_orchestrator(mock_orch, tmp_path):
 @patch("subprocess.run")
 def test_docker_executor_execution(mock_run, tmp_path):
     """Verify that DockerExecutor calls docker with correct volume mappings."""
-    from render_tag.orchestration.orchestrator import DockerExecutor
+    from render_tag.orchestration import DockerExecutor
 
     mock_run.return_value = MagicMock(returncode=0)
     docker = DockerExecutor(image="render-tag:latest")
@@ -94,8 +89,6 @@ def test_docker_executor_execution(mock_run, tmp_path):
     assert cmd[1] == "run"
 
     # Check volume mount for output dir
-    # output_dir is tmp_path / "output". docker command uses .absolute()
-    # verify that the mount string exists in cmd list
     mount_point = f"{job_spec.paths.output_dir.absolute()}:/output"
     assert mount_point in cmd
 

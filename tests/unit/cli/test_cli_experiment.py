@@ -54,7 +54,7 @@ def test_experiment_run_success(
     # Setup Orchestrator mock
     orchestrator_instance = mock_orchestrator.return_value.__enter__.return_value
     mock_resp = MagicMock()
-    from render_tag.orchestration.orchestrator import ResponseStatus
+    from render_tag.orchestration import ResponseStatus
     mock_resp.status = ResponseStatus.SUCCESS
     orchestrator_instance.execute_recipe.return_value = mock_resp
 

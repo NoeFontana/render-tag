@@ -1,10 +1,6 @@
-import logging
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Protocol
-
-if TYPE_CHECKING:
-    from render_tag.core.schema.job import JobSpec
+from typing import TYPE_CHECKING, Any
 
 import zmq
 
@@ -30,71 +26,51 @@ from render_tag.data_io.writers import (
     SidecarWriter,
 )
 
-try:
-    import GPUtil
-except ImportError:
-    GPUtil = None
+if TYPE_CHECKING:
+    from render_tag.core.schema.job import JobSpec
 
 logger = get_logger(__name__)
 
 
 class ZmqBackendServer:
+    """ZeroMQ-based rendering server for Blender workers."""
+
     def __init__(
         self,
         port: int = 5555,
         shard_id: str = "main",
-        bproc_mock=None,
-        bpy_mock=None,
-        math_mock=None,
         seed: int = 42,
-        logger: logging.Logger | None = None,
         job_spec: "JobSpec | None" = None,
+        **mocks,
     ):
-        self.port = port
-        self.shard_id = shard_id
-        self.seed = seed
+        self.port, self.shard_id, self.seed = port, shard_id, seed
         self.job_spec = job_spec
-        self.logger = logger or get_logger(__name__)
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.REP)
         self.socket.bind(f"tcp://127.0.0.1:{port}")
-        self.running = False
-        self.assets_loaded, self.parameters = [], {}
-        self.start_time = time.time()
-        self.renders_completed = 0
-        self.status = WorkerStatus.IDLE
-        self._handlers = {
-            CommandType.STATUS: StatusHandler(),
-            CommandType.INIT: InitHandler(),
-            CommandType.RENDER: RenderHandler(),
-            CommandType.RESET: ResetHandler(),
-            CommandType.SHUTDOWN: ShutdownHandler(),
-        }
-        if bproc_mock or bpy_mock or math_mock:
-            bridge.stabilize(bproc_mock, bpy_mock, math_mock)
-        else:
-            bridge.stabilize()
+        
+        bridge.stabilize(mocks.get("bproc_mock"), mocks.get("bpy_mock"), mocks.get("math_mock"))
 
+        self.running = False
+        self.status = WorkerStatus.IDLE
+        self.renders_completed = 0
+        self.start_time = time.time()
+        self.assets_loaded, self.parameters = [], {}
         self.current_output_dir, self.writers = None, {}
         self.bproc_initialized = False
-        self.writers_finalized = False
 
     def get_telemetry(self) -> Telemetry:
-        # Staff Engineer: Temporarily bypass GPUtil to diagnose potential driver hangs
-        vram_used, vram_total = 0.0, 0.0
+        """Returns current worker health and state metrics."""
         return Telemetry(
             status=self.status,
-            vram_used_mb=vram_used,
-            vram_total_mb=vram_total,
+            vram_used_mb=0.0,  # Placeholder
+            vram_total_mb=0.0,
             cpu_usage_percent=0.0,
             state_hash=calculate_state_hash(self.assets_loaded, self.parameters),
             uptime_seconds=time.time() - self.start_time,
         )
 
-    def _setup_writers(self, output_dir: Path, shard_id: str | None = None):
-        if shard_id is None or shard_id == "main":
-            shard_id = self.shard_id
-
+    def _setup_writers(self, output_dir: Path, shard_id: str):
         if self.current_output_dir == output_dir:
             return
         self.current_output_dir = output_dir
@@ -107,182 +83,131 @@ class ZmqBackendServer:
         }
         self.writers["csv"]._ensure_initialized()
 
-    def handle_command(self, cmd: Command) -> Response:
-        handler = self._handlers.get(cmd.command_type)
-        if not handler:
-            return Response(
-                status=ResponseStatus.FAILURE, request_id=cmd.request_id, message="Not implemented"
-            )
-        try:
-            self.logger.debug(f"Handling command: {cmd.command_type}")
-            return handler.handle(self, cmd)
-        except Exception as e:
-            self.logger.error(f"Error handling {cmd.command_type}: {e}", exc_info=True)
-            return Response(
-                status=ResponseStatus.FAILURE, request_id=cmd.request_id, message=str(e)
-            )
-
-    def run(self, max_renders: int | None = None):
-        self.running, self.max_renders = True, max_renders
-        self.logger.info(f"Entering ZMQ server loop (port={self.port})")
-        while self.running:
-            try:
-                if self.socket.poll(1000):
-                    message = self.socket.recv_string()
-                    self.logger.debug(f"Received msg: {message[:100]}...")
-                    cmd = Command.model_validate_json(message)
-                    resp = self.handle_command(cmd)
-
-                    # Staff Engineer: If this was the final render, finalize BEFORE replying.
-                    # This ensures the orchestrator doesn't start a replacement worker
-                    # until this one has finished all disk I/O and released file locks.
-                    at_limit = self.max_renders and self.renders_completed >= self.max_renders
-                    if at_limit:
-                        self.logger.info(f"Reached max renders ({self.max_renders}). Finalizing...")
-                        self.status = WorkerStatus.FINISHED
-                        self._finalize_writers()
-
-                    self.socket.send_string(resp.model_dump_json())
-
-                    if at_limit:
-                        # Graceful exit
-                        time.sleep(0.1)
-                        self.running = False
-                else:
-                    # Staff Engineer: Heartbeat logging
-                    self.logger.debug("Worker idle, waiting for command...")
-            except Exception as e:
-                self.logger.error(f"Error in server loop: {e}")
-        self._finalize_writers()
-
     def _finalize_writers(self):
-        if getattr(self, "writers_finalized", False):
-            return
-        if "coco" in self.writers:
-            self.writers["coco"].save()
-        if "rich" in self.writers:
-            self.writers["rich"].save()
-        self.writers_finalized = True
+        for w in self.writers.values():
+            if hasattr(w, "save"):
+                w.save()
 
     def stop(self):
+        """Stops the server loop and closes sockets."""
         self.running = False
         try:
-            self.socket.close()
+            self.socket.close(linger=0)
             self.context.term()
         except Exception:
             pass
 
+    def run(self, max_renders: int | None = None):
+        """Starts the server loop."""
+        self.running = True
+        logger.info(f"Worker server started on port {self.port}")
+        while self.running:
+            try:
+                if not self.socket.poll(1000):
+                    continue
+                
+                msg = self.socket.recv_string()
+                cmd = Command.model_validate_json(msg)
+                resp = self._handle_command(cmd)
+                
+                at_limit = max_renders and self.renders_completed >= max_renders
+                if at_limit:
+                    self.status = WorkerStatus.FINISHED
+                    self._finalize_writers()
+                
+                self.socket.send_string(resp.model_dump_json())
+                if at_limit:
+                    time.sleep(0.1)
+                    self.running = False
+            except (zmq.ZMQError, zmq.ContextTerminated):
+                if not self.running:
+                    break
+                logger.error("ZMQ error in server loop", exc_info=True)
+            except Exception as e:
+                logger.error(f"Server loop error: {e}", exc_info=True)
 
-class CommandHandler(Protocol):
-    def handle(self, server: "ZmqBackendServer", cmd: Command) -> Response: ...
+        self._finalize_writers()
 
+    def _handle_command(self, cmd: Command) -> Response:
+        handlers = {
+            CommandType.STATUS: self._on_status,
+            CommandType.INIT: self._on_init,
+            CommandType.RENDER: self._on_render,
+            CommandType.RESET: self._on_reset,
+            CommandType.SHUTDOWN: self._on_shutdown,
+        }
+        handler = handlers.get(cmd.command_type)
+        if not handler:
+            return Response(status=ResponseStatus.FAILURE, request_id=cmd.request_id, message="Unknown command")
+        
+        try:
+            return handler(cmd)
+        except Exception as e:
+            logger.exception(f"Command {cmd.command_type} failed: {e}")
+            return Response(status=ResponseStatus.FAILURE, request_id=cmd.request_id, message=str(e))
 
-class StatusHandler:
-    def handle(self, server: ZmqBackendServer, cmd: Command) -> Response:
+    def _on_status(self, cmd: Command) -> Response:
         return Response(
             status=ResponseStatus.SUCCESS,
             request_id=cmd.request_id,
             message="Alive",
-            data=server.get_telemetry().model_dump(),
+            data=self.get_telemetry().model_dump(),
         )
 
-
-class InitHandler:
-    def handle(self, server: ZmqBackendServer, cmd: Command) -> Response:
-        # Staff Engineer: Initialize bproc here to avoid startup timeouts
-        if not server.bproc_initialized:
-            try:
-                if bridge.bproc:
-                    bridge.bproc.init()
-                    bridge.bproc.clean_up()
-                server.bproc_initialized = True
-            except Exception as e:
-                server.logger.error(f"BlenderProc initialization failed: {e}")
-                return Response(
-                    status=ResponseStatus.FAILURE,
-                    request_id=cmd.request_id,
-                    message=f"BProc Init Failed: {e}",
-                )
+    def _on_init(self, cmd: Command) -> Response:
+        if not self.bproc_initialized and bridge.bproc:
+            bridge.bproc.init()
+            bridge.bproc.clean_up()
+            self.bproc_initialized = True
 
         payload = cmd.payload or {}
-        assets, parameters = payload.get("assets", []), payload.get("parameters", {})
-        for asset_path in assets:
-            if asset_path not in server.assets_loaded:
-                p = Path(asset_path)
+        for path in payload.get("assets", []):
+            if path not in self.assets_loaded:
+                p = Path(path)
                 if p.exists() and p.suffix.lower() in [".exr", ".hdr"] and bridge.bpy:
                     setup_background(p)
-                server.assets_loaded.append(asset_path)
-        server.parameters.update(parameters)
+                self.assets_loaded.append(path)
+        self.parameters.update(payload.get("parameters", {}))
         return Response(
             status=ResponseStatus.SUCCESS,
             request_id=cmd.request_id,
-            message=f"Initialized. {len(server.assets_loaded)} assets resident.",
-            data={"state_hash": calculate_state_hash(server.assets_loaded, server.parameters)},
+            message=f"{len(self.assets_loaded)} assets resident",
         )
 
-
-class RenderHandler:
-    def handle(self, server: ZmqBackendServer, cmd: Command) -> Response:
-        server.status = WorkerStatus.BUSY
-        payload = cmd.payload or {}
-        recipe, output_dir = payload.get("recipe"), payload.get("output_dir")
-        renderer_mode, shard_id = (
-            payload.get("renderer_mode", "cycles"),
-            payload.get("shard_id", "main"),
-        )
-        if not recipe or not output_dir:
-            return Response(
-                status=ResponseStatus.FAILURE, request_id=cmd.request_id, message="Missing payload"
-            )
-        server._setup_writers(Path(output_dir), shard_id=shard_id)
-
-        # Derive deterministic seed for this specific render task
-        # We use the global worker seed + "render" domain + scene_id
+    def _on_render(self, cmd: Command) -> Response:
+        self.status = WorkerStatus.BUSY
+        p = cmd.payload or {}
+        recipe, output_dir = p.get("recipe"), Path(p.get("output_dir", "."))
+        shard_id = p.get("shard_id", self.shard_id)
+        
+        self._setup_writers(output_dir, shard_id)
         scene_id = recipe.get("scene_id", 0)
-        render_seed = derive_seed(server.seed, "render", scene_id)
-
-        # Construct and use RenderContext
+        render_seed = derive_seed(self.seed, "render", scene_id)
+        
         ctx = RenderContext(
-            output_dir=Path(output_dir),
-            renderer_mode=renderer_mode,
-            csv_writer=server.writers["csv"],
-            coco_writer=server.writers["coco"],
-            rich_writer=server.writers["rich"],
-            sidecar_writer=server.writers["sidecar"],
-            global_seed=server.seed,
-            logger=server.logger,
-            skip_visibility=payload.get("skip_visibility", False),
+            output_dir=output_dir,
+            renderer_mode=p.get("renderer_mode", "cycles"),
+            csv_writer=self.writers["csv"],
+            coco_writer=self.writers["coco"],
+            rich_writer=self.writers["rich"],
+            sidecar_writer=self.writers["sidecar"],
+            global_seed=self.seed,
+            skip_visibility=p.get("skip_visibility", False),
         )
-
-        execute_recipe(
-            recipe,
-            ctx=ctx,
-            seed=render_seed,
-        )
-        server.renders_completed += 1
-        server.status = WorkerStatus.IDLE
+        
+        execute_recipe(recipe, ctx=ctx, seed=render_seed)
+        self.renders_completed += 1
+        self.status = WorkerStatus.IDLE
         return Response(
             status=ResponseStatus.SUCCESS,
             request_id=cmd.request_id,
-            message=f"Rendered scene {recipe['scene_id']}",
-            data={"state_hash": calculate_state_hash(server.assets_loaded, server.parameters)},
+            message=f"Rendered scene {scene_id}",
         )
 
-
-class ResetHandler:
-    def handle(self, server: ZmqBackendServer, cmd: Command) -> Response:
+    def _on_reset(self, cmd: Command) -> Response:
         global_pool.release_all()
-        return Response(
-            status=ResponseStatus.SUCCESS,
-            request_id=cmd.request_id,
-            message="Reset",
-            data={"state_hash": calculate_state_hash(server.assets_loaded, server.parameters)},
-        )
+        return Response(status=ResponseStatus.SUCCESS, request_id=cmd.request_id, message="Reset")
 
-
-class ShutdownHandler:
-    def handle(self, server: ZmqBackendServer, cmd: Command) -> Response:
-        server.running = False
-        return Response(
-            status=ResponseStatus.SUCCESS, request_id=cmd.request_id, message="Shutdown"
-        )
+    def _on_shutdown(self, cmd: Command) -> Response:
+        self.running = False
+        return Response(status=ResponseStatus.SUCCESS, request_id=cmd.request_id, message="Shutdown")

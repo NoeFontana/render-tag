@@ -15,7 +15,7 @@ from render_tag.core.schema import SceneRecipe
 from render_tag.core.validator import AssetValidator, validate_recipe_file
 from render_tag.generation.scene import Generator
 from render_tag.generation.tags import ensure_tag_asset
-from render_tag.orchestration.orchestrator import (
+from render_tag.orchestration import (
     get_completed_scene_ids,
     resolve_shard_index,
 )

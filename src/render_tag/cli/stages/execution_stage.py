@@ -8,7 +8,7 @@ import typer
 
 from render_tag.cli.pipeline import GenerationContext, PipelineStage
 from render_tag.cli.tools import check_blenderproc_installed, check_orchestration_installed, console
-from render_tag.orchestration.orchestrator import ExecutorFactory, orchestrate
+from render_tag.orchestration import ExecutorFactory, orchestrate
 
 
 class ExecutionStage(PipelineStage):

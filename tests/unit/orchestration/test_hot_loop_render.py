@@ -1,9 +1,9 @@
 import threading
 import time
 
-from render_tag.backend.zmq_server import ZmqBackendServer
+from render_tag.backend.worker_server import ZmqBackendServer
 from render_tag.core.schema.hot_loop import CommandType, ResponseStatus
-from render_tag.orchestration.orchestrator import ZmqHostClient
+from render_tag.orchestration import ZmqHostClient
 
 
 def test_hot_loop_render_command(tmp_path):

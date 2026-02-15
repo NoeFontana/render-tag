@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from render_tag.orchestration.orchestrator import PersistentWorkerProcess
+from render_tag.orchestration import PersistentWorkerProcess
 
 
 def test_process_group_cleanup(tmp_path):
@@ -101,7 +101,7 @@ import time
 from pathlib import Path
 # Add src to sys.path so we can import orchestrator
 sys.path.insert(0, {str(Path(__file__).resolve().parents[3] / "src")!r})
-from render_tag.orchestration.orchestrator import PersistentWorkerProcess
+from render_tag.orchestration import PersistentWorkerProcess
 
 worker = PersistentWorkerProcess(
     worker_id="test-pdeathsig",

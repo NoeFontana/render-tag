@@ -5,44 +5,33 @@ import sys
 from pathlib import Path
 
 
+from render_tag.core.utils import find_venv_site_packages, get_project_root, get_venv_site_packages
+
+
 def setup_environment():
     """
     Stabilizes the environment for the Blender Python backend.
     Ensures 'src' is in sys.path and venv site-packages are loaded if running inside Blender.
     """
-    # 1. Ensure the 'src' directory (parent of 'render_tag' package) is in sys.path
-    # We find this relative to the current file: src/render_tag/backend/bootstrap.py -> src/
-    src_dir = str(Path(__file__).resolve().parents[2])
+    root = get_project_root()
+    src_dir = str(root / "src")
+    repo_root = str(root)
+
+    # 1. Ensure the 'src' directory is in sys.path
     if src_dir not in sys.path:
         sys.path.insert(0, src_dir)
 
-    # 2. Add repo root to sys.path to allow importing 'tests' if needed (for mocks/telemetry)
-    # The repo root is the parent of 'src'
-    repo_root = str(Path(src_dir).parent)
+    # 2. Add repo root to sys.path
     if repo_root not in sys.path:
         sys.path.append(repo_root)
 
     # 3. Handle Blender's internal Python: Add project venv site-packages
-    # This is only needed when running inside Blender's bundled Python which ignores external envs.
-    venv_site_packages = os.environ.get("RENDER_TAG_VENV_SITE_PACKAGES")
-
-    # If not explicitly provided, look for .venv in repo root (only for local dev)
-    if not venv_site_packages:
-        potential_venv = Path(repo_root) / ".venv"
-        if potential_venv.exists():
-            if sys.platform == "win32":
-                site_path = potential_venv / "Lib" / "site-packages"
-            else:
-                # Find the pythonX.Y/site-packages
-                lib_dir = potential_venv / "lib"
-                if lib_dir.exists():
-                    sites = list(lib_dir.glob("python*/site-packages"))
-                    site_path = sites[0] if sites else None
-                else:
-                    site_path = None
-
-            if site_path and site_path.exists():
-                venv_site_packages = str(site_path)
+    # Precedence: Env Var > .venv in repo root > Current active venv
+    venv_site_packages = (
+        os.environ.get("RENDER_TAG_VENV_SITE_PACKAGES")
+        or find_venv_site_packages(root)
+        or get_venv_site_packages()
+    )
 
     if venv_site_packages:
         # Avoid mixing incompatible python versions

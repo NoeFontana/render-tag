@@ -8,7 +8,6 @@ from typing import Any
 
 import numpy as np
 import orjson
-from pydantic import BaseModel, Field
 
 # Standard LogRecord attributes to ignore when extracting context
 RESERVED_ATTRS = {
@@ -37,19 +36,6 @@ RESERVED_ATTRS = {
     "taskName",
     "payload",  # We handle payload explicitly
 }
-
-
-class LogSchema(BaseModel):
-    """Structured log schema for JSON IPC."""
-
-    type: str = "log"
-    level: str
-    logger: str
-    timestamp: str
-    message: str
-    event: str | None = None
-    context: dict[str, Any] = Field(default_factory=dict)
-    payload: dict[str, Any] = Field(default_factory=dict)
 
 
 def _json_default(obj: Any) -> Any:
@@ -140,25 +126,27 @@ class JSONFormatter(logging.Formatter):
         event = context.pop("event", None)
 
         # Create structured log
-        log_entry = LogSchema(
-            level=record.levelname,
-            logger=record.name,
-            timestamp=datetime.fromtimestamp(record.created, tz=UTC).isoformat(),
-            message=record.getMessage(),
-            event=event,
-            context=context,
-            payload=payload,
-        )
+        log_data = {
+            "type": "log",
+            "level": record.levelname,
+            "logger": record.name,
+            "timestamp": datetime.fromtimestamp(record.created, tz=UTC).isoformat(),
+            "message": record.getMessage(),
+            "context": context,
+            "payload": payload,
+        }
+        if event:
+            log_data["event"] = event
 
         # Determine log type
         if hasattr(record, "log_type"):
-            log_entry.type = record.log_type
+            log_data["type"] = record.log_type
         elif record.levelno >= logging.ERROR:
-            log_entry.type = "error"
+            log_data["type"] = "error"
 
         # Serialize with orjson
         return orjson.dumps(
-            log_entry.model_dump(exclude_none=True),
+            log_data,
             default=_json_default,
             option=orjson.OPT_SERIALIZE_NUMPY | orjson.OPT_PASSTHROUGH_DATETIME,
         ).decode("utf-8")

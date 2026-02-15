@@ -72,6 +72,7 @@ def test_setup_environment_fallback_to_venv(tmp_path):
         patch("sys.path", sys.path.copy()),
         patch("site.addsitedir") as mock_addsitedir,
         patch("render_tag.backend.bootstrap.__file__", str(mock_bootstrap_file)),
+        patch("render_tag.backend.bootstrap.get_project_root", return_value=project_root),
         patch.dict(os.environ, {}, clear=True),
         patch.dict(sys.modules, {"pydantic": MagicMock(), "orjson": MagicMock()}),
     ):

@@ -1,11 +1,11 @@
 from unittest.mock import patch
 
-from render_tag.orchestration.orchestrator import PersistentWorkerProcess
+from render_tag.orchestration import PersistentWorkerProcess
 
 
 @patch("subprocess.Popen")
-@patch("render_tag.orchestration.orchestrator.ZmqHostClient")
-@patch("render_tag.core.utils.get_venv_site_packages")
+@patch("render_tag.orchestration.worker.ZmqHostClient")
+@patch("render_tag.orchestration.worker.get_venv_site_packages")
 @patch("time.sleep", return_value=None)
 def test_persistent_worker_injects_env_vars(
     mock_sleep, mock_get_venv, mock_zmq_client, mock_popen, tmp_path

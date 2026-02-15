@@ -1,7 +1,7 @@
 import sys
 import time
 
-from render_tag.orchestration.orchestrator import UnifiedWorkerOrchestrator
+from render_tag.orchestration import UnifiedWorkerOrchestrator
 
 
 def test_worker_pool_lifecycle(tmp_path):

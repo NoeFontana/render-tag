@@ -5,7 +5,7 @@ import pytest
 
 from render_tag.core.errors import WorkerCommunicationError
 from render_tag.core.schema.hot_loop import CommandType, ResponseStatus
-from render_tag.orchestration.orchestrator import ZmqHostClient
+from render_tag.orchestration import ZmqHostClient
 
 
 def mock_zmq_server(port, delay=0):
