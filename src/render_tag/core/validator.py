@@ -97,7 +97,7 @@ class RecipeValidator:
             cam_matrix = np.array(cam.transform_matrix)
             cam_location = cam_matrix[:3, 3]
             res = cam.intrinsics.resolution
-            fov = cam.intrinsics.fov
+            k_matrix = cam.intrinsics.k_matrix
 
             valid_tags_in_view = 0
 
@@ -133,7 +133,7 @@ class RecipeValidator:
                 corners_world = corners_world_h[:, :3]
 
                 # Project to pixel space
-                pixels = project_points(corners_world, cam_matrix, res, fov)
+                pixels = project_points(corners_world, cam_matrix, res, k_matrix)
 
                 # 1. Check if Fully in bounds
                 fully_in_bounds = True

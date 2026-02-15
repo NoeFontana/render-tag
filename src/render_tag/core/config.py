@@ -5,6 +5,7 @@ This module defines the configuration schema using Pydantic v2, providing
 strict validation and type safety for all generation parameters.
 """
 
+import math
 from enum import Enum
 from pathlib import Path
 from typing import Annotated, Any, Literal

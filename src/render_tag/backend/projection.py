@@ -16,10 +16,10 @@ from render_tag.generation.projection_math import (
     calculate_relative_pose,
     get_opencv_camera_matrix,
     get_world_normal,
+    project_points,
 )
 from render_tag.generation.visibility import (
     is_facing_camera,
-    project_points,
     validate_visibility_metrics,
 )
 
@@ -43,9 +43,15 @@ def project_corners_to_image(
 
     # Use bridge/math logic for matrix conversion
     blender_cam_mat = bridge.np.array(bridge.bpy.context.scene.camera.matrix_world)
-    cam2world = get_opencv_camera_matrix(blender_cam_mat)
 
-    points_2d = project_points(bridge.np.array(corners_world), k_matrix, cam2world)
+    res_x = bridge.bpy.context.scene.render.resolution_x
+    res_y = bridge.bpy.context.scene.render.resolution_y
+    points_2d = project_points(
+        bridge.np.array(corners_world),
+        blender_cam_mat,
+        [res_x, res_y],
+        k_matrix.tolist() if hasattr(k_matrix, "tolist") else k_matrix,
+    )
     if points_2d is None or len(points_2d) != 4:
         return None
 

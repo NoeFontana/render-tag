@@ -6,7 +6,6 @@ This module handles camera pose sampling and intrinsics configuration.
 
 from __future__ import annotations
 
-import math
 from typing import Any
 
 from render_tag.backend.bridge import bridge

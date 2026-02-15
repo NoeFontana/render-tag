@@ -163,16 +163,16 @@ def project_points(
     points_world: np.ndarray,
     cam_world_matrix: np.ndarray,
     resolution: list[int],
-    fov: float,
+    k_matrix: list[list[float]],
 ) -> np.ndarray:
     """
     Projects 3D world points to 2D pixel coordinates using OpenCV convention.
 
     Args:
         points_world: (N, 3) array of 3D points in world space.
-        cam_world_matrix: 4x4 Blender Camera-to-World matrix.
+        cam_world_matrix: 4x4 Blender Camera-to-World matrix (OpenCV convention).
         resolution: [width, height] of the image.
-        fov: Horizontal field of view in degrees.
+        k_matrix: 3x3 intrinsic matrix [[fx, 0, cx], [0, fy, cy], [0, 0, 1]].
 
     Returns:
         (N, 2) array of pixel coordinates [x, y].
@@ -190,20 +190,18 @@ def project_points(
     points_cam_h = (world_to_cam @ points_h.T).T
     points_cam = points_cam_h[:, :3]
 
-    # 2. Projection
-    width, height = resolution
-    fov_rad = np.radians(fov)
-    f = width / (2.0 * np.tan(fov_rad / 2.0))
-
-    cx = width / 2.0
-    cy = height / 2.0
+    # 2. Projection using K matrix
+    fx = k_matrix[0][0]
+    fy = k_matrix[1][1]
+    cx = k_matrix[0][2]
+    cy = k_matrix[1][2]
 
     pixels = np.zeros((len(points_world), 2))
     z = points_cam[:, 2]
     mask = z > 1e-6  # Only project points in front of the camera
 
-    pixels[mask, 0] = (points_cam[mask, 0] * f / z[mask]) + cx
-    pixels[mask, 1] = (points_cam[mask, 1] * f / z[mask]) + cy
+    pixels[mask, 0] = (points_cam[mask, 0] * fx / z[mask]) + cx
+    pixels[mask, 1] = (points_cam[mask, 1] * fy / z[mask]) + cy
 
     # Mark points behind camera as far outside
     pixels[~mask] = -1e6

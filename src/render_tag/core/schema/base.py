@@ -116,14 +116,13 @@ class ObjectRecipe(BaseModel):
 
 
 class CameraIntrinsics(BaseModel):
-    """Camera intrinsic parameters."""
+    """Camera intrinsic parameters (baked into final K-matrix)."""
 
     resolution: list[int] = Field(
         min_length=2, max_length=2, description="[width, height] in pixels"
     )
-    fov: float = Field(default=60.0, description="Horizontal field of view in degrees")
-    intrinsics: dict[str, Any] = Field(
-        default_factory=dict, description="Explicit K matrix or focal lengths"
+    k_matrix: list[list[float]] = Field(
+        description="3x3 Intrinsic matrix [[fx, 0, cx], [0, fy, cy], [0, 0, 1]]"
     )
 
 

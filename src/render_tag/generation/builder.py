@@ -316,7 +316,7 @@ class SceneRecipeBuilder:
                         corners_world,
                         pose.transform_matrix,
                         list(camera_config.resolution),
-                        camera_config.fov,
+                        camera_config.get_k_matrix(),
                     )
 
                     # Check 1. Bounds (Must be fully in view)
@@ -363,8 +363,7 @@ class SceneRecipeBuilder:
                     transform_matrix=pose.transform_matrix.tolist(),
                     intrinsics=CameraIntrinsics(
                         resolution=list(camera_config.resolution),
-                        fov=camera_config.fov,
-                        intrinsics=camera_config.intrinsics.model_dump(),
+                        k_matrix=camera_config.get_k_matrix(),
                     ),
                     sensor_dynamics=dynamics,
                     fstop=camera_config.fstop,
