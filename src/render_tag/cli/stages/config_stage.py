@@ -127,3 +127,18 @@ class ConfigLoadingStage(PipelineStage):
                 f"Current: {curr_blender_ver}"
             )
             raise typer.Exit(code=1)
+
+        # Integrity Check: Config Hash
+        # If the job spec has a config hash, ensure the config inside it matches.
+        # This protects against accidental modification of the spec JSON.
+        if job_spec.config_hash:
+            computed_hash = hashlib.sha256(
+                job_spec.scene_config.model_dump_json().encode()
+            ).hexdigest()
+            if computed_hash != job_spec.config_hash:
+                console.print(
+                    f"[bold red]Validation Error:[/bold red] Config hash mismatch.\n"
+                    f"Spec: {job_spec.config_hash}\n"
+                    f"Computed: {computed_hash}"
+                )
+                raise typer.Exit(code=1)

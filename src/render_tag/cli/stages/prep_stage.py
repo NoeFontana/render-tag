@@ -47,7 +47,7 @@ class PreparationStage(PipelineStage):
         # 3. Generate Recipes
         console.print(f"[bold]Running Shard {ctx.shard_index + 1}/{ctx.total_shards}[/bold]")
         generator = Generator(
-            ctx.gen_config.model_dump(mode="json"),
+            ctx.gen_config,
             ctx.output_dir,
             global_seed=ctx.seed,
         )
