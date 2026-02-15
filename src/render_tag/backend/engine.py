@@ -105,14 +105,14 @@ class RenderFacade:
         texture_path = world_recipe.get("texture_path")
         if texture_path and world_recipe.get("use_nodes", True):
             from render_tag.backend.scene import randomize_floor_material
-            
+
             # Use managed background plane from pool
             bg_plane = global_pool.get_background_plane()
             randomize_floor_material(
                 bg_plane,
                 texture_path=texture_path,
                 scale=world_recipe.get("texture_scale", 1.0),
-                rotation=world_recipe.get("texture_rotation", 0.0)
+                rotation=world_recipe.get("texture_rotation", 0.0),
             )
 
         lighting = world_recipe.get("lighting", {})
@@ -131,17 +131,15 @@ class RenderFacade:
                 props = obj_recipe["properties"]
                 margin_bits = props.get("margin_bits", 0)
                 texture_path = get_tag_texture_path(
-                    props["tag_family"], 
-                    tag_id=props["tag_id"],
-                    margin_bits=margin_bits
+                    props["tag_family"], tag_id=props["tag_id"], margin_bits=margin_bits
                 )
                 tag_obj = create_tag_plane(
-                    props["tag_size"], 
-                    texture_path, 
-                    props["tag_family"], 
+                    props["tag_size"],
+                    texture_path,
+                    props["tag_family"],
                     tag_id=props["tag_id"],
                     margin_bits=margin_bits,
-                    material_config=obj_recipe.get("material")
+                    material_config=obj_recipe.get("material"),
                 )
                 tag_obj.blender_obj.pass_index = props["tag_id"] + 1
                 tag_obj.set_location(obj_recipe["location"])
@@ -156,7 +154,13 @@ class RenderFacade:
         """Configures a camera and renders the image."""
         pose_matrix = bridge.np.array(camera_recipe["transform_matrix"])
         bridge.bproc.camera.add_camera_pose(pose_matrix, frame=0)
+        bridge.bproc.camera.add_camera_pose(pose_matrix, frame=0)
         setup_sensor_dynamics(pose_matrix, camera_recipe.get("sensor_dynamics"))
+
+        # Apply intrinsics (Resolution, FOV, etc.)
+        from render_tag.backend.camera import set_camera_intrinsics
+
+        set_camera_intrinsics(camera_recipe)
 
         cam_data = bridge.bpy.context.scene.camera.data
         fstop = camera_recipe.get("fstop")
