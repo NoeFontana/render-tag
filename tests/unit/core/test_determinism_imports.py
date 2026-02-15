@@ -10,7 +10,6 @@ def test_generation_layer_cannot_import_random():
         text=True
     )
     
-    # It should fail because we haven't removed the imports yet
-    assert result.returncode != 0
-    assert "Determinism enforcement (Generation) BROKEN" in result.stdout
-    assert "render_tag.generation is not allowed to import random" in result.stdout
+    # It should pass now that we have removed the imports
+    assert result.returncode == 0
+    assert "Determinism enforcement (Generation) KEPT" in result.stdout
