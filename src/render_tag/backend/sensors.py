@@ -38,10 +38,12 @@ class GaussianNoiseStrategy:
     def apply(self, image: np.ndarray, config: dict[str, Any]) -> np.ndarray:
         mean = config.get("mean", 0.0)
         stddev = config.get("stddev", 0.0)
+        seed = config.get("seed")
+        rng = np.random.default_rng(seed)
 
         # Standard Engineer: Use np.asarray to safely handle mocks in test environments
         if np.asarray(stddev).any() and np.asarray(stddev) > 0:
-            noise = np.random.normal(mean, stddev, image.shape)
+            noise = rng.normal(mean, stddev, image.shape)
             return image + noise
         return image
 
@@ -51,7 +53,9 @@ class PoissonNoiseStrategy:
 
     def apply(self, image: np.ndarray, config: dict[str, Any]) -> np.ndarray:
         scale = config.get("scale", 1000.0)
-        return np.random.poisson(image * scale) / scale
+        seed = config.get("seed")
+        rng = np.random.default_rng(seed)
+        return rng.poisson(image * scale) / scale
 
 
 class SaltAndPepperNoiseStrategy:
@@ -60,6 +64,8 @@ class SaltAndPepperNoiseStrategy:
     def apply(self, image: np.ndarray, config: dict[str, Any]) -> np.ndarray:
         amount = config.get("amount", 0.0)
         salt_vs_pepper = config.get("salt_vs_pepper", 0.5)
+        seed = config.get("seed")
+        rng = np.random.default_rng(seed)
 
         noisy = image.copy()
         if np.asarray(amount).any() and np.asarray(amount) > 0:
@@ -68,13 +74,13 @@ class SaltAndPepperNoiseStrategy:
             # Salt (White)
             num_salt = int(num_pixels * salt_vs_pepper)
             if num_salt > 0:
-                coords_salt = [np.random.randint(0, i - 1, num_salt) for i in image.shape]
+                coords_salt = [rng.integers(0, i - 1, size=num_salt) for i in image.shape]
                 noisy[tuple(coords_salt)] = 1.0
 
             # Pepper (Black)
             num_pepper = num_pixels - num_salt
             if num_pepper > 0:
-                coords_pepper = [np.random.randint(0, i - 1, num_pepper) for i in image.shape]
+                coords_pepper = [rng.integers(0, i - 1, size=num_pepper) for i in image.shape]
                 noisy[tuple(coords_pepper)] = 0.0
         return noisy
 

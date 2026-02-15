@@ -405,6 +405,13 @@ class SceneCompiler:
                 )
                 velocity = (direction * magnitude).tolist()
 
+            if camera_config.sensor_noise:
+                noise_recipe = camera_config.sensor_noise.model_dump()
+                # Derive a deterministic seed for this specific camera's noise
+                noise_recipe["seed"] = derive_seed(camera_seed, "noise", _)
+            else:
+                noise_recipe = None
+
             camera_recipes.append(
                 CameraRecipe(
                     transform_matrix=pose.transform_matrix.tolist(),
@@ -423,7 +430,7 @@ class SceneCompiler:
                     min_tag_pixels=camera_config.min_tag_pixels,
                     max_tag_pixels=camera_config.max_tag_pixels,
                     iso_noise=camera_config.iso_noise,
-                    sensor_noise=camera_config.sensor_noise,
+                    sensor_noise=noise_recipe,
                 )
             )
         recipe.cameras = camera_recipes

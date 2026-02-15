@@ -18,6 +18,7 @@ class SensorNoiseConfig(BaseModel):
     stddev: float = Field(default=0.0, ge=0.0)
     salt_vs_pepper: float = Field(default=0.5, ge=0.0, le=1.0)
     amount: float = Field(default=0.0, ge=0.0, le=1.0)
+    seed: int | None = Field(default=None, description="Deterministic noise seed")
 
 
 class SensorDynamicsRecipe(BaseModel):

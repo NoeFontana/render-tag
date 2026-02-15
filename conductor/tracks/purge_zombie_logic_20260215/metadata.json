@@ -1,8 +1,0 @@
-{
-  "track_id": "purge_zombie_logic_20260215",
-  "type": "chore",
-  "status": "new",
-  "created_at": "2026-02-15T20:35:00Z",
-  "updated_at": "2026-02-15T20:35:00Z",
-  "description": "Purge "Zombie Logic" (Dead Code Audit)"
-}

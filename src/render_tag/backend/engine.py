@@ -224,13 +224,6 @@ def execute_recipe(
 
     # All randomness is now resolved on the host side (Compiler).
     # The backend is a pure, reactive executor.
-    if seed is not None:
-        import random
-
-        import numpy as np
-        random.seed(seed)
-        np.random.seed(seed)
-
     bridge.bpy.context.scene.cycles.use_animated_seed = False
 
     # 3. Initialize Renderer

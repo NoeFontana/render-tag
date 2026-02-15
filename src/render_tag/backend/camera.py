@@ -14,26 +14,34 @@ from render_tag.core.logging import get_logger
 logger = get_logger(__name__)
 
 
-def set_camera_intrinsics(camera_config: dict) -> None:
+def set_camera_intrinsics(camera_recipe: dict) -> None:
     """Set camera intrinsics from configuration.
 
     Args:
-        camera_config: Camera configuration dictionary (CameraRecipe format)
+        camera_recipe: Camera configuration dictionary (CameraRecipe format)
     """
-    from render_tag.generation.intrinsics import resolve_intrinsics
+    intrinsics = camera_recipe["intrinsics"]
+    res = intrinsics["resolution"]
+    k_matrix = intrinsics.get("k_matrix")
 
-    # Staff Engineer: Decouple calculation from application
-    params = resolve_intrinsics(camera_config)
-    res = params["resolution"]
+    if not k_matrix:
+        # Emergency fallback for legacy or minimal test recipes
+        import math
 
-    logger.info(f"Setting camera resolution to {res}, focal_length={params['fx']:.2f}")
+        fov = camera_recipe.get("fov", 60.0)
+        fx = fy = res[0] / (2.0 * math.tan(math.radians(fov / 2.0)))
+        cx, cy = res[0] / 2.0, res[1] / 2.0
+        k_matrix = [[float(fx), 0.0, float(cx)], [0.0, float(fy), float(cy)], [0.0, 0.0, 1.0]]
+        logger.warning(f"No k_matrix found in recipe. Using fallback FOV={fov}")
+
+    logger.info(f"Setting camera resolution to {res}")
 
     # Set resolution
     bridge.bproc.camera.set_resolution(res[0], res[1])
 
-    # Apply computed K matrix
+    # Apply pre-calculated K matrix
     bridge.bproc.camera.set_intrinsics_from_K_matrix(
-        K=params["k_matrix"],
+        K=k_matrix,
         image_width=res[0],
         image_height=res[1],
     )
