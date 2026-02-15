@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+import math
+
+import numpy as np
+import pytest
+
 """
 Advanced unit tests for board geometry, focusing on malformed specs and failures.
 """
@@ -8,11 +13,37 @@ from render_tag.generation.board import (
     BoardLayout,
     BoardPosition,
     BoardSpec,
+    BoardType,
+    compute_aprilgrid_layout,
     compute_charuco_layout,
+    validate_aprilgrid_filling,
     validate_board_dimensions,
     validate_board_is_centered,
+    validate_board_plausibility,
+    validate_charuco_tag_filling,
+    validate_charuco_white_border,
     validate_marker_fits_in_square,
+    validate_no_overlaps,
 )
+from render_tag.generation.camera import sample_camera_pose, validate_camera_pose
+from render_tag.generation.math import (
+    compute_polygon_area,
+    look_at_rotation,
+    make_transformation_matrix,
+    rotation_matrix_from_vectors,
+)
+from render_tag.generation.projection_math import (
+    calculate_angle_of_incidence,
+    get_opencv_camera_matrix,
+    get_world_normal,
+)
+from render_tag.generation.visibility import (
+    is_facing_camera,
+    project_points,
+    validate_visibility_metrics,
+)
+
+# ============================================================================
 
 
 def test_invalid_marker_fits():
@@ -78,16 +109,6 @@ These tests verify physical plausibility of calibration boards:
 
 All tests run WITHOUT Blender.
 """
-
-from render_tag.generation.board import (
-    BoardType,
-    compute_aprilgrid_layout,
-    validate_aprilgrid_filling,
-    validate_board_plausibility,
-    validate_charuco_tag_filling,
-    validate_charuco_white_border,
-    validate_no_overlaps,
-)
 
 # ============================================================================
 # BoardSpec Tests
@@ -387,16 +408,6 @@ class TestFullValidation:
             assert is_valid, f"Check '{check_name}' failed: {msg}"
 
 
-"""
-Unit tests for camera_geometry module.
-"""
-
-
-import numpy as np
-
-from render_tag.generation.camera import sample_camera_pose, validate_camera_pose
-
-
 def test_sample_camera_pose_bounds():
     look_at = np.array([0, 0, 0])
     min_dist, max_dist = 1.0, 2.0
@@ -443,14 +454,6 @@ def test_validate_camera_pose():
     # Too low
     pose_low = sample_camera_pose(look_at, distance=1.0, elevation=0.01)  # Very low
     assert validate_camera_pose(pose_low, look_at, min_height=0.1) is False
-
-
-"""
-Advanced unit tests for geometry math, focusing on edge cases.
-"""
-
-
-from render_tag.generation.math import look_at_rotation, rotation_matrix_from_vectors
 
 
 def test_rotation_matrix_alignment_edge_cases():
@@ -529,19 +532,6 @@ def test_look_at_rotation_axes():
     assert np.allclose(R[:, 2], [-1, 0, 0])  # Z
 
 
-"""
-Unit tests for math_utils module.
-"""
-
-
-import pytest
-
-from render_tag.generation.math import (
-    compute_polygon_area,
-    make_transformation_matrix,
-)
-
-
 def test_compute_polygon_area():
     # Unit square
     points = np.array([[0, 0], [1, 0], [1, 1], [0, 1]])
@@ -598,18 +588,6 @@ def test_look_at_rotation_alignment():
     assert np.allclose(R[:, 2], expected_z)
 
 
-"""
-Advanced tests for projection math and coordinate transformations.
-"""
-
-
-from render_tag.generation.projection_math import (
-    calculate_angle_of_incidence,
-    get_opencv_camera_matrix,
-    get_world_normal,
-)
-
-
 def test_camera_matrix_conversion():
     # Identity matrix (Camera at origin, looking at -Z, Up is Y)
     blender_cam_to_world = np.eye(4)
@@ -656,17 +634,7 @@ def test_angle_of_incidence_edge_cases():
     assert np.allclose(calculate_angle_of_incidence(target_pos, target_normal, cam_pos), 180.0)
 
 
-"""
-Zero-Render Math Verifier for render-tag.
-
-This module contains pure-Python tests using numpy only to verify corner
-projection logic and coordinate systems WITHOUT rendering a single pixel.
-
-Benefit: Runs in ~0.01s vs 10s with Blender. Agents can iterate on coordinate
-logic instantly.
-"""
-
-import math
+# ============================================================================
 
 # ============================================================================
 # Pure Math Projection Utilities (no Blender dependency)
@@ -863,28 +831,6 @@ def compute_tag_corners_3d(
     ]
 
     return corners
-
-
-def compute_polygon_area(corners_2d: list[tuple[float, float]]) -> float:
-    """Compute polygon area using the Shoelace formula.
-
-    Args:
-        corners_2d: List of (x, y) corner coordinates
-
-    Returns:
-        Area in square pixels
-    """
-    n = len(corners_2d)
-    if n < 3:
-        return 0.0
-
-    area = 0.0
-    for i in range(n):
-        j = (i + 1) % n
-        area += corners_2d[i][0] * corners_2d[j][1]
-        area -= corners_2d[j][0] * corners_2d[i][1]
-
-    return abs(area) / 2.0
 
 
 # ============================================================================
@@ -1087,11 +1033,7 @@ Unit tests for visibility_geometry module.
 """
 
 
-from render_tag.generation.visibility import (
-    is_facing_camera,
-    project_points,
-    validate_visibility_metrics,
-)
+# ============================================================================
 
 
 def test_is_facing_camera():

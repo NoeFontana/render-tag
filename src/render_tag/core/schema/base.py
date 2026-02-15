@@ -96,14 +96,6 @@ class TagSurfaceConfig(BaseModel):
     grunge: float = Field(default=0.0, ge=0.0, le=1.0, description="Intensity of grunge/stains")
 
 
-class TagSurfaceConfig(BaseModel):
-    """Configuration for tag surface imperfections."""
-
-    scratches: float = Field(default=0.0, ge=0.0, le=1.0, description="Intensity of scratches")
-    dust: float = Field(default=0.0, ge=0.0, le=1.0, description="Intensity of dust")
-    grunge: float = Field(default=0.0, ge=0.0, le=1.0, description="Intensity of grunge/stains")
-
-
 class ObjectRecipe(BaseModel):
     """Recipe for a single object in the scene."""
 

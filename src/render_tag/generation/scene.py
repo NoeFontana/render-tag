@@ -108,11 +108,14 @@ class Generator:
                 return recipe
 
             logger.debug(
-                f"Scene {scene_id} attempt {attempt} failed validation (Errors: {len(validator.errors)}, Warnings: {len(validator.warnings)}). Re-sampling..."
+                f"Scene {scene_id} attempt {attempt} failed validation "
+                f"(Errors: {len(validator.errors)}, "
+                f"Warnings: {len(validator.warnings)}). Re-sampling..."
             )
 
         logger.warning(
-            f"Could not generate a valid scene for ID {scene_id} after {max_retries} attempts. Returning last attempt."
+            f"Could not generate a valid scene for ID {scene_id} after "
+            f"{max_retries} attempts. Returning last attempt."
         )
         return recipe
 

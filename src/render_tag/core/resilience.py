@@ -52,7 +52,8 @@ def retry_with_backoff(
                     last_exception = e
                     if attempt == retries:
                         logger.error(
-                            f"Operation {func.__name__} failed after {retries + 1} attempts. Last error: {e}"
+                            f"Operation {func.__name__} failed after {retries + 1} attempts. "
+                            f"Last error: {e}"
                         )
                         raise
 

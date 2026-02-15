@@ -10,6 +10,11 @@ import random
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+try:
+    import bpy
+except ImportError:
+    bpy = None
+
 from render_tag.backend.bridge import bridge
 
 if TYPE_CHECKING:

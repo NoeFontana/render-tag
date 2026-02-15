@@ -37,9 +37,7 @@ except ImportError:
 
 
 if TYPE_CHECKING:
-    from render_tag.core.schema import SceneProvenance
-
-from render_tag.core.schema import DetectionRecord
+    from render_tag.core.schema import DetectionRecord, SceneProvenance
 
 
 class CSVWriter:

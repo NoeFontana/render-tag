@@ -68,10 +68,13 @@ class ExecutionStage(PipelineStage):
             console.print("[bold red]Error:[/bold red] Orchestration dependencies not installed.")
             raise typer.Exit(code=1)
 
-        if ctx.executor_type == "local" and not ctx.skip_render:
-            if not check_blenderproc_installed():
-                console.print("[bold red]Error:[/bold red] blenderproc not installed.")
-                raise typer.Exit(code=1)
+        if (
+            ctx.executor_type == "local"
+            and not ctx.skip_render
+            and not check_blenderproc_installed()
+        ):
+            console.print("[bold red]Error:[/bold red] blenderproc not installed.")
+            raise typer.Exit(code=1)
 
     def _finalize_results(self, ctx: GenerationContext) -> None:
         # Rename shard files if single shard

@@ -275,7 +275,8 @@ def prune(
 
         if final_count < limit:
             console.print(
-                f"[yellow]Warning: Only {final_count} images passed filters (limit {limit})[/yellow]"
+                f"[yellow]Warning: Only {final_count} images passed filters "
+                f"(limit {limit})[/yellow]"
             )
 
         # Update Files (tags.csv, rich_truth.json)

@@ -59,6 +59,8 @@ def test_zmq_client_timeout():
     time.sleep(0.1)
 
     # Set small timeout
-    with ZmqHostClient(port=port, timeout_ms=200) as client:
-        with pytest.raises(WorkerCommunicationError, match="TIMEOUT sending CommandType.STATUS"):
-            client.send_command(CommandType.STATUS)
+    with (
+        ZmqHostClient(port=port, timeout_ms=200) as client,
+        pytest.raises(WorkerCommunicationError, match=r"TIMEOUT sending CommandType.STATUS"),
+    ):
+        client.send_command(CommandType.STATUS)

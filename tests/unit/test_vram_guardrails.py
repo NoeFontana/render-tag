@@ -29,7 +29,11 @@ if __name__ == "__main__":
         
         # Handle SHUTDOWN to allow process termination
         if request.get("command_type") == "SHUTDOWN":
-            response = {"status": "SUCCESS", "message": "Bye", "request_id": request.get("request_id")}
+            response = {
+                "status": "SUCCESS",
+                "message": "Bye",
+                "request_id": request.get("request_id"),
+            }
             socket.send_string(json.dumps(response))
             break
 

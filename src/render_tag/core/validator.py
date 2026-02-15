@@ -220,7 +220,7 @@ class RecipeValidator:
                 break
 
         # 2. Analyze Tags
-        for i, obj in enumerate(self.recipe.objects):
+        for _i, obj in enumerate(self.recipe.objects):
             if obj.type == "TAG":
                 # properties has tag_size
                 size = obj.properties.get("tag_size", 0.1)

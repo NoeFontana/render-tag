@@ -5,6 +5,7 @@ Combines ZMQ communication, persistent worker management, sharding,
 parallel execution, and pluggable render executors into a single module.
 """
 
+import contextlib
 import hashlib
 import json
 import logging
@@ -30,19 +31,6 @@ try:
 except ImportError:
     zmq = None
 
-
-def set_pdeathsig():
-    """Linux-specific: Send SIGKILL to this process if its parent dies."""
-    import ctypes
-    import signal
-
-    # PR_SET_PDEATHSIG = 1
-    libc = ctypes.CDLL("libc.so.6")
-    libc.prctl(1, signal.SIGKILL, 0, 0, 0)
-
-
-import contextlib
-
 from render_tag.audit.auditor import TelemetryAuditor
 from render_tag.core.config import load_config
 from render_tag.core.errors import WorkerCommunicationError, WorkerStartupError
@@ -55,6 +43,17 @@ from render_tag.core.schema.hot_loop import (
     ResponseStatus,
     Telemetry,
 )
+
+
+def set_pdeathsig():
+    """Linux-specific: Send SIGKILL to this process if its parent dies."""
+    import ctypes
+    import signal
+
+    # PR_SET_PDEATHSIG = 1
+    libc = ctypes.CDLL("libc.so.6")
+    libc.prctl(1, signal.SIGKILL, 0, 0, 0)
+
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -125,9 +124,9 @@ class ZmqHostClient:
             if raise_on_failure and resp.status == ResponseStatus.FAILURE:
                 raise WorkerCommunicationError(f"Worker failure: {resp.message}")
             return resp
-        except zmq.Again:
+        except zmq.Again as err:
             self._recreate_socket()
-            raise WorkerCommunicationError(f"TIMEOUT sending {command_type}")
+            raise WorkerCommunicationError(f"TIMEOUT sending {command_type}") from err
         finally:
             self.socket.setsockopt(zmq.RCVTIMEO, self.timeout_ms)
 
@@ -274,7 +273,7 @@ class PersistentWorkerProcess:
                                 f"Worker initialization failed: {init_resp.message}"
                             )
                     except Exception as e:
-                        raise WorkerStartupError(f"Worker initialization error: {e}")
+                        raise WorkerStartupError(f"Worker initialization error: {e}") from e
                     return
             except Exception:
                 pass
@@ -410,7 +409,7 @@ class UnifiedWorkerOrchestrator:
                             resp = worker.send_command(CommandType.STATUS, timeout_ms=1000)
                             if resp.status == ResponseStatus.SUCCESS and resp.data:
                                 self.auditor.add_entry(worker.worker_id, Telemetry(**resp.data))
-                        except:
+                        except Exception:
                             pass
 
                         attempt_stack.push_resource(worker)
@@ -419,7 +418,7 @@ class UnifiedWorkerOrchestrator:
                     self._resource_stack.enter_context(attempt_stack.pop_all())
                     self.running = True
                 except Exception as e:
-                    raise WorkerStartupError(f"Startup failed: {e}")
+                    raise WorkerStartupError(f"Startup failed: {e}") from e
 
     def stop(self):
         with self._lock:
@@ -451,7 +450,10 @@ class UnifiedWorkerOrchestrator:
 
                     if self.vram_threshold_mb and telemetry.vram_used_mb > self.vram_threshold_mb:
                         should_restart = True
-                        reason = f"Exceeded VRAM threshold ({telemetry.vram_used_mb} > {self.vram_threshold_mb})"
+                        reason = (
+                            f"Exceeded VRAM threshold ({telemetry.vram_used_mb} > "
+                            f"{self.vram_threshold_mb})"
+                        )
                 except Exception as e:
                     logger.warning(f"Failed to parse telemetry from worker {worker.worker_id}: {e}")
             else:
@@ -525,7 +527,7 @@ class UnifiedWorkerOrchestrator:
                     r = worker.send_command(CommandType.STATUS, timeout_ms=1000)
                     if r.status == ResponseStatus.SUCCESS and r.data:
                         self.auditor.add_entry(worker.worker_id, Telemetry(**r.data))
-                except:
+                except Exception:
                     pass
 
             except Exception as e:
