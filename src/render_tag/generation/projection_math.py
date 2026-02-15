@@ -229,10 +229,7 @@ def calculate_pixel_area(pixels: np.ndarray) -> float:
 
 
 def calculate_ppm(
-    distance_m: float,
-    tag_size_m: float,
-    focal_length_px: float,
-    tag_grid_size: int
+    distance_m: float, tag_size_m: float, focal_length_px: float, tag_grid_size: int
 ) -> float:
     """
     Calculates the visual resolution in Pixels Per Module (PPM).
@@ -251,10 +248,7 @@ def calculate_ppm(
 
 
 def solve_distance_for_ppm(
-    target_ppm: float,
-    tag_size_m: float,
-    focal_length_px: float,
-    tag_grid_size: int
+    target_ppm: float, tag_size_m: float, focal_length_px: float, tag_grid_size: int
 ) -> float:
     """
     Calculates the required distance to achieve a target PPM.

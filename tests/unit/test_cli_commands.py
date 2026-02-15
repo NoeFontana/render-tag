@@ -301,7 +301,6 @@ def test_cli_run_with_job_overrides_warning(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     (tmp_path / "uv.lock").write_text("uv")
 
-
     monkeypatch.setattr(shutil, "which", lambda x: "/usr/bin/blenderproc")
 
     class MockCompletedProcess:
@@ -458,7 +457,6 @@ def test_cli_run_generates_manifest(tmp_path, monkeypatch):
     (tmp_path / "assets").mkdir()
 
     monkeypatch.chdir(tmp_path)
-
 
     monkeypatch.setattr(shutil, "which", lambda x: None)
 

@@ -37,7 +37,11 @@ def get_package_version() -> str:
 
 def get_git_commit() -> str:
     try:
-        return subprocess.check_output(["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL).decode().strip()
+        return (
+            subprocess.check_output(["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL)
+            .decode()
+            .strip()
+        )
     except Exception:
         return "unknown"
 
@@ -110,10 +114,13 @@ class DashboardGenerator:
 
         df = self.reader.load_rich_detections()
         fig = make_subplots(
-            rows=2, cols=2,
+            rows=2,
+            cols=2,
             subplot_titles=("Distance", "Angle", "Lighting", "Summary"),
-            specs=[[{"type": "histogram"}, {"type": "histogram"}],
-                   [{"type": "histogram"}, {"type": "table"}]]
+            specs=[
+                [{"type": "histogram"}, {"type": "histogram"}],
+                [{"type": "histogram"}, {"type": "table"}],
+            ],
         )
 
         if "distance" in df.columns:
@@ -124,10 +131,23 @@ class DashboardGenerator:
             fig.add_trace(go.Histogram(x=df["ppm"], name="PPM"), row=2, col=1)
 
         report = self.result.report
-        fig.add_trace(go.Table(
-            header={"values": ["Metric", "Value"]},
-            cells={"values": [["Score", "Tags", "Images"], [f"{report.score:.1f}", report.geometric.tag_count, report.geometric.image_count]]}
-        ), row=2, col=2)
+        fig.add_trace(
+            go.Table(
+                header={"values": ["Metric", "Value"]},
+                cells={
+                    "values": [
+                        ["Score", "Tags", "Images"],
+                        [
+                            f"{report.score:.1f}",
+                            report.geometric.tag_count,
+                            report.geometric.image_count,
+                        ],
+                    ]
+                },
+            ),
+            row=2,
+            col=2,
+        )
 
         output_path = self.dataset_path / filename
         fig.write_html(str(output_path))

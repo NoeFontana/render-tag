@@ -567,9 +567,7 @@ class TagConfig(BaseModel):
 
     family: TagFamily = Field(default=TagFamily.TAG36H11, description="AprilTag family")
     size_meters: float = Field(default=0.1, gt=0, description="Tag size in meters (outer edge)")
-    margin_bits: int = Field(
-        default=1, ge=0, description="Width of the white quiet zone in bits"
-    )
+    margin_bits: int = Field(default=1, ge=0, description="Width of the white quiet zone in bits")
     texture_path: Path | None = Field(default=None, description="Path to tag texture directory")
     material: MaterialConfig = Field(default_factory=MaterialConfig)
 

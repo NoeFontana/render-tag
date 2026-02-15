@@ -16,7 +16,7 @@ def test_generator_samples_velocity(tmp_path):
     mock_assets = MagicMock()
     builder = SceneRecipeBuilder(0, config, mock_assets)
     builder.build_cameras()
-    
+
     recipes = builder.recipe.cameras
 
     assert len(recipes) > 0
@@ -42,7 +42,7 @@ def test_generator_passes_dof_and_noise(tmp_path):
     mock_assets = MagicMock()
     builder = SceneRecipeBuilder(0, config, mock_assets)
     builder.build_cameras()
-    
+
     recipes = builder.recipe.cameras
 
     cam = recipes[0]
@@ -59,7 +59,7 @@ def test_generator_no_velocity_default(tmp_path):
     mock_assets = MagicMock()
     builder = SceneRecipeBuilder(0, config, mock_assets)
     builder.build_cameras()
-    
+
     recipes = builder.recipe.cameras
 
     cam = recipes[0]

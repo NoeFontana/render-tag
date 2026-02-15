@@ -100,10 +100,10 @@ class RecipeValidator:
             fov = cam.intrinsics.fov
 
             valid_tags_in_view = 0
-            
+
             for tag in tags:
                 family = tag.properties.get("tag_family", "tag36h11")
-                
+
                 # Priority: CameraRecipe override -> tag bit count
                 min_area = cam.min_tag_pixels or get_min_pixel_area(family)
                 max_area = cam.max_tag_pixels or (res[0] * res[1])
@@ -129,7 +129,7 @@ class RecipeValidator:
                     continue
 
                 corners_world_h = (tag_world_mat @ np.hstack([corners_local, np.ones((4, 1))]).T).T
-            
+
                 corners_world = corners_world_h[:, :3]
 
                 # Project to pixel space

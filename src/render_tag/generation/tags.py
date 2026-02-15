@@ -67,12 +67,13 @@ def generate_tag_image(
 
     # 1. Resolve Grid Size (bits across)
     from render_tag.core import TAG_GRID_SIZES
+
     grid_size = TAG_GRID_SIZES.get(family, 8)
     total_bits = grid_size + (2 * margin_bits)
-    
+
     # 2. Calculate inner marker size in pixels
     inner_size = int(size_pixels * (grid_size / total_bits))
-    
+
     # 3. Generate inner marker
     dictionary = cv2.aruco.getPredefinedDictionary(TAG_DICT_MAP[family])
     marker_img = cv2.aruco.generateImageMarker(
@@ -81,10 +82,10 @@ def generate_tag_image(
 
     # 4. Create final image with white margin
     final_img = np.full((size_pixels, size_pixels), 255, dtype=np.uint8)
-    
+
     # Center the marker
     offset = (size_pixels - inner_size) // 2
-    final_img[offset:offset+inner_size, offset:offset+inner_size] = marker_img
+    final_img[offset : offset + inner_size, offset : offset + inner_size] = marker_img
 
     return final_img
 

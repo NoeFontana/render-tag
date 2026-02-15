@@ -23,9 +23,7 @@ def run(
     config: Path = typer.Option(
         None, "--config", "-c", help="Path to config YAML", resolve_path=True
     ),
-    job: Path = typer.Option(
-        None, "--job", help="Path to job.json spec", resolve_path=True
-    ),
+    job: Path = typer.Option(None, "--job", help="Path to job.json spec", resolve_path=True),
     output: Path = typer.Option(
         "output/dataset_01", "--output", "-o", help="Output directory", resolve_path=True
     ),

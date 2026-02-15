@@ -250,7 +250,12 @@ class DetectionRecord(BaseModel):
         """Convert to CSV row format (normalized and optionally clipped)."""
         from render_tag.data_io.annotations import normalize_corner_order
 
-        row: list[str | int | float] = [self.image_id, self.tag_id, self.tag_family, float(f"{self.ppm:.4f}")]
+        row: list[str | int | float] = [
+            self.image_id,
+            self.tag_id,
+            self.tag_family,
+            float(f"{self.ppm:.4f}"),
+        ]
 
         # CSV format uses standard CCW order from BL
         ordered_corners = normalize_corner_order(self.corners, target_order="ccw_bl")

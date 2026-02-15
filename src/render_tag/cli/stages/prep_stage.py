@@ -40,7 +40,9 @@ class PreparationStage(PipelineStage):
         if ctx.resume:
             ctx.completed_ids = get_completed_scene_ids(ctx.output_dir)
             if ctx.completed_ids:
-                console.print(f"[yellow]Resuming. Found {len(ctx.completed_ids)} completed scenes.[/yellow]")
+                console.print(
+                    f"[yellow]Resuming. Found {len(ctx.completed_ids)} completed scenes.[/yellow]"
+                )
 
         # 3. Generate Recipes
         console.print(f"[bold]Running Shard {ctx.shard_index + 1}/{ctx.total_shards}[/bold]")
@@ -72,7 +74,7 @@ class PreparationStage(PipelineStage):
         """Scan recipes and pre-generate every required tag PNG."""
         assets_tag_dir = Path("assets/tags")
         assets_tag_dir.mkdir(parents=True, exist_ok=True)
-        
+
         required_tags = set()
         for recipe in recipes:
             for obj in recipe.objects:
@@ -82,10 +84,10 @@ class PreparationStage(PipelineStage):
                     margin_bits = obj.properties.get("margin_bits", 0)
                     if family and tag_id is not None:
                         required_tags.add((family, tag_id, margin_bits))
-        
+
         if not required_tags:
             return
-            
+
         console.print(f"[dim]Pre-generating {len(required_tags)} unique tags...[/dim]")
         for family, tag_id, margin_bits in required_tags:
             ensure_tag_asset(family, tag_id, assets_tag_dir, margin_bits=margin_bits)

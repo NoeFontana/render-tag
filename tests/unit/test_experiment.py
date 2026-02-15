@@ -2,7 +2,6 @@
 Unit tests for the experiment module.
 """
 
-
 import json
 
 from render_tag.core.config import GenConfig
@@ -51,7 +50,7 @@ def test_save_manifest(tmp_path):
     assert manifest_file.exists()
 
     data = json.loads(manifest_file.read_text())
-    
+
     assert data["experiment"]["name"] == "test_manifest"
     assert data["experiment"]["overrides"] == {"foo": "bar"}
     assert "git_commit" in data["provenance"]

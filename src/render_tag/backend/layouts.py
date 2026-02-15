@@ -91,7 +91,9 @@ class LayoutEngine:
             "board": BoardLayoutStrategy(),
         }
 
-    def apply_layout(self, tag_objects: list[Any], layout_type: str, config: dict[str, Any]) -> None:
+    def apply_layout(
+        self, tag_objects: list[Any], layout_type: str, config: dict[str, Any]
+    ) -> None:
         """Dispatcher that selects and runs the appropriate strategy."""
         strategy = self._strategies.get(layout_type)
         if not strategy:

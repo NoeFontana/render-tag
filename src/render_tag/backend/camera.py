@@ -198,7 +198,9 @@ def setup_sensor_dynamics(
         start_matrix = bridge.mathutils.Matrix(pose_matrix)
 
         # Calculate end location: start_loc + velocity * dt
-        end_loc = start_matrix.to_translation() + bridge.mathutils.Vector((vx * dt, vy * dt, vz * dt))
+        end_loc = start_matrix.to_translation() + bridge.mathutils.Vector(
+            (vx * dt, vy * dt, vz * dt)
+        )
 
         end_matrix = start_matrix.copy()
         end_matrix.translation = end_loc

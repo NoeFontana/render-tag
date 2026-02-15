@@ -12,22 +12,23 @@ def mock_zmq_server(port, delay=0):
     import json
 
     import zmq
+
     context = zmq.Context()
     socket = context.socket(zmq.REP)
     socket.bind(f"tcp://127.0.0.1:{port}")
-    
+
     try:
         # Wait for a message
         if socket.poll(2000):
             socket.recv_string()
             if delay > 0:
                 time.sleep(delay)
-            
+
             resp = {
                 "status": "SUCCESS",
                 "message": "Mock response",
                 "request_id": "mock-id",
-                "data": {}
+                "data": {},
             }
             socket.send_string(json.dumps(resp))
     finally:
@@ -39,9 +40,9 @@ def test_zmq_client_success():
     port = 5556
     server_thread = threading.Thread(target=mock_zmq_server, args=(port,))
     server_thread.start()
-    
-    time.sleep(0.1) # Wait for bind
-    
+
+    time.sleep(0.1)  # Wait for bind
+
     with ZmqHostClient(port=port) as client:
         resp = client.send_command(CommandType.STATUS)
         assert resp.status == ResponseStatus.SUCCESS
@@ -54,9 +55,9 @@ def test_zmq_client_timeout():
     # Staff Engineer: Increase delay to avoid race conditions
     server_thread = threading.Thread(target=mock_zmq_server, args=(port, 2.0))
     server_thread.start()
-    
+
     time.sleep(0.1)
-    
+
     # Set small timeout
     with ZmqHostClient(port=port, timeout_ms=200) as client:
         with pytest.raises(WorkerCommunicationError, match="TIMEOUT sending CommandType.STATUS"):

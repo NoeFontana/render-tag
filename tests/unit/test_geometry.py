@@ -66,6 +66,8 @@ def test_empty_layout_validation():
     is_valid, msg = validate_board_dimensions(layout)
     assert not is_valid
     assert "No squares" in msg
+
+
 """
 Tests for Board Geometry - Pure Python validation of board layouts.
 
@@ -383,6 +385,8 @@ class TestFullValidation:
 
         for check_name, is_valid, msg in results:
             assert is_valid, f"Check '{check_name}' failed: {msg}"
+
+
 """
 Unit tests for camera_geometry module.
 """
@@ -439,6 +443,8 @@ def test_validate_camera_pose():
     # Too low
     pose_low = sample_camera_pose(look_at, distance=1.0, elevation=0.01)  # Very low
     assert validate_camera_pose(pose_low, look_at, min_height=0.1) is False
+
+
 """
 Advanced unit tests for geometry math, focusing on edge cases.
 """
@@ -521,6 +527,8 @@ def test_look_at_rotation_axes():
     assert np.allclose(R[:, 0], [0, -1, 0])  # X
     assert np.allclose(R[:, 1], [0, 0, 1])  # Y
     assert np.allclose(R[:, 2], [-1, 0, 0])  # Z
+
+
 """
 Unit tests for math_utils module.
 """
@@ -588,6 +596,8 @@ def test_look_at_rotation_alignment():
     assert np.allclose(R[:, 0], expected_x)
     assert np.allclose(R[:, 1], expected_y)
     assert np.allclose(R[:, 2], expected_z)
+
+
 """
 Advanced tests for projection math and coordinate transformations.
 """
@@ -644,6 +654,8 @@ def test_angle_of_incidence_edge_cases():
     cam_pos = np.array([0, 0, -10])
     assert calculate_angle_of_incidence(target_pos, target_normal, cam_pos) > 90.0
     assert np.allclose(calculate_angle_of_incidence(target_pos, target_normal, cam_pos), 180.0)
+
+
 """
 Zero-Render Math Verifier for render-tag.
 
@@ -1068,10 +1080,11 @@ class TestIntrinsicsFromFOV:
         fx_90 = K_90[0, 0]
 
         assert fx_90 < fx_60, "90° FOV should have smaller focal length than 60°"
+
+
 """
 Unit tests for visibility_geometry module.
 """
-
 
 
 from render_tag.generation.visibility import (

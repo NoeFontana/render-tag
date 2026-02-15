@@ -30,6 +30,7 @@ logger = logging.getLogger(__name__)
 
 class DistributionStats(BaseModel):
     """Statistical distribution summary."""
+
     min: float
     max: float
     mean: float
@@ -39,6 +40,7 @@ class DistributionStats(BaseModel):
 
 class GeometricAudit(BaseModel):
     """Audit results for geometric coverage."""
+
     distance: DistributionStats
     incidence_angle: DistributionStats
     ppm: DistributionStats | None = None
@@ -48,12 +50,14 @@ class GeometricAudit(BaseModel):
 
 class EnvironmentalAudit(BaseModel):
     """Audit results for environmental variance."""
+
     lighting_intensity: DistributionStats
     contrast: DistributionStats | None = None
 
 
 class IntegrityAudit(BaseModel):
     """Audit results for data integrity."""
+
     orphaned_tags: int = 0
     impossible_poses: int = 0
     corrupted_frames: int = 0
@@ -61,6 +65,7 @@ class IntegrityAudit(BaseModel):
 
 class AuditReport(BaseModel):
     """Complete audit report for a dataset."""
+
     dataset_name: str
     timestamp: str
     geometric: GeometricAudit
@@ -71,6 +76,7 @@ class AuditReport(BaseModel):
 
 class GateRule(BaseModel):
     """A single rule for a quality gate."""
+
     metric: str
     min: float | None = None
     max: float | None = None
@@ -81,11 +87,13 @@ class GateRule(BaseModel):
 
 class QualityGateConfig(BaseModel):
     """Configuration for quality gates."""
+
     rules: list[GateRule] = Field(default_factory=list)
 
 
 class AuditResult(BaseModel):
     """Final result of an audit run, including gates."""
+
     report: AuditReport
     gate_passed: bool = True
     gate_failures: list[str] = Field(default_factory=list)
@@ -129,6 +137,7 @@ class TelemetryAuditor:
     def analyze_throughput(self) -> dict[str, Any]:
         """Calculates throughput statistics."""
         from typing import cast
+
         df = self.get_dataframe()
         if df is None or df.is_empty():
             return {}
@@ -175,14 +184,17 @@ class DatasetAuditor:
 
     def run_audit(self, gate_config: QualityGateConfig | None = None) -> AuditResult:
         df = self.reader.load_rich_detections()
-        
+
         def get_stats(col):
             if col not in df.columns:
                 return DistributionStats(min=0, max=0, mean=0, std=0, median=0)
             s = df[col]
             return DistributionStats(
-                min=float(s.min() or 0), max=float(s.max() or 0),
-                mean=float(s.mean() or 0), std=float(s.std() or 0), median=float(s.median() or 0)
+                min=float(s.min() or 0),
+                max=float(s.max() or 0),
+                mean=float(s.mean() or 0),
+                std=float(s.std() or 0),
+                median=float(s.median() or 0),
             )
 
         geom = GeometricAudit(
@@ -190,10 +202,14 @@ class DatasetAuditor:
             incidence_angle=get_stats("angle_of_incidence"),
             ppm=get_stats("ppm"),
             tag_count=len(df),
-            image_count=df["image_id"].n_unique() if "image_id" in df.columns else 0
+            image_count=df["image_id"].n_unique() if "image_id" in df.columns else 0,
         )
         env = EnvironmentalAudit(lighting_intensity=get_stats("lighting_intensity"))
-        integrity = IntegrityAudit(impossible_poses=int(df.filter(pl.col("distance") < 0).height) if "distance" in df.columns else 0)
+        integrity = IntegrityAudit(
+            impossible_poses=int(df.filter(pl.col("distance") < 0).height)
+            if "distance" in df.columns
+            else 0
+        )
 
         report = AuditReport(
             dataset_name=self.dataset_path.name,
@@ -201,7 +217,7 @@ class DatasetAuditor:
             geometric=geom,
             environmental=env,
             integrity=integrity,
-            score=self._calculate_score(geom, env, integrity)
+            score=self._calculate_score(geom, env, integrity),
         )
 
         gate_passed = True
@@ -212,13 +228,18 @@ class DatasetAuditor:
 
         return AuditResult(report=report, gate_passed=gate_passed, gate_failures=gate_failures)
 
-    def _calculate_score(self, geom: GeometricAudit, env: EnvironmentalAudit, integrity: IntegrityAudit) -> float:
+    def _calculate_score(
+        self, geom: GeometricAudit, env: EnvironmentalAudit, integrity: IntegrityAudit
+    ) -> float:
         """Calculate a heuristic quality score (0-100)."""
-        if geom.tag_count == 0: return 0.0
+        if geom.tag_count == 0:
+            return 0.0
         score = 100.0
         score -= integrity.impossible_poses * 10
-        if geom.incidence_angle.max < 45: score -= 20
-        if geom.distance.max - geom.distance.min < 1.0: score -= 10
+        if geom.incidence_angle.max < 45:
+            score -= 20
+        if geom.distance.max - geom.distance.min < 1.0:
+            score -= 10
         return float(max(0.0, min(100.0, score)))
 
 

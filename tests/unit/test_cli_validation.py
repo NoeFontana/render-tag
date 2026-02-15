@@ -26,4 +26,3 @@ def test_cli_detects_missing_asset_preflight(mock_validator, tmp_path):
     result = runner.invoke(app, ["generate", "--config", str(config_path), "--skip-render"])
     assert result.exit_code == 1
     assert "Pre-flight Validation Failed" in result.stdout
-    

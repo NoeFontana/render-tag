@@ -36,7 +36,9 @@ def project_corners_to_image(
         return None
 
     k_matrix = (
-        camera_matrix if camera_matrix is not None else bridge.bproc.camera.get_intrinsics_as_K_matrix()
+        camera_matrix
+        if camera_matrix is not None
+        else bridge.bproc.camera.get_intrinsics_as_K_matrix()
     )
 
     # Use bridge/math logic for matrix conversion
@@ -110,32 +112,32 @@ def compute_geometric_metadata(tag_obj: Any) -> dict[str, Any]:
     # Calculate PPM
     from render_tag.core import TAG_GRID_SIZES
     from render_tag.generation.projection_math import calculate_ppm
-    
+
     tag_family = tag_obj.blender_obj.get("tag_family", "tag36h11")
     grid_size = TAG_GRID_SIZES.get(tag_family, 8)
     tag_obj.blender_obj.get("margin_bits", 0)
-    
+
     # PPM is calculated for the modules (grid), not the white margin
     # So we use the original grid size.
-    
+
     intrinsics = bridge.bproc.camera.get_intrinsics_as_K_matrix()
-    f_px = intrinsics[0][0] # fx
-    
+    f_px = intrinsics[0][0]  # fx
+
     # Tag size in object is total including margin
-    tag_obj.blender_obj.get("corner_coords")[1][0] * 2.0 # simplified from [half, half]
+    tag_obj.blender_obj.get("corner_coords")[1][0] * 2.0  # simplified from [half, half]
     # Wait, corner_coords are the BLACK BORDER corners already
     # Let's re-verify from assets.py
     # half_black = (size_meters * black_border_scale) / 2.0
     # corners_local = [[-half_black, -half_black, 0.0], ...]
-    
+
     # So the distance between corners is size_meters * (grid_size / total_bits)
     black_border_size = tag_obj.blender_obj.get("corner_coords")[1][0] * 2.0
-    
+
     ppm = calculate_ppm(
         distance_m=distance,
         tag_size_m=black_border_size,
         focal_length_px=f_px,
-        tag_grid_size=grid_size
+        tag_grid_size=grid_size,
     )
 
     # High-Precision Pose
@@ -166,7 +168,11 @@ def get_valid_detections(tag_objects: list[Any]) -> list[tuple[Any, list[tuple[f
     for tag_obj in tag_objects:
         corners_2d = project_corners_to_image(tag_obj)
 
-        if corners_2d is not None and check_tag_visibility(tag_obj) and check_tag_facing_camera(tag_obj):
+        if (
+            corners_2d is not None
+            and check_tag_visibility(tag_obj)
+            and check_tag_facing_camera(tag_obj)
+        ):
             valid_detections.append((tag_obj, corners_2d))
 
     return valid_detections

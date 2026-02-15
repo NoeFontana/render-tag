@@ -81,13 +81,9 @@ def sample_camera_pose(
         # Local Z axis is the 3rd column of the rotation matrix
         k = rotation_matrix[:, 2]
         theta = inplane_rot
-        
-        K = np.array([
-            [0, -k[2], k[1]],
-            [k[2], 0, -k[0]],
-            [-k[1], k[0], 0]
-        ])
-        
+
+        K = np.array([[0, -k[2], k[1]], [k[2], 0, -k[0]], [-k[1], k[0], 0]])
+
         R_roll = np.eye(3) + np.sin(theta) * K + (1 - np.cos(theta)) * np.dot(K, K)
         rotation_matrix = np.dot(R_roll, rotation_matrix)
 

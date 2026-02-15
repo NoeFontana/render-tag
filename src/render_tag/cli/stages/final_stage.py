@@ -80,26 +80,26 @@ class FinalizationStage(PipelineStage):
             console.print(f"[dim]Merging {len(coco_shards)} COCO shards...[/dim]")
             merged_coco = {"images": [], "annotations": [], "categories": []}
             categories_map = {}
-            
+
             for shard in sorted(coco_shards):
                 with open(shard) as f:
                     data = json.load(f)
-                    
+
                     # Offset IDs to avoid collisions
                     img_offset = len(merged_coco["images"])
                     ann_offset = len(merged_coco["annotations"])
-                    
+
                     for img in data.get("images", []):
                         img_copy = img.copy()
                         img_copy["id"] += img_offset
                         merged_coco["images"].append(img_copy)
-                        
+
                     for ann in data.get("annotations", []):
                         ann_copy = ann.copy()
                         ann_copy["id"] += ann_offset
                         ann_copy["image_id"] += img_offset
                         merged_coco["annotations"].append(ann_copy)
-                        
+
                     for cat in data.get("categories", []):
                         if cat["name"] not in categories_map:
                             cat_copy = cat.copy()
