@@ -1,34 +1,27 @@
-# render-tag: Standard 2026 Perception Baseline
-# This config follows best practices for a high-quality, diverse dataset.
-
 dataset:
   output_dir: output/dataset_01
   num_scenes: 1
   seeds:
     global_seed: 42
-  evaluation_scopes: [detection, pose_estimation]
-
+  evaluation_scopes:
+  - detection
+  - pose_estimation
 camera:
-  resolution: [1920, 1080]
+  resolution:
+  - 1920
+  - 1080
   fov: 70.0
   samples_per_scene: 5
-  
-  # Diversity in distance and elevation
   min_distance: 0.5
   max_distance: 2.5
   min_elevation: 0.2
   max_elevation: 0.8
-  
-  # Lens & Sensor simulation
   tone_mapping: filmic
   iso: 100
   sensor_noise_sigma: 0.002
-  
-  # Motion Blur (disabled by default, but ready)
   sensor_dynamics:
     velocity_mean: 0.0
     shutter_time_ms: 10.0
-
 tag:
   family: tag36h11
   size_meters: 0.1
@@ -38,13 +31,14 @@ tag:
     roughness_max: 0.6
     specular_min: 0.1
     specular_max: 0.4
-
 scenario:
   layout: plain
-  tag_families: [tag36h11]
-  tags_per_scene: [2, 6]
+  tag_families:
+  - tag36h11
+  tags_per_scene:
+  - 2
+  - 6
   sampling_mode: random
-
 scene:
   lighting:
     intensity_min: 100
@@ -54,7 +48,7 @@ scene:
   texture_dir: assets/textures/background
   texture_scale_min: 1.0
   texture_scale_max: 5.0
-
 physics:
   drop_height: 0.2
   scatter_radius: 0.8
+version: '1.0'
