@@ -16,6 +16,7 @@
 ## Data Management & Infrastructure
 - **Pydantic (v2):** Used for strict data validation and settings management. All internal schemas and "Scene Recipes" are defined using Pydantic models.
 - **Schema Migration Engine:** Centralized migrator for automatic upgrading of legacy configurations (YAML/JSON) to current standards, preserving backward compatibility.
+- **Pure Execution Backend:** Rendering architecture where workers are stateless and receive absolute, rigid instructions, eliminating "Zombie Logic" and ensuring perfect sim-to-sim parity.
 - **Cryptographic Fingerprinting (hashlib):** SHA256-based content addressing for jobs, environment states, and binary assets to ensure data integrity and provenance.
 - **Typer:** Powering the CLI interface, providing a user-friendly and type-safe way to interact with the generation pipeline.
 - **Dynamic Load Balancing:** A "Batch Stealing" orchestrator model for parallel rendering, supporting fault tolerance and session resuming.

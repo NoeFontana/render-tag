@@ -15,6 +15,6 @@
 
 ## Engineering Principles
 - **Schema-First Development:** All internal contracts between the generator and the renderer (e.g., Scene Recipes) must be defined by strict schemas (using Pydantic). Validation must occur at every boundary.
-- **Strict Logic Isolation:** Generation logic must remain pure and environment-agnostic. Dependencies like `bpy` (Blender) must be confined to backend rendering scripts and never leak into the core generation or geometry modules.
+- **Strict Logic Isolation:** Generation logic must remain pure and environment-agnostic. The rendering backend operates as a **Pure Executor**, strictly adhering to absolute values provided in the `SceneRecipe` and performing NO internal random sampling or decision-making.
 - **Deterministic Sampling (DI):** All stochastic generation logic must use explicit Dependency Injection for randomness. Functions must accept a `numpy.random.Generator` instance and avoid global state (including `import random`) to guarantee bit-perfect reproducibility.
 - **Component Composition:** Build features using small, single-purpose components. Favor composition over deep inheritance to maintain a flexible and testable codebase.
