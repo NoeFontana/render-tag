@@ -298,38 +298,33 @@ def test_cli_run_with_job_config_mismatch(tmp_path, monkeypatch):
     "render_tag.cli.stages.config_stage.get_env_fingerprint",
     return_value=("dummy_env", "dummy_ver"),
 )
-def test_cli_run_with_job_overrides_warning(mock_fp, tmp_path, monkeypatch):
+def test_cli_run_with_job_overrides_warning(mock_fp, tmp_path, monkeypatch, mock_job_spec):
     # Setup valid job and config
     config_dir = tmp_path / "configs"
     config_dir.mkdir()
     config_file = config_dir / "default.yaml"
     config_file.write_text("dummy: content")
-    config_file.write_text("dummy: content")
-    # Correct hash for default GenConfig
-    config_hash = hashlib.sha256(GenConfig().model_dump_json().encode()).hexdigest()
 
-    job_file = tmp_path / "job.json"
-    # Configure scene_config to have shard_size=42
-    scene_config = GenConfig()
+    # Modify the fixture spec for this test
+    # We need scene_config.dataset.num_scenes = 42
+    # Since JobSpec is frozen, we copy it
+    scene_config = mock_job_spec.scene_config.model_copy(deep=True)
     scene_config.dataset.num_scenes = 42
+
     # Recalculate hash for modified config
     config_hash = hashlib.sha256(scene_config.model_dump_json().encode()).hexdigest()
 
-    spec = JobSpec(
-        job_id="test-job",
-        paths=JobPaths(
-            output_dir=Path("/tmp/out"),
-            logs_dir=Path("/tmp/out/logs"),
-            assets_dir=Path("/tmp/out/assets"),
-        ),
-        global_seed=42,
-        scene_config=scene_config,
-        env_hash="dummy_env",
-        blender_version="dummy_ver",
-        assets_hash="abc",
-        config_hash=config_hash,
-        shard_index=0,
+    # Create new spec with modified config
+    spec = mock_job_spec.model_copy(
+        update={
+            "scene_config": scene_config,
+            "config_hash": config_hash,
+            "env_hash": "dummy_env",  # Match the mock return value
+            "blender_version": "dummy_ver",
+        }
     )
+
+    job_file = tmp_path / "job.json"
     job_file.write_text(spec.model_dump_json())
 
     monkeypatch.chdir(tmp_path)
