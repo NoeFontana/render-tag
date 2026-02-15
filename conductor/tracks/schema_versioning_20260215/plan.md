@@ -29,7 +29,7 @@ Inject the migrator into the existing configuration loading sequence.
     - [x] Update `JobSpec.model_validate_json` (or loading utility) to apply migrations.
 - [ ] Task: Conductor - User Manual Verification 'Phase 2' (Protocol in workflow.md)
 
-## Phase 3: Automation - On-Disk Upgrades & Validation
+## Phase 3: Automation - On-Disk Upgrades & Validation [checkpoint: 5143555]
 Enable the "Self-Healing" capability where legacy files are automatically upgraded on the filesystem.
 
 - [x] Task: Implement On-Disk Upgrade Logic (d37febb)
