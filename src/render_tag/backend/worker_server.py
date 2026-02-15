@@ -7,7 +7,7 @@ import zmq
 
 from render_tag.backend.assets import global_pool
 from render_tag.backend.bridge import bridge
-from render_tag.backend.engine import execute_recipe
+from render_tag.backend.engine import RenderContext, execute_recipe
 from render_tag.backend.scene import setup_background
 from render_tag.core.schema.hot_loop import (
     Command,
@@ -227,20 +227,23 @@ class RenderHandler:
         scene_id = recipe.get("scene_id", 0)
         render_seed = derive_seed(server.seed, "render", scene_id)
 
+        # Construct and use RenderContext
+        ctx = RenderContext(
+            output_dir=Path(output_dir),
+            renderer_mode=renderer_mode,
+            csv_writer=server.writers["csv"],
+            coco_writer=server.writers["coco"],
+            rich_writer=server.writers["rich"],
+            sidecar_writer=server.writers["sidecar"],
+            global_seed=server.seed,
+            logger=server.logger,
+            skip_visibility=payload.get("skip_visibility", False),
+        )
+
         execute_recipe(
             recipe,
-            Path(output_dir),
-            renderer_mode,
-            server.writers["csv"],
-            server.writers["coco"],
-            server.writers["rich"],
-            server.writers["sidecar"],
-            skip_visibility=payload.get("skip_visibility", False),
+            ctx=ctx,
             seed=render_seed,
-            global_seed=server.seed,
-            logger=server.logger.bind(scene_id=scene_id)
-            if hasattr(server.logger, "bind")
-            else server.logger,
         )
         server.renders_completed += 1
         server.status = WorkerStatus.IDLE

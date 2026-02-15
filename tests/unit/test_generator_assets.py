@@ -44,7 +44,7 @@ def test_generator_uses_asset_provider_for_textures(mock_asset_provider, basic_c
     # We need to mock the texture listing since it uses .iterdir() on the config path
     with (
         patch.object(Path, "exists", return_value=True),
-        patch.object(Path, "iterdir", return_value=[Path("textures/background/tex1.png")]),
+        patch.object(Path, "rglob", return_value=[Path("textures/background/tex1.png")]),
     ):
         gen = Generator(basic_config, output_dir=tmp_path)
         scene = gen.generate_scene(0)

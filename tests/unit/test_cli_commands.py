@@ -93,7 +93,10 @@ def mock_generator():
     """Mocks the Generator to return dummy recipes and pass validation."""
     with patch("render_tag.cli.stages.prep_stage.Generator") as mock_gen_cls:
         mock_gen = mock_gen_cls.return_value
-        mock_gen.generate_shards.return_value = [{"scene_id": 0}]
+        from render_tag.core.schema import SceneRecipe
+
+        recipe = SceneRecipe(scene_id=0, world={}, objects=[], cameras=[])
+        mock_gen.generate_shards.return_value = [recipe]
 
         with patch(
             "render_tag.cli.stages.prep_stage.validate_recipe_file", return_value=(True, [], [])

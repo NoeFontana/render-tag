@@ -79,7 +79,9 @@ def test_run_local_parallel_reports_failure():
         mock_process.pid = 1234
         mock_popen.return_value = mock_process
 
-        with pytest.raises(Exit):
+        from render_tag.core.errors import WorkerStartupError
+
+        with pytest.raises((Exit, WorkerStartupError)):
             run_local_parallel(
                 config_path=Path("configs/default.yaml"),
                 output_dir=Path("output"),

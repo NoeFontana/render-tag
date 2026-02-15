@@ -80,6 +80,10 @@ def _json_default(obj: Any) -> Any:
         return f"<{type(obj).__name__}>"
 
 
+# Standard logging kwargs that should be passed through to the underlying logger
+LOGGING_ARGS = {"exc_info", "stack_info", "stacklevel", "extra"}
+
+
 class ContextLogger(logging.LoggerAdapter):
     """Logger adapter that binds context variables to all log entries."""
 
@@ -89,16 +93,28 @@ class ContextLogger(logging.LoggerAdapter):
     def process(
         self, msg: Any, kwargs: MutableMapping[str, Any]
     ) -> tuple[Any, MutableMapping[str, Any]]:
-        extra = kwargs.get("extra", {})
-        # Merge adapter context with local extra
-        # Adapter context takes precedence? distinct LoggerAdapter behavior is usually self.extra
-        # But we want to allow overriding in the call, so:
-        merged = self.extra.copy()
-        if extra:
-            merged.update(extra)
+        # Separate logging kwargs from context kwargs
+        context = {}
+        logging_kwargs = {}
 
-        kwargs["extra"] = merged
-        return msg, kwargs
+        for k, v in kwargs.items():
+            if k in LOGGING_ARGS:
+                logging_kwargs[k] = v
+            else:
+                context[k] = v
+
+        # Start with adapter's bound context
+        merged_context = self.extra.copy()
+
+        # Merge call-site context
+        merged_context.update(context)
+
+        # Handle 'extra' specifically if it was passed
+        if "extra" in logging_kwargs:
+            merged_context.update(logging_kwargs["extra"])
+
+        logging_kwargs["extra"] = merged_context
+        return msg, logging_kwargs
 
     def bind(self, **kwargs: Any) -> "ContextLogger":
         """Return a new ContextLogger with the added context."""

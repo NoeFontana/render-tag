@@ -11,6 +11,9 @@ with (
 
 def test_asset_pool_retrieval():
     """Verify that AssetPool reuses objects."""
+    from render_tag.backend.bridge import bridge
+
+    bridge.stabilize()
     mock_bproc = MagicMock()
 
     obj1 = MagicMock()
@@ -45,6 +48,9 @@ def test_asset_pool_retrieval():
 
 def test_create_tag_plane_uses_global_pool():
     """Verify that create_tag_plane integrates with the pool."""
+    from render_tag.backend.bridge import bridge
+
+    bridge.stabilize()
     mock_pool = MagicMock()
     mock_tag = MagicMock()
     mock_pool.get_tag.return_value = mock_tag

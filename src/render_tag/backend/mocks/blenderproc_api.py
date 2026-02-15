@@ -73,6 +73,12 @@ class MockCamera:
     def add_camera_pose(self, transform, frame=0):
         pass
 
+    def set_resolution(self, width, height):
+        pass
+
+    def set_intrinsics_from_K_matrix(self, K, image_width, image_height):
+        pass
+
 
 class MockRenderer:
     def render(self):

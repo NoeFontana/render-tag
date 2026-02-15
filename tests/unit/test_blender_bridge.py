@@ -1,4 +1,4 @@
-from render_tag.backend.bridge import bproc, bpy, bridge, np
+from render_tag.backend.bridge import bridge
 
 
 def test_bridge_singleton():
@@ -12,17 +12,19 @@ def test_bridge_singleton():
 
 def test_bridge_provides_mocks_in_test_env():
     # In this environment, we expect mocks
-    assert bpy is not None
-    assert bproc is not None
+    bridge.stabilize()
+    assert bridge.bpy is not None
+    assert bridge.bproc is not None
 
     # Verify it's a mock by checking for an attribute we know we added to mocks
-    assert hasattr(bpy.context.scene, "cycles")
-    assert hasattr(bproc, "init")
+    assert hasattr(bridge.bpy.context.scene, "cycles")
+    assert hasattr(bridge.bproc, "init")
 
 
 def test_bridge_provides_numpy():
-    assert np is not None
-    assert hasattr(np, "array")
+    bridge.stabilize()
+    assert bridge.np is not None
+    assert hasattr(bridge.np, "array")
 
 
 def test_bridge_injection():
@@ -32,7 +34,11 @@ def test_bridge_injection():
     class FakeBpy:
         pass
 
-    bridge.inject_mocks(FakeBproc(), FakeBpy())
+    # Stabilize with fake modules
+    bridge.stabilize(bproc_module=FakeBproc(), bpy_module=FakeBpy())
+
+    assert bridge.bproc is not None
+    assert bridge.bpy is not None
 
     # Note: the top-level 'bpy' and 'bproc' in bridge.py are already bound
     # so we check bridge.bpy/bridge.bproc
@@ -41,4 +47,6 @@ def test_bridge_injection():
 
     # Reset for other tests if needed, but since it's a singleton it might affect them.
     # For unit tests, we'll just re-init or accept it.
-    bridge._load_dependencies()
+    bridge._initialized = False
+    bridge.bpy = None
+    bridge.bproc = None

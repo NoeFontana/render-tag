@@ -8,6 +8,7 @@ into a single, high-performance module.
 import logging
 import random
 import time
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
@@ -35,6 +36,21 @@ from render_tag.data_io.writers import (
 )
 
 logger = get_logger(__name__)
+
+
+@dataclass
+class RenderContext:
+    """Groups all necessary state for executing a single render task."""
+
+    output_dir: Path
+    renderer_mode: str
+    csv_writer: CSVWriter
+    coco_writer: COCOWriter
+    rich_writer: RichTruthWriter
+    sidecar_writer: SidecarWriter
+    global_seed: int
+    logger: Any = None
+    skip_visibility: bool = False
 
 
 @runtime_checkable
@@ -189,23 +205,21 @@ class RenderFacade:
 
 def execute_recipe(
     recipe: dict[str, Any],
-    output_dir: Path,
-    renderer_mode: str,
-    csv_writer: CSVWriter,
-    coco_writer: COCOWriter,
-    rich_writer: RichTruthWriter,
-    sidecar_writer: SidecarWriter,
-    skip_visibility: bool = False,
+    ctx: RenderContext,
     seed: int | None = None,
-    global_seed: int | None = None,
 ) -> None:
-    """Execute a single scene recipe using the RenderFacade."""
+    """Execute a single scene recipe using the RenderContext."""
     scene_idx = recipe["scene_id"]
-    # Create a context-aware logger for this specific scene execution
-    scene_logger = logger.bind(scene_id=scene_idx, seed=seed if seed is not None else scene_idx)
+
+    # 1. Setup Context-Aware Logger
+    base_logger = ctx.logger or logger
+    scene_logger = base_logger.bind(
+        scene_id=scene_idx, seed=seed if seed is not None else scene_idx
+    )
     scene_logger.info(f"--- Executing Scene {scene_idx} ---")
 
-    # Use provided deterministic seed execution or fallback to scene_id
+    # 2. Setup Deterministic Seeds
+    # We use provided scene seed or fallback to scene_id (least robust fallback)
     execution_seed = seed if seed is not None else scene_idx
 
     bridge.np.random.seed(execution_seed)
@@ -213,13 +227,14 @@ def execute_recipe(
     bridge.bpy.context.scene.cycles.seed = execution_seed
     bridge.bpy.context.scene.cycles.use_animated_seed = False
 
-    renderer = RenderFacade(renderer_mode=renderer_mode, logger=scene_logger)
+    # 3. Initialize Renderer
+    renderer = RenderFacade(renderer_mode=ctx.renderer_mode, logger=scene_logger)
     renderer.reset_volatile_state()
     renderer.setup_world(recipe.get("world", {}))
     tag_objects = renderer.spawn_objects(recipe.get("objects", []))
 
     for tag in tag_objects:
-        coco_writer.add_category(tag.blender_obj["tag_family"])
+        ctx.coco_writer.add_category(tag.blender_obj["tag_family"])
 
     cam_recipes = recipe["cameras"]
     res = cam_recipes[0]["intrinsics"].get("resolution", [640, 480])
@@ -229,11 +244,12 @@ def execute_recipe(
         "timestamp": datetime.now(UTC).isoformat(),
         "recipe_snapshot": recipe,
         "seeds": {
-            "global_seed": global_seed,
+            "global_seed": ctx.global_seed,
             "scene_seed": execution_seed,
         },
     }
 
+    # 4. Render Cameras
     for cam_idx, cam_recipe in enumerate(cam_recipes):
         start_time = time.time()
         render_out = renderer.render_camera(cam_recipe)
@@ -253,7 +269,7 @@ def execute_recipe(
         )
 
         image_name = f"scene_{scene_idx:04d}_cam_{cam_idx:04d}"
-        image_path = output_dir / "images" / f"{image_name}.png"
+        image_path = ctx.output_dir / "images" / f"{image_name}.png"
         image_path.parent.mkdir(parents=True, exist_ok=True)
 
         img_array = render_out.get("img")
@@ -262,13 +278,15 @@ def execute_recipe(
                 str(image_path)
             )
 
-        sidecar_writer.write_sidecar(image_name, provenance)
-        coco_img_id = coco_writer.add_image(f"images/{image_path.name}", res[0], res[1])
+        ctx.sidecar_writer.write_sidecar(image_name, provenance)
+        coco_img_id = ctx.coco_writer.add_image(f"images/{image_path.name}", res[0], res[1])
 
+        # Force subframe update for motion blur / consistency if needed
         bridge.bpy.context.scene.frame_set(0, subframe=0.5)
         bridge.bpy.context.view_layer.update()
 
-        if skip_visibility:
+        # 5. Extract Ground Truth
+        if ctx.skip_visibility:
             valid_detections = [
                 (obj, [[0, 0], [res[0], 0], [res[0], res[1]], [0, res[1]]]) for obj in tag_objects
             ]
@@ -300,19 +318,19 @@ def execute_recipe(
                 occlusion_ratio=occlusion,
                 position=geom["position"],
                 rotation_quaternion=geom["rotation_quaternion"],
-                global_seed=global_seed,
+                global_seed=ctx.global_seed,
                 scene_seed=execution_seed,
             )
-            csv_writer.write_detection(det, res[0], res[1])
-            coco_writer.add_annotation(
+            ctx.csv_writer.write_detection(det, res[0], res[1])
+            ctx.coco_writer.add_annotation(
                 image_id=coco_img_id,
-                category_id=coco_writer._category_map.get(det.tag_family, 1),
+                category_id=ctx.coco_writer._category_map.get(det.tag_family, 1),
                 corners=corners_2d,
                 width=res[0],
                 height=res[1],
                 detection=det,
             )
-            rich_writer.add_detection(det)
+            ctx.rich_writer.add_detection(det)
 
         scene_logger.info(
             f"Scene {scene_idx} progress: {cam_idx + 1}/{len(cam_recipes)}",
