@@ -25,6 +25,7 @@ from ..core.seeding import derive_seed
 from ..data_io.assets import AssetProvider
 from .camera import sample_camera_pose
 from .layouts import apply_flying_layout, apply_grid_layout
+from .visibility import is_facing_camera
 
 
 class SceneCompiler:
@@ -194,7 +195,9 @@ class SceneCompiler:
         elif layout_mode == "aprilgrid":
             num_tags = cols * rows
         else:
-            num_tags = int(rng.integers(scenario.tags_per_scene[0], scenario.tags_per_scene[1], endpoint=True))
+            num_tags = int(
+                rng.integers(scenario.tags_per_scene[0], scenario.tags_per_scene[1], endpoint=True)
+            )
 
         for i in range(num_tags):
             obj_seed = derive_seed(layout_seed, "tag_obj", i)
@@ -354,8 +357,8 @@ class SceneCompiler:
                     rng=np_rng,
                 )
 
-                # Sizing constraints validation...
-                if target_tag and (camera_config.min_tag_pixels or camera_config.max_tag_pixels):
+                # Sizing and Orientation constraints validation...
+                if target_tag:
                     from ..core.config import get_min_pixel_area
                     from .projection_math import (
                         calculate_pixel_area,
@@ -363,34 +366,52 @@ class SceneCompiler:
                         project_points,
                     )
 
-                    family = target_tag.properties.get("tag_family", "tag36h11")
-                    min_allowed = camera_config.min_tag_pixels or get_min_pixel_area(family)
-                    max_allowed = camera_config.max_tag_pixels or (
-                        camera_config.resolution[0] * camera_config.resolution[1]
-                    )
-
-                    corners_local = np.array(
-                        [[-0.5, -0.5, 0], [0.5, -0.5, 0], [0.5, 0.5, 0], [-0.5, 0.5, 0]]
-                    ) * target_tag.properties.get("tag_size", 0.1)
+                    # 1. Orientation check (Staff Pattern: reject if facing away)
                     tag_world_mat = get_world_matrix(
                         target_tag.location, target_tag.rotation_euler, target_tag.scale
                     )
-                    corners_world = (
-                        tag_world_mat @ np.hstack([corners_local, np.ones((4, 1))]).T
-                    ).T[:, :3]
-                    pixels = project_points(
-                        corners_world,
-                        pose.transform_matrix,
-                        list(camera_config.resolution),
-                        camera_config.get_k_matrix(),
-                    )
+                    tag_normal = tag_world_mat[:3, 2]  # Z-up normal
+                    if not is_facing_camera(
+                        tag_location=np.array(target_tag.location),
+                        tag_normal=tag_normal,
+                        camera_location=pose.location,
+                        min_dot=0.2,  # ~78 degrees
+                    ):
+                        continue
 
-                    if all(
-                        0 <= px <= camera_config.resolution[0]
-                        and 0 <= py <= camera_config.resolution[1]
-                        for px, py in pixels
-                    ) and min_allowed <= calculate_pixel_area(pixels) <= max_allowed:
-                        break
+                    # 2. Sizing constraints validation...
+                    if camera_config.min_tag_pixels or camera_config.max_tag_pixels:
+                        family = target_tag.properties.get("tag_family", "tag36h11")
+                        min_allowed = camera_config.min_tag_pixels or get_min_pixel_area(family)
+                        max_allowed = camera_config.max_tag_pixels or (
+                            camera_config.resolution[0] * camera_config.resolution[1]
+                        )
+
+                        corners_local = np.array(
+                            [[-0.5, -0.5, 0], [0.5, -0.5, 0], [0.5, 0.5, 0], [-0.5, 0.5, 0]]
+                        ) * target_tag.properties.get("tag_size", 0.1)
+                        corners_world = (
+                            tag_world_mat @ np.hstack([corners_local, np.ones((4, 1))]).T
+                        ).T[:, :3]
+                        pixels = project_points(
+                            corners_world,
+                            pose.transform_matrix,
+                            list(camera_config.resolution),
+                            camera_config.get_k_matrix(),
+                        )
+
+                        if not (
+                            all(
+                                0 <= px <= camera_config.resolution[0]
+                                and 0 <= py <= camera_config.resolution[1]
+                                for px, py in pixels
+                            )
+                            and min_allowed <= calculate_pixel_area(pixels) <= max_allowed
+                        ):
+                            continue
+
+                    # If we reached here, both orientation and (optional) sizing passed
+                    break
                 else:
                     break
 
