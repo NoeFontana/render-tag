@@ -1,8 +1,8 @@
+import blenderproc as bproc  # noqa: F401, I001
+
 import argparse
 import os
 from pathlib import Path
-
-import blenderproc as bproc  # noqa: F401
 
 from render_tag.backend import bootstrap
 from render_tag.backend.worker_server import ZmqBackendServer
@@ -41,6 +41,7 @@ def main():
         from render_tag.backend.mocks import (
             mathutils_api as math_mock,
         )
+
         mocks = {"bproc_mock": bproc_mock, "bpy_mock": bpy_mock, "math_mock": math_mock}
 
     # 4. Start Server
