@@ -163,13 +163,14 @@ def create_tag_plane(
     # Detection standard is the OUTER BLACK BORDER corners.
     # If margin_bits > 0, the black border is smaller than size_meters.
     from render_tag.core import TAG_GRID_SIZES
+
     grid_size = TAG_GRID_SIZES.get(tag_family, 8)
     total_bits = grid_size + (2 * margin_bits)
-    
+
     # Calculate scale factor for black border relative to total plane
     black_border_scale = grid_size / total_bits
     half_black = (size_meters * black_border_scale) / 2.0
-    
+
     corners_local = [
         [-half_black, -half_black, 0.0],  # BL
         [half_black, -half_black, 0.0],  # BR
@@ -189,6 +190,9 @@ def create_tag_plane(
     else:
         # Apply a default material (white with slight roughness)
         apply_default_material(plane)
+
+    # Disable shadow casting to avoid "floating" look for stickers
+    plane.blender_obj.visible_shadow = False
 
     return plane
 
