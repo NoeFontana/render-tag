@@ -3,13 +3,13 @@
 ## Phase 1: Foundation - Schema Versioning & Migration Engine
 Isolate the migration logic and update the core models to support version metadata.
 
-- [ ] Task: Create `SchemaMigrator` utility
-    - [ ] Create `src/render_tag/core/migration.py`
-    - [ ] Implement `SchemaMigrator` class with support for sequential transformation functions.
-    - [ ] Define baseline migration for `0.0 -> 1.0` (adding the version field).
-- [ ] Task: Update `GenConfig` Schema
-    - [ ] Add `version: str = "1.0"` to `GenConfig` in `src/render_tag/core/config.py`.
-    - [ ] Update `GenConfig` validators to handle version strings.
+- [x] Task: Create `SchemaMigrator` utility (43b034f)
+    - [x] Create `src/render_tag/core/migration.py`
+    - [x] Implement `SchemaMigrator` class with support for sequential transformation functions.
+    - [x] Define baseline migration for `0.0 -> 1.0` (adding the version field).
+- [x] Task: Update `GenConfig` Schema (43b034f)
+    - [x] Add `version: str = "1.0"` to `GenConfig` in `src/render_tag/core/config.py`.
+    - [x] Update `GenConfig` validators to handle version strings.
 - [ ] Task: Update `JobSpec` Schema
     - [ ] Add `version: str = "1.0"` to `JobSpec` in `src/render_tag/core/schema/job.py`.
 - [ ] Task: Conductor - User Manual Verification 'Phase 1' (Protocol in workflow.md)
