@@ -21,11 +21,11 @@ class SchemaMigrator:
     Orchestrates sequential migration of schema dictionaries.
     """
 
-    def __init__(self, target_version: str = "1.0"):
+    def __init__(self, target_version: str = "0.1"):
         self.target_version = target_version
         # Map of (from_version) -> transformation_function
         self._registry: dict[str, Callable[[dict[str, Any]], dict[str, Any]]] = {
-            "0.0": self._migrate_0_0_to_1_0,
+            "0.0": self._migrate_0_0_to_0_1,
         }
 
     def get_version(self, data: dict[str, Any]) -> str:
@@ -51,7 +51,7 @@ class SchemaMigrator:
             if not transform:
                 raise ValueError(f"No migration path found from version {current_version}")
 
-            logger.info(f"Migrating schema: {current_version} -> 1.0")
+            logger.info(f"Migrating schema: {current_version} -> {self.target_version}")
             current_data = transform(current_data)
             current_version = self.get_version(current_data)
 
@@ -71,8 +71,8 @@ class SchemaMigrator:
             with open(path, "w") as f:
                 json.dump(migrated_data, f, indent=2)
 
-    def _migrate_0_0_to_1_0(self, data: dict[str, Any]) -> dict[str, Any]:
+    def _migrate_0_0_to_0_1(self, data: dict[str, Any]) -> dict[str, Any]:
         """Base migration: Adds the mandatory version field."""
         upgraded = data.copy()
-        upgraded["version"] = "1.0"
+        upgraded["version"] = "0.1"
         return upgraded

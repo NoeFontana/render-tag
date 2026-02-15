@@ -48,7 +48,7 @@ class TestCameraIntrinsics:
             CameraIntrinsics(k_matrix=[[1, 2], [3, 4]])
 
     def test_invalid_k_matrix_last_row(self) -> None:
-        k = [[500.0, 0.0, 320.0], [0.0, 500.0, 240.0], [1.0, 0.0, 1.0]]
+        k = [[500.0, 0.0, 320.0], [0.0, 500.0, 240.0], [0.1, 0.0, 1.0]]
         with pytest.raises(ValueError, match="last row must be"):
             CameraIntrinsics(k_matrix=k)
 

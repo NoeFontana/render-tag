@@ -9,7 +9,7 @@ def test_generator_distance_sweep(tmp_path):
     config = GenConfig.model_validate(
         {
             "dataset": {"num_scenes": 10},
-            "camera": {"min_distance": 1.0, "max_distance": 10.0},
+            "camera": {"min_distance": 0.1, "max_distance": 10.0},
             "scenario": {"sampling_mode": "distance"},
         }
     )
@@ -27,7 +27,7 @@ def test_generator_distance_sweep(tmp_path):
     pos9 = np.array(s9.cameras[0].transform_matrix)[:3, 3]
     dist9 = np.linalg.norm(pos9)
 
-    assert abs(dist0 - 1.0) < 1e-3
+    assert abs(dist0 - 0.1) < 1e-3
     assert abs(dist9 - 10.0) < 1e-3
 
 

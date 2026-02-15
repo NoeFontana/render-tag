@@ -11,7 +11,7 @@ def test_job_spec_from_json_migrates_legacy(tmp_path):
         "blender_version": "4.2.0",
         "paths": {"output_dir": ".", "logs_dir": ".", "assets_dir": "."},
         "scene_config": {
-            "version": "1.0",
+            "version": "0.1",
             "dataset": {"num_scenes": 1},
             "camera": {"resolution": [100, 100]},
             "tag": {"family": "tag36h11", "size_meters": 0.1},
@@ -21,7 +21,7 @@ def test_job_spec_from_json_migrates_legacy(tmp_path):
     json_str = json.dumps(legacy_data)
     
     spec = JobSpec.from_json(json_str)
-    assert spec.version == "1.0"
+    assert spec.version == "0.1"
     assert spec.job_id == "job-456"
 
 def test_job_spec_includes_version_field():
@@ -36,10 +36,10 @@ def test_job_spec_includes_version_field():
         paths=paths,
         infrastructure=JobInfrastructure(),
         global_seed=42,
-        scene_config=GenConfig(version="1.0"),
+        scene_config=GenConfig(version="0.1"),
         env_hash="h",
         blender_version="v",
-        version="1.0"
+        version="0.1"
     )
     
-    assert spec.version == "1.0"
+    assert spec.version == "0.1"

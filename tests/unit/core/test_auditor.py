@@ -20,7 +20,7 @@ from render_tag.audit.auditor import (
 def dummy_df():
     data = {
         "lighting_intensity": [10.0, 20.0, 30.0],
-        "distance": [1.0, 2.0, 5.0],
+        "distance": [0.1, 2.0, 5.0],
         "angle_of_incidence": [10.0, 20.0, 30.0],
         "image_id": ["img1", "img2", "img3"],
     }

@@ -15,7 +15,7 @@ def test_load_config_upgrades_yaml_on_disk(tmp_path):
     # Check disk content
     with open(config_path) as f:
         data = yaml.safe_load(f)
-    assert data["version"] == "1.0"
+    assert data["version"] == "0.1"
 
 def test_job_spec_from_file_upgrades_json_on_disk(tmp_path):
     """Verify that JobSpec.from_file overwrites legacy JSON with versioned content."""
@@ -27,7 +27,7 @@ def test_job_spec_from_file_upgrades_json_on_disk(tmp_path):
         "blender_version": "v",
         "paths": {"output_dir": ".", "logs_dir": ".", "assets_dir": "."},
         "scene_config": {
-            "version": "1.0",
+            "version": "0.1",
             "dataset": {"num_scenes": 1},
             "camera": {"resolution": [100, 100]},
             "tag": {"family": "tag36h11", "size_meters": 0.1},
@@ -43,4 +43,4 @@ def test_job_spec_from_file_upgrades_json_on_disk(tmp_path):
     # Check disk content
     with open(job_path) as f:
         data = json.load(f)
-    assert data["version"] == "1.0"
+    assert data["version"] == "0.1"
