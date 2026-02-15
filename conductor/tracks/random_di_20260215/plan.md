@@ -1,15 +1,15 @@
 # Implementation Plan: Dependency Injection for Randomness
 
-## Phase 1: Infrastructure & Enforcement [checkpoint: ]
+## Phase 1: Infrastructure & Enforcement [checkpoint: 14cef88]
 Establish the rules and foundation for deterministic sampling.
 
-- [ ] Task: Update `.importlinter` to block `random` in generation (TDD)
-    - [ ] Write failing test/verification that importing `random` in `src/render_tag/generation/` is forbidden.
-    - [ ] Update `.importlinter` configuration.
-    - [ ] Verify `uv run lint-imports` (or equivalent) fails if a violation is present.
-- [ ] Task: Update `Generator` to initialize root RNG
-    - [ ] Write unit test for `Generator.__init__` verifying RNG initialization from seed.
-    - [ ] Implement `self.rng = np.random.default_rng(seed)` in `Generator`.
+- [x] Task: Update `.importlinter` to block `random` in generation (TDD) (14cef88)
+    - [x] Write failing test/verification that importing `random` in `src/render_tag/generation/` is forbidden.
+    - [x] Update `.importlinter` configuration.
+    - [x] Verify `uv run lint-imports` (or equivalent) fails if a violation is present.
+- [x] Task: Update `Generator` to initialize root RNG (14cef88)
+    - [x] Write unit test for `Generator.__init__` verifying RNG initialization from seed.
+    - [x] Implement `self.rng = np.random.default_rng(seed)` in `Generator`.
 - [ ] Task: Conductor - User Manual Verification 'Phase 1' (Protocol in workflow.md)
 
 ## Phase 2: Refactoring Generation Modules [checkpoint: ]
