@@ -35,7 +35,7 @@ class JobSpec(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    version: str = Field(default="1.0", description="Schema version")
+    version: str = Field(description="Schema version")
     job_id: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
@@ -55,6 +55,16 @@ class JobSpec(BaseModel):
     @property
     def shard_size(self) -> int:
         return self.scene_config.dataset.num_scenes
+
+    @classmethod
+    def from_json(cls, json_str: str) -> "JobSpec":
+        """Deserialize and migrate JobSpec from JSON."""
+        data = json.loads(json_str)
+        from render_tag.core.migration import SchemaMigrator
+
+        migrator = SchemaMigrator()
+        data = migrator.migrate(data)
+        return cls.model_validate(data)
 
 
 class SeedManager:
