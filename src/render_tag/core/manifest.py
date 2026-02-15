@@ -1,9 +1,10 @@
 import hashlib
 import json
-import logging
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
+from render_tag.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class ChecksumManifest:
@@ -21,7 +22,7 @@ class ChecksumManifest:
         """Calculates hash for a file and adds it to the manifest."""
         abs_path = Path(file_path).absolute()
         if not abs_path.exists():
-            logger.warning(f"File not found for manifest: {abs_path}")
+            logger.warning("File not found for manifest", path=str(abs_path))
             return
 
         rel_path = abs_path.relative_to(self.output_dir.absolute())

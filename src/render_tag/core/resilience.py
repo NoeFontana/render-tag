@@ -6,16 +6,16 @@ and fault tolerance.
 """
 
 import functools
-import logging
 import random
 import time
 from collections.abc import Callable
 from typing import TypeVar
 
 from render_tag.core.errors import RenderTagError
+from render_tag.core.logging import get_logger
 
 T = TypeVar("T")
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def retry_with_backoff(
@@ -52,8 +52,10 @@ def retry_with_backoff(
                     last_exception = e
                     if attempt == retries:
                         logger.error(
-                            f"Operation {func.__name__} failed after {retries + 1} attempts. "
-                            f"Last error: {e}"
+                            "Operation failed after retries",
+                            operation=func.__name__,
+                            attempts=retries + 1,
+                            error=str(e),
                         )
                         raise
 
@@ -63,8 +65,12 @@ def retry_with_backoff(
                         sleep_time *= random.uniform(0.5, 1.5)
 
                     logger.warning(
-                        f"Operation {func.__name__} failed (Attempt {attempt + 1}/{retries + 1}). "
-                        f"Retrying in {sleep_time:.2f}s. Error: {e}"
+                        "Operation failed, retrying",
+                        operation=func.__name__,
+                        attempt=attempt + 1,
+                        max_retries=retries,
+                        retry_delay=f"{sleep_time:.2f}s",
+                        error=str(e),
                     )
 
                     time.sleep(sleep_time)

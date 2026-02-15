@@ -6,12 +6,13 @@ and guaranteed cleanup using ExitStack.
 """
 
 import contextlib
-import logging
 import os
 from collections.abc import Generator
 from typing import Any, Protocol, runtime_checkable
 
-logger = logging.getLogger(__name__)
+from render_tag.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 def get_thread_budget(num_workers: int = 1, system_reserve: int = 2) -> int:
@@ -31,8 +32,10 @@ def get_thread_budget(num_workers: int = 1, system_reserve: int = 2) -> int:
     budget = max(1, safe_cores // num_workers)
 
     logger.info(
-        f"Auto-Throttling: {total_cores} cores detected. "
-        f"Reserving {system_reserve}. Budget: {budget} threads/worker."
+        "Auto-Throttling",
+        cores=total_cores,
+        reserved=system_reserve,
+        budget=budget,
     )
     return budget
 
@@ -77,7 +80,7 @@ class ResourceStack:
             try:
                 resource.stop()
             except Exception as e:
-                logger.error(f"Error during resource cleanup: {e}")
+                logger.error("Error during resource cleanup", error=str(e))
 
         self._stack.callback(_cleanup)
 

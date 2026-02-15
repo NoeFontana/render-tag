@@ -70,26 +70,19 @@ def setup_environment():
 
 def configure_logging():
     """Configures structured JSON logging for the backend."""
-    import logging
-
     try:
-        from render_tag.core.logging import JSONFormatter
+        from render_tag.core.logging import setup_logging
+
+        # In backend, we prefer JSON format if not specified otherwise
+        if "LOG_FORMAT" not in os.environ:
+            os.environ["LOG_FORMAT"] = "json"
+
+        setup_logging()
     except ImportError:
-        return
+        # Fallback to basic if render_tag dependencies aren't available
+        import logging
 
-    root = logging.getLogger()
-    # Avoid duplicate handlers
-    if not any(
-        isinstance(h, logging.StreamHandler) and isinstance(h.formatter, JSONFormatter)
-        for h in root.handlers
-    ):
-        for handler in root.handlers[:]:
-            root.removeHandler(handler)
-
-        handler = logging.StreamHandler(sys.stdout)
-        handler.setFormatter(JSONFormatter())
-        root.addHandler(handler)
-        root.setLevel(logging.INFO)
+        logging.basicConfig(level=logging.INFO)
 
 
 if __name__ == "__main__":

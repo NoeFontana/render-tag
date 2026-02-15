@@ -6,7 +6,6 @@ Enforces strict directory structure for binary assets.
 """
 
 import hashlib
-import logging
 from pathlib import Path
 from typing import ClassVar
 
@@ -17,7 +16,9 @@ except ImportError:
     snapshot_download = None
     upload_folder = None
 
-logger = logging.getLogger(__name__)
+from render_tag.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class AssetManager:
@@ -45,7 +46,7 @@ class AssetManager:
         if snapshot_download is None:
             raise ImportError("huggingface_hub not installed. Run 'pip install huggingface_hub'.")
 
-        logger.info(f"Pulling assets from {self.repo_id} to {self.local_dir}")
+        logger.info("Pulling assets", repo_id=self.repo_id, local_dir=str(self.local_dir))
 
         snapshot_download(
             repo_id=self.repo_id,
@@ -68,7 +69,7 @@ class AssetManager:
         if not token:
             raise ValueError("HF_TOKEN is required for pushing assets.")
 
-        logger.info(f"Pushing assets from {self.local_dir} to {self.repo_id}")
+        logger.info("Pushing assets", local_dir=str(self.local_dir), repo_id=self.repo_id)
 
         upload_folder(
             folder_path=str(self.local_dir),

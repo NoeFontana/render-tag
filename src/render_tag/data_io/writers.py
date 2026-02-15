@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import csv
 import json
-import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar
 
@@ -18,8 +17,9 @@ import numpy as np
 
 if TYPE_CHECKING:
     from render_tag.core.schema import DetectionRecord
+from render_tag.core.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 # Import pure-Python geometry modules
@@ -256,10 +256,10 @@ class COCOWriter:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         output_path = self.output_dir / filename
         logger.info(
-            "Saving COCO annotations to %s (%d images, %d annotations)",
-            output_path,
-            len(self.images),
-            len(self.annotations),
+            "Saving COCO annotations",
+            path=str(output_path),
+            images=len(self.images),
+            annotations=len(self.annotations),
         )
 
         if not self._dirty:
@@ -443,7 +443,7 @@ def merge_csv_shards(
         header_written = False
 
         for shard_path in shard_files:
-            with open(shard_path, "r", newline="") as fin:
+            with open(shard_path, newline="") as fin:
                 reader = csv.reader(fin)
                 header = next(reader, None)
                 if not header_written and header:

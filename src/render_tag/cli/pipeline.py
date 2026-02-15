@@ -7,15 +7,15 @@ discrete, testable stages.
 
 from __future__ import annotations
 
-import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from render_tag.core.config import GenConfig
+from render_tag.core.logging import get_logger
 from render_tag.core.schema.job import JobSpec
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @dataclass
@@ -78,6 +78,6 @@ class GenerationPipeline:
         """Run all stages in order."""
         for stage in self.stages:
             stage_name = stage.__class__.__name__
-            logger.debug(f"Starting stage: {stage_name}")
+            logger.debug("Starting stage", stage=stage_name)
             stage.execute(ctx)
-            logger.debug(f"Finished stage: {stage_name}")
+            logger.debug("Finished stage", stage=stage_name)

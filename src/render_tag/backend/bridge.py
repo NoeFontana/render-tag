@@ -4,13 +4,11 @@ Centralized provider for Blender and BlenderProc dependencies.
 
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING, Any
 
-if TYPE_CHECKING:
-    pass
+from render_tag.core.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class BlenderBridge:

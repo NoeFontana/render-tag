@@ -1,4 +1,3 @@
-import logging
 import sys
 from pathlib import Path
 
@@ -24,6 +23,7 @@ import argparse  # noqa: E402
 import json  # noqa: E402
 
 from render_tag.backend.engine import execute_recipe  # noqa: E402
+from render_tag.core.logging import get_logger, setup_logging
 from render_tag.data_io.writers import (  # noqa: E402
     COCOWriter,
     CSVWriter,
@@ -31,8 +31,8 @@ from render_tag.data_io.writers import (  # noqa: E402
     SidecarWriter,
 )
 
-logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
-logger = logging.getLogger(__name__)
+setup_logging()
+logger = get_logger(__name__)
 
 
 def parse_args() -> argparse.Namespace:

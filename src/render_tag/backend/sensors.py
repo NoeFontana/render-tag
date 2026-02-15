@@ -5,12 +5,13 @@ Provides a pluggable Strategy Pattern architecture for applying various
 parametric noise models to rendered images.
 """
 
-import logging
 from typing import Any, Protocol, runtime_checkable
 
 import numpy as np
 
-logger = logging.getLogger(__name__)
+from render_tag.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 @runtime_checkable

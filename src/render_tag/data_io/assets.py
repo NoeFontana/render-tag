@@ -2,12 +2,13 @@
 Asset provider for on-demand downloading of assets from Hugging Face.
 """
 
-import logging
 from pathlib import Path
 
 from huggingface_hub import hf_hub_download, snapshot_download
 
-logger = logging.getLogger(__name__)
+from render_tag.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class AssetProvider:
@@ -62,7 +63,9 @@ class AssetProvider:
 
         # 3. Remote download
         logger.info(
-            "Asset %s not found locally. Attempting download from %s", asset_path, self.repo_id
+            "Asset not found locally. Attempting download.",
+            asset_path=asset_path,
+            repo_id=self.repo_id,
         )
         try:
             # Strip the assets/ prefix if it exists for HF filename
@@ -72,7 +75,7 @@ class AssetProvider:
 
             # Staff Engineer: if it's a collection (no extension), use snapshot_download
             if not p.suffix:
-                logger.info("Downloading collection prefix: %s*", hf_filename)
+                logger.info("Downloading collection prefix", prefix=f"{hf_filename}*")
                 downloaded_path = snapshot_download(
                     repo_id=self.repo_id,
                     allow_patterns=[f"{hf_filename}*"],
@@ -90,6 +93,10 @@ class AssetProvider:
             self._cache[asset_path] = res_path
             return res_path
         except Exception as e:
-            logger.error("Failed to download asset %s from HF: %s", asset_path, e)
+            logger.error(
+                "Failed to download asset from HF",
+                asset_path=asset_path,
+                error=str(e),
+            )
             # Return the local path anyway, it will probably fail later but we tried
             return local_p

@@ -6,17 +6,17 @@ This module handles camera pose sampling and intrinsics configuration.
 
 from __future__ import annotations
 
-import logging
 import math
 from typing import Any
 
 from render_tag.backend.bridge import bridge
+from render_tag.core.logging import get_logger
 from render_tag.generation.camera import (
     sample_camera_pose,
     validate_camera_pose,
 )
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def set_camera_intrinsics(camera_config: dict) -> None:

@@ -24,6 +24,7 @@ from render_tag.backend.scene import (
     setup_lighting,
 )
 from render_tag.backend.sensors import apply_parametric_noise
+from render_tag.core.logging import get_logger
 from render_tag.core.schema import DetectionRecord
 from render_tag.core.utils import get_git_hash
 from render_tag.data_io.writers import (
@@ -33,7 +34,7 @@ from render_tag.data_io.writers import (
     SidecarWriter,
 )
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @runtime_checkable
@@ -74,8 +75,9 @@ class RenderFacade:
     High-level interface for rendering fiducial tag scenes.
     """
 
-    def __init__(self, renderer_mode: str = "cycles"):
+    def __init__(self, renderer_mode: str = "cycles", logger: logging.Logger | None = None):
         self.renderer_mode = renderer_mode
+        self.logger = logger or get_logger(__name__)
         self._engine_strategies = {
             "cycles": CyclesRenderStrategy(),
             "eevee": EeveeRenderStrategy(),
@@ -174,9 +176,9 @@ class RenderFacade:
         if bridge.bpy.context.scene.render.engine != "BLENDER_WORKBENCH":
             bridge.bproc.renderer.enable_segmentation_output(default_values={"category_id": 0})
 
-        logger.info("Starting BlenderProc render call...")
+        self.logger.info("Starting BlenderProc render call...")
         data = bridge.bproc.renderer.render()
-        logger.info("BlenderProc render call completed.")
+        self.logger.info("BlenderProc render call completed.")
         img = data["colors"][0]
 
         if camera_recipe.get("sensor_noise"):
@@ -199,7 +201,9 @@ def execute_recipe(
 ) -> None:
     """Execute a single scene recipe using the RenderFacade."""
     scene_idx = recipe["scene_id"]
-    logger.info(f"--- Executing Scene {scene_idx} ---")
+    # Create a context-aware logger for this specific scene execution
+    scene_logger = logger.bind(scene_id=scene_idx, seed=seed if seed is not None else scene_idx)
+    scene_logger.info(f"--- Executing Scene {scene_idx} ---")
 
     # Use provided deterministic seed execution or fallback to scene_id
     execution_seed = seed if seed is not None else scene_idx
@@ -209,7 +213,7 @@ def execute_recipe(
     bridge.bpy.context.scene.cycles.seed = execution_seed
     bridge.bpy.context.scene.cycles.use_animated_seed = False
 
-    renderer = RenderFacade(renderer_mode=renderer_mode)
+    renderer = RenderFacade(renderer_mode=renderer_mode, logger=scene_logger)
     renderer.reset_volatile_state()
     renderer.setup_world(recipe.get("world", {}))
     tag_objects = renderer.spawn_objects(recipe.get("objects", []))
@@ -235,7 +239,7 @@ def execute_recipe(
         render_out = renderer.render_camera(cam_recipe)
         render_time = time.time() - start_time
 
-        logger.info(
+        scene_logger.info(
             f"Rendered camera {cam_idx}",
             extra={
                 "log_type": "metric",
@@ -310,7 +314,7 @@ def execute_recipe(
             )
             rich_writer.add_detection(det)
 
-        logger.info(
+        scene_logger.info(
             f"Scene {scene_idx} progress: {cam_idx + 1}/{len(cam_recipes)}",
             extra={
                 "log_type": "progress",
@@ -322,4 +326,4 @@ def execute_recipe(
             },
         )
 
-    logger.info(f"✓ Rendered scene {scene_idx}")
+    scene_logger.info(f"✓ Rendered scene {scene_idx}")

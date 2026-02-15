@@ -8,7 +8,6 @@ and worker telemetry analysis using Polars.
 from __future__ import annotations
 
 import json
-import logging
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -20,9 +19,10 @@ try:
 except ImportError:
     pl = None
 
+from render_tag.core.logging import get_logger
 from render_tag.core.schema.hot_loop import Telemetry
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 # --- SCHEMAS ---
@@ -132,7 +132,7 @@ class TelemetryAuditor:
         if df is not None and not df.is_empty():
             output_path.parent.mkdir(parents=True, exist_ok=True)
             df.write_csv(output_path)
-            logger.info(f"Telemetry saved to {output_path}")
+            logger.info("Telemetry saved", path=str(output_path))
 
     def analyze_throughput(self) -> dict[str, Any]:
         """Calculates throughput statistics."""

@@ -1,9 +1,12 @@
+import csv
+import hashlib
 import logging
 import os
 import sys
-from datetime import datetime, timezone
+from collections.abc import MutableMapping
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, MutableMapping
+from typing import Any
 
 import numpy as np
 import orjson
@@ -116,7 +119,7 @@ class JSONFormatter(logging.Formatter):
         }
 
         # Extract payload if passed (legacy support or explicit payload)
-        payload = context.pop("payload", {})
+        payload = getattr(record, "payload", {})
         if not isinstance(payload, dict):
             payload = {"data": payload}
 
@@ -126,7 +129,7 @@ class JSONFormatter(logging.Formatter):
         log_entry = LogSchema(
             level=record.levelname,
             logger=record.name,
-            timestamp=datetime.fromtimestamp(record.created, tz=timezone.utc).isoformat(),
+            timestamp=datetime.fromtimestamp(record.created, tz=UTC).isoformat(),
             message=record.getMessage(),
             event=event,
             context=context,
