@@ -59,7 +59,7 @@ class UnifiedWorkerOrchestrator:
         self.num_workers, self.base_port = num_workers, base_port
         self.mock = mock or (os.environ.get("RENDER_TAG_FORCE_MOCK") == "1")
         self.blender_script = (
-            blender_script or Path(__file__).resolve().parents[1] / "backend" / "zmq_server.py"
+            blender_script or Path(__file__).resolve().parents[3] / "scripts" / "worker_bootstrap.py"
         )
         self.blender_executable = blender_executable or (sys.executable if mock else "blenderproc")
         self.use_blenderproc, self.vram_threshold_mb, self.ephemeral = (

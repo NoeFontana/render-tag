@@ -18,7 +18,6 @@ from render_tag.core.errors import WorkerCommunicationError, WorkerStartupError
 from render_tag.core.logging import get_logger
 from render_tag.core.resilience import retry_with_backoff
 from render_tag.core.schema.hot_loop import CommandType, ResponseStatus, Response
-from render_tag.core.utils import get_project_root, get_venv_site_packages
 from render_tag.orchestration.client import ZmqHostClient
 
 
@@ -92,7 +91,6 @@ class PersistentWorkerProcess:
                 self.logger.debug(f"[{self.worker_id}] {line}")
 
     def start(self):
-        root = get_project_root()
         exec_to_use = sys.executable if self.mock else self.blender_executable
 
         if self.mock:
@@ -113,26 +111,14 @@ class PersistentWorkerProcess:
             cmd.extend(["--shard-id", str(self.shard_id)])
         cmd.extend(["--seed", str(self.seed)])
 
-        env = os.environ.copy()
-        if self.mock:
-            env["RENDER_TAG_BACKEND_MOCK"] = "1"
-            env["OUTSIDE_OF_THE_INTERNAL_BLENDER_PYTHON_ENVIRONMENT_BUT_IN_RUN_SCRIPT"] = "1"
+        from render_tag.core.utils import get_subprocess_env
 
-        # Unified Environment Injection
-        src_path = str(root / "src")
-        repo_root = str(root)
-        curr_pp = env.get("PYTHONPATH", "")
-        env["PYTHONPATH"] = f"{src_path}{os.pathsep}{repo_root}{os.pathsep}{curr_pp}".strip(os.pathsep)
-        env["PYTHONNOUSERSITE"] = "1"
-        env["OMP_NUM_THREADS"] = str(self.thread_budget)
-        env["BLENDER_CPU_THREADS"] = str(self.thread_budget)
-        
-        venv_site = get_venv_site_packages()
-        if venv_site:
-            env["RENDER_TAG_VENV_SITE_PACKAGES"] = venv_site
-
-        if self.job_id:
-            env["RENDER_TAG_JOB_ID"] = self.job_id
+        env = get_subprocess_env(
+            base_env=os.environ,
+            thread_budget=self.thread_budget,
+            job_id=self.job_id,
+            mock=self.mock,
+        )
 
         self.logger.info(f"Launching worker with command: {cmd}")
         self.process = subprocess.Popen(

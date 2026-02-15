@@ -5,13 +5,17 @@ from render_tag.orchestration import PersistentWorkerProcess
 
 @patch("subprocess.Popen")
 @patch("render_tag.orchestration.worker.ZmqHostClient")
-@patch("render_tag.orchestration.worker.get_venv_site_packages")
+@patch("render_tag.core.utils.get_subprocess_env")
 @patch("time.sleep", return_value=None)
 def test_persistent_worker_injects_env_vars(
-    mock_sleep, mock_get_venv, mock_zmq_client, mock_popen, tmp_path
+    mock_sleep, mock_get_env, mock_zmq_client, mock_popen, tmp_path
 ):
     # Setup mocks
-    mock_get_venv.return_value = "/mock/venv/site-packages"
+    mock_get_env.return_value = {
+        "PYTHONPATH": "/mock/src",
+        "RENDER_TAG_VENV_SITE_PACKAGES": "/mock/venv/site-packages",
+        "PYTHONNOUSERSITE": "1",
+    }
     mock_popen_instance = mock_popen.return_value
     mock_popen_instance.poll.return_value = None
 

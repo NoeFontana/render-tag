@@ -1,7 +1,4 @@
-"""
-Worker Server Entry Point.
-"""
-
+import blenderproc as bproc  # noqa: F401
 import argparse
 import os
 from pathlib import Path

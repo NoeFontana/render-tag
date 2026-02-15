@@ -1,3 +1,4 @@
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -69,3 +70,45 @@ def find_venv_site_packages(root: Path | str) -> str | None:
     if potential_venv.exists():
         return get_venv_site_packages(potential_venv)
     return None
+
+
+def get_subprocess_env(
+    base_env: dict[str, str] | None = None,
+    thread_budget: int = 1,
+    job_id: str | None = None,
+    mock: bool = False,
+) -> dict[str, str]:
+    """
+    Constructs a standardized environment dictionary for subprocesses (workers).
+
+    Handles PYTHONPATH injection, venv site-packages propagation, and thread limits.
+    """
+    env = base_env.copy() if base_env else os.environ.copy()
+    root = get_project_root()
+
+    # 1. Inject Source Paths
+    src_path = str(root / "src")
+    repo_root = str(root)
+    curr_pp = env.get("PYTHONPATH", "")
+    env["PYTHONPATH"] = f"{src_path}{os.pathsep}{repo_root}{os.pathsep}{curr_pp}".strip(os.pathsep)
+
+    # 2. Python Configuration
+    env["PYTHONNOUSERSITE"] = "1"
+    env["OMP_NUM_THREADS"] = str(thread_budget)
+    env["BLENDER_CPU_THREADS"] = str(thread_budget)
+
+    # 3. Propagate Virtual Environment
+    # This is used by the backend bootstrap to inject site-packages
+    venv_site = get_venv_site_packages()
+    if venv_site:
+        env["RENDER_TAG_VENV_SITE_PACKAGES"] = venv_site
+
+    # 4. Render Tag Specifics
+    if job_id:
+        env["RENDER_TAG_JOB_ID"] = job_id
+
+    if mock:
+        env["RENDER_TAG_BACKEND_MOCK"] = "1"
+        env["OUTSIDE_OF_THE_INTERNAL_BLENDER_PYTHON_ENVIRONMENT_BUT_IN_RUN_SCRIPT"] = "1"
+
+    return env
