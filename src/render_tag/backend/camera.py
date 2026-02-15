@@ -23,59 +23,25 @@ def set_camera_intrinsics(camera_config: dict) -> None:
     """Set camera intrinsics from configuration.
 
     Args:
-        camera_config: Camera configuration dictionary containing resolution, fov, intrinsics
+        camera_config: Camera configuration dictionary (CameraRecipe format)
     """
-    resolution = camera_config.get("resolution", [640, 480])
-    fov = camera_config.get("fov", 60.0)
+    from render_tag.generation.intrinsics import resolve_intrinsics
+
+    # Staff Engineer: Decouple calculation from application
+    params = resolve_intrinsics(camera_config)
+    res = params["resolution"]
+
+    logger.info(f"Setting camera resolution to {res}, focal_length={params['fx']:.2f}")
 
     # Set resolution
-    bridge.bproc.camera.set_resolution(resolution[0], resolution[1])
+    bridge.bproc.camera.set_resolution(res[0], res[1])
 
-    # Check for explicit intrinsics
-    intrinsics = camera_config.get("intrinsics", {})
-    k_matrix = intrinsics.get("k_matrix")
-
-    if k_matrix:
-        # Use explicit K matrix
-        bridge.bproc.camera.set_intrinsics_from_K_matrix(
-            K=k_matrix,
-            image_width=resolution[0],
-            image_height=resolution[1],
-        )
-    else:
-        # Compute from FOV or other parameters
-        focal_length = intrinsics.get("focal_length")
-        focal_length_x = intrinsics.get("focal_length_x")
-        focal_length_y = intrinsics.get("focal_length_y")
-
-        if focal_length_x and focal_length_y:
-            fx, fy = focal_length_x, focal_length_y
-        elif focal_length:
-            fx = fy = focal_length
-        else:
-            # Compute from FOV
-            fx = fy = resolution[0] / (2.0 * math.tan(math.radians(fov / 2.0)))
-
-        cx = intrinsics.get("principal_point_x")
-        if cx is None:
-            cx = resolution[0] / 2.0
-
-        cy = intrinsics.get("principal_point_y")
-        if cy is None:
-            cy = resolution[1] / 2.0
-
-        # For Blender 4.2+, ensure K is a list of lists of floats for mathutils compatibility
-        K_list = [
-            [float(fx), 0.0, float(cx)],
-            [0.0, float(fy), float(cy)],
-            [0.0, 0.0, 1.0],
-        ]
-
-        bridge.bproc.camera.set_intrinsics_from_K_matrix(
-            K=K_list,
-            image_width=resolution[0],
-            image_height=resolution[1],
-        )
+    # Apply computed K matrix
+    bridge.bproc.camera.set_intrinsics_from_K_matrix(
+        K=params["k_matrix"],
+        image_width=res[0],
+        image_height=res[1],
+    )
 
 
 def sample_camera_poses(
