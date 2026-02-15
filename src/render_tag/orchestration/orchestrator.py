@@ -825,7 +825,7 @@ def run_local_parallel(
     verbose: bool,
     executor_type: str = "local",
     resume: bool = False,
-    batch_size: int = 10,
+    batch_size: int = 5,
 ):
     import typer
 
@@ -840,14 +840,13 @@ def run_local_parallel(
     if not recipes:
         return
 
-    # Staff Engineer: Ensure batch_size utilizes all workers
-    # If using default (10) but it would leave workers idle, shrink it.
+    # If using default (5) but it would leave workers idle, shrink it.
     actual_batch_size = batch_size
-    if batch_size == 10 and len(recipes) > 0:
+    if batch_size == 5 and len(recipes) > 0:
         # Target roughly one batch per worker, or more if many scenes
         actual_batch_size = max(1, len(recipes) // workers)
         # But don't exceed the user's likely intent for small batches
-        actual_batch_size = min(actual_batch_size, 10)
+        actual_batch_size = min(actual_batch_size, 5)
 
     batches = [
         (
@@ -887,7 +886,7 @@ def run_local_parallel(
 
                     for recipe in batch_recipes:
                         resp = orchestrator.execute_recipe(
-                            recipe, output_dir, renderer_mode, f"batch"
+                            recipe, output_dir, renderer_mode, "batch"
                         )
                         if resp.status != ResponseStatus.SUCCESS:
                             console.print(f"[red]Render failed: {resp.message}[/red]")

@@ -37,7 +37,7 @@ def run(
     skip_render: bool = typer.Option(False, "--skip-render"),
     executor_type: str = typer.Option("local", "--executor", "-e"),
     resume: bool = typer.Option(False, "--resume"),
-    batch_size: int = typer.Option(10, "--batch-size"),
+    batch_size: int = typer.Option(5, "--batch-size"),
 ) -> None:
     """
     Generate synthetic fiducial marker training data.
