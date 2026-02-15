@@ -33,6 +33,7 @@ class ExecutionStage(PipelineStage):
                 executor_type=ctx.executor_type,
                 resume=ctx.resume,
                 batch_size=ctx.batch_size,
+                seed=ctx.seed,
             )
             return
 
@@ -52,6 +53,7 @@ class ExecutionStage(PipelineStage):
                 renderer_mode=ctx.renderer_mode,
                 shard_id=str(ctx.shard_index),
                 verbose=ctx.verbose,
+                seed=ctx.seed,
             )
             console.print("\n[bold green]✓ Dataset generated successfully![/bold green]")
             self._finalize_results(ctx)

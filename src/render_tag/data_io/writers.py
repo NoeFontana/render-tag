@@ -301,6 +301,8 @@ class RichTruthWriter:
             "ppm": detection.ppm,
             "position": detection.position,
             "rotation_quaternion": detection.rotation_quaternion,
+            "global_seed": detection.global_seed,
+            "scene_seed": detection.scene_seed,
             "metadata": detection.metadata,
         }
 

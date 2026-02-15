@@ -12,6 +12,7 @@ from typing import Any
 from render_tag.core.config import GenConfig
 from render_tag.core.logging import get_logger
 from render_tag.core.schema import SceneRecipe
+from render_tag.core.seeding import derive_seed
 from render_tag.data_io.assets import AssetProvider
 from render_tag.generation.builder import SceneRecipeBuilder
 
@@ -24,7 +25,12 @@ class Generator:
     Refactored to use the Builder Pattern for SceneRecipe construction.
     """
 
-    def __init__(self, config: dict[str, Any] | GenConfig, output_dir: Path):
+    def __init__(
+        self,
+        config: dict[str, Any] | GenConfig,
+        output_dir: Path,
+        global_seed: int = 42,
+    ):
         if isinstance(config, dict):
             self.config = GenConfig.model_validate(config)
         else:
@@ -33,6 +39,7 @@ class Generator:
         self.output_dir = output_dir
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.asset_provider = AssetProvider()
+        self.global_seed = global_seed
 
         # Cache textures
         self.textures = []
@@ -89,17 +96,25 @@ class Generator:
         """
         from render_tag.core.validator import RecipeValidator
 
+        # Phase 2: Derive Scene Seed
+        # This seed is unique to this scene index and deterministic given the global seed.
+        scene_seed = derive_seed(self.global_seed, "scene", scene_id)
+
         max_retries = 50
         for attempt in range(max_retries):
-            # Use a derived seed for each attempt to ensure variety
-            # We add attempt*1000 to the scene_id to avoid seed collisions
-            attempt_scene_id = scene_id + (attempt * 10000)
+            # Derive a specific seed for this attempt if we need to retry
+            # to avoid generating the exact same invalid scene again.
+            attempt_seed = derive_seed(scene_seed, "attempt", attempt)
 
-            builder = SceneRecipeBuilder(attempt_scene_id, self.config, self.asset_provider)
+            # We add attempt*10000 to the scene_id in the previous logic just for variety,
+            # but now we have explicit seeding. We can keep the real scene_id.
+            # However, Builder might use scene_id for some modulos.
+            # Let's keep passing scene_id as is, because randomization is now controlled by seed.
+
+            builder = SceneRecipeBuilder(
+                scene_id, self.config, self.asset_provider, seed=attempt_seed
+            )
             recipe = builder.build_world(self.textures).build_objects().build_cameras().get_result()
-
-            # Reset the real scene_id for the final recipe
-            recipe.scene_id = scene_id
 
             # Validate (Strict: Treat warnings as reasons to re-sample)
             validator = RecipeValidator(recipe)

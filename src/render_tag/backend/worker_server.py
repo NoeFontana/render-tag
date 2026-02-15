@@ -18,6 +18,7 @@ from render_tag.core.schema.hot_loop import (
     WorkerStatus,
     calculate_state_hash,
 )
+from render_tag.core.seeding import derive_seed
 from render_tag.data_io.writers import (
     COCOWriter,
     CSVWriter,
@@ -34,9 +35,17 @@ logger = logging.getLogger(__name__)
 
 
 class ZmqBackendServer:
-    def __init__(self, port: int = 5555, shard_id: str = "main", bproc_mock=None, bpy_mock=None):
+    def __init__(
+        self,
+        port: int = 5555,
+        shard_id: str = "main",
+        bproc_mock=None,
+        bpy_mock=None,
+        seed: int = 42,
+    ):
         self.port = port
         self.shard_id = shard_id
+        self.seed = seed
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.REP)
         self.socket.bind(f"tcp://127.0.0.1:{port}")
@@ -59,6 +68,7 @@ class ZmqBackendServer:
 
         self.current_output_dir, self.writers = None, {}
         self.bproc_initialized = False
+        self.writers_finalized = False
 
     def get_telemetry(self) -> Telemetry:
         # Staff Engineer: Temporarily bypass GPUtil to diagnose potential driver hangs
@@ -130,10 +140,13 @@ class ZmqBackendServer:
         self._finalize_writers()
 
     def _finalize_writers(self):
+        if getattr(self, "writers_finalized", False):
+            return
         if "coco" in self.writers:
             self.writers["coco"].save()
         if "rich" in self.writers:
             self.writers["rich"].save()
+        self.writers_finalized = True
 
     def stop(self):
         self.running = False
@@ -206,6 +219,12 @@ class RenderHandler:
                 status=ResponseStatus.FAILURE, request_id=cmd.request_id, message="Missing payload"
             )
         server._setup_writers(Path(output_dir), shard_id=shard_id)
+
+        # Derive deterministic seed for this specific render task
+        # We use the global worker seed + "render" domain + scene_id
+        scene_id = recipe.get("scene_id", 0)
+        render_seed = derive_seed(server.seed, "render", scene_id)
+
         execute_recipe(
             recipe,
             Path(output_dir),
@@ -215,6 +234,8 @@ class RenderHandler:
             server.writers["rich"],
             server.writers["sidecar"],
             skip_visibility=payload.get("skip_visibility", False),
+            seed=render_seed,
+            global_seed=server.seed,
         )
         server.renders_completed += 1
         server.status = WorkerStatus.IDLE

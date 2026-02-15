@@ -33,7 +33,9 @@ def run(
     workers: int = typer.Option(1, "--workers", "-w"),
     shard_index: int = typer.Option(-1, "--shard-index"),
     total_shards: int = typer.Option(1, "--total-shards"),
-    seed: int = typer.Option(-1, "--seed"),
+    seed: int = typer.Option(
+        2026, "--seed", help="Global random seed for deterministic generation"
+    ),
     skip_render: bool = typer.Option(False, "--skip-render"),
     executor_type: str = typer.Option("local", "--executor", "-e"),
     resume: bool = typer.Option(False, "--resume"),

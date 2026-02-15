@@ -34,6 +34,7 @@ def main():
     parser.add_argument("--shard-id", type=str, default="0")
     parser.add_argument("--mock", action="store_true")
     parser.add_argument("--max-renders", type=int, default=None)
+    parser.add_argument("--seed", type=int, default=42)
     args, _unknown = parser.parse_known_args()
 
     if not logging.getLogger().handlers:
@@ -41,7 +42,7 @@ def main():
 
     logger = logging.getLogger("zmq_server")
     logger.info(
-        f"Starting ZmqBackendServer on port {args.port} (shard_id={args.shard_id}, mock={args.mock})"
+        f"Starting ZmqBackendServer on port {args.port} (shard_id={args.shard_id}, mock={args.mock}, seed={args.seed})"
     )
 
     try:
@@ -55,7 +56,11 @@ def main():
                 sys.exit(1)
 
         server = ZmqBackendServer(
-            port=args.port, shard_id=args.shard_id, bproc_mock=bproc_mock, bpy_mock=bpy_mock
+            port=args.port,
+            shard_id=args.shard_id,
+            bproc_mock=bproc_mock,
+            bpy_mock=bpy_mock,
+            seed=args.seed,
         )
         server.run(max_renders=args.max_renders)
     except Exception as e:

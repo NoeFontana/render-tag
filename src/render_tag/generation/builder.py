@@ -5,6 +5,7 @@ Provides a step-by-step interface for constructing complex SceneRecipe objects,
 encapsulating the logic for isolated RNG states and component generation.
 """
 
+import math
 import random
 from typing import Any
 
@@ -18,10 +19,10 @@ from render_tag.core.schema import (
     LightingConfig,
     ObjectRecipe,
     SceneRecipe,
-    SeedManager,
     SensorDynamicsRecipe,
     WorldRecipe,
 )
+from render_tag.core.seeding import derive_seed
 from render_tag.data_io.assets import AssetProvider
 from render_tag.generation.camera import sample_camera_pose
 from render_tag.generation.layouts import apply_flying_layout, apply_grid_layout
@@ -31,20 +32,28 @@ class SceneRecipeBuilder:
     """
     Staff Engineer Pattern: Builder for SceneRecipes.
     Isolates the 'how' of construction from the 'what'.
+    Enforces deterministic seeding via explicit seed injection.
     """
 
-    def __init__(self, scene_id: int, config: GenConfig, asset_provider: AssetProvider):
+    def __init__(
+        self,
+        scene_id: int,
+        config: GenConfig,
+        asset_provider: AssetProvider,
+        seed: int,
+    ):
         self.scene_id = scene_id
         self.config = config
         self.asset_provider = asset_provider
+        self.seed = seed
         self.recipe = SceneRecipe(scene_id=scene_id)
 
     def build_world(self, textures: list[Any]) -> "SceneRecipeBuilder":
         """Generates random world environment parameters."""
-        # Use lighting seed for world randomization
-        lighting_seed = self.config.dataset.seeds.lighting_seed
-        seed = SeedManager(lighting_seed).get_shard_seed(self.scene_id)
-        rng = random.Random(seed)
+        # Phase 3: Domain Isolation
+        # Derive specific seed for lighting/world to prevent attribute coupling
+        world_seed = derive_seed(self.seed, "world", 0)
+        rng = random.Random(world_seed)
 
         scene_config = self.config.scene
         lighting_config = scene_config.lighting
@@ -54,10 +63,12 @@ class SceneRecipeBuilder:
         texture_rotation = 0.0
 
         if textures:
-            # SHUFFLE the textures list deterministically based on lighting_seed
+            # SHUFFLE the textures list deterministically based on world_seed
             # to avoid every shard having the same texture for scene 0
             pool = list(textures)
-            random.Random(lighting_seed).shuffle(pool)
+            # Use a separate RNG for shuffling to not affect subsequent calls if pool size changes?
+            # actually, using the main rng is fine if we respect the sequence.
+            rng.shuffle(pool)
 
             # Pick texture for this scene
             raw_path = str(pool[self.scene_id % len(pool)])
@@ -69,8 +80,6 @@ class SceneRecipeBuilder:
             max_s = scene_config.texture_scale_max
 
             if max_s / min_s > 10.0:
-                import math
-
                 log_min = math.log(min_s)
                 log_max = math.log(max_s)
                 texture_scale = math.exp(rng.uniform(log_min, log_max))
@@ -99,8 +108,10 @@ class SceneRecipeBuilder:
 
     def build_objects(self) -> "SceneRecipeBuilder":
         """Generates and places tag objects within the scene."""
-        seed = SeedManager(self.config.dataset.seeds.layout_seed).get_shard_seed(self.scene_id)
-        rng = random.Random(seed)
+        # Phase 3: Domain Isolation
+        layout_seed = derive_seed(self.seed, "layout", 0)
+        rng = random.Random(layout_seed)
+
         tag_config = self.config.tag
         scenario = self.config.scenario
 
@@ -189,8 +200,10 @@ class SceneRecipeBuilder:
 
     def build_cameras(self) -> "SceneRecipeBuilder":
         """Generates multiple camera poses and sensor configurations."""
-        seed = SeedManager(self.config.dataset.seeds.camera_seed).get_shard_seed(self.scene_id)
-        np_rng = np.random.default_rng(seed)
+        # Phase 3: Domain Isolation
+        camera_seed = derive_seed(self.seed, "camera", 0)
+        np_rng = np.random.default_rng(camera_seed)
+
         camera_config = self.config.camera
         scenario = self.config.scenario
         num_scenes = self.config.dataset.num_scenes

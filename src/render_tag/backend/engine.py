@@ -194,14 +194,19 @@ def execute_recipe(
     rich_writer: RichTruthWriter,
     sidecar_writer: SidecarWriter,
     skip_visibility: bool = False,
+    seed: int | None = None,
+    global_seed: int | None = None,
 ) -> None:
     """Execute a single scene recipe using the RenderFacade."""
     scene_idx = recipe["scene_id"]
     logger.info(f"--- Executing Scene {scene_idx} ---")
 
-    bridge.np.random.seed(scene_idx)
-    random.seed(scene_idx)
-    bridge.bpy.context.scene.cycles.seed = scene_idx
+    # Use provided deterministic seed execution or fallback to scene_id
+    execution_seed = seed if seed is not None else scene_idx
+
+    bridge.np.random.seed(execution_seed)
+    random.seed(execution_seed)
+    bridge.bpy.context.scene.cycles.seed = execution_seed
     bridge.bpy.context.scene.cycles.use_animated_seed = False
 
     renderer = RenderFacade(renderer_mode=renderer_mode)
@@ -219,6 +224,10 @@ def execute_recipe(
         "git_hash": get_git_hash(),
         "timestamp": datetime.now(UTC).isoformat(),
         "recipe_snapshot": recipe,
+        "seeds": {
+            "global_seed": global_seed,
+            "scene_seed": execution_seed,
+        },
     }
 
     for cam_idx, cam_recipe in enumerate(cam_recipes):
@@ -287,6 +296,8 @@ def execute_recipe(
                 occlusion_ratio=occlusion,
                 position=geom["position"],
                 rotation_quaternion=geom["rotation_quaternion"],
+                global_seed=global_seed,
+                scene_seed=execution_seed,
             )
             csv_writer.write_detection(det, res[0], res[1])
             coco_writer.add_annotation(

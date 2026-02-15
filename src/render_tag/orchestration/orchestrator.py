@@ -165,6 +165,7 @@ class PersistentWorkerProcess:
         shard_id: str = "main",
         context: zmq.Context | None = None,
         thread_budget: int = 1,
+        seed: int = 42,
     ):
         self.worker_id, self.port = worker_id, port
         self.blender_script, self.blender_executable = blender_script, blender_executable
@@ -175,6 +176,7 @@ class PersistentWorkerProcess:
         )
         self.max_renders, self.shard_id, self.context = max_renders, shard_id, context
         self.thread_budget = thread_budget
+        self.seed = seed
         self.process, self.client = None, None
         self.renders_completed = 0
         self._stop_event = threading.Event()
@@ -223,6 +225,7 @@ class PersistentWorkerProcess:
             cmd.extend(["--max-renders", str(self.max_renders)])
         if self.shard_id:
             cmd.extend(["--shard-id", str(self.shard_id)])
+        cmd.extend(["--seed", str(self.seed)])
 
         env = os.environ.copy()
         if self.mock:
@@ -357,6 +360,7 @@ class UnifiedWorkerOrchestrator:
         ephemeral: bool = False,
         max_renders_per_worker: int | None = None,
         worker_id_prefix: str = "worker",
+        seed: int = 42,
     ):
         self.num_workers, self.base_port = num_workers, base_port
         self.mock = mock or (os.environ.get("RENDER_TAG_FORCE_MOCK") == "1")
@@ -371,6 +375,7 @@ class UnifiedWorkerOrchestrator:
         )
         self.max_renders_per_worker = max_renders_per_worker
         self.worker_id_prefix = worker_id_prefix
+        self.seed = seed
         self.context = zmq.Context() if zmq else None
 
         # Auto-Throttling: Calculate thread budget based on hardware
@@ -425,6 +430,7 @@ class UnifiedWorkerOrchestrator:
                             shard_id=f"{i}",
                             context=self.context,
                             thread_budget=self.thread_budget,
+                            seed=self.seed,
                         )
                         worker.start()
 
@@ -471,22 +477,45 @@ class UnifiedWorkerOrchestrator:
         )
 
         # 1. Collect Telemetry & Check VRAM
-        try:
-            resp = worker.send_command(CommandType.STATUS, timeout_ms=1000)
-            if resp.status == ResponseStatus.SUCCESS and resp.data:
-                try:
-                    telemetry = Telemetry(**resp.data)
-                    self.auditor.add_entry(worker.worker_id, telemetry)
+        if not intentional_exit:
+            try:
+                # Staff Engineer: Use 2.5s timeout. Worker might be busy saving large shards.
+                resp = worker.send_command(CommandType.STATUS, timeout_ms=2500)
+                if resp.status == ResponseStatus.SUCCESS and resp.data:
+                    try:
+                        telemetry = Telemetry(**resp.data)
+                        self.auditor.add_entry(worker.worker_id, telemetry)
 
-                    if self.vram_threshold_mb and telemetry.vram_used_mb > self.vram_threshold_mb:
-                        should_restart = True
-                        reason = (
-                            f"Exceeded VRAM threshold ({telemetry.vram_used_mb} > "
-                            f"{self.vram_threshold_mb})"
+                        if (
+                            self.vram_threshold_mb
+                            and telemetry.vram_used_mb > self.vram_threshold_mb
+                        ):
+                            should_restart = True
+                            reason = (
+                                f"Exceeded VRAM threshold ({telemetry.vram_used_mb} > "
+                                f"{self.vram_threshold_mb})"
+                            )
+                    except Exception as e:
+                        logger.warning(
+                            f"Failed to parse telemetry from worker {worker.worker_id}: {e}"
                         )
-                except Exception as e:
-                    logger.warning(f"Failed to parse telemetry from worker {worker.worker_id}: {e}")
-            else:
+                else:
+                    # Fallback for tests
+                    if self.mock:
+                        from render_tag.core.schema.hot_loop import calculate_state_hash
+
+                        self.auditor.add_entry(
+                            worker.worker_id,
+                            Telemetry(
+                                vram_used_mb=0,
+                                vram_total_mb=0,
+                                cpu_usage_percent=0,
+                                state_hash=calculate_state_hash([], {}),
+                                uptime_seconds=0,
+                            ),
+                        )
+            except Exception as e:
+                logger.error(f"Telemetry check failed for {worker.worker_id}: {e}")
                 # Fallback for tests
                 if self.mock:
                     from render_tag.core.schema.hot_loop import calculate_state_hash
@@ -501,22 +530,6 @@ class UnifiedWorkerOrchestrator:
                             uptime_seconds=0,
                         ),
                     )
-        except Exception as e:
-            logger.error(f"Telemetry check failed for {worker.worker_id}: {e}")
-            # Fallback for tests
-            if self.mock:
-                from render_tag.core.schema.hot_loop import calculate_state_hash
-
-                self.auditor.add_entry(
-                    worker.worker_id,
-                    Telemetry(
-                        vram_used_mb=0,
-                        vram_total_mb=0,
-                        cpu_usage_percent=0,
-                        state_hash=calculate_state_hash([], {}),
-                        uptime_seconds=0,
-                    ),
-                )
 
         # 2. Check Health
         if not should_restart and not intentional_exit and not worker.is_healthy():
@@ -645,6 +658,7 @@ class RenderExecutor(Protocol):
         renderer_mode: str,
         shard_id: str,
         verbose: bool = False,
+        seed: int = 42,
     ) -> None: ...
 
 
@@ -656,6 +670,7 @@ class LocalExecutor:
         renderer_mode: str,
         shard_id: str,
         verbose: bool = False,
+        seed: int = 42,
     ) -> None:
         with open(recipe_path) as f:
             recipes = json.load(f)
@@ -672,6 +687,7 @@ class LocalExecutor:
             max_renders_per_worker=len(recipes),
             mock=not use_bproc,
             worker_id_prefix=f"worker-{shard_id}",
+            seed=seed,
         ) as orchestrator:
             orchestrator.start(shard_id=shard_id)
             for recipe in recipes:
@@ -695,6 +711,7 @@ class DockerExecutor:
         renderer_mode: str,
         shard_id: str,
         verbose: bool = False,
+        seed: int = 42,
     ) -> None:
         logger.info(f"Docker execution (stub): image={self.image}, recipe={recipe_path.name}")
         cmd = [
@@ -715,6 +732,8 @@ class DockerExecutor:
             renderer_mode,
             "--shard-id",
             shard_id,
+            "--seed",
+            str(seed),
         ]
         subprocess.run(cmd)
 
@@ -739,6 +758,7 @@ class MockExecutor:
         renderer_mode: str,
         shard_id: str,
         verbose: bool = False,
+        seed: int = 42,
     ) -> None:
         logger.info(f"[MOCK] Render: {recipe_path.name} -> {output_dir.name}")
 
@@ -876,6 +896,7 @@ def run_local_parallel(
     executor_type: str = "local",
     resume: bool = False,
     batch_size: int = 5,
+    seed: int = 42,
 ):
     import typer
 
@@ -919,6 +940,7 @@ def run_local_parallel(
         use_blenderproc=True,
         mock=False,
         max_renders_per_worker=batch_size,
+        seed=seed,
     ) as orchestrator:
         q = queue.Queue()
         for _, path in batches:
