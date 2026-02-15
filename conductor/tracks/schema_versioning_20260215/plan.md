@@ -14,7 +14,7 @@ Isolate the migration logic and update the core models to support version metada
     - [ ] Add `version: str = "1.0"` to `JobSpec` in `src/render_tag/core/schema/job.py`.
 - [ ] Task: Conductor - User Manual Verification 'Phase 1' (Protocol in workflow.md)
 
-## Phase 2: Integration - Migration into Resolution Phase
+## Phase 2: Integration - Migration into Resolution Phase [checkpoint: d5f2b12]
 Inject the migrator into the existing configuration loading sequence.
 
 - [x] Task: Implement TDD for YAML Migration (a21acd4)
