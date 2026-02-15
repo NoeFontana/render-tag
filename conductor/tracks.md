@@ -7,10 +7,10 @@ This file tracks all major tracks for the project. Each track has its own detail
 - [x] **Track: Strict Schema Versioning**
   *Link: [./tracks/schema_versioning_20260215/](./tracks/schema_versioning_20260215/)*
 
-- [x] **Track: Purge "Zombie Logic" (Dead Code Audit)**
-  *Link: [./tracks/purge_zombie_logic_20260215/](./tracks/purge_zombie_logic_20260215/)*
-
 ## Archived Tracks
+
+- [x] **Track: Purge "Zombie Logic" (Dead Code Audit)**
+  *Link: [./archive/purge_zombie_logic_20260215/](./purge_zombie_logic_20260215/)*
 
 - [x] **Track: Dependency Injection for Randomness**
   *Link: [./archive/random_di_20260215/](./random_di_20260215/)*
