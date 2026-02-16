@@ -31,6 +31,7 @@ from render_tag.core.logging import get_logger
 from render_tag.core.resources import ResourceStack, get_thread_budget
 from render_tag.core.schema.hot_loop import CommandType, Response, ResponseStatus, Telemetry
 from render_tag.core.schema.job import JobSpec
+from render_tag.core.utils import is_port_in_use
 from render_tag.orchestration.worker import PersistentWorkerProcess
 
 logger = get_logger(__name__)
@@ -94,6 +95,17 @@ class UnifiedWorkerOrchestrator:
             seed_str = f"{shard_id}-{os.getpid()}-{random.random()}"
             port_offset = int(hashlib.md5(seed_str.encode()).hexdigest(), 16) % 10000
             current_base_port = self.base_port + port_offset + random.randint(0, 50) * 10
+
+            # Port scanning: Ensure the entire range is free
+            for _ in range(10):
+                if any(
+                    is_port_in_use(current_base_port + i)
+                    or is_port_in_use(current_base_port + i + 100)
+                    for i in range(self.num_workers)
+                ):
+                    current_base_port += 200  # Shift by a safe margin
+                    continue
+                break
 
             with ResourceStack() as attempt_stack:
                 try:

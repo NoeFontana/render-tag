@@ -109,3 +109,19 @@ def get_subprocess_env(
         env["OUTSIDE_OF_THE_INTERNAL_BLENDER_PYTHON_ENVIRONMENT_BUT_IN_RUN_SCRIPT"] = "1"
 
     return env
+
+
+def is_port_in_use(port: int, host: str = "127.0.0.1") -> bool:
+    """Check if a port is already in use.
+
+    Args:
+        port: The port to check.
+        host: The host to check. Defaults to "127.0.0.1".
+
+    Returns:
+        True if the port is in use, False otherwise.
+    """
+    import socket
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        return s.connect_ex((host, port)) == 0

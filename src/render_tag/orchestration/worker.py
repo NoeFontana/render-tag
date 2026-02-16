@@ -165,12 +165,16 @@ class PersistentWorkerProcess:
             self.client.disconnect()
             self.client = None
         if self.process:
-            if self.process.poll() is None:
-                try:
-                    os.killpg(self.process.pid, signal.SIGKILL)
+            pid = self.process.pid
+            try:
+                # Always attempt to kill the entire process group.
+                # This handles cases where the launcher (e.g., blenderproc) exits
+                # but the child (Blender) stays alive.
+                os.killpg(pid, signal.SIGKILL)
+                if self.process.poll() is None:
                     self.process.wait(timeout=2)
-                except (subprocess.TimeoutExpired, ProcessLookupError):
-                    pass
+            except (subprocess.TimeoutExpired, ProcessLookupError, PermissionError):
+                pass
             self.process = None
 
     @retry_with_backoff(retries=2, initial_delay=0.1, exceptions=(Exception,))

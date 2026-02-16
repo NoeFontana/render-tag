@@ -53,10 +53,12 @@ class ZmqBackendServer:
 
         # 1. Task Socket (REP) - Handles RENDER, INIT, SHUTDOWN
         self.task_socket = self.context.socket(zmq.REP)
+        self.task_socket.setsockopt(zmq.LINGER, 0)
         self.task_socket.bind(f"tcp://127.0.0.1:{port}")
 
         # 2. Management Socket (REP) - Handles STATUS (Telemetry)
         self.mgmt_socket = self.context.socket(zmq.REP)
+        self.mgmt_socket.setsockopt(zmq.LINGER, 0)
         self.mgmt_socket.bind(f"tcp://127.0.0.1:{self.mgmt_port}")
 
         bridge.stabilize(mocks.get("bproc_mock"), mocks.get("bpy_mock"), mocks.get("math_mock"))
