@@ -20,13 +20,13 @@ if TYPE_CHECKING:
     pass
 
 
-# Corner order: Counter-Clockwise from Bottom-Left
-# BL (0), BR (1), TR (2), TL (3)
+# Corner order: Clockwise from Top-Left (Industry Standard)
+# TL (0), TR (1), BR (2), BL (3)
 CORNER_ORDER = [
-    (-0.5, -0.5, 0),  # Bottom-Left
-    (0.5, -0.5, 0),  # Bottom-Right
-    (0.5, 0.5, 0),  # Top-Right
     (-0.5, 0.5, 0),  # Top-Left
+    (0.5, 0.5, 0),  # Top-Right
+    (0.5, -0.5, 0),  # Bottom-Right
+    (-0.5, -0.5, 0),  # Bottom-Left
 ]
 
 
@@ -130,10 +130,10 @@ def create_tag_plane(
     half_black = (size_meters * black_border_scale) / 2.0
 
     corners_local = [
-        [-half_black, -half_black, 0.0],  # BL
-        [half_black, -half_black, 0.0],  # BR
-        [half_black, half_black, 0.0],  # TR
         [-half_black, half_black, 0.0],  # TL
+        [half_black, half_black, 0.0],  # TR
+        [half_black, -half_black, 0.0],  # BR
+        [-half_black, -half_black, 0.0],  # BL
     ]
 
     # Store metadata on the object
@@ -143,8 +143,11 @@ def create_tag_plane(
     plane.blender_obj["margin_bits"] = margin_bits
 
     # Apply texture if provided
-    if texture_path and texture_path.exists():
-        apply_tag_texture(plane, texture_path, material_config)
+    if texture_path:
+        if texture_path.exists():
+            apply_tag_texture(plane, texture_path, material_config)
+        else:
+            raise FileNotFoundError(f"Tag texture path provided but does not exist: {texture_path}")
     else:
         # Apply a default material (white with slight roughness)
         apply_default_material(plane)
@@ -170,9 +173,11 @@ def apply_tag_texture(obj: Any, texture_path: Path, config: dict | None = None) 
     if not image:
         try:
             image = bridge.bpy.data.images.load(str(texture_path))
-        except RuntimeError:
-            # Fallback if load fails
-            return
+        except RuntimeError as e:
+            # Shift from silent return to explicit failure
+            raise RuntimeError(
+                f"Failed to load tag texture into Blender: {texture_path}. Error: {e}"
+            ) from e
 
     # Reuse or create material
     mat_name = "TagMaterial_Pooled"

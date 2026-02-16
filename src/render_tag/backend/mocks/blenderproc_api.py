@@ -76,7 +76,7 @@ class MockCamera:
     def set_resolution(self, width, height):
         pass
 
-    def set_intrinsics_from_K_matrix(self, K, image_width, image_height):
+    def set_intrinsics_from_K_matrix(self, K, image_width, image_height):  # noqa: N802
         pass
 
 

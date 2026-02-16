@@ -52,14 +52,14 @@ def normalize_corner_order(
         return [(float(pt[0]), float(pt[1])) for pt in corners]
     assert len(corners) == 4
 
-    # Current logic in writers.py assumes input is CCW from BL
-    # BL, BR, TR, TL
-    bl, br, tr, tl = corners[0], corners[1], corners[2], corners[3]
+    # Current logic in writers.py and backend now assumes input is CW from TL
+    # TL, TR, BR, BL
+    tl, tr, br, bl = corners[0], corners[1], corners[2], corners[3]
 
     if target_order == "cw_tl":
-        # TL, TR, BR, BL
         ordered = [tl, tr, br, bl]
     elif target_order == "ccw_bl":
+        # BL, BR, TR, TL
         ordered = [bl, br, tr, tl]
     else:
         # If target_order is unknown, return original corners as tuples

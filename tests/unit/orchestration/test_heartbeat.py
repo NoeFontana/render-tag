@@ -1,8 +1,5 @@
 import threading
 import time
-from pathlib import Path
-
-import pytest
 
 from render_tag.backend.worker_server import ZmqBackendServer
 from render_tag.core.schema.hot_loop import CommandType, ResponseStatus, WorkerStatus

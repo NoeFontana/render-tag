@@ -34,6 +34,7 @@ class BlenderBridge:
         if not self.np:
             try:
                 import numpy as np
+
                 self.np = np
             except ImportError:
                 pass
@@ -51,7 +52,7 @@ class BlenderBridge:
             import blenderproc as bproc
             import bpy
             import mathutils
-            
+
             # Verify we are in a real Blender environment
             if hasattr(bpy, "app"):
                 self.bproc = bproc

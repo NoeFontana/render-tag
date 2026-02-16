@@ -1,13 +1,13 @@
+"""
+Advanced unit tests for board geometry, focusing on malformed specs and failures.
+"""
+
 from __future__ import annotations
 
 import math
 
 import numpy as np
 import pytest
-
-"""
-Advanced unit tests for board geometry, focusing on malformed specs and failures.
-"""
 
 from render_tag.generation.board import (
     BoardLayout,

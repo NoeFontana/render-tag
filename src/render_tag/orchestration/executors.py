@@ -49,7 +49,9 @@ class LocalExecutor:
         with open(recipe_path) as f:
             recipes = json.load(f)
 
-        force_mock = (os.environ.get("RENDER_TAG_FORCE_MOCK") == "1") or ("PYTEST_CURRENT_TEST" in os.environ)
+        force_mock = (os.environ.get("RENDER_TAG_FORCE_MOCK") == "1") or (
+            "PYTEST_CURRENT_TEST" in os.environ
+        )
         use_bproc = (shutil.which("blenderproc") is not None) and not force_mock
         workers_to_use = getattr(self, "num_workers", 1)
 
@@ -67,9 +69,12 @@ class LocalExecutor:
 
             for recipe in recipes:
                 resp = orchestrator.execute_recipe(recipe, output_dir, rm, shard_id)
-                if hasattr(resp, "status") and not isinstance(resp.status, MagicMock):
-                    if resp.status != ResponseStatus.SUCCESS:
-                        raise RuntimeError(f"Render failed: {resp.message}")
+                if (
+                    hasattr(resp, "status")
+                    and not isinstance(resp.status, MagicMock)
+                    and resp.status != ResponseStatus.SUCCESS
+                ):
+                    raise RuntimeError(f"Render failed: {resp.message}")
 
 
 class DockerExecutor:
@@ -135,7 +140,20 @@ class MockExecutor:
 
         rich_truth = []
         tags_csv_rows = [
-            ["image_id", "tag_id", "tag_family", "ppm", "x1", "y1", "x2", "y2", "x3", "y3", "x4", "y4"]
+            [
+                "image_id",
+                "tag_id",
+                "tag_family",
+                "ppm",
+                "x1",
+                "y1",
+                "x2",
+                "y2",
+                "x3",
+                "y3",
+                "x4",
+                "y4",
+            ]
         ]
 
         for recipe in recipes:
@@ -164,7 +182,22 @@ class MockExecutor:
                             "corners": [[0, 0], [100, 0], [100, 100], [0, 100]],
                         }
                         rich_truth.append(det)
-                        tags_csv_rows.append([image_id, props["tag_id"], props["tag_family"], float(f"{ppm:.4f}"), 0, 0, 100, 0, 100, 100, 0, 100])
+                        tags_csv_rows.append(
+                            [
+                                image_id,
+                                props["tag_id"],
+                                props["tag_family"],
+                                float(f"{ppm:.4f}"),
+                                0,
+                                0,
+                                100,
+                                0,
+                                100,
+                                100,
+                                0,
+                                100,
+                            ]
+                        )
 
         with open(output_dir / "rich_truth.json", "w") as f_rich:
             json.dump(rich_truth, f_rich)

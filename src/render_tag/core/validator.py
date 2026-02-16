@@ -187,7 +187,7 @@ class RecipeValidator:
                 if obj.texture_path:
                     path = Path(obj.texture_path)
                     if not path.exists():
-                        # Staff Engineer: Downgrade missing cache assets to warnings during generation
+                        # Downgrade missing cache assets to warnings during generation
                         # because they are often populated immediately AFTER recipe generation
                         if "cache" in str(path):
                             self.warnings.append(

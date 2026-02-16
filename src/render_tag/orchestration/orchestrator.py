@@ -169,9 +169,12 @@ class UnifiedWorkerOrchestrator:
                 if not intentional_exit:
                     logger.error(f"Telemetry check failed for {worker.worker_id}: {e}")
 
-        if not should_restart and not intentional_exit:
-            if not worker.client or not worker.process or not worker.is_healthy():
-                should_restart = True
+        if (
+            not should_restart
+            and not intentional_exit
+            and (not worker.client or not worker.process or not worker.is_healthy())
+        ):
+            should_restart = True
 
         if should_restart or intentional_exit:
             worker.stop()

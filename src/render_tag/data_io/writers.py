@@ -124,11 +124,11 @@ class COCOWriter:
                 "name": name,
                 "supercategory": supercategory,
                 "keypoints": [
-                    "bl",
-                    "br",
-                    "tr",
                     "tl",
-                ],  # Standard corner names (CCW from BL default)
+                    "tr",
+                    "br",
+                    "bl",
+                ],  # Industry standard (CW from TL)
                 "skeleton": [[1, 2], [2, 3], [3, 4], [4, 1]],  # Edges
             }
         )
@@ -204,12 +204,8 @@ class COCOWriter:
             segmentation.extend([corner[0], corner[1]])
 
         # Keypoints:
-        # Assuming input 'corners' is [BL, BR, TR, TL]
-        # We want to format them as keypoints.
-        # If we didn't reorder for segmentation, we'd use 'corners' directly for keypoints.
-        # Let's ensure 'corners' is normalized to what our category expects.
-        # Our category expects [bl, br, tr, tl].
-        ordered_corners_kp = normalize_corner_order(corners, target_order="ccw_bl")
+        # Our input 'corners' is already CW from TL.
+        ordered_corners_kp = normalize_corner_order(corners, target_order="cw_tl")
         keypoints = format_coco_keypoints(np.array(ordered_corners_kp))
 
         # Prepare attributes

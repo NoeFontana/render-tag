@@ -38,20 +38,7 @@ class ConfigResolver:
             Frozen JobSpec object.
         """
         # 1. Load Base Config
-        if self.config_path:
-            # We use safe_load directly to get a dict first, to apply overrides easily
-            # But load_config handles legacy flat config...
-            # Let's use load_config to get a clean object, then dump to dict if needed,
-            # OR just modify the object.
-            # Modifying the object is cleaner if we can set attributes.
-            # But Pydantic models might be immutable or validated.
-            # GenConfig is not frozen by default.
-            gen_config = load_config(self.config_path)
-        else:
-            # Default config if none provided?
-            # Or raise error?
-            # Typically existing flow allows default.
-            gen_config = GenConfig()
+        gen_config = load_config(self.config_path) if self.config_path else GenConfig()
 
         # 2. Apply Overrides
         if scene_limit is not None and scene_limit > 0:

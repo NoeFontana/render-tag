@@ -170,14 +170,14 @@ def create_board(
     # Create a simple plane for the board
     board = bridge.bproc.object.create_primitive("PLANE")
     board.blender_obj.name = f"Board_Background_{layout_mode}"
-    
+
     # Use provided location or fallback to default clearance
     if location:
         board.set_location(location)
     else:
         # More clearance below layout (-0.005) to avoid z-fighting with tags/squares at 0 or near 0
         board.set_location([0, 0, -0.005])
-    
+
     board.set_scale([board_width / 2, board_height / 2, 1])
     board.persist_transformation_into_mesh()
 

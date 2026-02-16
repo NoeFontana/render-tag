@@ -1,4 +1,3 @@
-
 import numpy as np
 
 from render_tag.core.config import GenConfig

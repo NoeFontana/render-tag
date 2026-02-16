@@ -9,7 +9,7 @@ version: "0.1"
 dataset:
   num_scenes: 10
 """)
-    
+
     config = load_config(config_path)
     assert config.version == "0.1"
     assert config.dataset.num_scenes == 10

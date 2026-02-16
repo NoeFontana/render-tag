@@ -107,7 +107,6 @@ class EvaluationScope(str, Enum):
     CALIBRATION = "calibration"  # Metrics: Intrinsics Convergence, Reprojection Error
 
 
-
 # Maximum ID (exclusive) for each tag family
 TAG_MAX_IDS: dict[str, int] = {
     "tag16h5": 16,

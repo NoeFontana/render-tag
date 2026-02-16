@@ -52,4 +52,3 @@ TAG_GRID_SIZES = {
 
 # Schema Versioning
 CURRENT_SCHEMA_VERSION = "0.1"
-
