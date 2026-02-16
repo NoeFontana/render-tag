@@ -26,3 +26,8 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 - [x] **Track: Codebase Modernization and Refactoring**
   *Link: [./archive/codebase_modernization_20260208/](./archive/codebase_modernization_20260208/)*
+
+---
+
+- [ ] **Track: Smart Resume Logic (Orchestration Layer)**
+*Link: [./tracks/smart_resume_20260216/](./tracks/smart_resume_20260216/)*
