@@ -133,8 +133,8 @@ class DetectionRecord(BaseModel):
             float(f"{self.ppm:.4f}"),
         ]
 
-        # CSV format uses standard CCW order from BL
-        ordered_corners = normalize_corner_order(self.corners, target_order="ccw_bl")
+        # CSV format uses standard CW order from TL (OpenCV convention)
+        ordered_corners = normalize_corner_order(self.corners, target_order="cw_tl")
 
         for x, y in ordered_corners:
             if width is not None:

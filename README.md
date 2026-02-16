@@ -272,7 +272,7 @@ image_id,tag_id,tag_family,x1,y1,x2,y2,x3,y3,x4,y4
 scene_0000_cam_0000,0,tag36h11,123.45,67.89,223.45,67.89,223.45,167.89,123.45,167.89
 ```
 
-Corner order: BL (1), BR (2), TR (3), TL (4) - Counter-clockwise from bottom-left.
+Corner order: TL (1), TR (2), BR (3), BL (4) - Clockwise from top-left (OpenCV convention).
 
 ## Development
 

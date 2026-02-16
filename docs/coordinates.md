@@ -15,14 +15,14 @@ While Blender uses a different camera convention (Z-forward, Y-up), `render-tag`
 - **Y-axis**: Down
 
 ## Tag Corners
-Corners are indexed from 0 to 3 in **counter-clockwise (CCW)** order, starting from the bottom-left of the tag image.
+Corners are indexed from 0 to 3 in **clockwise (CW)** order, starting from the **top-left** of the tag image (OpenCV convention).
 
 | Index | Name | Local Coordinate |
 |-------|------|------------------|
-| 0 | Bottom-Left (BL) | (-s/2, -s/2) |
-| 1 | Bottom-Right (BR) | (s/2, -s/2) |
-| 2 | Top-Right (TR) | (s/2, s/2) |
-| 3 | Top-Left (TL) | (-s/2, s/2) |
+| 0 | Top-Left (TL) | (-s/2, s/2) |
+| 1 | Top-Right (TR) | (s/2, s/2) |
+| 2 | Bottom-Right (BR) | (s/2, -s/2) |
+| 3 | Bottom-Left (BL) | (-s/2, -s/2) |
 
 *(where s is the marker size)*
 

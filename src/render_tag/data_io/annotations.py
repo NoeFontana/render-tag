@@ -29,13 +29,13 @@ def compute_bbox(points: np.ndarray) -> list[float]:
 
 def normalize_corner_order(
     corners: np.ndarray | list[tuple[float, float]],
-    target_order: str = "ccw_bl",
+    target_order: str = "cw_tl",
 ) -> list[tuple[float, float]]:
     """Normalize 4 tag corners to a standard order.
 
     Target Orders:
-    - ccw_bl: Bottom-Left (0), Bottom-Right (1), Top-Right (2), Top-Left (3) [Standard]
-    - cw_tl: Top-Left (0), Top-Right (1), Bottom-Right (2), Bottom-Left (3) [COCO/OpenCV]
+    - cw_tl: Top-Left (0), Top-Right (1), Bottom-Right (2), Bottom-Left (3) [Standard/OpenCV]
+    - ccw_bl: Bottom-Left (0), Bottom-Right (1), Top-Right (2), Top-Left (3)
 
     Args:
         corners: (4, 2) corner coordinates.

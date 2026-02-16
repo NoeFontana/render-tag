@@ -25,6 +25,18 @@ def test_compute_bbox():
     assert compute_bbox(pts) == [10.0, 10.0, 0.0, 0.0]
 
 
+def test_normalize_corner_order_default():
+    # Input: BL, BR, TR, TL
+    corners = np.array([[0, 0], [1, 0], [1, 1], [0, 1]])
+    # Default is now CW from TL -> TL, TR, BR, BL
+    ordered = normalize_corner_order(corners)
+
+    assert ordered[0] == (0.0, 1.0)  # TL
+    assert ordered[1] == (1.0, 1.0)  # TR
+    assert ordered[2] == (1.0, 0.0)  # BR
+    assert ordered[3] == (0.0, 0.0)  # BL
+
+
 def test_normalize_corner_order_ccw_bl():
     # Input is already ccw_bl: BL, BR, TR, TL
     corners = np.array([[0, 0], [1, 0], [1, 1], [0, 1]])

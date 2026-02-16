@@ -231,7 +231,7 @@ def validate_charuco_white_border(layout: BoardLayout) -> tuple[bool, str]:
 
     The standard OpenCV convention is:
     - Square (0,0) is WHITE (contains a tag)
-    - This ensures the board has white at the bottom-left corner
+    - This ensures the board has white at the top-left corner (OpenCV convention)
     - The checkerboard pattern means edges alternate, but white is "first"
 
     Returns:

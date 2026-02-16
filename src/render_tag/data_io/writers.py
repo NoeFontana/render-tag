@@ -187,15 +187,7 @@ class COCOWriter:
         area = compute_polygon_area(np.array(corners))
 
         # 3. Use pure-Python utility for corner reordering (COCO prefers CW from TL)
-        # Note: normalize_corner_order returns [(x, y), ...]
-        # We need to keep consistency. If we define keypoints as [bl, br, tr, tl] (CCW),
-        # we should provide them in that order.
-        # But 'segmentation' usually follows the polygon boundary.
-
-        # Let's keep segmentation as CW from TL (standard COCO poly),
-        # BUT keypoints should match the category definition.
-        # If category says ["bl", "br", "tr", "tl"], we must provide them in that order.
-        # Input 'corners' is assumed to be CCW from BL (standard render-tag/OpenCV output).
+        # Input 'corners' is now assumed to be CW from TL (OpenCV convention).
 
         # Segmentation:
         ordered_corners_seg = normalize_corner_order(corners, target_order="cw_tl")

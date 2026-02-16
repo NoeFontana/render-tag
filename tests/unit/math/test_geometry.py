@@ -807,7 +807,7 @@ def compute_tag_corners_3d(
 ) -> list[np.ndarray]:
     """Compute 3D corner positions for a square tag.
 
-    Corner order: BL (bottom-left), BR, TR, TL (counter-clockwise from BL).
+    Corner order: TL (top-left), TR, BR, BL (clockwise from TL).
 
     Args:
         center: 3D center position of the tag
@@ -822,12 +822,12 @@ def compute_tag_corners_3d(
     half = size / 2.0
 
     # Default: tag lies in XY plane with Z as normal
-    # Corners in CCW order: BL, BR, TR, TL
+    # Corners in CW order: TL, TR, BR, BL
     corners = [
-        center + np.array([-half, -half, 0]),  # BL
-        center + np.array([+half, -half, 0]),  # BR
-        center + np.array([+half, +half, 0]),  # TR
         center + np.array([-half, +half, 0]),  # TL
+        center + np.array([+half, +half, 0]),  # TR
+        center + np.array([+half, -half, 0]),  # BR
+        center + np.array([-half, -half, 0]),  # BL
     ]
 
     return corners
@@ -902,7 +902,7 @@ class TestCornerProjection:
     """Test tag corner projection and ordering."""
 
     def test_corner_order_consistency(self) -> None:
-        """Verify BL→BR→TR→TL ordering is maintained in projection."""
+        """Verify TL→TR→BR→BL ordering is maintained in projection."""
         K = k_from_fov((640, 480), 60.0)
 
         # Camera above and in front of tag
@@ -917,15 +917,15 @@ class TestCornerProjection:
         # Verify we got 4 corners
         assert len(corners_2d) == 4
 
-        # BL should be left of BR
-        bl, br, tr, tl = corners_2d
-        assert bl[0] < br[0], "BL should be left of BR"
-
-        # BR should be below TR (in image coords, Y increases downward)
-        assert br[1] > tr[1], "BR should be below TR (higher Y in image)"
-
         # TL should be left of TR
+        tl, tr, br, bl = corners_2d
         assert tl[0] < tr[0], "TL should be left of TR"
+
+        # TR should be above BR (in image coords, Y increases downward)
+        assert tr[1] < br[1], "TR should be above BR (lower Y in image)"
+
+        # BL should be left of BR
+        assert bl[0] < br[0], "BL should be left of BR"
 
     def test_projected_tag_is_quadrilateral(self) -> None:
         """Projected corners should form a valid quadrilateral."""
