@@ -57,6 +57,21 @@ class JobSpec(BaseModel):
     def shard_size(self) -> int:
         return self.scene_config.dataset.num_scenes
 
+    def get_total_shards(self, scenes_per_shard: int) -> int:
+        """Calculate the total number of shards needed for this job."""
+        num_scenes = self.scene_config.dataset.num_scenes
+        return (num_scenes + scenes_per_shard - 1) // scenes_per_shard
+
+    def get_scene_indices(self, scenes_per_shard: int) -> list[int]:
+        """Get the deterministic list of scene indices for the current shard."""
+        start_idx = self.shard_index * scenes_per_shard
+        end_idx = min(start_idx + scenes_per_shard, self.scene_config.dataset.num_scenes)
+
+        if start_idx >= self.scene_config.dataset.num_scenes:
+            return []
+
+        return list(range(start_idx, end_idx))
+
     @classmethod
     def from_json(cls, json_str: str) -> "JobSpec":
         """Deserialize and migrate JobSpec from JSON."""
