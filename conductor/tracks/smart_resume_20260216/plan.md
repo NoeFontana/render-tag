@@ -5,7 +5,7 @@
     - [x] Write failing test in `tests/unit/core/test_job_spec_determinism.py` to verify `shard_id` to `scene_indices` mapping is consistent.
     - [x] Implement mapping logic in `src/render_tag/core/schema/job.py`.
     - [x] Verify tests pass.
-- [x] Task: Implement `ShardValidator`
+- [x] Task: Implement `ShardValidator` (b889aba)
     - [x] Write failing tests in `tests/unit/orchestration/test_validator.py` for missing, incomplete, and valid shards.
     - [x] Create `src/render_tag/orchestration/validator.py` with `ShardValidator` class.
     - [x] Implement `validate_shard` logic (CSV row count, JSON existence).
