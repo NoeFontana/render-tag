@@ -5,12 +5,12 @@
     - [x] Write failing test in `tests/unit/core/test_job_spec_determinism.py` to verify `shard_id` to `scene_indices` mapping is consistent.
     - [x] Implement mapping logic in `src/render_tag/core/schema/job.py`.
     - [x] Verify tests pass.
-- [ ] Task: Implement `ShardValidator`
-    - [ ] Write failing tests in `tests/unit/orchestration/test_validator.py` for missing, incomplete, and valid shards.
-    - [ ] Create `src/render_tag/orchestration/validator.py` with `ShardValidator` class.
-    - [ ] Implement `validate_shard` logic (CSV row count, JSON existence).
-    - [ ] Implement `aggressive_cleanup` logic to delete invalid shard files.
-    - [ ] Verify tests pass.
+- [x] Task: Implement `ShardValidator`
+    - [x] Write failing tests in `tests/unit/orchestration/test_validator.py` for missing, incomplete, and valid shards.
+    - [x] Create `src/render_tag/orchestration/validator.py` with `ShardValidator` class.
+    - [x] Implement `validate_shard` logic (CSV row count, JSON existence).
+    - [x] Implement `aggressive_cleanup` logic to delete invalid shard files.
+    - [x] Verify tests pass.
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Deterministic Sharding & Validation Logic' (Protocol in workflow.md)
 
 ## Phase 2: CLI Integration & Resumption Flow
