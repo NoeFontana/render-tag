@@ -1,7 +1,7 @@
 # Plan: Smart Resume Logic (Orchestration Layer)
 
 ## Phase 1: Deterministic Sharding & Validation Logic
-- [x] Task: Update `JobSpec` for Deterministic Mapping
+- [x] Task: Update `JobSpec` for Deterministic Mapping (6d38206)
     - [x] Write failing test in `tests/unit/core/test_job_spec_determinism.py` to verify `shard_id` to `scene_indices` mapping is consistent.
     - [x] Implement mapping logic in `src/render_tag/core/schema/job.py`.
     - [x] Verify tests pass.
