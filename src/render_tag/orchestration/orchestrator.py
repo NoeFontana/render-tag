@@ -284,7 +284,7 @@ def orchestrate(
     from render_tag.generation.scene import Generator
 
     output_dir = job_spec.paths.output_dir
-    gen = Generator(job_spec.scene_config, output_dir)
+    gen = Generator(job_spec.scene_config, output_dir, global_seed=job_spec.global_seed)
     recipes = gen.generate_all(exclude_ids=get_completed_scene_ids(output_dir) if resume else set())
     if not recipes:
         return

@@ -55,11 +55,21 @@ class Generator:
         total_shards: int,
         exclude_ids: set[int] | None = None,
     ) -> list[SceneRecipe]:
-        recipes = self.compiler.compile_shards(
-            shard_index=shard_index,
-            total_shards=total_shards,
-            exclude_ids=exclude_ids,
-        )
+        exclude_ids = exclude_ids or set()
+        if total_shards > total_scenes:
+            total_shards = total_scenes
+            if shard_index >= total_shards:
+                return []
+
+        scenes_per_shard = total_scenes // total_shards
+        start_idx = shard_index * scenes_per_shard
+        end_idx = total_scenes if shard_index == total_shards - 1 else start_idx + scenes_per_shard
+
+        recipes = []
+        for i in range(start_idx, end_idx):
+            if i in exclude_ids:
+                continue
+            recipes.append(self.generate_scene(i))
         return recipes
 
     def generate_scene(self, scene_id: int) -> SceneRecipe:
