@@ -97,6 +97,12 @@ class DetectionRecord(BaseModel):
     tag_family: str
     corners: list[tuple[float, float]]  # Standardized as list of tuples
 
+    # Calibration & Keypoint Support
+    record_type: str = Field(default="TAG", description="TAG, CHARUCO_SADDLE, or APRILGRID_CORNER")
+    keypoints: list[tuple[float, float]] | None = Field(
+        default=None, description="Optional extra keypoints (e.g. saddle points)"
+    )
+
     # Phase 6: Rich Metadata
     distance: float = 0.0
     angle_of_incidence: float = 0.0
@@ -130,11 +136,15 @@ class DetectionRecord(BaseModel):
             self.image_id,
             self.tag_id,
             self.tag_family,
+            self.record_type,
             float(f"{self.ppm:.4f}"),
         ]
 
         # CSV format uses standard CW order from TL (OpenCV convention)
-        ordered_corners = normalize_corner_order(self.corners, target_order="cw_tl")
+        if len(self.corners) == 4:
+            ordered_corners = normalize_corner_order(self.corners, target_order="cw_tl")
+        else:
+            ordered_corners = self.corners
 
         for x, y in ordered_corners:
             if width is not None:
@@ -143,25 +153,32 @@ class DetectionRecord(BaseModel):
                 y = max(0.0, min(float(height), y))
             # Format to 4 decimal places for consistency
             row.extend([float(f"{x:.4f}"), float(f"{y:.4f}")])
+
+        # Append extra keypoints if present
+        if self.keypoints:
+            for x, y in self.keypoints:
+                if width is not None:
+                    x = max(0.0, min(float(width), x))
+                if height is not None:
+                    y = max(0.0, min(float(height), y))
+                row.extend([float(f"{x:.4f}"), float(f"{y:.4f}")])
         return row
 
     @staticmethod
-    def csv_header() -> list[str]:
-        """Return CSV header row for corner annotations."""
-        return [
+    def csv_header(num_corners: int = 4, num_keypoints: int = 0) -> list[str]:
+        """Return CSV header row for corner and keypoint annotations."""
+        header = [
             "image_id",
             "tag_id",
             "tag_family",
+            "record_type",
             "ppm",
-            "x1",
-            "y1",
-            "x2",
-            "y2",
-            "x3",
-            "y3",
-            "x4",
-            "y4",
         ]
+        for i in range(1, num_corners + 1):
+            header.extend([f"x{i}", f"y{i}"])
+        for i in range(1, num_keypoints + 1):
+            header.extend([f"kp{i}_x", f"kp{i}_y"])
+        return header
 
 
 class COCOImage(BaseModel):

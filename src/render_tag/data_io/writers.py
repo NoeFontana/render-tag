@@ -37,39 +37,27 @@ except ImportError:
 
 
 if TYPE_CHECKING:
-    from render_tag.core.schema import DetectionRecord, SceneProvenance
+    from render_tag.core.schema import BoardConfig, DetectionRecord, SceneProvenance
 
 
 class CSVWriter:
     """Writes detection data to a CSV file."""
-
-    HEADER: ClassVar[list[str]] = [
-        "image_id",
-        "tag_id",
-        "tag_family",
-        "ppm",
-        "x1",
-        "y1",
-        "x2",
-        "y2",
-        "x3",
-        "y3",
-        "x4",
-        "y4",
-    ]
 
     def __init__(self, output_path: Path) -> None:
         """Initialize the CSV writer."""
         self.output_path = output_path
         self._initialized = False
 
-    def _ensure_initialized(self) -> None:
+    def _ensure_initialized(self, num_corners: int = 4, num_keypoints: int = 0) -> None:
         """Create the file and write header if not already done."""
         if not self._initialized:
             self.output_path.parent.mkdir(parents=True, exist_ok=True)
+            from render_tag.core.schema.base import DetectionRecord
+
+            header = DetectionRecord.csv_header(num_corners, num_keypoints)
             with open(self.output_path, "w", newline="") as f:
                 writer = csv.writer(f)
-                writer.writerow(self.HEADER)
+                writer.writerow(header)
             self._initialized = True
 
     def write_detection(
@@ -79,10 +67,14 @@ class CSVWriter:
         height: int | None = None,
     ) -> None:
         """Write a single detection to the CSV file (optionally clipped)."""
-        if not detection.is_valid():
+        # Calibration records might not have 4 corners
+        if detection.record_type == "TAG" and not detection.is_valid():
             return
 
-        self._ensure_initialized()
+        self._ensure_initialized(
+            num_corners=len(detection.corners),
+            num_keypoints=len(detection.keypoints) if detection.keypoints else 0,
+        )
 
         # Delegate CSV formatting to the data record
         row = detection.to_csv_row(width=width, height=height)
@@ -200,9 +192,16 @@ class COCOWriter:
         ordered_corners_kp = normalize_corner_order(corners, target_order="cw_tl")
         keypoints = format_coco_keypoints(np.array(ordered_corners_kp))
 
+        num_keypoints = 4
+        if detection and detection.keypoints:
+            extra_kp = format_coco_keypoints(np.array(detection.keypoints))
+            keypoints.extend(extra_kp)
+            num_keypoints += len(detection.keypoints)
+
         # Prepare attributes
         attributes = {
             "tag_id": detection.tag_id if detection else 0,
+            "record_type": detection.record_type if detection else "TAG",
             "distance": detection.distance if detection else 0.0,
             "angle_of_incidence": detection.angle_of_incidence if detection else 0.0,
             "pixel_area": detection.pixel_area if detection else area,
@@ -227,7 +226,7 @@ class COCOWriter:
                 "bbox": bbox,
                 "area": area,
                 "keypoints": keypoints,
-                "num_keypoints": 4,
+                "num_keypoints": num_keypoints,
                 "iscrowd": 0,
                 "attributes": attributes,
             }
@@ -359,6 +358,23 @@ class SidecarWriter:
                 f.write(provenance.model_dump_json(indent=2))
 
         return path
+
+
+class BoardConfigWriter:
+    """Writer for calibration board configuration."""
+
+    def __init__(self, output_dir: Path) -> None:
+        self.output_dir = output_dir
+
+    def write_config(self, board_config: BoardConfig, filename: str = "board_config.json") -> Path:
+        """Save the board configuration to a JSON file."""
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        output_path = self.output_dir / filename
+
+        with open(output_path, "w") as f:
+            f.write(board_config.model_dump_json(indent=2))
+
+        return output_path
 
 
 def merge_coco_shards(

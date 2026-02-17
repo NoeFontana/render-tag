@@ -13,6 +13,7 @@ import numpy as np
 from ..core.config import TAG_MAX_IDS, GenConfig
 from ..core.constants import TAG_GRID_SIZES
 from ..core.schema import (
+    BoardConfig,
     CameraIntrinsics,
     CameraRecipe,
     LightRecipe,
@@ -25,6 +26,7 @@ from ..core.seeding import derive_seed
 from ..data_io.assets import AssetProvider
 from .camera import sample_camera_pose
 from .layouts import apply_flying_layout, apply_grid_layout
+from .texture_factory import TextureFactory
 from .visibility import is_facing_camera
 
 
@@ -190,7 +192,37 @@ class SceneCompiler:
         tag_size = tag_config.size_meters
         tag_families = [f.value for f in scenario.tag_families]
 
-        if layout_mode == "cb":
+        if layout_mode == "board":
+            # High-Fidelity Calibration Board (Single Texture)
+            if not scenario.board:
+                raise ValueError("scenario.board config is required for 'board' layout mode")
+            
+            board_config = scenario.board
+            
+            # Use TextureFactory to generate/ensure board texture
+            cache_dir = self.output_dir / "cache" / "boards" if self.output_dir else None
+            factory = TextureFactory(cache_dir=cache_dir)
+            # This will generate the texture and save it to cache
+            img = factory.generate_board_texture(board_config)
+            
+            # Resolve texture path
+            texture_path = None
+            if cache_dir:
+                config_hash = factory._calculate_hash(board_config)
+                texture_path = str((cache_dir / f"board_{config_hash}.png").absolute())
+
+            objects.append(
+                ObjectRecipe(
+                    type="BOARD",
+                    name="CalibrationBoard",
+                    location=[0, 0, 0],
+                    rotation_euler=[0, 0, 0],
+                    scale=[1, 1, 1],
+                    texture_path=texture_path,
+                    board=board_config,
+                )
+            )
+        elif layout_mode == "cb":
             num_tags = (cols * rows + 1) // 2
         elif layout_mode == "aprilgrid":
             num_tags = cols * rows
