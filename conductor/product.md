@@ -13,6 +13,7 @@ Procedural 3D data generation for AprilTag training (Offline).
 
 ## Core Goals & Features
 - **High-Fidelity Rendering:** Generate photorealistic scenes with complex lighting, varied textures, and realistic shadows to minimize the sim-to-real gap.
+- **CV-Safe Rendering Strategy:** Intelligent adaptive sampling and guided denoising (Albedo/Normal) that maximizes throughput while preserving sub-pixel corner accuracy for detector training.
 - **Sensor Simulation:** Accurately model camera sensor characteristics, including noise profiles, lens distortion, motion blur, and rolling shutter artifacts.
 - **Automated Annotations:** Produce pixel-perfect ground-truth data, including 2D/3D bounding boxes, segmentation masks, and standard formats like COCO.
 - **Immutable Job Specs & Strict Versioning:** Cryptographically verifiable "Unit of Work" definitions with mandatory schema versioning. Automatic migration of legacy configs ensures long-term reproducibility and end-to-end data auditability.
