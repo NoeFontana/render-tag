@@ -1,4 +1,4 @@
-# Track calibration_targets_20260217 Context
+# Track polymorphic_subject_p1_20260217 Context
 
 - [Specification](./spec.md)
 - [Implementation Plan](./plan.md)
