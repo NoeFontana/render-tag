@@ -129,6 +129,21 @@ class RenderFacade:
                     bridge.bproc.renderer.enable_diffuse_color_output()
                     bridge.bproc.renderer.enable_normals_output()
 
+            # Apply CV-Safe Light Paths
+            bridge.bproc.renderer.set_light_bounces(
+                diffuse=self.config.diffuse_bounces,
+                glossy=self.config.glossy_bounces,
+                transmission=self.config.transmission_bounces,
+                transparency=self.config.transparent_bounces,
+                volume=0,  # Volumes are expensive and usually not needed for tags
+            )
+            bridge.bproc.renderer.set_caustics(
+                reflective=self.config.enable_caustics,
+                refractive=self.config.enable_caustics,
+            )
+            # Set total max bounces
+            bridge.bpy.context.scene.cycles.max_bounces = self.config.total_bounces
+
         # Plumb CPU thread budget from environment if available
         # Set in render_tag.core.utils.get_subprocess_env
         thread_budget = os.environ.get("BLENDER_CPU_THREADS")
