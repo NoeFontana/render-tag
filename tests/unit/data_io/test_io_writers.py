@@ -28,7 +28,7 @@ class TestCSVWriter:
         content = csv_path.read_text()
         lines = content.strip().split("\n")
         assert len(lines) == 2  # Header + 1 detection
-        assert lines[0] == "image_id,tag_id,tag_family,ppm,x1,y1,x2,y2,x3,y3,x4,y4"
+        assert lines[0] == "image_id,tag_id,tag_family,record_type,ppm,x1,y1,x2,y2,x3,y3,x4,y4"
         assert "scene_0001" in lines[1]
         assert "tag36h11" in lines[1]
 

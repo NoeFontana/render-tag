@@ -22,7 +22,7 @@ from ..core.schema import (
     SensorDynamicsRecipe,
     WorldRecipe,
 )
-from ..core.schema.subject import BoardSubjectConfig, TagSubjectConfig
+from ..core.schema.subject import BoardSubjectConfig
 from ..core.seeding import derive_seed
 from ..data_io.assets import AssetProvider
 from .camera import sample_camera_pose
@@ -199,7 +199,12 @@ class SceneCompiler:
             # Re-map type based on our logic if it's simplified in SubjectConfig
             # Actually BoardSubjectConfig already has AprilGrid specific fields.
             # We'll use the BoardSpec/compute_layout logic.
-            from .board import BoardSpec, BoardType, compute_aprilgrid_layout, compute_charuco_layout
+            from .board import (
+                BoardSpec,
+                BoardType,
+                compute_aprilgrid_layout,
+                compute_charuco_layout,
+            )
 
             if subject.spacing_ratio is not None:
                 b_type = BoardType.APRILGRID
@@ -245,7 +250,7 @@ class SceneCompiler:
             # Use TextureFactory to generate/ensure board texture
             cache_dir = self.output_dir / "cache" / "boards" if self.output_dir else None
             factory = TextureFactory(cache_dir=cache_dir)
-            img = factory.generate_board_texture(board_config)
+            factory.generate_board_texture(board_config)
 
             texture_path = None
             if cache_dir:
@@ -343,8 +348,8 @@ class SceneCompiler:
             else:
                 # Default to a grid layout if not flying
                 # Note: we need grid dimensions. We'll use defaults or derive from count.
-                cols = int(math.ceil(math.sqrt(num_tags)))
-                rows = int(math.ceil(num_tags / cols))
+                cols = math.ceil(math.sqrt(num_tags))
+                rows = math.ceil(num_tags / cols)
                 apply_grid_layout(
                     objects,
                     "plain",

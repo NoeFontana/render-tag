@@ -98,12 +98,12 @@ physics:
         assert output_dir.exists()
 
         assert (output_dir / "images").exists()
-        assert (output_dir / "tags.csv").exists()
-        assert (output_dir / "annotations.json").exists()
+        assert (output_dir / "ground_truth.csv").exists()
+        assert (output_dir / "coco_labels.json").exists()
         assert (output_dir / "images/scene_0000_cam_0000.png").exists()
 
         # 3. Check CSV format
-        csv_path = output_dir / "tags.csv"
+        csv_path = output_dir / "ground_truth.csv"
         with open(csv_path, newline="") as f:
             reader = csv.DictReader(f)
             rows = list(reader)
@@ -126,7 +126,7 @@ physics:
         assert all(f in reader.fieldnames for f in expected_fields)
 
         # 4. Check COCO format
-        coco_path = output_dir / "annotations.json"
+        coco_path = output_dir / "coco_labels.json"
         with open(coco_path) as f:
             coco_data = json.load(f)
 
@@ -203,7 +203,7 @@ scene:
         )
         assert result.returncode == 0
         assert (output_dir / "images/scene_0000_cam_0000.png").exists()
-        assert (output_dir / "tags.csv").exists()
+        assert (output_dir / "ground_truth.csv").exists()
 
     def test_shard_invariance_fast(self, temp_output_dir):
         """Verify that splitting a job into shards does not change recipes."""

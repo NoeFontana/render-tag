@@ -17,7 +17,7 @@ def test_load_config_upgrades_yaml_on_disk(tmp_path):
     # Check disk content
     with open(config_path) as f:
         data = yaml.safe_load(f)
-    assert data["version"] == "0.1"
+    assert data["version"] == "0.2"
 
 
 def test_job_spec_from_file_upgrades_json_on_disk(tmp_path):
@@ -49,4 +49,4 @@ def test_job_spec_from_file_upgrades_json_on_disk(tmp_path):
     # Check disk content
     with open(job_path) as f:
         data = json.load(f)
-    assert data["version"] == "0.1"
+    assert data["version"] == "0.2"

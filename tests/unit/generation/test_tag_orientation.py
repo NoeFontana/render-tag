@@ -41,8 +41,15 @@ def test_grid_tag_orientation():
     """Verify that in grid mode, tags are always oriented towards the camera."""
     config = GenConfig()
     config.scenario.flying = False
-    config.scenario.layout = "plain"
-    config.scenario.grid_size = (3, 3)
+    # Use TAGS subject
+    from render_tag.core.schema.subject import TagSubjectConfig
+    config.scenario.subject.root = TagSubjectConfig(
+        tag_families=["tag36h11"],
+        size_meters=0.1
+    )
+    
+    # Grid size etc is now handled by the compiler's internal logic for TAGS
+    # or will be added to TagSubjectConfig in Phase 2 if needed.
     config.camera.samples_per_scene = 3
 
     compiler = SceneCompiler(config)

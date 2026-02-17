@@ -14,12 +14,10 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from render_tag.core.constants import CURRENT_SCHEMA_VERSION, TAG_BIT_COUNTS
 from render_tag.core.schema import (
-    BoardConfig,
     RendererConfig,
     SensorNoiseConfig,
 )
 from render_tag.core.schema.subject import (
-    BoardSubjectConfig,
     SubjectConfig,
     TagSubjectConfig,
 )
@@ -679,14 +677,15 @@ class ScenarioConfig(BaseModel):
                 "size_meters": data.pop("tag_size", 0.1),
                 "tags_per_scene": data.pop("tags_per_scene", 10),
             }
-            # tags_per_scene in legacy was often a tuple (min, max), but TagSubjectConfig uses PositiveInt
+            # tags_per_scene in legacy was often a tuple (min, max),
+            # but TagSubjectConfig uses PositiveInt
             if isinstance(tag_data["tags_per_scene"], (list, tuple)):
                 tag_data["tags_per_scene"] = tag_data["tags_per_scene"][1]
 
             data["subject"] = {"type": "TAGS", **tag_data}
 
         # Detect legacy Board config
-        elif "layout" in data and data["layout"] == "board" or "board" in data:
+        elif ("layout" in data and data["layout"] == "board") or "board" in data:
             board_data = {
                 "type": "BOARD",
                 "rows": data.pop("grid_size", [3, 3])[1],

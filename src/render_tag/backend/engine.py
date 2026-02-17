@@ -18,7 +18,6 @@ from PIL import Image
 from render_tag.backend.assets import create_tag_plane, global_pool
 from render_tag.backend.bridge import bridge
 from render_tag.backend.camera import setup_sensor_dynamics
-from render_tag.backend.projection import compute_geometric_metadata, generate_board_records
 from render_tag.backend.scene import (
     create_board,
     create_board_plane,
@@ -282,7 +281,11 @@ class RenderFacade:
         else:
             cam_data.dof.use_dof = False
 
-        if bridge.bpy.context.scene.render.engine not in ("BLENDER_EEVEE", "BLENDER_EEVEE_NEXT", "BLENDER_WORKBENCH"):
+        if bridge.bpy.context.scene.render.engine not in (
+            "BLENDER_EEVEE",
+            "BLENDER_EEVEE_NEXT",
+            "BLENDER_WORKBENCH",
+        ):
             bridge.bproc.renderer.enable_segmentation_output(default_values={"category_id": 0})
 
         self.logger.info("Starting BlenderProc render call...")

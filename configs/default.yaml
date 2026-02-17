@@ -64,4 +64,4 @@ renderer:
   transmission_bounces: 0
   transparent_bounces: 4
   enable_caustics: false
-version: '0.1'
+version: '0.2'

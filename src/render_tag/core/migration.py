@@ -28,6 +28,7 @@ class SchemaMigrator:
         # Map of (from_version) -> transformation_function
         self._registry: dict[str, Callable[[dict[str, Any]], dict[str, Any]]] = {
             "0.0": self._migrate_0_0_to_0_1,
+            "0.1": self._migrate_0_1_to_0_2,
         }
 
     def get_version(self, data: dict[str, Any]) -> str:
@@ -77,4 +78,21 @@ class SchemaMigrator:
         """Base migration: Adds the mandatory version field."""
         upgraded = data.copy()
         upgraded["version"] = "0.1"
+        return upgraded
+
+    def _migrate_0_1_to_0_2(self, data: dict[str, Any]) -> dict[str, Any]:
+        """Migration to 0.2: Polymorphic Subject Architecture."""
+        upgraded = data.copy()
+        upgraded["version"] = "0.2"
+
+        # Note: ScenarioConfig.migrate_legacy_layout already handles dict-level
+        # transformation, but we must ensure it happens at the root level too
+        # if the input is a full GenConfig dictionary.
+        if "scenario" in upgraded and isinstance(upgraded["scenario"], dict):
+            scenario = upgraded["scenario"]
+            if "subject" not in scenario:
+                # If we have legacy fields, let the ScenarioConfig validation handle it
+                # or do a shallow migration here if needed for robustness.
+                pass
+
         return upgraded

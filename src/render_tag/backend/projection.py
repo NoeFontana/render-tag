@@ -176,7 +176,8 @@ def generate_subject_records(obj: Any, image_id: str) -> list[DetectionRecord]:
         image_id: ID of the current image for tracking.
 
     Returns:
-        A list of DetectionRecord objects.
+        A list of DetectionRecord objects containing projected corners and 
+        metadata.
     """
     blender_obj = obj.blender_obj
     keypoints_3d = blender_obj.get("keypoints_3d")

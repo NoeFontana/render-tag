@@ -11,5 +11,5 @@ dataset:
 """)
 
     config = load_config(config_path)
-    assert config.version == "0.1"
+    assert config.version == "0.2"
     assert config.dataset.num_scenes == 10
