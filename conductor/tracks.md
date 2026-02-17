@@ -9,6 +9,9 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ## Archived Tracks
 
+- [x] **Track: Smart Resume Logic (Orchestration Layer)**
+  *Link: [./archive/smart_resume_20260216/](./smart_resume_20260216/)*
+
 - [x] **Track: Purge "Zombie Logic" (Dead Code Audit)**
   *Link: [./archive/purge_zombie_logic_20260215/](./purge_zombie_logic_20260215/)*
 
@@ -26,8 +29,3 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 - [x] **Track: Codebase Modernization and Refactoring**
   *Link: [./archive/codebase_modernization_20260208/](./archive/codebase_modernization_20260208/)*
-
----
-
-- [x] **Track: Smart Resume Logic (Orchestration Layer)**
-*Link: [./tracks/smart_resume_20260216/](./tracks/smart_resume_20260216/)*
