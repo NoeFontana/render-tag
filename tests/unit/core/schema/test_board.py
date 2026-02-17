@@ -50,3 +50,38 @@ def test_board_config_validation():
     with pytest.raises(ValidationError):
         # marker_size must be positive
         BoardConfig(type=BoardType.APRILGRID, rows=6, cols=6, marker_size=0.0)
+
+def test_board_config_charuco_constraints():
+    """Verify ChArUco specific constraints."""
+    with pytest.raises(ValidationError, match="marker_size must be smaller than square_size"):
+        # marker_size must be smaller than square_size
+        BoardConfig(
+            type=BoardType.CHARUCO,
+            rows=5,
+            cols=7,
+            square_size=0.04,
+            marker_size=0.05,
+            dictionary="DICT_4X4_50"
+        )
+    
+    with pytest.raises(ValidationError, match="square_size is required"):
+        # square_size is required for ChArUco
+        BoardConfig(
+            type=BoardType.CHARUCO,
+            rows=5,
+            cols=7,
+            marker_size=0.03,
+            dictionary="DICT_4X4_50"
+        )
+
+def test_board_config_aprilgrid_constraints():
+    """Verify AprilGrid specific constraints."""
+    with pytest.raises(ValidationError, match="spacing_ratio is required"):
+        # spacing_ratio is required for AprilGrid
+        BoardConfig(
+            type=BoardType.APRILGRID,
+            rows=6,
+            cols=6,
+            marker_size=0.08,
+            dictionary="tag36h11"
+        )
