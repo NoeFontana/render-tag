@@ -85,3 +85,25 @@ def test_board_config_aprilgrid_constraints():
             marker_size=0.08,
             dictionary="tag36h11"
         )
+
+def test_board_config_yaml_parsing():
+    """Verify that BoardConfig can be parsed from YAML-like dictionary."""
+    import yaml
+    
+    yaml_data = """
+    type: charuco
+    rows: 10
+    cols: 14
+    square_size: 0.05
+    marker_size: 0.04
+    dictionary: DICT_5X5_100
+    """
+    data = yaml.safe_load(yaml_data)
+    config = BoardConfig.model_validate(data)
+    
+    assert config.type == BoardType.CHARUCO
+    assert config.rows == 10
+    assert config.cols == 14
+    assert config.square_size == 0.05
+    assert config.marker_size == 0.04
+    assert config.dictionary == "DICT_5X5_100"
