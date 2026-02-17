@@ -90,6 +90,21 @@ class MockRenderer:
     def enable_segmentation_output(self, **kwargs):
         pass
 
+    def set_noise_threshold(self, threshold: float):
+        pass
+
+    def set_max_amount_of_samples(self, samples: int):
+        pass
+
+    def set_denoiser(self, denoiser: str, **kwargs):
+        pass
+
+    def enable_diffuse_color_output(self, **kwargs):
+        pass
+
+    def enable_normals_output(self, **kwargs):
+        pass
+
 
 def init():
     pass

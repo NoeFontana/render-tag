@@ -27,7 +27,7 @@ from render_tag.backend.scene import (
 )
 from render_tag.backend.sensors import apply_parametric_noise
 from render_tag.core.logging import get_logger
-from render_tag.core.schema import DetectionRecord
+from render_tag.core.schema import DetectionRecord, RendererConfig
 from render_tag.core.utils import get_git_hash
 from render_tag.data_io.writers import (
     COCOWriter,
@@ -92,9 +92,15 @@ class RenderFacade:
     High-level interface for rendering fiducial tag scenes.
     """
 
-    def __init__(self, renderer_mode: str = "cycles", logger: logging.Logger | None = None):
+    def __init__(
+        self,
+        renderer_mode: str = "cycles",
+        logger: logging.Logger | None = None,
+        config: RendererConfig | None = None,
+    ):
         self.renderer_mode = renderer_mode
         self.logger = logger or get_logger(__name__)
+        self.config = config
         self._engine_strategies = {
             "cycles": CyclesRenderStrategy(),
             "eevee": EeveeRenderStrategy(),
@@ -106,6 +112,22 @@ class RenderFacade:
         """Standardizes engine-specific settings."""
         strategy = self._engine_strategies.get(self.renderer_mode, CyclesRenderStrategy())
         strategy.configure()
+
+        if self.renderer_mode == "cycles" and self.config:
+            # Apply CV-Safe Adaptive Sampling
+            bridge.bproc.renderer.set_noise_threshold(self.config.noise_threshold)
+            bridge.bproc.renderer.set_max_amount_of_samples(self.config.max_samples)
+
+            # Apply Denoising with Albedo/Normal guidance
+            if self.config.enable_denoising:
+                self.logger.info(f"Enabling {self.config.denoiser_type} denoiser")
+                bridge.bproc.renderer.set_denoiser(self.config.denoiser_type)
+
+                if self.config.denoiser_type == "INTEL":
+                    # Intel OIDN performs much better with Albedo and Normal guidance
+                    # for preserving high-frequency edges like tag corners.
+                    bridge.bproc.renderer.enable_diffuse_color_output()
+                    bridge.bproc.renderer.enable_normals_output()
 
         # Plumb CPU thread budget from environment if available
         # Set in render_tag.core.utils.get_subprocess_env
@@ -237,7 +259,16 @@ def execute_recipe(
     bridge.bpy.context.scene.cycles.use_animated_seed = False
 
     # 3. Initialize Renderer
-    renderer = RenderFacade(renderer_mode=ctx.renderer_mode, logger=scene_logger)
+    # Parse renderer config from recipe
+    renderer_recipe = recipe.get("renderer", {})
+    if isinstance(renderer_recipe, RendererConfig):
+        renderer_config = renderer_recipe
+    else:
+        renderer_config = RendererConfig(**renderer_recipe)
+
+    renderer = RenderFacade(
+        renderer_mode=ctx.renderer_mode, logger=scene_logger, config=renderer_config
+    )
     renderer.reset_volatile_state()
     renderer.setup_world(recipe.get("world", {}))
     tag_objects = renderer.spawn_objects(recipe.get("objects", []))
