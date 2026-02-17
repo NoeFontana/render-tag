@@ -10,6 +10,9 @@ This file tracks all major tracks for the project. Each track has its own detail
 - [ ] **Track: CV-Safe Sampling Strategy (Adaptive + OIDN)**
   *Link: [./tracks/cv_safe_sampling_20260217/](./tracks/cv_safe_sampling_20260217/)*
 
+- [ ] **Track: CV-Safe Light Paths Optimization**
+  *Link: [./tracks/cv_safe_light_paths_20260217/](./tracks/cv_safe_light_paths_20260217/)*
+
 ## Archived Tracks
 
 - [x] **Track: RAM Telemetry & Auto-Tuning**
