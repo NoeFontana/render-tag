@@ -19,7 +19,7 @@
 - **Pure Execution Backend:** Rendering architecture where workers are stateless and receive absolute, rigid instructions, eliminating "Zombie Logic" and ensuring perfect sim-to-sim parity.
 - **Cryptographic Fingerprinting (hashlib):** SHA256-based content addressing for jobs, environment states, and binary assets to ensure data integrity and provenance.
 - **Typer:** Powering the CLI interface, providing a user-friendly and type-safe way to interact with the generation pipeline.
-- **Resilient Orchestration:** Shard-based parallel rendering with automated state validation and smart resumption, ensuring dataset integrity across interrupted sessions.
+- **Resilient Orchestration:** Shard-based parallel rendering with automated state validation, smart resumption, and dynamic resource (RAM) auto-tuning for cross-platform stability.
 - **Bootstrap Pattern:** Environment-aware initialization module (`bootstrap.py`) that synchronizes Blender's Python runtime with the project's virtual environment, ensuring dependency parity and strict isolation.
 - **Structured Observability (NDJSON)**: High-performance IPC protocol using Newline Delimited JSON and `orjson` for real-time telemetry, progress tracking, and log routing between Backend and Host.
 - **Polars:** High-performance, multi-threaded DataFrame library used for vectorized dataset auditing and KPI calculation.
