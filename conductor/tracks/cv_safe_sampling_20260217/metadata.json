@@ -1,0 +1,8 @@
+{
+  "track_id": "cv_safe_sampling_20260217",
+  "type": "feature",
+  "status": "new",
+  "created_at": "2026-02-17T12:00:00Z",
+  "updated_at": "2026-02-17T12:00:00Z",
+  "description": "Adaptive Sampling + OIDN for CV-safe efficient rendering"
+}
