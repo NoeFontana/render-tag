@@ -29,3 +29,6 @@
 - [x] Task: Implement the "Flat Test" verification script comparing theoretical vs. rendered pixel distances. 02a83d7
 - [x] Task: Perform projection sanity check (L2 error between 3D points and 2D pixels). 02a83d7
 - [x] Task: Conductor - User Manual Verification 'Phase 5: Verification' (Protocol in workflow.md) 02a83d7
+
+## Phase: Review Fixes
+- [x] Task: Apply review suggestions 5f5ab76
