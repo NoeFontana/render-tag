@@ -9,6 +9,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from .renderer import RendererConfig
+
 
 class SensorNoiseConfig(BaseModel):
     """Configuration for parametric sensor noise."""
@@ -102,14 +104,6 @@ class WorldRecipe(BaseModel):
     texture_path: str | None = None
     texture_scale: float = 1.0
     texture_rotation: float = 0.0
-
-
-class RendererConfig(BaseModel):
-    """Configuration for the rendering engine."""
-
-    mode: Literal["cycles", "eevee", "workbench"] = "cycles"
-    samples: int = 128
-    denoising: bool = True
 
 
 class SceneRecipe(BaseModel):

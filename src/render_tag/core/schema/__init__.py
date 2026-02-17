@@ -41,6 +41,9 @@ from .hot_loop import (
 from .hot_loop import (
     calculate_state_hash as calculate_state_hash,
 )
+from .renderer import (
+    RendererConfig as RendererConfig,
+)
 from .recipe import (
     CameraIntrinsics as CameraIntrinsics,
 )
@@ -52,9 +55,6 @@ from .recipe import (
 )
 from .recipe import (
     ObjectRecipe as ObjectRecipe,
-)
-from .recipe import (
-    RendererConfig as RendererConfig,
 )
 from .recipe import (
     SceneRecipe as SceneRecipe,
