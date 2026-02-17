@@ -32,12 +32,58 @@ def get_thread_budget(num_workers: int = 1, system_reserve: int = 2) -> int:
     budget = max(1, safe_cores // num_workers)
 
     logger.info(
-        "Auto-Throttling",
+        "Auto-Throttling Threads",
         cores=total_cores,
         reserved=system_reserve,
         budget=budget,
     )
     return budget
+
+
+def calculate_worker_memory_budget(
+    num_workers: int = 1,
+    explicit_limit_mb: int | None = None,
+    safety_factor: float = 0.75,
+    min_limit_mb: int = 512,
+) -> int:
+    """
+    Calculate the memory budget per worker in MB.
+
+    Args:
+        num_workers: Number of workers in the pool.
+        explicit_limit_mb: Hard limit if provided by user.
+        safety_factor: Percent of system RAM to allocate to workers (0.0 to 1.0).
+        min_limit_mb: Sane floor for worker memory.
+
+    Returns:
+        Calculated limit in MB.
+    """
+    if explicit_limit_mb is not None:
+        return explicit_limit_mb
+
+    try:
+        import psutil
+
+        total_ram_bytes = psutil.virtual_memory().total
+        total_ram_mb = total_ram_bytes / (1024 * 1024)
+
+        # Apply safety factor and divide by workers
+        available_mb = total_ram_mb * safety_factor
+        budget_per_worker = int(available_mb // num_workers)
+
+        final_budget = max(budget_per_worker, min_limit_mb)
+
+        logger.info(
+            "Auto-Tuning Memory",
+            total_system_ram_mb=int(total_ram_mb),
+            workers=num_workers,
+            budget_per_worker_mb=final_budget,
+        )
+        return final_budget
+
+    except ImportError:
+        logger.warning("psutil not installed. Memory auto-tuning disabled. Using default limit.")
+        return 4096  # Sane fallback if psutil is missing
 
 
 @runtime_checkable

@@ -55,10 +55,12 @@ class PersistentWorkerProcess:
         thread_budget: int = 1,
         seed: int = 42,
         job_id: str | None = None,
+        memory_limit_mb: int | None = None,
     ):
         self.worker_id, self.port = worker_id, port
         self.mgmt_port = port + 100
         self.job_id = job_id
+        self.memory_limit_mb = memory_limit_mb
         self.blender_script, self.blender_executable = blender_script, blender_executable
         self.startup_timeout, self.use_blenderproc, self.mock = (
             startup_timeout,
@@ -110,6 +112,8 @@ class PersistentWorkerProcess:
             cmd.extend(["--max-renders", str(self.max_renders)])
         if self.shard_id:
             cmd.extend(["--shard-id", str(self.shard_id)])
+        if self.memory_limit_mb:
+            cmd.extend(["--memory-limit-mb", str(self.memory_limit_mb)])
         cmd.extend(["--seed", str(self.seed)])
 
         from render_tag.core.utils import get_subprocess_env

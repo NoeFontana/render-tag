@@ -28,7 +28,11 @@ except ImportError:
 from render_tag.audit.auditor import TelemetryAuditor
 from render_tag.core.errors import WorkerCommunicationError, WorkerStartupError
 from render_tag.core.logging import get_logger
-from render_tag.core.resources import ResourceStack, get_thread_budget
+from render_tag.core.resources import (
+    ResourceStack,
+    calculate_worker_memory_budget,
+    get_thread_budget,
+)
 from render_tag.core.schema.hot_loop import CommandType, Response, ResponseStatus, Telemetry
 from render_tag.core.schema.job import JobSpec
 from render_tag.core.utils import is_port_in_use
@@ -56,6 +60,7 @@ class UnifiedWorkerOrchestrator:
         max_renders_per_worker: int | None = None,
         worker_id_prefix: str = "worker",
         seed: int = 42,
+        memory_limit_mb: int | None = None,
     ):
         self.num_workers, self.base_port = num_workers, base_port
         self.mock = mock or (os.environ.get("RENDER_TAG_FORCE_MOCK") == "1")
@@ -73,6 +78,7 @@ class UnifiedWorkerOrchestrator:
         self.worker_id_prefix = worker_id_prefix
         self.seed = seed
         self.job_id = str(uuid.uuid4())
+        self.memory_limit_mb = memory_limit_mb
         self.context = zmq.Context() if zmq else None
         self.thread_budget = get_thread_budget(num_workers=self.num_workers)
         self.workers, self.worker_queue = [], queue.Queue()
@@ -95,6 +101,12 @@ class UnifiedWorkerOrchestrator:
             seed_str = f"{shard_id}-{os.getpid()}-{random.random()}"
             port_offset = int(hashlib.md5(seed_str.encode()).hexdigest(), 16) % 10000
             current_base_port = self.base_port + port_offset + random.randint(0, 50) * 10
+
+            # Calculate memory budget per worker
+            effective_memory_limit = calculate_worker_memory_budget(
+                num_workers=self.num_workers,
+                explicit_limit_mb=self.memory_limit_mb
+            )
 
             # Port scanning: Ensure the entire range is free
             for _ in range(10):
@@ -124,6 +136,7 @@ class UnifiedWorkerOrchestrator:
                             thread_budget=self.thread_budget,
                             seed=self.seed,
                             job_id=self.job_id,
+                            memory_limit_mb=effective_memory_limit,
                         )
                         worker.start()
 
@@ -205,6 +218,7 @@ class UnifiedWorkerOrchestrator:
                 thread_budget=self.thread_budget,
                 seed=self.seed,
                 job_id=self.job_id,
+                memory_limit_mb=worker.memory_limit_mb,
             )
             new_worker.start()
             for idx, w in enumerate(self.workers):
@@ -344,6 +358,7 @@ def orchestrate(
         max_renders_per_worker=batch_size,
         mock=not use_bproc,
         seed=job_spec.global_seed,
+        memory_limit_mb=job_spec.infrastructure.max_memory_mb,
     ) as orchestrator:
         q = queue.Queue()
         for path in batches:

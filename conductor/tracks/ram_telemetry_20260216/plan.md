@@ -7,15 +7,15 @@
     - [x] Verify tests pass.
 
 ## Phase 2: Dynamic Allocation (Orchestrator)
-- [ ] Task: Implement `calculate_worker_budget`
-    - [ ] Write failing tests in `tests/unit/orchestration/test_resource_calc.py`.
-    - [ ] Create `src/render_tag/orchestration/resources.py` (or update `orchestrator.py`) with budget calculation logic.
-    - [ ] Implement auto-tuning: `(total_ram * 0.75) / num_workers`.
-    - [ ] Verify tests pass.
-- [ ] Task: Inject limit into worker launch
-    - [ ] Update `PersistentWorkerProcess` in `src/render_tag/orchestration/worker.py` to accept `memory_limit_mb`.
-    - [ ] Update `UnifiedWorkerOrchestrator` to pass calculated limit.
-    - [ ] Verify via mock tests.
+- [x] Task: Implement `calculate_worker_budget`
+    - [x] Write failing tests in `tests/unit/orchestration/test_resource_calc.py`.
+    - [x] Create `src/render_tag/orchestration/resources.py` (or update `orchestrator.py`) with budget calculation logic.
+    - [x] Implement auto-tuning: `(total_ram * 0.75) / num_workers`.
+    - [x] Verify tests pass.
+- [x] Task: Inject limit into worker launch
+    - [x] Update `PersistentWorkerProcess` in `src/render_tag/orchestration/worker.py` to accept `memory_limit_mb`.
+    - [x] Update `UnifiedWorkerOrchestrator` to pass calculated limit.
+    - [x] Verify via mock tests.
 
 ## Phase 3: Worker Sentinel (Enforcement)
 - [ ] Task: Implement memory monitoring in worker
