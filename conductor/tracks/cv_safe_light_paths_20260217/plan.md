@@ -1,9 +1,9 @@
 # Implementation Plan: "CV-Safe" Light Paths Optimization
 
 ## Phase 1: Schema and Core Configuration
-- [ ] Task: Update `RendererConfig` schema in `src/render_tag/core/schema/renderer.py` to include light bounce parameters and the caustics toggle.
-- [ ] Task: Write TDD tests for `RendererConfig` in `tests/unit/core/schema/test_renderer.py` to verify defaults and override logic.
-- [ ] Task: Implement validation and Pydantic field defaults for the new parameters.
+- [x] Task: Update `RendererConfig` schema in `src/render_tag/core/schema/renderer.py` to include light bounce parameters and the caustics toggle. cb77019
+- [x] Task: Write TDD tests for `RendererConfig` in `tests/unit/core/schema/test_renderer.py` to verify defaults and override logic. cb77019
+- [x] Task: Implement validation and Pydantic field defaults for the new parameters. cb77019
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Schema and Core Configuration' (Protocol in workflow.md)
 
 ## Phase 2: Backend Engine Integration
