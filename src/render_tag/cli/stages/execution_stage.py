@@ -78,23 +78,6 @@ class ExecutionStage(PipelineStage):
             raise typer.Exit(code=1)
 
     def _finalize_results(self, ctx: GenerationContext) -> None:
-        # Rename shard files if single shard
-        if ctx.total_shards == 1:
-            shard_csv = ctx.output_dir / f"tags_shard_{ctx.shard_index}.csv"
-            final_csv = ctx.output_dir / "tags.csv"
-            if shard_csv.exists():
-                shard_csv.rename(final_csv)
-
-            shard_coco = ctx.output_dir / f"coco_shard_{ctx.shard_index}.json"
-            final_coco = ctx.output_dir / "annotations.json"
-            if shard_coco.exists():
-                shard_coco.rename(final_coco)
-            else:
-                # Fallback search
-                others = list(ctx.output_dir.glob("coco_shard_*.json"))
-                if others:
-                    others[0].rename(final_coco)
-
         # Summary
         images = list((ctx.output_dir / "images").glob("*.png"))
         console.print(f"[dim]Generated:[/dim] {len(images)} images")

@@ -4,28 +4,28 @@
 - [x] Task: Create `src/render_tag/core/schema/board.py` with `BoardType` and `BoardConfig`. 0a47752
 - [x] Task: Implement Pydantic validators to enforce `marker_size < square_size` for ChArUco. 3f74849
 - [x] Task: Write unit tests for schema parsing from YAML in `tests/unit/core/schema/test_board.py`. 3be288b
-- [ ] Task: Conductor - User Manual Verification 'Phase 1: Schema and Core Configuration' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 1: Schema and Core Configuration' (Protocol in workflow.md) 1770bc4
 
 ## Phase 2: The Texture Synthesizer (OpenCV Factory) [checkpoint: 9c8de8f]
 - [x] Task: Implement `TextureFactory` in `src/render_tag/generation/texture_factory.py` using OpenCV. 3605ad2
 - [x] Task: Implement AprilGrid drawing logic with `spacing_ratio` support. 3605ad2
 - [x] Task: Implement ChArUco drawing logic (checkerboard + ArUco overlay). 3605ad2
 - [x] Task: Write tests to verify generated image dimensions and ID placement. 3605ad2
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Texture Synthesizer' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 2: Texture Synthesizer' (Protocol in workflow.md) 9c8de8f
 
 ## Phase 3: Scene Graph Integration (Blender Side)
 - [x] Task: Update `backend/scene.py` to support `create_board_plane` (single plane architecture). c097299
 - [x] Task: Update `src/render_tag/generation/layouts.py` to support `BOARD` layout mode. c097299
 - [x] Task: Ensure UV mapping is perfectly 1:1 in the backend engine. c097299
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: Scene Integration' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 3: Scene Integration' (Protocol in workflow.md) 02a83d7
 
 ## Phase 4: Calibration Ground Truth (Export)
 - [x] Task: Update `DetectionRecord` to handle multi-keypoint structures (Saddle Points vs Corners). 8b43342
 - [x] Task: Implement `BoardConfig` writer to export `board_config.json`. 8b43342
 - [x] Task: Update `COCOWriter` and `CSVWriter` to include the specific keypoint coordinates. 8b43342
-- [ ] Task: Conductor - User Manual Verification 'Phase 4: Data Export' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 4: Data Export' (Protocol in workflow.md) 02a83d7
 
 ## Phase 5: Verification (The "Unit Test")
-- [~] Task: Implement the "Flat Test" verification script comparing theoretical vs. rendered pixel distances.
-- [ ] Task: Perform projection sanity check (L2 error between 3D points and 2D pixels).
-- [ ] Task: Conductor - User Manual Verification 'Phase 5: Verification' (Protocol in workflow.md)
+- [x] Task: Implement the "Flat Test" verification script comparing theoretical vs. rendered pixel distances. 02a83d7
+- [x] Task: Perform projection sanity check (L2 error between 3D points and 2D pixels). 02a83d7
+- [x] Task: Conductor - User Manual Verification 'Phase 5: Verification' (Protocol in workflow.md) 02a83d7

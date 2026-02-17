@@ -7,7 +7,7 @@ This file tracks all major tracks for the project. Each track has its own detail
 - [x] **Track: Strict Schema Versioning**
   *Link: [./tracks/schema_versioning_20260215/](./tracks/schema_versioning_20260215/)*
 
-- [~] **Track: High-Fidelity Calibration Targets (ChArUco & AprilGrid)**
+- [x] **Track: High-Fidelity Calibration Targets (ChArUco & AprilGrid)**
   *Link: [./tracks/calibration_targets_20260217/](./tracks/calibration_targets_20260217/)*
 
 ## Archived Tracks
