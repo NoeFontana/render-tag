@@ -18,9 +18,10 @@ from PIL import Image
 from render_tag.backend.assets import create_tag_plane, global_pool
 from render_tag.backend.bridge import bridge
 from render_tag.backend.camera import setup_sensor_dynamics
-from render_tag.backend.projection import compute_geometric_metadata
+from render_tag.backend.projection import compute_geometric_metadata, generate_board_records
 from render_tag.backend.scene import (
     create_board,
+    create_board_plane,
     setup_background,
     setup_floor_material,
     setup_lighting,
@@ -205,27 +206,52 @@ class RenderFacade:
             elif obj_recipe["type"] == "BOARD":
                 props = obj_recipe["properties"]
                 texture_path = obj_recipe.get("texture_path")
+                board_cfg = obj_recipe.get("board")
 
-                if texture_path:
+                if texture_path and board_cfg:
                     # New High-Fidelity Single Plane Path
+                    if isinstance(board_cfg, dict):
+                        # Handle both dict and object
+                        b_type = board_cfg.get("type")
+                        rows = board_cfg.get("rows")
+                        cols = board_cfg.get("cols")
+                        marker_size = board_cfg.get("marker_size")
+                        if b_type == "aprilgrid":
+                            square_size = marker_size * (1.0 + board_cfg.get("spacing_ratio", 0.0))
+                        else:
+                            square_size = board_cfg.get("square_size", marker_size)
+                    else:
+                        rows = board_cfg.rows
+                        cols = board_cfg.cols
+                        if board_cfg.type == "aprilgrid":
+                            square_size = board_cfg.marker_size * (1.0 + board_cfg.spacing_ratio)
+                        else:
+                            square_size = board_cfg.square_size
+
                     board_obj = create_board_plane(
-                        width=props["square_size"] * props["cols"],
-                        height=props["square_size"] * props["rows"],
+                        width=square_size * cols,
+                        height=square_size * rows,
                         texture_path=texture_path,
                         location=obj_recipe.get("location"),
                         rotation_euler=obj_recipe.get("rotation_euler"),
                     )
+                    board_obj.blender_obj["board"] = board_cfg
+                    board_obj.blender_obj["tag_family"] = "calibration_board"
                 else:
                     # Legacy White Background Path
                     board_obj = create_board(
-                        props["cols"],
-                        props["rows"],
-                        props["square_size"],
-                        props["mode"],
+                        props.get("cols", 3),
+                        props.get("rows", 3),
+                        props.get("square_size", 0.1),
+                        props.get("mode", "plain"),
                         location=obj_recipe.get("location"),
                     )
+                    board_obj.blender_obj["tag_family"] = "legacy_board"
                     if obj_recipe.get("rotation_euler"):
                         board_obj.set_rotation_euler(obj_recipe["rotation_euler"])
+                
+                # Add to objects list for ground truth processing
+                tag_objects.append(board_obj)
         return tag_objects
 
     def render_camera(self, camera_recipe: dict[str, Any]) -> dict[str, Any]:
@@ -251,7 +277,7 @@ class RenderFacade:
         else:
             cam_data.dof.use_dof = False
 
-        if bridge.bpy.context.scene.render.engine != "BLENDER_WORKBENCH":
+        if bridge.bpy.context.scene.render.engine not in ("BLENDER_EEVEE", "BLENDER_EEVEE_NEXT", "BLENDER_WORKBENCH"):
             bridge.bproc.renderer.enable_segmentation_output(default_values={"category_id": 0})
 
         self.logger.info("Starting BlenderProc render call...")
@@ -300,7 +326,9 @@ def execute_recipe(
     tag_objects = renderer.spawn_objects(recipe.get("objects", []))
 
     for tag in tag_objects:
-        ctx.coco_writer.add_category(tag.blender_obj["tag_family"])
+        family = tag.blender_obj.get("tag_family")
+        if family:
+            ctx.coco_writer.add_category(family)
 
     cam_recipes = recipe["cameras"]
     res = cam_recipes[0]["intrinsics"].get("resolution", [640, 480])
@@ -352,46 +380,69 @@ def execute_recipe(
         bridge.bpy.context.view_layer.update()
 
         # 5. Extract Ground Truth
+        all_detections: list[DetectionRecord] = []
+
         if ctx.skip_visibility:
-            valid_detections = [
-                (obj, [[0, 0], [res[0], 0], [res[0], res[1]], [0, res[1]]]) for obj in tag_objects
-            ]
+            for obj in tag_objects:
+                all_detections.append(
+                    DetectionRecord(
+                        image_id=image_name,
+                        tag_id=obj.blender_obj.get("tag_id", 0),
+                        tag_family=obj.blender_obj.get("tag_family", "unknown"),
+                        corners=[[0, 0], [res[0], 0], [res[0], res[1]], [0, res[1]]],
+                        distance=0.0,
+                        angle_of_incidence=0.0,
+                    )
+                )
         else:
+            # Handle standard tags
             from render_tag.backend.projection import get_valid_detections
 
             valid_detections = get_valid_detections(tag_objects)
+            for tag_obj, corners_2d in valid_detections:
+                blender_obj = tag_obj.blender_obj
+                geom = compute_geometric_metadata(tag_obj)
+                occlusion = 0.0
+                if render_out.get("segmap") is not None:
+                    try:
+                        vis_pixels = bridge.np.sum(render_out["segmap"] == blender_obj.pass_index)
+                        if geom["pixel_area"] > 0:
+                            occlusion = float(
+                                bridge.np.clip(1.0 - (vis_pixels / geom["pixel_area"]), 0.0, 1.0)
+                            )
+                    except Exception as e:
+                        logger.debug(f"Segmentation failed for {blender_obj.name}: {e}")
 
-        segmap = render_out["segmap"]
-        for tag_obj, corners_2d in valid_detections:
-            blender_obj = tag_obj.blender_obj
-            geom = compute_geometric_metadata(tag_obj)
-            occlusion = 0.0
-            if segmap is not None:
-                vis_pixels = bridge.np.sum(segmap == blender_obj.pass_index)
-                if geom["pixel_area"] > 0:
-                    occlusion = float(
-                        bridge.np.clip(1.0 - (vis_pixels / geom["pixel_area"]), 0.0, 1.0)
+                all_detections.append(
+                    DetectionRecord(
+                        image_id=image_name,
+                        tag_id=blender_obj.get("tag_id", 0),
+                        tag_family=blender_obj.get("tag_family", "unknown"),
+                        corners=corners_2d,
+                        distance=geom["distance"],
+                        angle_of_incidence=geom["angle_of_incidence"],
+                        pixel_area=geom["pixel_area"],
+                        occlusion_ratio=occlusion,
+                        position=geom["position"],
+                        rotation_quaternion=geom["rotation_quaternion"],
+                        global_seed=ctx.global_seed,
+                        scene_seed=recipe.get("random_seed", 0),
                     )
+                )
 
-            det = DetectionRecord(
-                image_id=image_name,
-                tag_id=blender_obj.get("tag_id", 0),
-                tag_family=blender_obj.get("tag_family", "unknown"),
-                corners=corners_2d,
-                distance=geom["distance"],
-                angle_of_incidence=geom["angle_of_incidence"],
-                pixel_area=geom["pixel_area"],
-                occlusion_ratio=occlusion,
-                position=geom["position"],
-                rotation_quaternion=geom["rotation_quaternion"],
-                global_seed=ctx.global_seed,
-                scene_seed=recipe.get("random_seed", 0),
-            )
+            # Handle calibration boards (High-Fidelity)
+            for obj in tag_objects:
+                if obj.blender_obj.name == "CalibrationBoard" and "board" in obj.blender_obj:
+                    board_records = generate_board_records(obj, image_name)
+                    all_detections.extend(board_records)
+
+        # 6. Save Ground Truth
+        for det in all_detections:
             ctx.csv_writer.write_detection(det, res[0], res[1])
             ctx.coco_writer.add_annotation(
                 image_id=coco_img_id,
-                category_id=ctx.coco_writer._category_map.get(det.tag_family, 1),
-                corners=corners_2d,
+                category_id=ctx.coco_writer.add_category(det.tag_family),
+                corners=det.corners,
                 width=res[0],
                 height=res[1],
                 detection=det,

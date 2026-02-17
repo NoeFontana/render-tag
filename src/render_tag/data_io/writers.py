@@ -156,8 +156,8 @@ class COCOWriter:
         if corners is None and detection is not None:
             corners = detection.corners
 
-        if corners is None or len(corners) != 4:
-            raise ValueError("Annotation must have exactly 4 corners")
+        if corners is None or len(corners) == 0:
+            raise ValueError("Annotation must have at least one point")
 
         annotation_id = self._next_annotation_id
         self._next_annotation_id += 1
@@ -172,27 +172,54 @@ class COCOWriter:
                 for c in corners
             ]
 
-        # 1. Use pure-Python utility for bbox
-        bbox = compute_bbox(np.array(corners))
+        # Handle point annotations (e.g. saddle points)
+        if len(corners) < 3:
+            # For 1 or 2 points, bbox is small area around points
+            x_coords = [c[0] for c in corners]
+            y_coords = [c[1] for c in corners]
+            min_x, max_x = min(x_coords), max(x_coords)
+            min_y, max_y = min(y_coords), max(y_coords)
+            
+            # If it's a single point, give it a tiny 1px box for COCO compatibility
+            if min_x == max_x:
+                min_x -= 0.5
+                max_x += 0.5
+            if min_y == max_y:
+                min_y -= 0.5
+                max_y += 0.5
+                
+            bbox = [min_x, min_y, max_x - min_x, max_y - min_y]
+            area = (max_x - min_x) * (max_y - min_y)
+            segmentation = []
+            for c in corners:
+                segmentation.extend([c[0], c[1]])
+        else:
+            # Standard Polygon Path
+            # 1. Use pure-Python utility for bbox
+            bbox = compute_bbox(np.array(corners))
 
-        # 2. Use pure-Python utility for area
-        area = compute_polygon_area(np.array(corners))
+            # 2. Use pure-Python utility for area
+            area = compute_polygon_area(np.array(corners))
 
-        # 3. Use pure-Python utility for corner reordering (COCO prefers CW from TL)
-        # Input 'corners' is now assumed to be CW from TL (OpenCV convention).
+            # 3. Use pure-Python utility for corner reordering (COCO prefers CW from TL)
+            # Input 'corners' is now assumed to be CW from TL (OpenCV convention).
 
-        # Segmentation:
-        ordered_corners_seg = normalize_corner_order(corners, target_order="cw_tl")
-        segmentation = []
-        for corner in ordered_corners_seg:
-            segmentation.extend([corner[0], corner[1]])
+            # Segmentation:
+            ordered_corners_seg = normalize_corner_order(corners, target_order="cw_tl")
+            segmentation = []
+            for corner in ordered_corners_seg:
+                segmentation.extend([corner[0], corner[1]])
 
         # Keypoints:
-        # Our input 'corners' is already CW from TL.
-        ordered_corners_kp = normalize_corner_order(corners, target_order="cw_tl")
-        keypoints = format_coco_keypoints(np.array(ordered_corners_kp))
+        if len(corners) == 4:
+            ordered_corners_kp = normalize_corner_order(corners, target_order="cw_tl")
+            keypoints = format_coco_keypoints(np.array(ordered_corners_kp))
+            num_keypoints = 4
+        else:
+            # Use raw points as keypoints
+            keypoints = format_coco_keypoints(np.array(corners))
+            num_keypoints = len(corners)
 
-        num_keypoints = 4
         if detection and detection.keypoints:
             extra_kp = format_coco_keypoints(np.array(detection.keypoints))
             keypoints.extend(extra_kp)

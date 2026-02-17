@@ -222,6 +222,7 @@ class SceneCompiler:
                     board=board_config,
                 )
             )
+            num_tags = 0
         elif layout_mode == "cb":
             num_tags = (cols * rows + 1) // 2
         elif layout_mode == "aprilgrid":

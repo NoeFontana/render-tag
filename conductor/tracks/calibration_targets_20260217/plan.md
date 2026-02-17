@@ -14,18 +14,18 @@
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Texture Synthesizer' (Protocol in workflow.md)
 
 ## Phase 3: Scene Graph Integration (Blender Side)
-- [ ] Task: Update `backend/scene.py` to support `create_board_plane` (single plane architecture).
-- [ ] Task: Update `src/render_tag/generation/layouts.py` to support `BOARD` layout mode.
-- [ ] Task: Ensure UV mapping is perfectly 1:1 in the backend engine.
+- [x] Task: Update `backend/scene.py` to support `create_board_plane` (single plane architecture). c097299
+- [x] Task: Update `src/render_tag/generation/layouts.py` to support `BOARD` layout mode. c097299
+- [x] Task: Ensure UV mapping is perfectly 1:1 in the backend engine. c097299
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: Scene Integration' (Protocol in workflow.md)
 
 ## Phase 4: Calibration Ground Truth (Export)
-- [ ] Task: Update `DetectionRecord` to handle multi-keypoint structures (Saddle Points vs Corners).
-- [ ] Task: Implement `BoardConfig` writer to export `board_config.json`.
-- [ ] Task: Update `COCOWriter` and `CSVWriter` to include the specific keypoint coordinates.
+- [x] Task: Update `DetectionRecord` to handle multi-keypoint structures (Saddle Points vs Corners). 8b43342
+- [x] Task: Implement `BoardConfig` writer to export `board_config.json`. 8b43342
+- [x] Task: Update `COCOWriter` and `CSVWriter` to include the specific keypoint coordinates. 8b43342
 - [ ] Task: Conductor - User Manual Verification 'Phase 4: Data Export' (Protocol in workflow.md)
 
 ## Phase 5: Verification (The "Unit Test")
-- [ ] Task: Implement the "Flat Test" verification script comparing theoretical vs. rendered pixel distances.
+- [~] Task: Implement the "Flat Test" verification script comparing theoretical vs. rendered pixel distances.
 - [ ] Task: Perform projection sanity check (L2 error between 3D points and 2D pixels).
 - [ ] Task: Conductor - User Manual Verification 'Phase 5: Verification' (Protocol in workflow.md)

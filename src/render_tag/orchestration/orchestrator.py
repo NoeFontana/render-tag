@@ -406,7 +406,12 @@ def orchestrate(
                     with open(path) as f:
                         batch_recipes = json.load(f)
                     for recipe in batch_recipes:
-                        resp = orchestrator.execute_recipe(recipe, output_dir, rm)
+                        # Extract shard index from filename if not available elsewhere
+                        # recipes_shard_{shard_idx}.json
+                        m = re.search(r"shard_(\d+)", path.name)
+                        shard_idx_str = m.group(1) if m else "0"
+                        
+                        resp = orchestrator.execute_recipe(recipe, output_dir, rm, sid=shard_idx_str)
                         if resp.status != ResponseStatus.SUCCESS:
                             console.print(f"[red]Render failed: {resp.message}[/red]")
                             any_failed = True

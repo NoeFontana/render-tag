@@ -10,6 +10,13 @@ from __future__ import annotations
 from typing import Any
 
 from render_tag.backend.bridge import bridge
+from render_tag.core.schema import DetectionRecord
+from render_tag.generation.board import (
+    BoardSpec,
+    BoardType,
+    compute_aprilgrid_layout,
+    compute_charuco_layout,
+)
 from render_tag.generation.projection_math import (
     calculate_angle_of_incidence,
     calculate_distance,
@@ -171,6 +178,11 @@ def get_valid_detections(tag_objects: list[Any]) -> list[tuple[Any, list[tuple[f
     valid_detections = []
 
     for tag_obj in tag_objects:
+        # Check if this is a high-fidelity calibration board
+        if tag_obj.blender_obj.name == "CalibrationBoard" and "board" in tag_obj.blender_obj:
+            # Boards are handled separately by generate_board_records
+            continue
+
         corners_2d = project_corners_to_image(tag_obj)
 
         if (
@@ -181,3 +193,198 @@ def get_valid_detections(tag_objects: list[Any]) -> list[tuple[Any, list[tuple[f
             valid_detections.append((tag_obj, corners_2d))
 
     return valid_detections
+
+
+def generate_board_records(board_obj: Any, image_id: str) -> list[DetectionRecord]:
+    """Generate detection records for all tags on a calibration board.
+
+    Args:
+        board_obj: The calibration board mesh object
+        image_id: ID of the current image
+
+    Returns:
+        List of DetectionRecord objects
+    """
+    from render_tag.core.schema.board import BoardConfig
+
+    board_data = board_obj.blender_obj.get("board")
+    if not board_data:
+        return []
+
+    if isinstance(board_data, dict):
+        config = BoardConfig.model_validate(board_data)
+    else:
+        config = board_data
+
+    # 1. Recompute Layout
+    b_type = config.get("type") if isinstance(config, dict) else config.get("type")
+    # Actually for IDPropertyGroup we must use get() or []
+    if not isinstance(config, dict):
+        b_type = config.get("type")
+        rows = config.get("rows")
+        cols = config.get("cols")
+        marker_size = config.get("marker_size")
+        dictionary = config.get("dictionary")
+    else:
+        b_type = config["type"]
+        rows = config["rows"]
+        cols = config["cols"]
+        marker_size = config["marker_size"]
+        dictionary = config["dictionary"]
+
+    if b_type == "aprilgrid":
+        spacing_ratio = config.get("spacing_ratio")
+        square_size = marker_size * (1.0 + spacing_ratio)
+        spec = BoardSpec(
+            rows=rows,
+            cols=cols,
+            square_size=square_size,
+            marker_margin=(square_size - marker_size) / 2.0,
+            board_type=BoardType.APRILGRID,
+        )
+        layout = compute_aprilgrid_layout(spec)
+    else:
+        square_size = config.get("square_size")
+        spec = BoardSpec(
+            rows=rows,
+            cols=cols,
+            square_size=square_size,
+            marker_margin=(square_size - marker_size) / 2.0,
+            board_type=BoardType.CHARUCO,
+        )
+        layout = compute_charuco_layout(spec)
+
+    # 2. Get Transformation
+    world_matrix = bridge.np.array(board_obj.get_local2world_mat())
+    blender_cam_mat = bridge.np.array(bridge.bpy.context.scene.camera.matrix_world)
+    k_matrix = bridge.bproc.camera.get_intrinsics_as_K_matrix()
+    res = [
+        bridge.bpy.context.scene.render.resolution_x,
+        bridge.bpy.context.scene.render.resolution_y,
+    ]
+
+    records = []
+
+    # Common metadata
+    cam_location = bridge.np.array(bridge.bpy.context.scene.camera.location)
+    board_location = bridge.np.array(board_obj.get_location())
+    distance = calculate_distance(board_location, cam_location)
+    world_normal = get_world_normal(world_matrix)
+    angle_deg = calculate_angle_of_incidence(board_location, world_normal, cam_location)
+    pose = calculate_relative_pose(world_matrix, blender_cam_mat)
+
+    # 3. Process Tags
+    for sq in layout.squares:
+        if not sq.has_tag:
+            continue
+
+        m = marker_size / 2.0
+        local_corners = [
+            [sq.center.x - m, sq.center.y + m, 0.0],  # TL
+            [sq.center.x + m, sq.center.y + m, 0.0],  # TR
+            [sq.center.x + m, sq.center.y - m, 0.0],  # BR
+            [sq.center.x - m, sq.center.y - m, 0.0],  # BL
+        ]
+
+        world_corners = []
+        for loc in local_corners:
+            p = bridge.np.append(bridge.np.array(loc), 1.0)
+            pw = bridge.np.dot(world_matrix, p)
+            world_corners.append(pw[:3] / pw[3])
+
+        pixels = project_points(
+            bridge.np.array(world_corners),
+            blender_cam_mat,
+            res,
+            k_matrix.tolist() if hasattr(k_matrix, "tolist") else k_matrix,
+        )
+        if pixels is None:
+            continue
+
+        corners_2d = [(float(p[0]), float(p[1])) for p in pixels]
+
+        records.append(
+            DetectionRecord(
+                image_id=image_id,
+                tag_id=sq.tag_id,
+                tag_family=dictionary,
+                corners=corners_2d,
+                record_type="TAG",
+                distance=distance,
+                angle_of_incidence=angle_deg,
+                position=pose["position"],
+                rotation_quaternion=pose["rotation_quaternion"],
+            )
+        )
+
+    # 4. Handle Extra Keypoints (Saddle Points / Corner Squares)
+    if b_type == "charuco":
+        # ChArUco: Saddle points are at the intersections of the checkerboard squares
+        # For a (rows, cols) grid, there are (rows-1) * (cols-1) internal intersections.
+        for r in range(1, rows):
+            for c in range(1, cols):
+                # Intersection point in meters (local board coords)
+                # Origin is board center.
+                lx = -spec.board_width / 2.0 + c * spec.square_size
+                ly = -spec.board_height / 2.0 + r * spec.square_size
+
+                p = bridge.np.append(bridge.np.array([lx, ly, 0.0]), 1.0)
+                pw = bridge.np.dot(world_matrix, p)
+                w_pos = pw[:3] / pw[3]
+
+                pixels = project_points(
+                    bridge.np.array([w_pos]),
+                    blender_cam_mat,
+                    res,
+                    k_matrix.tolist() if hasattr(k_matrix, "tolist") else k_matrix,
+                )
+                if pixels is not None:
+                    px = pixels[0]
+                    records.append(
+                        DetectionRecord(
+                            image_id=image_id,
+                            tag_id=r * 100 + c,  # Artificial ID for saddle points
+                            tag_family="charuco_saddle",
+                            corners=[(float(px[0]), float(px[1]))],
+                            record_type="CHARUCO_SADDLE",
+                            distance=distance,
+                            angle_of_incidence=angle_deg,
+                            position=pose["position"],
+                            rotation_quaternion=pose["rotation_quaternion"],
+                        )
+                    )
+    elif b_type == "aprilgrid":
+        # AprilGrid: Corner points are the centers of the small black corner squares
+        # These are at every intersection (rows+1) * (cols+1)
+        for r in range(rows + 1):
+            for c in range(cols + 1):
+                lx = -spec.board_width / 2.0 + c * spec.square_size
+                ly = -spec.board_height / 2.0 + r * spec.square_size
+
+                p = bridge.np.append(bridge.np.array([lx, ly, 0.0]), 1.0)
+                pw = bridge.np.dot(world_matrix, p)
+                w_pos = pw[:3] / pw[3]
+
+                pixels = project_points(
+                    bridge.np.array([w_pos]),
+                    blender_cam_mat,
+                    res,
+                    k_matrix.tolist() if hasattr(k_matrix, "tolist") else k_matrix,
+                )
+                if pixels is not None:
+                    px = pixels[0]
+                    records.append(
+                        DetectionRecord(
+                            image_id=image_id,
+                            tag_id=r * 100 + c,
+                            tag_family="aprilgrid_corner",
+                            corners=[(float(px[0]), float(px[1]))],
+                            record_type="APRILGRID_CORNER",
+                            distance=distance,
+                            angle_of_incidence=angle_deg,
+                            position=pose["position"],
+                            rotation_quaternion=pose["rotation_quaternion"],
+                        )
+                    )
+
+    return records
