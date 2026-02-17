@@ -18,6 +18,11 @@ from render_tag.core.schema import (
     RendererConfig,
     SensorNoiseConfig,
 )
+from render_tag.core.schema.subject import (
+    BoardSubjectConfig,
+    SubjectConfig,
+    TagSubjectConfig,
+)
 
 
 class TagFamily(str, Enum):
@@ -634,47 +639,12 @@ class PhysicsConfig(BaseModel):
 class ScenarioConfig(BaseModel):
     """Configuration for a generation scenario.
 
-    Defines the layout mode and tag configuration for scene generation.
+    Defines the subject (Tags or Board) and environmental constraints.
     """
 
-    layout: LayoutMode = Field(
-        default=LayoutMode.PLAIN, description="Layout mode for tag placement"
-    )
-    tag_families: list[TagFamily] = Field(
-        default=[TagFamily.TAG36H11],
-        description="Tag families to use in this scenario",
-    )
-    layouts: list[LayoutMode] | None = Field(
-        default=None,
-        description="Optional list of layouts to iterate through across scenes",
-    )
-    tags_per_scene: tuple[int, int] = Field(
-        default=(1, 5),
-        description="Range of tags per scene (min, max)",
-    )
-    # Checkerboard-specific settings
-    grid_size: tuple[int, int] = Field(
-        default=(3, 3),
-        description="Grid of tags for checkerboard layout (cols, rows)",
-    )
-    corner_size: float = Field(
-        default=0.01,
-        gt=0,
-        description="Size of black corner squares in meters (AprilGrid only)",
-    )
-    square_size: float = Field(
-        default=0.12,
-        gt=0,
-        description="Size of each grid cell for checkerboard/AprilGrid layouts (meters)",
-    )
-    marker_margin: float = Field(
-        default=0.01,
-        ge=0,
-        description="Margin between marker edge and cell edge (meters)",
-    )
-    tag_spacing_bits: int | None = Field(
-        default=2,
-        description="Spacing between tags in number of bits (relative to tag grid size)",
+    subject: SubjectConfig = Field(
+        default_factory=lambda: SubjectConfig(root=TagSubjectConfig()),
+        description="The subject of the scene (TAGS or BOARD)",
     )
 
     sampling_mode: SamplingMode = Field(
@@ -693,19 +663,43 @@ class ScenarioConfig(BaseModel):
         default=True,
         description="If True, adds a board/margin behind the tags",
     )
-    board: BoardConfig | None = Field(
-        default=None,
-        description="Explicit calibration board configuration (for BOARD layout mode)",
-    )
 
-    @field_validator("tags_per_scene")
+    @model_validator(mode="before")
     @classmethod
-    def validate_tags_per_scene(cls, v: tuple[int, int]) -> tuple[int, int]:
-        if v[0] < 1:
-            raise ValueError("Minimum tags per scene must be >= 1")
-        if v[0] > v[1]:
-            raise ValueError("Min tags must be <= max tags")
-        return v
+    def migrate_legacy_layout(cls, data: Any) -> Any:
+        """Migrate legacy layout fields to the polymorphic subject field."""
+        if not isinstance(data, dict) or "subject" in data:
+            return data
+
+        # Detect legacy Tag config
+        if "tag_families" in data or "tags_per_scene" in data:
+            tag_data = {
+                "type": "TAGS",
+                "tag_families": data.pop("tag_families", ["tag36h11"]),
+                "size_meters": data.pop("tag_size", 0.1),
+                "tags_per_scene": data.pop("tags_per_scene", 10),
+            }
+            # tags_per_scene in legacy was often a tuple (min, max), but TagSubjectConfig uses PositiveInt
+            if isinstance(tag_data["tags_per_scene"], (list, tuple)):
+                tag_data["tags_per_scene"] = tag_data["tags_per_scene"][1]
+
+            data["subject"] = {"type": "TAGS", **tag_data}
+
+        # Detect legacy Board config
+        elif "layout" in data and data["layout"] == "board" or "board" in data:
+            board_data = {
+                "type": "BOARD",
+                "rows": data.pop("grid_size", [3, 3])[1],
+                "cols": data.pop("grid_size", [3, 3])[0],
+                "marker_size": data.pop("marker_size", 0.08),
+                "dictionary": data.pop("tag_family", "tag36h11"),
+            }
+            if "square_size" in data:
+                board_data["square_size"] = data.pop("square_size")
+
+            data["subject"] = {"type": "BOARD", **board_data}
+
+        return data
 
 
 class SequenceConfig(BaseModel):
