@@ -2,11 +2,9 @@
 import hashlib
 import json
 from pathlib import Path
-from typing import Optional
 
 import cv2
 import numpy as np
-from pydantic import BaseModel
 
 from ..core.schema.board import BoardConfig, BoardType
 from .tags import generate_tag_image
@@ -15,7 +13,7 @@ from .tags import generate_tag_image
 class TextureFactory:
     """Bit-perfect calibration target texture synthesizer."""
 
-    def __init__(self, px_per_mm: float = 10.0, cache_dir: Optional[Path] = None):
+    def __init__(self, px_per_mm: float = 10.0, cache_dir: Path | None = None):
         """
         Args:
             px_per_mm: Resolution of the generated texture (default: 10px/mm)
@@ -55,10 +53,10 @@ class TextureFactory:
         width_m = config.cols * square_size
         height_m = config.rows * square_size
 
-        width_px = int(round(width_m * self.px_per_m))
-        height_px = int(round(height_m * self.px_per_m))
-        square_px = int(round(square_size * self.px_per_m))
-        marker_px = int(round(config.marker_size * self.px_per_m))
+        width_px = round(width_m * self.px_per_m)
+        height_px = round(height_m * self.px_per_m)
+        square_px = round(square_size * self.px_per_m)
+        marker_px = round(config.marker_size * self.px_per_m)
 
         # 3. Initialize Image (White background)
         img = np.full((height_px, width_px), 255, dtype=np.uint8)
@@ -76,7 +74,14 @@ class TextureFactory:
         return img
 
     def _draw_charuco(self, img: np.ndarray, config: BoardConfig, square_px: int, marker_px: int):
-        """Draw a ChArUco checkerboard pattern."""
+        """Draw a ChArUco checkerboard pattern.
+        
+        Args:
+            img: The target image array.
+            config: The board configuration.
+            square_px: Size of each cell in pixels.
+            marker_px: Size of each tag in pixels.
+        """
         rows, cols = config.rows, config.cols
         tag_id = 0
 
@@ -110,7 +115,14 @@ class TextureFactory:
                     tag_id += 1
 
     def _draw_aprilgrid(self, img: np.ndarray, config: BoardConfig, square_px: int, marker_px: int):
-        """Draw an AprilGrid pattern (tags in every cell + corner squares)."""
+        """Draw an AprilGrid pattern (tags in every cell + corner squares).
+        
+        Args:
+            img: The target image array.
+            config: The board configuration.
+            square_px: Size of each cell in pixels.
+            marker_px: Size of each tag in pixels.
+        """
         rows, cols = config.rows, config.cols
         tag_id = 0
         
@@ -138,7 +150,7 @@ class TextureFactory:
 
         # Draw black corner squares (AprilGrid characteristic)
         # These are at the intersections of the grid
-        corner_px = int(round(marker_px * 0.1)) # Small fixed ratio for now or parametric?
+        corner_px = round(marker_px * 0.1) # Small fixed ratio for now or parametric?
         # Specification says "Small black corner squares". 
         # Usually they are quite small, e.g. 2-5% of marker size.
         
@@ -155,7 +167,14 @@ class TextureFactory:
                 img[cy0:cy1, cx0:cx1] = 0
 
     def _calculate_hash(self, config: BoardConfig) -> str:
-        """Calculate a unique hash for a board configuration."""
+        """Calculate a unique hash for a board configuration.
+        
+        Args:
+            config: The board configuration.
+            
+        Returns:
+            A SHA256 hash string.
+        """
         data = config.model_dump()
         data["px_per_mm"] = self.px_per_mm
         serialized = json.dumps(data, sort_keys=True)

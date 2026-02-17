@@ -199,11 +199,12 @@ def generate_board_records(board_obj: Any, image_id: str) -> list[DetectionRecor
     """Generate detection records for all tags on a calibration board.
 
     Args:
-        board_obj: The calibration board mesh object
-        image_id: ID of the current image
+        board_obj: The calibration board mesh object (BlenderProc wrapper).
+        image_id: ID of the current image for tracking.
 
     Returns:
-        List of DetectionRecord objects
+        A list of DetectionRecord objects containing projected corners and 
+        calibration keypoints.
     """
     from render_tag.core.schema.board import BoardConfig
 
@@ -211,13 +212,9 @@ def generate_board_records(board_obj: Any, image_id: str) -> list[DetectionRecor
     if not board_data:
         return []
 
-    if isinstance(board_data, dict):
-        config = BoardConfig.model_validate(board_data)
-    else:
-        config = board_data
+    config = BoardConfig.model_validate(board_data) if isinstance(board_data, dict) else board_data
 
     # 1. Recompute Layout
-    b_type = config.get("type") if isinstance(config, dict) else config.get("type")
     # Actually for IDPropertyGroup we must use get() or []
     if not isinstance(config, dict):
         b_type = config.get("type")

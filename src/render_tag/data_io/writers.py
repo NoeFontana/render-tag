@@ -11,7 +11,7 @@ from __future__ import annotations
 import csv
 import json
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
@@ -393,10 +393,23 @@ class BoardConfigWriter:
     """Writer for calibration board configuration."""
 
     def __init__(self, output_dir: Path) -> None:
+        """Initialize the BoardConfig writer.
+        
+        Args:
+            output_dir: Root directory for dataset output.
+        """
         self.output_dir = output_dir
 
     def write_config(self, board_config: BoardConfig, filename: str = "board_config.json") -> Path:
-        """Save the board configuration to a JSON file."""
+        """Save the board configuration to a JSON file.
+        
+        Args:
+            board_config: The BoardConfig instance to save.
+            filename: Name of the output JSON file.
+            
+        Returns:
+            Path to the written file.
+        """
         self.output_dir.mkdir(parents=True, exist_ok=True)
         output_path = self.output_dir / filename
 
