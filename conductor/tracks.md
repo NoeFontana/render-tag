@@ -29,3 +29,8 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 - [x] **Track: Codebase Modernization and Refactoring**
   *Link: [./archive/codebase_modernization_20260208/](./archive/codebase_modernization_20260208/)*
+
+---
+
+- [ ] **Track: RAM Telemetry & Auto-Tuning**
+*Link: [./tracks/ram_telemetry_20260216/](./tracks/ram_telemetry_20260216/)*
