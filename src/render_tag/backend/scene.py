@@ -191,6 +191,88 @@ def create_board(
     return board
 
 
+def create_board_plane(
+    width: float,
+    height: float,
+    texture_path: str,
+    location: list[float] | None = None,
+    rotation_euler: list[float] | None = None,
+) -> Any:
+    """Create a single plane for a calibration board with high-fidelity texture.
+
+    This implements the "Single Plane Architecture" to eliminate geometric drift.
+
+    Args:
+        width: Width of the board in meters
+        height: Height of the board in meters
+        texture_path: Path to the high-resolution generated texture
+        location: [x, y, z] location
+        rotation_euler: [x, y, z] rotation in radians
+
+    Returns:
+        The board mesh object
+    """
+    # Create plane using bproc
+    board = bridge.bproc.object.create_primitive("PLANE")
+    board.blender_obj.name = "CalibrationBoard"
+
+    # Set dimensions (PLANE is 2x2 by default)
+    board.set_scale([width / 2, height / 2, 1])
+    board.persist_transformation_into_mesh()
+
+    if location:
+        board.set_location(location)
+    if rotation_euler:
+        board.set_rotation_euler(rotation_euler)
+
+    # Apply specialized calibration material
+    mat = _create_board_material("CalibrationBoardMat", texture_path)
+    board.blender_obj.data.materials.clear()
+    board.blender_obj.data.materials.append(mat)
+
+    # Ensure 1:1 UV mapping (Standard Plane already has this, but we force it)
+    # The default Plane has (0,0) to (1,1) UVs which is perfect for our texture.
+
+    return board
+
+
+def _create_board_material(name: str, texture_path: str) -> Any:
+    """Create a calibration-grade emission material with sharp texture sampling.
+
+    Args:
+        name: Name of the material
+        texture_path: Path to the texture image
+
+    Returns:
+        The created Blender material
+    """
+    mat = bridge.bpy.data.materials.new(name=name)
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
+    nodes.clear()
+
+    output = nodes.new("ShaderNodeOutputMaterial")
+    emission = nodes.new("ShaderNodeEmission")
+    tex_image = nodes.new("ShaderNodeTexImage")
+
+    # Load and assign image
+    try:
+        image = bridge.bpy.data.images.load(texture_path)
+        tex_image.image = image
+    except Exception as e:
+        logger.error(f"Failed to load calibration texture {texture_path}: {e}")
+
+    # CRITICAL: Use 'Closest' interpolation to avoid sub-pixel blurring at tag edges
+    tex_image.interpolation = "Closest"
+    tex_image.extension = "EXTEND"
+
+    links.new(tex_image.outputs["Color"], emission.inputs["Color"])
+    links.new(emission.outputs["Emission"], output.inputs["Surface"])
+
+    return mat
+
+
 def _create_white_emission_material(name: str) -> Any:
     """Create a pure white emission material."""
     mat = bridge.bpy.data.materials.new(name=name)

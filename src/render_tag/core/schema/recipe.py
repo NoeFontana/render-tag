@@ -5,11 +5,12 @@ Following the "Move-Left" architecture, this schema defines exactly what
 a worker needs to render a single frame, with all random decisions resolved.
 """
 
-from typing import Any, Literal
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from .renderer import RendererConfig
+from .board import BoardConfig
 
 
 class SensorNoiseConfig(BaseModel):
@@ -79,6 +80,7 @@ class ObjectRecipe(BaseModel):
     properties: dict[str, Any] = Field(default_factory=dict)
     material: dict[str, Any] | None = None
     texture_path: str | None = None
+    board: Optional[BoardConfig] = None
 
 
 class LightRecipe(BaseModel):

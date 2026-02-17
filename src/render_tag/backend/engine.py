@@ -204,15 +204,28 @@ class RenderFacade:
                 tag_objects.append(tag_obj)
             elif obj_recipe["type"] == "BOARD":
                 props = obj_recipe["properties"]
-                board_obj = create_board(
-                    props["cols"],
-                    props["rows"],
-                    props["square_size"],
-                    props["mode"],
-                    location=obj_recipe.get("location"),
-                )
-                if obj_recipe.get("rotation_euler"):
-                    board_obj.set_rotation_euler(obj_recipe["rotation_euler"])
+                texture_path = obj_recipe.get("texture_path")
+
+                if texture_path:
+                    # New High-Fidelity Single Plane Path
+                    board_obj = create_board_plane(
+                        width=props["square_size"] * props["cols"],
+                        height=props["square_size"] * props["rows"],
+                        texture_path=texture_path,
+                        location=obj_recipe.get("location"),
+                        rotation_euler=obj_recipe.get("rotation_euler"),
+                    )
+                else:
+                    # Legacy White Background Path
+                    board_obj = create_board(
+                        props["cols"],
+                        props["rows"],
+                        props["square_size"],
+                        props["mode"],
+                        location=obj_recipe.get("location"),
+                    )
+                    if obj_recipe.get("rotation_euler"):
+                        board_obj.set_rotation_euler(obj_recipe["rotation_euler"])
         return tag_objects
 
     def render_camera(self, camera_recipe: dict[str, Any]) -> dict[str, Any]:

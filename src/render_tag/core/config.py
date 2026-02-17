@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from render_tag.core.constants import CURRENT_SCHEMA_VERSION, TAG_BIT_COUNTS
 from render_tag.core.schema import (
+    BoardConfig,
     RendererConfig,
     SensorNoiseConfig,
 )
@@ -80,6 +81,7 @@ class LayoutMode(str, Enum):
     PLAIN = "plain"  # Tags equidistant, no connecting pattern
     CHECKERBOARD = "cb"  # ChArUco board: tags in alternating squares
     APRILGRID = "aprilgrid"  # Kalibr AprilGrid: tags in every cell + corner dots
+    BOARD = "board"  # Calibration Board: single rigid body with high-fidelity texture
 
 
 class SamplingMode(str, Enum):
@@ -690,6 +692,10 @@ class ScenarioConfig(BaseModel):
     use_board: bool = Field(
         default=True,
         description="If True, adds a board/margin behind the tags",
+    )
+    board: BoardConfig | None = Field(
+        default=None,
+        description="Explicit calibration board configuration (for BOARD layout mode)",
     )
 
     @field_validator("tags_per_scene")

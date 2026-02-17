@@ -2,6 +2,10 @@
 Core data schemas for render-tag.
 """
 
+from .board import (
+    BoardConfig as BoardConfig,
+    BoardType as BoardType,
+)
 from .base import (
     Corner as Corner,
 )
