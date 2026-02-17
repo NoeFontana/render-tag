@@ -13,11 +13,11 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 2: Backend Engine Integration' (Protocol in workflow.md)
 
 ## Phase 3: Benchmarking and Sanity Checks
-- [ ] Task: Create a "Sanity Check" script or test case that compares corner detection accuracy between high-sample and "CV-Safe" renders.
-- [ ] Task: Update existing benchmark configuration files (e.g., `configs/test_minimal.yaml`) to use the new "CV-Safe" defaults.
-- [ ] Task: Run a benchmark and verify performance improvement (reduced render time).
+- [x] Task: Create a "Sanity Check" script or test case that compares corner detection accuracy between high-sample and "CV-Safe" renders.
+- [x] Task: Update existing benchmark configuration files (e.g., `configs/test_minimal.yaml`) to use the new "CV-Safe" defaults.
+- [x] Task: Run a benchmark and verify performance improvement (reduced render time).
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: Benchmarking and Sanity Checks' (Protocol in workflow.md)
 
 ## Phase 4: Documentation
-- [ ] Task: Add a section to `docs/guide.md` or a new doc explaining the "CV-Safe" strategy and how to tune it.
+- [x] Task: Add a section to `docs/guide.md` or a new doc explaining the "CV-Safe" strategy and how to tune it.
 - [ ] Task: Conductor - User Manual Verification 'Phase 4: Documentation' (Protocol in workflow.md)

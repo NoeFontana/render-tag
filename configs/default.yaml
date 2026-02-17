@@ -52,4 +52,10 @@ scene:
 physics:
   drop_height: 0.2
   scatter_radius: 0.8
+renderer:
+  mode: cycles
+  noise_threshold: 0.05
+  max_samples: 128
+  enable_denoising: true
+  denoiser_type: INTEL
 version: '0.1'

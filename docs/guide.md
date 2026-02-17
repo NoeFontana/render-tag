@@ -71,6 +71,29 @@ tag:
     roughness_max: 0.5
 ```
 
+### Renderer Section (CV-Safe Strategy)
+
+The `renderer` section controls the 3D engine's performance and quality trade-offs. `render-tag` defaults to a "CV-Safe" strategy that uses adaptive sampling and guided denoising to maximize throughput without sacrificing corner accuracy.
+
+```yaml
+renderer:
+  mode: cycles
+  # Adaptive sampling termination criteria
+  noise_threshold: 0.05
+  # Hard limit on samples per pixel
+  max_samples: 128
+  # Guided denoising (Intel OIDN + Albedo/Normal guidance)
+  enable_denoising: true
+```
+
+| Parameter | Default | CV-Safe Recommendation |
+|-----------|---------|------------------------|
+| `noise_threshold` | 0.05 | 0.02 (High Precision) to 0.1 (Draft) |
+| `max_samples` | 128 | 64 - 256 |
+| `enable_denoising` | true | Always `true` for CV speedup |
+
+---
+
 ### Layout Modes
 
 `render-tag` supports three layout modes:
