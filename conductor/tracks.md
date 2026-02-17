@@ -46,3 +46,8 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 - [ ] **Track: Polymorphic Subject Architecture (Phase 1)**
 *Link: [./tracks/polymorphic_subject_p1_20260217/](./tracks/polymorphic_subject_p1_20260217/)*
+
+---
+
+- [ ] **Track: Subject Strategy Pattern (Phase 2)**
+*Link: [./tracks/subject_strategy_p2_20260217/](./tracks/subject_strategy_p2_20260217/)*
