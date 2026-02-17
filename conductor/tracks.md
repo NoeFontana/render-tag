@@ -32,5 +32,5 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-- [ ] **Track: RAM Telemetry & Auto-Tuning**
+- [x] **Track: RAM Telemetry & Auto-Tuning**
 *Link: [./tracks/ram_telemetry_20260216/](./tracks/ram_telemetry_20260216/)*
