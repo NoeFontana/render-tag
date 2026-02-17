@@ -131,18 +131,16 @@ class RenderFacade:
 
             # Apply CV-Safe Light Paths
             bridge.bproc.renderer.set_light_bounces(
-                diffuse=self.config.diffuse_bounces,
-                glossy=self.config.glossy_bounces,
-                transmission=self.config.transmission_bounces,
-                transparency=self.config.transparent_bounces,
-                volume=0,  # Volumes are expensive and usually not needed for tags
+                diffuse_bounces=self.config.diffuse_bounces,
+                glossy_bounces=self.config.glossy_bounces,
+                transmission_bounces=self.config.transmission_bounces,
+                transparent_max_bounces=self.config.transparent_bounces,
+                volume_bounces=0,  # Volumes are expensive and usually not needed for tags
+                max_bounces=self.config.total_bounces,
             )
-            bridge.bproc.renderer.set_caustics(
-                reflective=self.config.enable_caustics,
-                refractive=self.config.enable_caustics,
-            )
-            # Set total max bounces
-            bridge.bpy.context.scene.cycles.max_bounces = self.config.total_bounces
+            # BlenderProc doesn't wrap caustics, set via bpy directly
+            bridge.bpy.context.scene.cycles.caustics_reflective = self.config.enable_caustics
+            bridge.bpy.context.scene.cycles.caustics_refractive = self.config.enable_caustics
 
         # Plumb CPU thread budget from environment if available
         # Set in render_tag.core.utils.get_subprocess_env

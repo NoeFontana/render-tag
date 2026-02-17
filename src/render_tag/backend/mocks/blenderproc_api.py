@@ -99,10 +99,16 @@ class MockRenderer:
     def set_denoiser(self, denoiser: str, **kwargs):
         pass
 
-    def set_light_bounces(self, **kwargs):
-        pass
-
-    def set_caustics(self, reflective: bool, refractive: bool):
+    def set_light_bounces(
+        self,
+        diffuse_bounces: int | None = None,
+        glossy_bounces: int | None = None,
+        ao_bounces_render: int | None = None,
+        max_bounces: int | None = None,
+        transmission_bounces: int | None = None,
+        transparent_max_bounces: int | None = None,
+        volume_bounces: int | None = None,
+    ):
         pass
 
     def enable_diffuse_color_output(self, **kwargs):

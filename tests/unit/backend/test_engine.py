@@ -1,4 +1,3 @@
-
 import pytest
 from unittest.mock import MagicMock
 from render_tag.backend.bridge import bridge
@@ -29,14 +28,15 @@ def test_render_facade_light_path_settings():
     
     # Verify BlenderProc renderer calls for light paths
     mock_renderer.set_light_bounces.assert_called_once_with(
-        diffuse=2,
-        glossy=4,
-        transmission=1,
-        transparency=6,
-        volume=0  # Should be 0 by default for CV
+        diffuse_bounces=2,
+        glossy_bounces=4,
+        transmission_bounces=1,
+        transparent_max_bounces=6,
+        volume_bounces=0,
+        max_bounces=5
     )
-    mock_renderer.set_caustics.assert_called_once_with(reflective=True, refractive=True)
-    assert bridge.bpy.context.scene.cycles.max_bounces == 5
+    assert bridge.bpy.context.scene.cycles.caustics_reflective is True
+    assert bridge.bpy.context.scene.cycles.caustics_refractive is True
 
 def test_render_facade_light_path_defaults():
     """Verify that RenderFacade applies default CV-Safe light path settings."""
@@ -49,11 +49,12 @@ def test_render_facade_light_path_defaults():
     
     # Verify defaults are applied
     mock_renderer.set_light_bounces.assert_called_with(
-        diffuse=2,
-        glossy=4,
-        transmission=0,
-        transparency=4,
-        volume=0
+        diffuse_bounces=2,
+        glossy_bounces=4,
+        transmission_bounces=0,
+        transparent_max_bounces=4,
+        volume_bounces=0,
+        max_bounces=4
     )
-    mock_renderer.set_caustics.assert_called_with(reflective=False, refractive=False)
-    assert bridge.bpy.context.scene.cycles.max_bounces == 4
+    assert bridge.bpy.context.scene.cycles.caustics_reflective is False
+    assert bridge.bpy.context.scene.cycles.caustics_refractive is False
