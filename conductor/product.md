@@ -36,4 +36,5 @@ Procedural 3D data generation for AprilTag training (Offline).
 - **Pluggable Execution:** Support for multiple rendering backends, including local subprocesses and hermetic Docker containers, enabling seamless transition from development to high-performance computing (HPC) environments.
 - **Environment Synchronization:** Robust bootstrap pattern ensures that the rendering backend (Blender) perfectly matches the host's virtual environment dependencies, eliminating sim-to-sim parity issues.
 - **Hot Loop Optimization:** Scene recycling and persistent data management in the rendering backend, minimizing initialization overhead and maximizing throughput for batch generation.
+- **Smart Resumption:** Deterministic shard-level validation and aggressive file cleanup allow seamless recovery from interrupted generation jobs without manual intervention or data duplication.
 - **Fast Validation:** A "Shadow Render" capability for rapid prototyping and validation of scene recipes without the overhead of full 3D rendering.
