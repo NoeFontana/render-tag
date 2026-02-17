@@ -1,10 +1,10 @@
 # Plan: RAM Telemetry & Auto-Tuning
 
 ## Phase 1: Schema Updates
-- [ ] Task: Update `JobInfrastructure` for memory limits
-    - [ ] Write failing test in `tests/unit/core/test_schema_memory.py` to verify `max_memory_mb` field.
-    - [ ] Implement `max_memory_mb: int | None = None` in `src/render_tag/core/schema/job.py`.
-    - [ ] Verify tests pass.
+- [x] Task: Update `JobInfrastructure` for memory limits
+    - [x] Write failing test in `tests/unit/core/test_schema_memory.py` to verify `max_memory_mb` field.
+    - [x] Implement `max_memory_mb: int | None = None` in `src/render_tag/core/schema/job.py`.
+    - [x] Verify tests pass.
 
 ## Phase 2: Dynamic Allocation (Orchestrator)
 - [ ] Task: Implement `calculate_worker_budget`

@@ -29,6 +29,7 @@ class JobInfrastructure(BaseModel):
     max_workers: int = Field(default=1, gt=0)
     timeout_seconds: float = Field(default=3600.0, gt=0)
     worker_memory_limit_gb: float | None = None
+    max_memory_mb: int | None = None
 
 
 class JobSpec(BaseModel):
