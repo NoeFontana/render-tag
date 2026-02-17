@@ -1,6 +1,6 @@
 # Implementation Plan: High-Fidelity Calibration Targets
 
-## Phase 1: The Configuration Contract (Schema)
+## Phase 1: The Configuration Contract (Schema) [checkpoint: 1770bc4]
 - [x] Task: Create `src/render_tag/core/schema/board.py` with `BoardType` and `BoardConfig`. 0a47752
 - [x] Task: Implement Pydantic validators to enforce `marker_size < square_size` for ChArUco. 3f74849
 - [x] Task: Write unit tests for schema parsing from YAML in `tests/unit/core/schema/test_board.py`. 3be288b
