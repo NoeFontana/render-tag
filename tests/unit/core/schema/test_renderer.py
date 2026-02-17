@@ -33,3 +33,37 @@ def test_renderer_config_validation():
     with pytest.raises(ValidationError):
         # max_samples must be positive
         RendererConfig(max_samples=0)
+
+def test_renderer_config_light_paths_defaults():
+    """Verify default values for light path parameters."""
+    config = RendererConfig()
+    assert config.total_bounces == 4
+    assert config.diffuse_bounces == 2
+    assert config.glossy_bounces == 4
+    assert config.transmission_bounces == 0
+    assert config.transparent_bounces == 4
+    assert config.enable_caustics is False
+
+def test_renderer_config_light_paths_overrides():
+    """Verify that light path parameters can be overridden."""
+    config = RendererConfig(
+        total_bounces=8,
+        diffuse_bounces=4,
+        glossy_bounces=6,
+        transmission_bounces=2,
+        transparent_bounces=10,
+        enable_caustics=True
+    )
+    assert config.total_bounces == 8
+    assert config.diffuse_bounces == 4
+    assert config.glossy_bounces == 6
+    assert config.transmission_bounces == 2
+    assert config.transparent_bounces == 10
+    assert config.enable_caustics is True
+
+def test_renderer_config_light_paths_validation():
+    """Verify validation for light path parameters."""
+    with pytest.raises(ValidationError):
+        RendererConfig(total_bounces=-1)
+    with pytest.raises(ValidationError):
+        RendererConfig(diffuse_bounces=-1)
