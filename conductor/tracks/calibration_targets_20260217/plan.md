@@ -7,10 +7,10 @@
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Schema and Core Configuration' (Protocol in workflow.md)
 
 ## Phase 2: The Texture Synthesizer (OpenCV Factory)
-- [ ] Task: Implement `TextureFactory` in `src/render_tag/generation/texture_factory.py` using OpenCV.
-- [ ] Task: Implement AprilGrid drawing logic with `spacing_ratio` support.
-- [ ] Task: Implement ChArUco drawing logic (checkerboard + ArUco overlay).
-- [ ] Task: Write tests to verify generated image dimensions and ID placement.
+- [x] Task: Implement `TextureFactory` in `src/render_tag/generation/texture_factory.py` using OpenCV. 3605ad2
+- [x] Task: Implement AprilGrid drawing logic with `spacing_ratio` support. 3605ad2
+- [x] Task: Implement ChArUco drawing logic (checkerboard + ArUco overlay). 3605ad2
+- [x] Task: Write tests to verify generated image dimensions and ID placement. 3605ad2
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Texture Synthesizer' (Protocol in workflow.md)
 
 ## Phase 3: Scene Graph Integration (Blender Side)
