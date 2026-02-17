@@ -22,6 +22,7 @@ from ..core.schema import (
     SensorDynamicsRecipe,
     WorldRecipe,
 )
+from ..core.schema.subject import BoardSubjectConfig, TagSubjectConfig
 from ..core.seeding import derive_seed
 from ..data_io.assets import AssetProvider
 from .camera import sample_camera_pose
@@ -180,32 +181,72 @@ class SceneCompiler:
 
         tag_config = self.config.tag
         scenario = self.config.scenario
-
-        layout_mode = (
-            scenario.layouts[scene_id % len(scenario.layouts)]
-            if scenario.layouts
-            else scenario.layout
-        )
+        subject = scenario.subject.root
 
         objects = []
-        cols, rows = scenario.grid_size[0], scenario.grid_size[1]
-        tag_size = tag_config.size_meters
-        tag_families = [f.value for f in scenario.tag_families]
 
-        if layout_mode == "board":
+        if isinstance(subject, BoardSubjectConfig):
             # High-Fidelity Calibration Board (Single Texture)
-            if not scenario.board:
-                raise ValueError("scenario.board config is required for 'board' layout mode")
-            
-            board_config = scenario.board
-            
+            board_config = BoardConfig(
+                type="charuco" if subject.type == "BOARD" else "aprilgrid",  # Map if needed
+                rows=subject.rows,
+                cols=subject.cols,
+                marker_size=subject.marker_size,
+                dictionary=subject.dictionary,
+                spacing_ratio=subject.spacing_ratio,
+                square_size=subject.square_size,
+            )
+            # Re-map type based on our logic if it's simplified in SubjectConfig
+            # Actually BoardSubjectConfig already has AprilGrid specific fields.
+            # We'll use the BoardSpec/compute_layout logic.
+            from .board import BoardSpec, BoardType, compute_aprilgrid_layout, compute_charuco_layout
+
+            if subject.spacing_ratio is not None:
+                b_type = BoardType.APRILGRID
+                square_size = subject.marker_size * (1.0 + subject.spacing_ratio)
+                spec = BoardSpec(
+                    rows=subject.rows,
+                    cols=subject.cols,
+                    square_size=square_size,
+                    marker_margin=(square_size - subject.marker_size) / 2.0,
+                    board_type=b_type,
+                )
+                layout = compute_aprilgrid_layout(spec)
+            else:
+                b_type = BoardType.CHARUCO
+                spec = BoardSpec(
+                    rows=subject.rows,
+                    cols=subject.cols,
+                    square_size=subject.square_size,
+                    marker_margin=(subject.square_size - subject.marker_size) / 2.0,
+                    board_type=b_type,
+                )
+                layout = compute_charuco_layout(spec)
+
+            # 3D Keypoints for the board
+            keypoints_3d = []
+            # 1. Tag corners
+            m = subject.marker_size / 2.0
+            for pos in layout.tag_positions:
+                # Local space keypoints for each tag on the board
+                # TL, TR, BR, BL order
+                keypoints_3d.extend(
+                    [
+                        [pos.x - m, pos.y + m, 0.0],
+                        [pos.x + m, pos.y + m, 0.0],
+                        [pos.x + m, pos.y - m, 0.0],
+                        [pos.x - m, pos.y - m, 0.0],
+                    ]
+                )
+            # 2. Saddle points / Grid intersections
+            for pos in layout.corner_positions:
+                keypoints_3d.append([pos.x, pos.y, pos.z])
+
             # Use TextureFactory to generate/ensure board texture
             cache_dir = self.output_dir / "cache" / "boards" if self.output_dir else None
             factory = TextureFactory(cache_dir=cache_dir)
-            # This will generate the texture and save it to cache
             img = factory.generate_board_texture(board_config)
-            
-            # Resolve texture path
+
             texture_path = None
             if cache_dir:
                 config_hash = factory._calculate_hash(board_config)
@@ -220,109 +261,99 @@ class SceneCompiler:
                     scale=[1, 1, 1],
                     texture_path=texture_path,
                     board=board_config,
+                    keypoints_3d=keypoints_3d,
                 )
             )
-            num_tags = 0
-        elif layout_mode == "cb":
-            num_tags = (cols * rows + 1) // 2
-        elif layout_mode == "aprilgrid":
-            num_tags = cols * rows
         else:
-            num_tags = int(
-                rng.integers(scenario.tags_per_scene[0], scenario.tags_per_scene[1], endpoint=True)
-            )
+            # TAGS mode (Legacy "Flying Tags" or "Grid Layout")
+            num_tags = subject.tags_per_scene
+            tag_size = subject.size_meters
+            tag_families = subject.tag_families
 
-        for i in range(num_tags):
-            obj_seed = derive_seed(layout_seed, "tag_obj", i)
-            obj_rng = np.random.default_rng(obj_seed)
+            for i in range(num_tags):
+                obj_seed = derive_seed(layout_seed, "tag_obj", i)
+                obj_rng = np.random.default_rng(obj_seed)
 
-            family = obj_rng.choice(tag_families)
-            max_id = TAG_MAX_IDS.get(family, 100)
-            tag_id = int(obj_rng.integers(0, max_id))
+                family = obj_rng.choice(tag_families)
+                max_id = TAG_MAX_IDS.get(family, 100)
+                tag_id = int(obj_rng.integers(0, max_id))
 
-            tex_base = None
-            if tag_config.texture_path:
-                tex_base = str(
-                    self.asset_provider.resolve_path(str(tag_config.texture_path)).absolute()
-                )
-
-            # Resolve tag material properties here (Move-Left)
-            roughness = 0.8
-            specular = 0.2
-            if tag_config.material and tag_config.material.randomize:
-                roughness = obj_rng.uniform(
-                    tag_config.material.roughness_min, tag_config.material.roughness_max
-                )
-                specular = obj_rng.uniform(
-                    tag_config.material.specular_min, tag_config.material.specular_max
-                )
-
-            # Resolve texture path to the cache directory if output_dir is known
-            texture_path = None
-            if self.output_dir:
-                margin_bits = tag_config.margin_bits
-                texture_path = str(
-                    (
-                        self.output_dir / "cache" / "tags" / f"{family}_{tag_id}_m{margin_bits}.png"
-                    ).absolute()
-                )
-
-            objects.append(
-                ObjectRecipe(
-                    type="TAG",
-                    name=f"Tag_{i}",
-                    location=[0, 0, 0],
-                    rotation_euler=[0, 0, 0],
-                    scale=[1, 1, 1],
-                    texture_path=texture_path,
-                    material={
-                        "roughness": roughness,
-                        "specular": specular,
-                    },
-                    properties={
-                        "tag_id": tag_id,
-                        "tag_family": family,
-                        "tag_size": tag_size,
-                        "margin_bits": tag_config.margin_bits,
-                        "texture_base_path": tex_base,
-                    },
-                )
-            )
-
-        if scenario.flying:
-            apply_flying_layout(objects, self.config.physics.scatter_radius, rng=rng)
-        else:
-            apply_grid_layout(
-                objects,
-                layout_mode,
-                cols,
-                rows,
-                tag_size,
-                tag_spacing_bits=scenario.tag_spacing_bits or 2.0,
-                tag_families=tag_families,
-            )
-            if layout_mode in ("cb", "aprilgrid", "plain"):
-                primary_family = tag_families[0]
-                tag_bit_grid_size = TAG_GRID_SIZES.get(primary_family, 8)
-                tag_spacing = (scenario.tag_spacing_bits / tag_bit_grid_size) * tag_size
-                square_size = tag_size + tag_spacing
-                if scenario.use_board:
-                    objects.append(
-                        ObjectRecipe(
-                            type="BOARD",
-                            name="Board_Background",
-                            location=[0, 0, -0.005],
-                            rotation_euler=[0, 0, 0],
-                            scale=[1, 1, 1],
-                            properties={
-                                "mode": layout_mode,
-                                "cols": cols,
-                                "rows": rows,
-                                "tag_size": tag_size,
-                                "square_size": square_size,
-                            },
-                        )
+                tex_base = None
+                if tag_config.texture_path:
+                    tex_base = str(
+                        self.asset_provider.resolve_path(str(tag_config.texture_path)).absolute()
                     )
+
+                # Material properties
+                roughness = 0.8
+                specular = 0.2
+                if tag_config.material and tag_config.material.randomize:
+                    roughness = obj_rng.uniform(
+                        tag_config.material.roughness_min, tag_config.material.roughness_max
+                    )
+                    specular = obj_rng.uniform(
+                        tag_config.material.specular_min, tag_config.material.specular_max
+                    )
+
+                texture_path = None
+                if self.output_dir:
+                    margin_bits = tag_config.margin_bits
+                    texture_path = str(
+                        (
+                            self.output_dir
+                            / "cache"
+                            / "tags"
+                            / f"{family}_{tag_id}_m{margin_bits}.png"
+                        ).absolute()
+                    )
+
+                # Local keypoints for a single tag (TL, TR, BR, BL)
+                m = tag_size / 2.0
+                kps = [[-m, m, 0.0], [m, m, 0.0], [m, -m, 0.0], [-m, -m, 0.0]]
+
+                objects.append(
+                    ObjectRecipe(
+                        type="TAG",
+                        name=f"Tag_{i}",
+                        location=[0, 0, 0],
+                        rotation_euler=[0, 0, 0],
+                        scale=[1, 1, 1],
+                        texture_path=texture_path,
+                        material={
+                            "roughness": roughness,
+                            "specular": specular,
+                        },
+                        properties={
+                            "tag_id": tag_id,
+                            "tag_family": family,
+                            "tag_size": tag_size,
+                            "margin_bits": tag_config.margin_bits,
+                            "texture_base_path": tex_base,
+                        },
+                        keypoints_3d=kps,
+                    )
+                )
+
+            # Apply layout (only for TAGS mode)
+            # TagSubjectConfig doesn't have grid_size/layout_mode yet in the new schema,
+            # but legacy migration might have provided it.
+            # For Phase 1, we assume TagSubjectConfig uses flying or grid based on GenConfig.
+            if scenario.flying:
+                apply_flying_layout(objects, self.config.physics.scatter_radius, rng=rng)
+            else:
+                # Default to a grid layout if not flying
+                # Note: we need grid dimensions. We'll use defaults or derive from count.
+                cols = int(math.ceil(math.sqrt(num_tags)))
+                rows = int(math.ceil(num_tags / cols))
+                apply_grid_layout(
+                    objects,
+                    "plain",
+                    cols,
+                    rows,
+                    tag_size,
+                    tag_spacing_bits=2.0,
+                    tag_families=tag_families,
+                )
         recipe.objects = objects
 
         # 3. Cameras

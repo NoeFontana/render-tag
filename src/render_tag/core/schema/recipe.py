@@ -81,6 +81,9 @@ class ObjectRecipe(BaseModel):
     material: dict[str, Any] | None = None
     texture_path: str | None = None
     board: Optional[BoardConfig] = None
+    keypoints_3d: list[list[float]] | None = Field(
+        default=None, description="Standardized 3D keypoints [x, y, z] in local object space"
+    )
 
 
 class LightRecipe(BaseModel):
