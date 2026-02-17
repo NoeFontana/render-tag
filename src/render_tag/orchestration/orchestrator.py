@@ -33,7 +33,13 @@ from render_tag.core.resources import (
     calculate_worker_memory_budget,
     get_thread_budget,
 )
-from render_tag.core.schema.hot_loop import CommandType, Response, ResponseStatus, Telemetry
+from render_tag.core.schema.hot_loop import (
+    CommandType,
+    Response,
+    ResponseStatus,
+    Telemetry,
+    WorkerStatus,
+)
 from render_tag.core.schema.job import JobSpec
 from render_tag.core.utils import is_port_in_use
 from render_tag.orchestration.worker import PersistentWorkerProcess
@@ -174,6 +180,7 @@ class UnifiedWorkerOrchestrator:
 
     def release_worker(self, worker: PersistentWorkerProcess):
         should_restart = False
+        limit_exceeded = False
         intentional_exit = (
             worker.max_renders is not None and worker.renders_completed >= worker.max_renders
         )
@@ -184,7 +191,12 @@ class UnifiedWorkerOrchestrator:
                 if resp.status == ResponseStatus.SUCCESS and resp.data:
                     telemetry = Telemetry(**resp.data)
                     self.auditor.add_entry(worker.worker_id, telemetry)
-                    if (
+                    
+                    # Check for memory or VRAM limits
+                    if telemetry.status == WorkerStatus.RESOURCE_LIMIT_EXCEEDED:
+                        limit_exceeded = True
+                        should_restart = True
+                    elif (
                         not intentional_exit
                         and self.vram_threshold_mb
                         and telemetry.vram_used_mb > self.vram_threshold_mb
@@ -202,6 +214,9 @@ class UnifiedWorkerOrchestrator:
             should_restart = True
 
         if should_restart or intentional_exit:
+            if limit_exceeded:
+                logger.info(f"Preventative restart for {worker.worker_id} (Resource limit exceeded)")
+            
             worker.stop()
             slot_id = worker.shard_id.split("_")[0]
             unique_shard_id = f"{slot_id}_{uuid.uuid4().hex[:6]}"
@@ -233,8 +248,10 @@ class UnifiedWorkerOrchestrator:
         self, recipe: dict, output_dir: Path, rm: str = "cycles", sid: str | None = None
     ) -> Response:
         max_retries = 2
+        attempt = 0
         last_error = None
-        for attempt in range(max_retries + 1):
+        
+        while attempt <= max_retries:
             worker = self.get_worker()
             try:
                 effective_shard_id = sid if sid is not None else worker.shard_id
@@ -248,6 +265,19 @@ class UnifiedWorkerOrchestrator:
                         "skip_visibility": self.mock,
                     },
                 )
+                
+                # Check for memory limit exceeded during render
+                # In this case, we don't count it as a failed attempt
+                if (
+                    resp.status == ResponseStatus.FAILURE 
+                    and resp.message 
+                    and "RESOURCE_LIMIT_EXCEEDED" in resp.message
+                ):
+                    logger.info(f"Worker {worker.worker_id} exceeded resource limits during render. Retrying.")
+                    worker.stop()
+                    # Do not increment attempt counter
+                    continue
+
                 if resp.status == ResponseStatus.SUCCESS:
                     worker.renders_completed += 1
                 return resp
@@ -255,8 +285,10 @@ class UnifiedWorkerOrchestrator:
                 last_error = e
                 logger.warning(f"Render attempt {attempt + 1} failed for {worker.worker_id}: {e}")
                 worker.stop()
+                attempt += 1
             finally:
                 self.release_worker(worker)
+        
         raise WorkerCommunicationError(
             f"Execute recipe failed after {max_retries} retries: {last_error}"
         )

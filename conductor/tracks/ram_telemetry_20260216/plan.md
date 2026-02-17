@@ -29,8 +29,8 @@
     - [x] Pass limit to `ZmqBackendServer`.
 
 ## Phase 4: Resilient Recovery
-- [ ] Task: Implement Maintenance Restarts
-    - [ ] Update `UnifiedWorkerOrchestrator.release_worker` logic to detect resource-limit exits.
-    - [ ] Ensure `retry_count` is NOT incremented for these specific exits.
-    - [ ] Verify automatic replacement spawning.
-    - [ ] Verify integration with integration tests.
+- [x] Task: Implement Maintenance Restarts (53d82cf)
+    - [x] Update `UnifiedWorkerOrchestrator.release_worker` logic to detect resource-limit exits.
+    - [x] Ensure `retry_count` is NOT incremented for these specific exits.
+    - [x] Verify automatic replacement spawning.
+    - [x] Verify integration with integration tests.

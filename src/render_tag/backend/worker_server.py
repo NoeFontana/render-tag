@@ -307,6 +307,14 @@ class ZmqBackendServer:
             execute_recipe(recipe, ctx=ctx, seed=render_seed)
 
             with self._lock:
+                # Post-render memory check
+                if not self._check_memory():
+                    return Response(
+                        status=ResponseStatus.FAILURE,
+                        request_id=cmd.request_id,
+                        message="RESOURCE_LIMIT_EXCEEDED: Memory limit exceeded after render.",
+                    )
+
                 self.renders_completed += 1
                 self.status = WorkerStatus.IDLE
 
