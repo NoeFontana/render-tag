@@ -7,9 +7,9 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Schema and Core Configuration' (Protocol in workflow.md)
 
 ## Phase 2: Backend Engine Integration
-- [ ] Task: Update `src/render_tag/backend/engine.py` to apply `set_light_bounces` and `set_caustics` using values from the config.
-- [ ] Task: Write TDD tests for the backend engine in `tests/unit/backend/test_engine.py` to ensure BlenderProc methods are called correctly.
-- [ ] Task: Implement the logic in the engine to translate schema fields to BlenderProc renderer settings.
+- [x] Task: Update `src/render_tag/backend/engine.py` to apply `set_light_bounces` and `set_caustics` using values from the config. 98f9c97
+- [x] Task: Write TDD tests for the backend engine in `tests/unit/backend/test_engine.py` to ensure BlenderProc methods are called correctly. 98f9c97
+- [x] Task: Implement the logic in the engine to translate schema fields to BlenderProc renderer settings. 98f9c97
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Backend Engine Integration' (Protocol in workflow.md)
 
 ## Phase 3: Verification and Benchmarking
