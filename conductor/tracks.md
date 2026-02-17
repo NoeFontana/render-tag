@@ -7,7 +7,7 @@ This file tracks all major tracks for the project. Each track has its own detail
 - [x] **Track: Strict Schema Versioning**
   *Link: [./tracks/schema_versioning_20260215/](./tracks/schema_versioning_20260215/)*
 
-- [ ] **Track: CV-Safe Light Paths Optimization**
+- [x] **Track: CV-Safe Light Paths Optimization**
   *Link: [./tracks/cv_safe_light_paths_20260217/](./tracks/cv_safe_light_paths_20260217/)*
 
 ## Archived Tracks
