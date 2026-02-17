@@ -13,7 +13,7 @@
     - [x] Verify tests pass.
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Deterministic Sharding & Validation Logic' (Protocol in workflow.md)
 
-## Phase 2: CLI Integration & Resumption Flow
+## Phase 2: CLI Integration & Resumption Flow [checkpoint: e2b4768]
 - [x] Task: Update CLI `generate` Command for Resumption (0a4d0c6)
     - [x] Write failing integration test in `tests/integration/test_resumption_cli.py`.
     - [x] Add `--resume-from` argument to `src/render_tag/cli/generate.py`.
@@ -21,4 +21,4 @@
     - [x] Implement workload filtering to only pass missing/invalid shards to the Orchestrator.
     - [x] Add fail-fast validation for invalid paths or config mismatches.
     - [x] Verify tests pass.
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: CLI Integration & Resumption Flow' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 2: CLI Integration & Resumption Flow' (Protocol in workflow.md)
