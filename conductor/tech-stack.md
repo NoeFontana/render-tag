@@ -1,7 +1,7 @@
 # Technology Stack
 
 ## Core Language & Runtime
-- **Python 3.12:** Utilizing modern features like type hinting and the latest standard library improvements.
+- **Python 3.11:** Utilizing modern features while ensuring perfect parity with Blender's internal Python environment.
 - **uv:** Fast Python package installer and resolver used for dependency management and environment isolation.
 
 ## 3D Rendering & Computer Vision
