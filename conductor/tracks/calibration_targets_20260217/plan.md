@@ -6,7 +6,7 @@
 - [x] Task: Write unit tests for schema parsing from YAML in `tests/unit/core/schema/test_board.py`. 3be288b
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Schema and Core Configuration' (Protocol in workflow.md)
 
-## Phase 2: The Texture Synthesizer (OpenCV Factory)
+## Phase 2: The Texture Synthesizer (OpenCV Factory) [checkpoint: 9c8de8f]
 - [x] Task: Implement `TextureFactory` in `src/render_tag/generation/texture_factory.py` using OpenCV. 3605ad2
 - [x] Task: Implement AprilGrid drawing logic with `spacing_ratio` support. 3605ad2
 - [x] Task: Implement ChArUco drawing logic (checkerboard + ArUco overlay). 3605ad2
