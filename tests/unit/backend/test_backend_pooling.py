@@ -58,6 +58,7 @@ def test_create_tag_plane_uses_global_pool():
     with (
         patch("render_tag.backend.assets.global_pool", mock_pool),
         patch("render_tag.backend.assets.apply_tag_texture"),
+        patch("pathlib.Path.exists", return_value=True),
     ):
         # Should not call create_primitive directly
         tag = create_tag_plane(0.1, Path("tex.png"), "tag36h11")

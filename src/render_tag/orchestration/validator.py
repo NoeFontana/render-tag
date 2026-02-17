@@ -2,9 +2,11 @@
 import csv
 import json
 from pathlib import Path
+from rich.console import Console
 from render_tag.core.logging import get_logger
 
 logger = get_logger(__name__)
+console = Console()
 
 class ShardValidator:
     """Validates rendered shards on disk against expected specifications."""
@@ -61,7 +63,6 @@ class ShardValidator:
             if csv_path.exists() or coco_path.exists():
                 logger.warning(reason)
                 if delete_invalid:
-                    from render_tag.cli.tools import console
                     console.print(f"[yellow]Aggressive Cleanup: Removing invalid shard {shard_id} files[/yellow]")
                     if csv_path.exists(): csv_path.unlink()
                     if coco_path.exists(): coco_path.unlink()

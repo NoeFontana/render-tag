@@ -294,22 +294,43 @@ def orchestrate(
     signal.signal(signal.SIGINT, _signal_handler)
     signal.signal(signal.SIGTERM, _signal_handler)
     from render_tag.generation.scene import Generator
+    from render_tag.orchestration.validator import ShardValidator
 
     output_dir = job_spec.paths.output_dir
     gen = Generator(job_spec.scene_config, output_dir, global_seed=job_spec.global_seed)
-    recipes = gen.generate_all(exclude_ids=get_completed_scene_ids(output_dir) if resume else set())
-    if not recipes:
+    
+    # Calculate shard plan
+    actual_batch_size = (
+        min(batch_size, max(1, job_spec.shard_size // workers)) if batch_size == 5 else batch_size
+    )
+    total_shards = job_spec.get_total_shards(actual_batch_size)
+    
+    validator = ShardValidator(output_dir)
+    missing_shard_indices = validator.get_missing_shard_indices(
+        num_shards=total_shards,
+        scenes_per_shard=actual_batch_size,
+        total_scenes=job_spec.shard_size
+    ) if resume else list(range(total_shards))
+
+    if not missing_shard_indices:
+        console.print("[green]All shards are already complete. Skipping orchestration.[/green]")
         return
 
-    actual_batch_size = (
-        min(batch_size, max(1, len(recipes) // workers)) if batch_size == 5 else batch_size
-    )
-    batches = [
-        gen.save_recipe_json(
-            recipes[i : i + actual_batch_size], f"recipes_batch_{i // actual_batch_size}.json"
+    batches = []
+    for shard_idx in missing_shard_indices:
+        # Generate recipes for this shard
+        recipes = gen.generate_shards(
+            total_scenes=job_spec.shard_size,
+            shard_index=shard_idx,
+            total_shards=total_shards,
+            exclude_ids=get_completed_scene_ids(output_dir) if resume else set()
         )
-        for i in range(0, len(recipes), actual_batch_size)
-    ]
+        if recipes:
+            batch_path = gen.save_recipe_json(recipes, f"recipes_shard_{shard_idx}.json")
+            batches.append(batch_path)
+
+    if not batches:
+        return
 
     rm = job_spec.scene_config.renderer.mode if job_spec.scene_config.renderer else "cycles"
     force_mock = (os.environ.get("RENDER_TAG_FORCE_MOCK") == "1") or (
