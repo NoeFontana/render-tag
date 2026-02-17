@@ -18,13 +18,13 @@
     - [x] Verify via mock tests.
 
 ## Phase 3: Worker Sentinel (Enforcement)
-- [x] Task: Implement memory monitoring in worker (eb2d115)
+- [x] Task: Implement memory monitoring in worker (53d82cf)
     - [x] Update `ZmqBackendServer` in `src/render_tag/backend/worker_server.py` to track memory usage.
     - [x] Implement periodic check in management loop.
     - [x] Implement `WorkerStatus.RESOURCE_LIMIT_EXCEEDED` logic.
     - [x] Add `gc.collect()` before final measurement.
     - [x] Verify with simulated leak tests.
-- [x] Task: Update worker entrypoint (eb2d115)
+- [x] Task: Update worker entrypoint (53d82cf)
     - [x] Update `src/render_tag/backend/zmq_server.py` to parse `--memory-limit-mb`.
     - [x] Pass limit to `ZmqBackendServer`.
 
