@@ -1,7 +1,7 @@
 # Plan: RAM Telemetry & Auto-Tuning
 
 ## Phase 1: Schema Updates
-- [x] Task: Update `JobInfrastructure` for memory limits
+- [x] Task: Update `JobInfrastructure` for memory limits (d7831c3)
     - [x] Write failing test in `tests/unit/core/test_schema_memory.py` to verify `max_memory_mb` field.
     - [x] Implement `max_memory_mb: int | None = None` in `src/render_tag/core/schema/job.py`.
     - [x] Verify tests pass.
