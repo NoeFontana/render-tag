@@ -6,11 +6,11 @@
 - [x] Task: Implement validation and default values for the new fields. 52f621d
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Schema and Core Configuration' (Protocol in workflow.md)
 
-## Phase 2: Backend Engine Integration
+## Phase 2: Backend Engine Integration [checkpoint: 80518e1]
 - [x] Task: Update `src/render_tag/backend/engine.py` to apply adaptive sampling and denoising settings to the BlenderProc renderer. fd40188
 - [x] Task: Write TDD tests for the backend engine in `tests/unit/backend/test_engine.py` to verify BlenderProc calls. fd40188
 - [x] Task: Implement the logic to enable Intel OIDN with Albedo and Normal guidance in the engine. fd40188
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Backend Engine Integration' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 2: Backend Engine Integration' (Protocol in workflow.md)
 
 ## Phase 3: Benchmarking and Sanity Checks
 - [ ] Task: Create a "Sanity Check" script or test case that compares corner detection accuracy between high-sample and "CV-Safe" renders.
