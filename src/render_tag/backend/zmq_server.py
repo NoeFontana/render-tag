@@ -17,6 +17,7 @@ def main():
     parser.add_argument("--shard-id", type=str, default="0")
     parser.add_argument("--mock", action="store_true")
     parser.add_argument("--max-renders", type=int, default=None)
+    parser.add_argument("--memory-limit-mb", type=int, default=None)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--job-spec", type=Path, default=None)
     args, _ = parser.parse_known_args()
@@ -52,6 +53,7 @@ def main():
         shard_id=args.shard_id,
         seed=job_spec.global_seed if job_spec else args.seed,
         job_spec=job_spec,
+        memory_limit_mb=args.memory_limit_mb,
         **mocks,
     )
     server.run(max_renders=args.max_renders)

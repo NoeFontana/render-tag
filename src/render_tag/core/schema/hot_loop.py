@@ -51,6 +51,7 @@ class WorkerStatus(StrEnum):
     BUSY = "BUSY"
     FINISHED = "FINISHED"  # About to exit after success
     ERROR = "ERROR"
+    RESOURCE_LIMIT_EXCEEDED = "RESOURCE_LIMIT_EXCEEDED"
 
 
 class Telemetry(BaseModel):
@@ -59,6 +60,7 @@ class Telemetry(BaseModel):
     status: WorkerStatus = WorkerStatus.IDLE
     vram_used_mb: float
     vram_total_mb: float
+    ram_used_mb: float = 0.0
     cpu_usage_percent: float
     state_hash: str
     uptime_seconds: float

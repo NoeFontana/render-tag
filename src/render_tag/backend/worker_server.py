@@ -43,11 +43,13 @@ class ZmqBackendServer:
         seed: int = 42,
         job_spec: "JobSpec | None" = None,
         mgmt_port: int | None = None,
+        memory_limit_mb: int | None = None,
         **mocks,
     ):
         self.port, self.shard_id, self.seed = port, shard_id, seed
         self.job_spec = job_spec
         self.mgmt_port = mgmt_port or (port + 100)
+        self.memory_limit_mb = memory_limit_mb
 
         self.context = zmq.Context()
 
@@ -74,16 +76,52 @@ class ZmqBackendServer:
         self.current_output_dir, self.writers = None, {}
         self.bproc_initialized = False
 
+    def _check_memory(self) -> bool:
+        """Checks current memory usage and triggers shutdown if limit exceeded.
+        
+        Returns:
+            True if memory is within limits, False if exceeded.
+        """
+        if self.memory_limit_mb is None:
+            return True
+
+        import gc
+        import os
+        import psutil
+
+        # Trigger GC before final measurement to avoid premature restarts
+        gc.collect()
+
+        process = psutil.Process(os.getpid())
+        current_usage_mb = process.memory_info().rss / (1024 * 1024)
+
+        if current_usage_mb > self.memory_limit_mb:
+            logger.warning(
+                f"Memory limit exceeded: {current_usage_mb:.1f}MB > {self.memory_limit_mb}MB. "
+                "Initiating preventative restart."
+            )
+            with self._lock:
+                self.status = WorkerStatus.RESOURCE_LIMIT_EXCEEDED
+            self.running = False
+            return False
+
+        return True
+
     def get_telemetry(self) -> Telemetry:
         """Returns current worker health and state metrics (Thread Safe)."""
+        import os
+        import psutil
+        process = psutil.Process(os.getpid())
+        
         with self._lock:
             return Telemetry(
                 status=self.status,
-                vram_used_mb=0.0,  # Placeholder
+                vram_used_mb=0.0,  # Placeholder for GPU VRAM
                 vram_total_mb=0.0,
-                cpu_usage_percent=0.0,
+                cpu_usage_percent=process.cpu_percent(),
                 state_hash=calculate_state_hash(self.assets_loaded, self.parameters),
                 uptime_seconds=time.time() - self.start_time,
+                ram_used_mb=process.memory_info().rss / (1024 * 1024),
             )
 
     def _setup_writers(self, output_dir: Path, shard_id: str):
@@ -122,6 +160,10 @@ class ZmqBackendServer:
 
         while self.running:
             try:
+                # Periodic memory check
+                if not self._check_memory():
+                    break
+
                 socks = dict(poller.poll(500))
                 if self.mgmt_socket in socks:
                     msg = self.mgmt_socket.recv_string()
@@ -153,6 +195,10 @@ class ZmqBackendServer:
 
         while self.running:
             try:
+                # Periodic memory check
+                if not self._check_memory():
+                    break
+
                 if not self.task_socket.poll(1000):
                     continue
 
