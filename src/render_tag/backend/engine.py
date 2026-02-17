@@ -28,7 +28,7 @@ from render_tag.backend.scene import (
 )
 from render_tag.backend.sensors import apply_parametric_noise
 from render_tag.core.logging import get_logger
-from render_tag.core.schema import DetectionRecord, RendererConfig
+from render_tag.core.schema import DetectionRecord, RendererConfig, SceneRecipe
 from render_tag.core.utils import get_git_hash
 from render_tag.data_io.writers import (
     COCOWriter,
@@ -178,79 +178,84 @@ class RenderFacade:
         setup_lighting(world_recipe.get("lights", []))
 
     def spawn_objects(self, object_recipes: list[dict[str, Any]]):
-        """Creates tags and boards in the scene."""
+        """Creates subjects (tags, boards, etc.) using generic primitives."""
         tag_objects = []
         for obj_recipe in object_recipes:
-            if obj_recipe["type"] == "TAG":
+            obj_type = obj_recipe["type"]
+            location = obj_recipe.get("location", [0, 0, 0])
+            rotation = obj_recipe.get("rotation_euler", [0, 0, 0])
+            scale = obj_recipe.get("scale", [1, 1, 1])
+            texture_path = obj_recipe.get("texture_path")
+            keypoints_3d = obj_recipe.get("keypoints_3d")
+
+            if obj_type == "TAG":
                 props = obj_recipe["properties"]
-                margin_bits = props.get("margin_bits", 0)
-
-                # Priority 1: Recipe-resolved texture_path (Move-Left)
-                # Backend-resolved discovery is REMOVED.
-                texture_path = obj_recipe.get("texture_path")
-                if texture_path:
-                    texture_path = Path(texture_path)
-
                 tag_obj = create_tag_plane(
                     props["tag_size"],
-                    texture_path,
+                    Path(texture_path) if texture_path else None,
                     props["tag_family"],
                     tag_id=props["tag_id"],
-                    margin_bits=margin_bits,
+                    margin_bits=props.get("margin_bits", 0),
                     material_config=obj_recipe.get("material"),
                 )
                 tag_obj.blender_obj.pass_index = props["tag_id"] + 1
-                tag_obj.set_location(obj_recipe["location"])
-                tag_obj.set_rotation_euler(obj_recipe["rotation_euler"])
+                tag_obj.set_location(location)
+                tag_obj.set_rotation_euler(rotation)
+                tag_obj.set_scale(scale)
+                
+                # Attach metadata
+                if keypoints_3d:
+                    tag_obj.blender_obj["keypoints_3d"] = keypoints_3d
+                tag_obj.blender_obj["tag_id"] = props["tag_id"]
+                tag_obj.blender_obj["tag_family"] = props["tag_family"]
+                
                 tag_objects.append(tag_obj)
-            elif obj_recipe["type"] == "BOARD":
-                props = obj_recipe["properties"]
-                texture_path = obj_recipe.get("texture_path")
-                board_cfg = obj_recipe.get("board")
 
+            elif obj_type == "BOARD":
+                board_cfg = obj_recipe.get("board")
                 if texture_path and board_cfg:
-                    # New High-Fidelity Single Plane Path
+                    # Generic High-Fidelity Subject Path (Single Plane)
+                    # We use the board_cfg just to derive the size for legacy create_board_plane,
+                    # but we should ideally just use the scale from recipe if compiler did its job.
+                    width = scale[0]
+                    height = scale[1]
+                    # Note: compiler.py currently sets scale=[1,1,1] and expects create_board_plane
+                    # to handle dimensions via width/height params. 
+                    # We'll stick to compiler's logic for now.
                     if isinstance(board_cfg, dict):
-                        # Handle both dict and object
-                        b_type = board_cfg.get("type")
-                        rows = board_cfg.get("rows")
-                        cols = board_cfg.get("cols")
-                        marker_size = board_cfg.get("marker_size")
-                        if b_type == "aprilgrid":
-                            square_size = marker_size * (1.0 + board_cfg.get("spacing_ratio", 0.0))
+                        cols, rows = board_cfg.get("cols"), board_cfg.get("rows")
+                        ms = board_cfg.get("marker_size")
+                        if board_cfg.get("type") == "aprilgrid":
+                            sqs = ms * (1.0 + board_cfg.get("spacing_ratio", 0.0))
                         else:
-                            square_size = board_cfg.get("square_size", marker_size)
-                    else:
-                        rows = board_cfg.rows
-                        cols = board_cfg.cols
-                        if board_cfg.type == "aprilgrid":
-                            square_size = board_cfg.marker_size * (1.0 + board_cfg.spacing_ratio)
-                        else:
-                            square_size = board_cfg.square_size
+                            sqs = board_cfg.get("square_size", ms)
+                        width, height = sqs * cols, sqs * rows
 
                     board_obj = create_board_plane(
-                        width=square_size * cols,
-                        height=square_size * rows,
+                        width=width,
+                        height=height,
                         texture_path=texture_path,
-                        location=obj_recipe.get("location"),
-                        rotation_euler=obj_recipe.get("rotation_euler"),
+                        location=location,
+                        rotation_euler=rotation,
                     )
-                    board_obj.blender_obj["board"] = board_cfg
                     board_obj.blender_obj["tag_family"] = "calibration_board"
                 else:
-                    # Legacy White Background Path
+                    # Legacy or procedural board
+                    props = obj_recipe.get("properties", {})
                     board_obj = create_board(
                         props.get("cols", 3),
                         props.get("rows", 3),
                         props.get("square_size", 0.1),
                         props.get("mode", "plain"),
-                        location=obj_recipe.get("location"),
+                        location=location,
                     )
                     board_obj.blender_obj["tag_family"] = "legacy_board"
-                    if obj_recipe.get("rotation_euler"):
-                        board_obj.set_rotation_euler(obj_recipe["rotation_euler"])
+                    if rotation:
+                        board_obj.set_rotation_euler(rotation)
+
+                if keypoints_3d:
+                    board_obj.blender_obj["keypoints_3d"] = keypoints_3d
                 
-                # Add to objects list for ground truth processing
                 tag_objects.append(board_obj)
         return tag_objects
 
@@ -292,11 +297,14 @@ class RenderFacade:
 
 
 def execute_recipe(
-    recipe: dict[str, Any],
+    recipe: dict[str, Any] | SceneRecipe,
     ctx: RenderContext,
     seed: int | None = None,
 ) -> None:
     """Execute a single scene recipe using the RenderContext."""
+    if hasattr(recipe, "model_dump"):
+        recipe = recipe.model_dump()
+
     scene_idx = recipe["scene_id"]
 
     # 1. Setup Context-Aware Logger
@@ -395,46 +403,11 @@ def execute_recipe(
                     )
                 )
         else:
-            # Handle standard tags
-            from render_tag.backend.projection import get_valid_detections
+            from render_tag.backend.projection import generate_subject_records
 
-            valid_detections = get_valid_detections(tag_objects)
-            for tag_obj, corners_2d in valid_detections:
-                blender_obj = tag_obj.blender_obj
-                geom = compute_geometric_metadata(tag_obj)
-                occlusion = 0.0
-                if render_out.get("segmap") is not None:
-                    try:
-                        vis_pixels = bridge.np.sum(render_out["segmap"] == blender_obj.pass_index)
-                        if geom["pixel_area"] > 0:
-                            occlusion = float(
-                                bridge.np.clip(1.0 - (vis_pixels / geom["pixel_area"]), 0.0, 1.0)
-                            )
-                    except Exception as e:
-                        logger.debug(f"Segmentation failed for {blender_obj.name}: {e}")
-
-                all_detections.append(
-                    DetectionRecord(
-                        image_id=image_name,
-                        tag_id=blender_obj.get("tag_id", 0),
-                        tag_family=blender_obj.get("tag_family", "unknown"),
-                        corners=corners_2d,
-                        distance=geom["distance"],
-                        angle_of_incidence=geom["angle_of_incidence"],
-                        pixel_area=geom["pixel_area"],
-                        occlusion_ratio=occlusion,
-                        position=geom["position"],
-                        rotation_quaternion=geom["rotation_quaternion"],
-                        global_seed=ctx.global_seed,
-                        scene_seed=recipe.get("random_seed", 0),
-                    )
-                )
-
-            # Handle calibration boards (High-Fidelity)
             for obj in tag_objects:
-                if obj.blender_obj.name == "CalibrationBoard" and "board" in obj.blender_obj:
-                    board_records = generate_board_records(obj, image_name)
-                    all_detections.extend(board_records)
+                records = generate_subject_records(obj, image_name)
+                all_detections.extend(records)
 
         # 6. Save Ground Truth
         for det in all_detections:

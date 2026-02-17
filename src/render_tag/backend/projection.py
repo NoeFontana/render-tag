@@ -165,34 +165,101 @@ def compute_geometric_metadata(tag_obj: Any) -> dict[str, Any]:
     }
 
 
-def get_valid_detections(tag_objects: list[Any]) -> list[tuple[Any, list[tuple[float, float]]]]:
-    """
-    Filter visible tags and return their projected corners.
+def generate_subject_records(obj: Any, image_id: str) -> list[DetectionRecord]:
+    """Generate detection records for any subject using its 3D keypoints.
+
+    This is the polymorphic projection engine that handles Tags, Boards,
+    or any future subject type by projecting its stored keypoints_3d.
 
     Args:
-        tag_objects: List of tag objects (BlenderProc wrappers or similar).
+        obj: The subject mesh object (BlenderProc wrapper).
+        image_id: ID of the current image for tracking.
 
     Returns:
-        List of (tag_obj, corners_2d) tuples for visible tags.
+        A list of DetectionRecord objects.
     """
-    valid_detections = []
+    blender_obj = obj.blender_obj
+    keypoints_3d = blender_obj.get("keypoints_3d")
+    if not keypoints_3d:
+        return []
 
-    for tag_obj in tag_objects:
-        # Check if this is a high-fidelity calibration board
-        if tag_obj.blender_obj.name == "CalibrationBoard" and "board" in tag_obj.blender_obj:
-            # Boards are handled separately by generate_board_records
-            continue
+    # Get Transformation
+    world_matrix = bridge.np.array(obj.get_local2world_mat())
+    blender_cam_mat = bridge.np.array(bridge.bpy.context.scene.camera.matrix_world)
+    k_matrix = bridge.bproc.camera.get_intrinsics_as_K_matrix()
+    res = [
+        bridge.bpy.context.scene.render.resolution_x,
+        bridge.bpy.context.scene.render.resolution_y,
+    ]
 
-        corners_2d = project_corners_to_image(tag_obj)
+    # Common metadata
+    cam_location = bridge.np.array(bridge.bpy.context.scene.camera.location)
+    obj_location = bridge.np.array(obj.get_location())
+    distance = calculate_distance(obj_location, cam_location)
+    world_normal = get_world_normal(world_matrix)
+    angle_deg = calculate_angle_of_incidence(obj_location, world_normal, cam_location)
+    pose = calculate_relative_pose(world_matrix, blender_cam_mat)
 
-        if (
-            corners_2d is not None
-            and check_tag_visibility(tag_obj)
-            and check_tag_facing_camera(tag_obj)
-        ):
-            valid_detections.append((tag_obj, corners_2d))
+    # Project all keypoints
+    world_kps = []
+    for loc in keypoints_3d:
+        p = bridge.np.append(bridge.np.array(loc), 1.0)
+        pw = bridge.np.dot(world_matrix, p)
+        world_kps.append(pw[:3] / pw[3])
 
-    return valid_detections
+    pixels = project_points(
+        bridge.np.array(world_kps),
+        blender_cam_mat,
+        res,
+        k_matrix.tolist() if hasattr(k_matrix, "tolist") else k_matrix,
+    )
+    if pixels is None:
+        return []
+
+    # Tag or Board?
+    obj_type = blender_obj.get("type", "TAG")
+    tag_id = blender_obj.get("tag_id", 0)
+    tag_family = blender_obj.get("tag_family", "unknown")
+
+    records = []
+    if obj_type == "TAG":
+        # Standard tag has 4 corners
+        corners_2d = [(float(p[0]), float(p[1])) for p in pixels]
+        records.append(
+            DetectionRecord(
+                image_id=image_id,
+                tag_id=tag_id,
+                tag_family=tag_family,
+                corners=corners_2d,
+                record_type="TAG",
+                distance=distance,
+                angle_of_incidence=angle_deg,
+                position=pose["position"],
+                rotation_quaternion=pose["rotation_quaternion"],
+            )
+        )
+    else:
+        # BOARD subject: keypoints might represent many things.
+        # For now, we follow the legacy Board logic where tags are first, then intersections.
+        # But wait, we can just export them as individual records if we want high granularity.
+        # In Phase 1, we aim for "Generic" - so let's just return one record with keypoints.
+        corners_2d = [(float(p[0]), float(p[1])) for p in pixels]
+        records.append(
+            DetectionRecord(
+                image_id=image_id,
+                tag_id=tag_id,
+                tag_family=tag_family,
+                corners=corners_2d[:4],  # Default bounding corners
+                keypoints=corners_2d[4:] if len(corners_2d) > 4 else None,
+                record_type="SUBJECT",
+                distance=distance,
+                angle_of_incidence=angle_deg,
+                position=pose["position"],
+                rotation_quaternion=pose["rotation_quaternion"],
+            )
+        )
+
+    return records
 
 
 def generate_board_records(board_obj: Any, image_id: str) -> list[DetectionRecord]:
