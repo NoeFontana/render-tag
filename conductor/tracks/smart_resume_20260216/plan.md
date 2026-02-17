@@ -14,7 +14,7 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Deterministic Sharding & Validation Logic' (Protocol in workflow.md)
 
 ## Phase 2: CLI Integration & Resumption Flow
-- [x] Task: Update CLI `generate` Command for Resumption (a7ef9bd)
+- [x] Task: Update CLI `generate` Command for Resumption (0a4d0c6)
     - [x] Write failing integration test in `tests/integration/test_resumption_cli.py`.
     - [x] Add `--resume-from` argument to `src/render_tag/cli/generate.py`.
     - [x] Implement JobSpec loading and ShardValidator invocation in CLI.
