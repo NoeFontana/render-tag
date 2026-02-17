@@ -7,9 +7,9 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Schema and Core Configuration' (Protocol in workflow.md)
 
 ## Phase 2: Backend Engine Integration
-- [ ] Task: Update `src/render_tag/backend/engine.py` to apply adaptive sampling and denoising settings to the BlenderProc renderer.
-- [ ] Task: Write TDD tests for the backend engine in `tests/unit/backend/test_engine.py` to verify BlenderProc calls.
-- [ ] Task: Implement the logic to enable Intel OIDN with Albedo and Normal guidance in the engine.
+- [x] Task: Update `src/render_tag/backend/engine.py` to apply adaptive sampling and denoising settings to the BlenderProc renderer. fd40188
+- [x] Task: Write TDD tests for the backend engine in `tests/unit/backend/test_engine.py` to verify BlenderProc calls. fd40188
+- [x] Task: Implement the logic to enable Intel OIDN with Albedo and Normal guidance in the engine. fd40188
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Backend Engine Integration' (Protocol in workflow.md)
 
 ## Phase 3: Benchmarking and Sanity Checks
