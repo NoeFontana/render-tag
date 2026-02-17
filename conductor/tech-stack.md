@@ -7,6 +7,7 @@
 ## 3D Rendering & Computer Vision
 - **Blender:** The primary 3D engine used for high-fidelity rendering and procedural scene generation.
 - **BlenderProc (v2.8.0+):** A modular pipeline for generating photorealistic datasets, used as the primary interface for Blender.
+- **Texture Synthesis:** On-the-fly generation of high-resolution calibration patterns (10px/mm+) using OpenCV for bit-perfect geometric accuracy.
 - **Guided Denoising (OIDN):** Intel OpenImageDenoise with Albedo and Normal guidance for high-efficiency, edge-preserving renders.
 - **Asset Management:** Object pooling and material recycling strategies within Blender to optimize VRAM usage and rendering speed.
 - **OpenCV (opencv-contrib-python):** Used for computer vision tasks, including tag detection validation and image processing.
