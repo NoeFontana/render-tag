@@ -19,6 +19,7 @@ from render_tag.orchestration import (
     get_completed_scene_ids,
     resolve_shard_index,
 )
+from render_tag.orchestration.validator import ShardValidator
 
 
 class PreparationStage(PipelineStage):
@@ -29,11 +30,31 @@ class PreparationStage(PipelineStage):
         self._ensure_assets(ctx)
 
         # 2. Sharding / Resuming
+        ctx.output_dir = ctx.output_dir.resolve()
+        ctx.output_dir.mkdir(parents=True, exist_ok=True)
+        
         if ctx.shard_index == -1 and ctx.total_shards > 1:
             ctx.shard_index = resolve_shard_index()
         if ctx.shard_index == -1:
             ctx.shard_index = 0
 
+        # Smart Resumption (Shard-Level)
+        if ctx.resume_from:
+            validator = ShardValidator(ctx.output_dir)
+            scenes_per_shard = ctx.batch_size
+            
+            # This call will perform aggressive cleanup if shard is invalid
+            is_complete = validator.validate_shard(
+                ctx.shard_index, 
+                expected_scenes=len(ctx.job_spec.get_scene_indices(scenes_per_shard))
+            )
+            
+            if is_complete:
+                console.print(f"[green]Shard {ctx.shard_index} is already complete. Skipping.[/green]")
+                ctx.skip_execution = True
+                return
+            
+        # Standard Resumption (Scene-Level)
         if ctx.resume:
             ctx.completed_ids = get_completed_scene_ids(ctx.output_dir)
             if ctx.completed_ids:

@@ -39,6 +39,9 @@ def run(
     skip_render: bool = typer.Option(False, "--skip-render"),
     executor_type: str = typer.Option("local", "--executor", "-e"),
     resume: bool = typer.Option(False, "--resume"),
+    resume_from: Path | None = typer.Option(
+        None, "--resume-from", help="Resume an existing job from its spec", resolve_path=True
+    ),
     batch_size: int = typer.Option(5, "--batch-size"),
 ) -> None:
     """
@@ -59,6 +62,7 @@ def run(
         executor_type=executor_type,
         skip_render=skip_render,
         resume=resume,
+        resume_from=resume_from,
         batch_size=batch_size,
     )
 

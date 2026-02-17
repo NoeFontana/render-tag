@@ -61,7 +61,8 @@ class ShardValidator:
             if csv_path.exists() or coco_path.exists():
                 logger.warning(reason)
                 if delete_invalid:
-                    logger.info(f"Aggressive Cleanup: Removing invalid shard {shard_id} files")
+                    from render_tag.cli.tools import console
+                    console.print(f"[yellow]Aggressive Cleanup: Removing invalid shard {shard_id} files[/yellow]")
                     if csv_path.exists(): csv_path.unlink()
                     if coco_path.exists(): coco_path.unlink()
             

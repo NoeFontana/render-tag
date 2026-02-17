@@ -36,7 +36,9 @@ class GenerationContext:
     executor_type: str = "local"
     skip_render: bool = False
     resume: bool = False
+    resume_from: Path | None = None
     batch_size: int = 10
+    skip_execution: bool = False
 
     # Intermediate State
     gen_config: GenConfig | None = None

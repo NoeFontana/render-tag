@@ -19,7 +19,9 @@ class ConfigLoadingStage(PipelineStage):
         # Create output directory early
         ctx.output_dir.mkdir(parents=True, exist_ok=True)
 
-        if ctx.job_spec_path:
+        if ctx.resume_from:
+            self._load_from_resume(ctx)
+        elif ctx.job_spec_path:
             self._load_from_job_spec(ctx)
         else:
             self._load_from_resolver(ctx)
@@ -46,6 +48,28 @@ class ConfigLoadingStage(PipelineStage):
         # The plan says Update Worker to use job-spec.
         # But we still have ctx.job_config_path used?
         # Let's keep it for now as a fallback or debug artifact.
+
+    def _load_from_resume(self, ctx: GenerationContext) -> None:
+        console.print(f"[bold blue]Resuming from Job Spec:[/bold blue] {ctx.resume_from}")
+        if not ctx.resume_from.exists():
+            console.print(f"[bold red]Error:[/bold red] Resume path does not exist: {ctx.resume_from}")
+            raise typer.Exit(code=1)
+
+        try:
+            ctx.job_spec = JobSpec.from_file(ctx.resume_from)
+            self._guard_environment(ctx.job_spec)
+
+            # Important: When resuming, the output_dir is taken from the JobSpec
+            ctx.output_dir = ctx.job_spec.paths.output_dir
+            ctx.num_scenes = ctx.job_spec.shard_size
+            ctx.seed = ctx.job_spec.global_seed
+
+            console.print(f"[green]✓ Resuming job {ctx.job_spec.job_id[:8]}[/green]")
+            console.print(f"[dim]Output Directory:[/dim] {ctx.output_dir}")
+
+        except Exception as e:
+            console.print(f"[bold red]Error loading resume spec:[/bold red] {e}")
+            raise typer.Exit(code=1) from e
 
     def _load_from_job_spec(self, ctx: GenerationContext) -> None:
         console.print(f"[bold blue]Loading Job Spec:[/bold blue] {ctx.job_spec_path}")

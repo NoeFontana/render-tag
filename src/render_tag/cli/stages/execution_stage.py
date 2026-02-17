@@ -15,6 +15,10 @@ class ExecutionStage(PipelineStage):
     """Executes the rendering process using the selected engine."""
 
     def execute(self, ctx: GenerationContext) -> None:
+        if ctx.skip_execution:
+            console.print("[green]Resumption: Shard already complete. Skipping execution stage.[/green]")
+            return
+
         self._check_dependencies(ctx)
 
         # Local Parallel Manager Mode
