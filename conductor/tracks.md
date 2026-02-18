@@ -55,3 +55,8 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 - [~] **Track: Codebase Health Review 2026-02-18**
 *Link: [./tracks/codebase_health_20260218/](./tracks/codebase_health_20260218/)*
+
+---
+
+- [~] **Track: Structural Refactoring 2026-02-18**
+*Link: [./tracks/structural_refactoring_20260218/](./tracks/structural_refactoring_20260218/)*
