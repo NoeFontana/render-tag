@@ -47,3 +47,8 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 - [x] **Track: Codebase Modernization and Refactoring**
   *Link: [./archive/codebase_modernization_20260208/](./archive/codebase_modernization_20260208/)*
+
+---
+
+- [ ] **Track: Codebase Health Review 2026-02-18**
+*Link: [./tracks/codebase_health_20260218/](./tracks/codebase_health_20260218/)*
