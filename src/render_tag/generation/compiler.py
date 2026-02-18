@@ -53,6 +53,22 @@ class SceneCompiler:
 
         # Initialize Subject Strategy
         self.strategy: SubjectStrategy = get_subject_strategy(self.config.scenario.subject)
+        
+        # If it's a TagStrategy, we might need to synchronize its config with GenConfig
+        # (Though ideally SubjectConfig should already be correct)
+        from .strategy.tags import TagStrategy
+        if isinstance(self.strategy, TagStrategy):
+            # Update strategy config to match GenConfig if needed
+            # For now, we assume SubjectConfig is the source of truth for the strategy
+            pass
+
+        # Prepare assets for the subject once per compiler instance
+        from render_tag.cli.pipeline import GenerationContext
+        ctx = GenerationContext(
+            gen_config=self.config,
+            output_dir=self.output_dir or Path("output")
+        )
+        self.strategy.prepare_assets(ctx)
 
         # Cache textures
         self.textures = []
@@ -78,18 +94,6 @@ class SceneCompiler:
             total_shards = total_scenes
             if shard_index >= total_shards:
                 return []
-
-        # Prepare assets for the subject once per job/shard
-        # (This is where board textures are generated or tag BoMs are built)
-        # Note: We pass a mock context or enough info for strategy to work.
-        # Ideally we'd pass a real GenerationContext if we had it, or strategy uses self.output_dir.
-        # Since strategy.prepare_assets needs context, we build a minimal one if needed.
-        from render_tag.cli.pipeline import GenerationContext
-        ctx = GenerationContext(
-            gen_config=self.config,
-            output_dir=self.output_dir or Path("output")
-        )
-        self.strategy.prepare_assets(ctx)
 
         scenes_per_shard = total_scenes // total_shards
         start_idx = shard_index * scenes_per_shard
@@ -207,9 +211,10 @@ class SceneCompiler:
         camera_config = self.config.camera
         scenario = self.config.scenario
 
-        # Find target for orientation/sizing constraints (first tag found)
+        # Find target for orientation/sizing constraints
+        # 1. Prefer an actual TAG
         target_tag = next((obj for obj in objects if obj.type == "TAG"), None)
-        # If no TAG found (e.g. BOARD subject), we look at the first object as representative
+        # 2. Fallback to any object if no TAG found (e.g. BOARD subject)
         if not target_tag and objects:
             target_tag = objects[0]
             
@@ -240,9 +245,16 @@ class SceneCompiler:
                     camera_config.ppm_constraint.min, camera_config.ppm_constraint.max
                 )
                 
-                # Use property or default for size
+                # Use active marker size (black border) for PPM calculation, not total plane size
                 tag_size_m = target_tag.properties.get("tag_size", 0.1)
-                if target_tag.type == "BOARD" and target_tag.board:
+                if target_tag.type == "TAG":
+                    from render_tag.core.constants import TAG_GRID_SIZES
+                    family = target_tag.properties.get("tag_family", "tag36h11")
+                    margin_bits = target_tag.properties.get("margin_bits", 0)
+                    grid_size = TAG_GRID_SIZES.get(family, 8)
+                    total_bits = grid_size + (2 * margin_bits)
+                    tag_size_m = tag_size_m * (grid_size / total_bits)
+                elif target_tag.type == "BOARD" and target_tag.board:
                     tag_size_m = target_tag.board.marker_size
                 
                 dist_override = solve_distance_for_ppm(

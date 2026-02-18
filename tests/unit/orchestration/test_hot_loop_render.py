@@ -6,8 +6,15 @@ from render_tag.core.schema.hot_loop import CommandType, ResponseStatus
 from render_tag.orchestration import ZmqHostClient
 
 
+import socket
+
+def get_free_port():
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(('', 0))
+        return s.getsockname()[1]
+
 def test_hot_loop_render_command(tmp_path):
-    port = 5590
+    port = get_free_port()
     server = ZmqBackendServer(port=port)
 
     server_thread = threading.Thread(target=server.run)

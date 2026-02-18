@@ -157,7 +157,7 @@ class TagStrategy(SubjectStrategy):
                 cols,
                 rows,
                 tag_size,
-                tag_spacing_bits=2.0,
+                tag_spacing_bits=scenario.tag_spacing_bits or 2.0,
                 tag_families=tag_families,
             )
             
@@ -165,7 +165,8 @@ class TagStrategy(SubjectStrategy):
             if scenario.use_board:
                 primary_family = tag_families[0]
                 tag_bit_grid_size = TAG_GRID_SIZES.get(primary_family, 8)
-                tag_spacing = (2.0 / tag_bit_grid_size) * tag_size
+                spacing_bits = scenario.tag_spacing_bits or 2.0
+                tag_spacing = (spacing_bits / tag_bit_grid_size) * tag_size
                 square_size = tag_size + tag_spacing
                 objects.append(
                     ObjectRecipe(

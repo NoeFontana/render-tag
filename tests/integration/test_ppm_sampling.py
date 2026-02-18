@@ -14,6 +14,15 @@ def test_ppm_sampling_enforcement(tmp_path):
     config = GenConfig()
     config.tag.family = "tag36h11"
     config.tag.size_meters = 0.16
+    
+    # Ensure polymorphic subject is also updated (Staff Engineer sync pattern)
+    from render_tag.core.schema.subject import TagSubjectConfig
+    config.scenario.subject.root = TagSubjectConfig(
+        tag_families=["tag36h11"],
+        size_meters=0.16,
+        tags_per_scene=1
+    )
+    
     config.camera.resolution = (1280, 720)
     config.camera.fov = 60.0
     config.camera.samples_per_scene = 1
@@ -42,9 +51,12 @@ def test_ppm_sampling_enforcement(tmp_path):
         )
         dist = np.linalg.norm(cam_pos)
 
-        # Calculate actual PPM
+        # Calculate actual PPM using black border size
+        # tag36h11 has 8x8 grid. Default margin is 1 bit. Total bits = 10.
+        # Black border size = 0.16 * (8 / 10) = 0.128
+        black_border_size = 0.16 * (8 / 10)
         actual_ppm = calculate_ppm(
-            distance_m=dist, tag_size_m=0.16, focal_length_px=f_px, tag_grid_size=grid_size
+            distance_m=dist, tag_size_m=black_border_size, focal_length_px=f_px, tag_grid_size=grid_size
         )
 
         # Should be within [10, 20] range (allowing for small tolerance due to facing angle etc)
@@ -58,6 +70,14 @@ def test_ppm_takes_precedence(tmp_path):
     config = GenConfig()
     config.tag.family = "tag36h11"
     config.tag.size_meters = 0.16
+    
+    from render_tag.core.schema.subject import TagSubjectConfig
+    config.scenario.subject.root = TagSubjectConfig(
+        tag_families=["tag36h11"],
+        size_meters=0.16,
+        tags_per_scene=1
+    )
+    
     config.camera.resolution = (1280, 720)
     config.camera.fov = 60.0
 

@@ -7,7 +7,7 @@ strict validation and type safety for all generation parameters.
 
 from enum import Enum
 from pathlib import Path
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Literal, Optional
 
 import yaml
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -640,9 +640,17 @@ class ScenarioConfig(BaseModel):
     Defines the subject (Tags or Board) and environmental constraints.
     """
 
-    subject: SubjectConfig = Field(
-        default_factory=lambda: SubjectConfig(root=TagSubjectConfig()),
-        description="The subject of the scene (TAGS or BOARD)",
+    subject: Optional[SubjectConfig] = Field(
+        default=None,
+        description="The subject of the scene (TAGS or BOARD). If None, uses TagSubjectConfig with GenConfig defaults.",
+    )
+    tag_families: list[TagFamily] = Field(
+        default=[TagFamily.TAG36H11],
+        description="Tag families to use in this scenario",
+    )
+    tags_per_scene: tuple[int, int] = Field(
+        default=(1, 5),
+        description="Range of tags per scene (min, max)",
     )
 
     sampling_mode: SamplingMode = Field(
@@ -661,6 +669,19 @@ class ScenarioConfig(BaseModel):
         default=True,
         description="If True, adds a board/margin behind the tags",
     )
+    tag_spacing_bits: float = Field(
+        default=2.0,
+        description="Spacing between tags in number of bits (relative to tag grid size)",
+    )
+
+    @field_validator("tags_per_scene")
+    @classmethod
+    def validate_tags_per_scene(cls, v: tuple[int, int]) -> tuple[int, int]:
+        if v[0] < 1:
+            raise ValueError("Minimum tags per scene must be >= 1")
+        if v[0] > v[1]:
+            raise ValueError("Min tags must be <= max tags")
+        return v
 
     @model_validator(mode="before")
     @classmethod
@@ -762,6 +783,27 @@ class GenConfig(BaseModel):
     environment: EnvironmentConfig = Field(
         default_factory=EnvironmentConfig, description="Environmental distractors and effects"
     )
+
+    @model_validator(mode="after")
+    def sync_scenario_subject(self) -> "GenConfig":
+        if self.scenario.subject is None:
+            self.scenario.subject = SubjectConfig(
+                root=TagSubjectConfig(
+                    tag_families=[f.value for f in self.scenario.tag_families],
+                    size_meters=self.tag.size_meters,
+                    tags_per_scene=self.scenario.tags_per_scene[1],
+                )
+            )
+        else:
+            # If it's TAGS, ensure it stays synced with top-level if top-level was modified
+            # (Test support staff pattern)
+            actual = self.scenario.subject.root
+            if isinstance(actual, TagSubjectConfig):
+                # Update if they match the default size but top-level doesn't
+                # This is tricky because we don't know if the user explicitly set TagSubjectConfig
+                # For now, we prioritize explicit SubjectConfig if present.
+                pass
+        return self
 
     # Asset Management
     force_reload_assets: bool = Field(
