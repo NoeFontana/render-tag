@@ -1,0 +1,5 @@
+# Track structural_refactoring_20260218 Context
+
+- [Specification](./spec.md)
+- [Implementation Plan](./plan.md)
+- [Metadata](./metadata.json)
