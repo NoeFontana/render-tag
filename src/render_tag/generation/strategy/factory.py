@@ -1,12 +1,16 @@
 
 from __future__ import annotations
+
 from typing import TYPE_CHECKING
-from render_tag.core.schema.subject import TagSubjectConfig, BoardSubjectConfig
-from .tags import TagStrategy
+
+from render_tag.core.schema.subject import BoardSubjectConfig, TagSubjectConfig
+
 from .board import BoardStrategy
+from .tags import TagStrategy
 
 if TYPE_CHECKING:
     from render_tag.core.schema.subject import SubjectConfig
+
     from .base import SubjectStrategy
 
 def get_subject_strategy(config: SubjectConfig) -> SubjectStrategy:

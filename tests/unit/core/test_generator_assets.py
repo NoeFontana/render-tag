@@ -1,5 +1,6 @@
+
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 import pytest
 
@@ -9,8 +10,16 @@ from render_tag.generation.compiler import SceneCompiler
 
 @pytest.fixture
 def mock_asset_provider():
-    with patch("render_tag.generation.compiler.AssetProvider") as mock:
-        provider_instance = mock.return_value
+    # We need to patch AssetProvider in both locations where it's used
+    # 1. In compiler.py (for HDRI and backgrounds)
+    # 2. In strategy/tags.py (for tag textures)
+    with patch("render_tag.generation.compiler.AssetProvider") as mock_comp, \
+         patch("render_tag.generation.strategy.tags.AssetProvider") as mock_strat:
+        
+        provider_instance = MagicMock()
+        mock_comp.return_value = provider_instance
+        mock_strat.return_value = provider_instance
+        
         # Default behavior: just return the path as is (simulating local hit)
         provider_instance.resolve_path.side_effect = lambda x: Path("/mock/assets") / x
         yield provider_instance
@@ -56,11 +65,11 @@ def test_generator_uses_asset_provider_for_textures(mock_asset_provider, basic_c
 
 
 def test_generator_uses_asset_provider_for_tags(mock_asset_provider, basic_config, tmp_path):
+    # SceneCompiler now uses TagStrategy internally
     compiler = SceneCompiler(basic_config)
     scene = compiler.compile_scene(0)
 
     # Check if AssetProvider was used for tag textures
-    # Tag texture resolution happens in _build_recipe
     mock_asset_provider.resolve_path.assert_any_call("tags/tag36h11")
     assert scene.objects[0].properties["texture_base_path"] == str(
         Path("/mock/assets/tags/tag36h11")
