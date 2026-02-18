@@ -32,9 +32,9 @@ def test_flying_tag_orientation():
             angle = calculate_incidence_angle(cam_world_mat, tag_world_mat)
 
             # Incidence angle 0 means facing, 90 means side-on.
-            # is_facing_camera uses min_dot=0.2 (~78 degrees).
-            # So angle should be < 78 degrees.
-            assert angle < 78.5, f"Tag in scene {i} is facing away from camera (angle: {angle:.2f})"
+            # is_facing_camera uses min_dot=0.1 (~84.2 degrees).
+            # So angle should be < 84.5 degrees.
+            assert angle < 84.5, f"Tag in scene {i} is facing away from camera (angle: {angle:.2f})"
 
 
 def test_grid_tag_orientation():
@@ -43,11 +43,9 @@ def test_grid_tag_orientation():
     config.scenario.flying = False
     # Use TAGS subject
     from render_tag.core.schema.subject import TagSubjectConfig
-    config.scenario.subject.root = TagSubjectConfig(
-        tag_families=["tag36h11"],
-        size_meters=0.1
-    )
-    
+
+    config.scenario.subject.root = TagSubjectConfig(tag_families=["tag36h11"], size_meters=0.1)
+
     # Grid size etc is now handled by the compiler's internal logic for TAGS
     # or will be added to TagSubjectConfig in Phase 2 if needed.
     config.camera.samples_per_scene = 3
@@ -65,4 +63,6 @@ def test_grid_tag_orientation():
         for cam in recipe.cameras:
             cam_world_mat = np.array(cam.transform_matrix)
             angle = calculate_incidence_angle(cam_world_mat, tag_world_mat)
-            assert angle < 78.5, f"Tag {obj.name} is facing away from camera (angle: {angle:.2f})"
+            assert (
+                angle < 84.5
+            ), f"Tag {obj.name} is facing away from camera (angle: {angle:.2f})"

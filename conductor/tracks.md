@@ -53,3 +53,8 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 - [x] **Track: Codebase Modernization and Refactoring**
   *Link: [./archive/codebase_modernization_20260208/](./archive/codebase_modernization_20260208/)*
+
+---
+
+- [~] **Track: Test Suite Optimization 2026-02-18**
+*Link: [./tracks/test_suite_optimization_20260218/](./tracks/test_suite_optimization_20260218/)*

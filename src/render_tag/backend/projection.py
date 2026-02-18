@@ -264,26 +264,55 @@ def generate_subject_records(obj: Any, image_id: str) -> list[DetectionRecord]:
 
 
 def generate_board_records(board_obj: Any, image_id: str) -> list[DetectionRecord]:
-    """Generate detection records for all tags on a calibration board.
-
-    Args:
-        board_obj: The calibration board mesh object (BlenderProc wrapper).
-        image_id: ID of the current image for tracking.
-
-    Returns:
-        A list of DetectionRecord objects containing projected corners and 
-        calibration keypoints.
-    """
+    """Generate detection records for all tags on a calibration board."""
     from render_tag.core.schema.board import BoardConfig
 
     board_data = board_obj.blender_obj.get("board")
     if not board_data:
         return []
 
-    config = BoardConfig.model_validate(board_data) if isinstance(board_data, dict) else board_data
+    config = (
+        BoardConfig.model_validate(board_data) if isinstance(board_data, dict) else board_data
+    )
 
     # 1. Recompute Layout
-    # Actually for IDPropertyGroup we must use get() or []
+    layout, spec, board_info = _parse_board_config_and_layout(config)
+    b_type, rows, cols, marker_size, dictionary = board_info
+
+    # 2. Get Transformation
+    transform_data = _get_scene_transformations(board_obj)
+    world_matrix, blender_cam_mat, k_matrix, res, meta = transform_data
+    distance, angle_deg, pose = meta
+
+    records = []
+
+    # 3. Process Tags
+    records.extend(
+        _process_board_tags(
+            layout,
+            marker_size,
+            world_matrix,
+            blender_cam_mat,
+            res,
+            k_matrix,
+            image_id,
+            dictionary,
+            meta,
+        )
+    )
+
+    # 4. Handle Extra Keypoints (Saddle Points / Corner Squares)
+    records.extend(
+        _process_board_keypoints(
+            b_type, rows, cols, spec, world_matrix, blender_cam_mat, res, k_matrix, image_id, meta
+        )
+    )
+
+    return records
+
+
+def _parse_board_config_and_layout(config: Any) -> tuple[Any, BoardSpec, tuple]:
+    """Parse board configuration and compute its physical layout."""
     if not isinstance(config, dict):
         b_type = config.get("type")
         rows = config.get("rows")
@@ -298,7 +327,7 @@ def generate_board_records(board_obj: Any, image_id: str) -> list[DetectionRecor
         dictionary = config["dictionary"]
 
     if b_type == "aprilgrid":
-        spacing_ratio = config.get("spacing_ratio")
+        spacing_ratio = config.get("spacing_ratio", 0.0)
         square_size = marker_size * (1.0 + spacing_ratio)
         spec = BoardSpec(
             rows=rows,
@@ -309,7 +338,7 @@ def generate_board_records(board_obj: Any, image_id: str) -> list[DetectionRecor
         )
         layout = compute_aprilgrid_layout(spec)
     else:
-        square_size = config.get("square_size")
+        square_size = config.get("square_size", marker_size)
         spec = BoardSpec(
             rows=rows,
             cols=cols,
@@ -319,7 +348,11 @@ def generate_board_records(board_obj: Any, image_id: str) -> list[DetectionRecor
         )
         layout = compute_charuco_layout(spec)
 
-    # 2. Get Transformation
+    return layout, spec, (b_type, rows, cols, marker_size, dictionary)
+
+
+def _get_scene_transformations(board_obj: Any) -> tuple:
+    """Extract world matrices, intrinsics, and compute common metadata."""
     world_matrix = bridge.np.array(board_obj.get_local2world_mat())
     blender_cam_mat = bridge.np.array(bridge.bpy.context.scene.camera.matrix_world)
     k_matrix = bridge.bproc.camera.get_intrinsics_as_K_matrix()
@@ -328,9 +361,6 @@ def generate_board_records(board_obj: Any, image_id: str) -> list[DetectionRecor
         bridge.bpy.context.scene.render.resolution_y,
     ]
 
-    records = []
-
-    # Common metadata
     cam_location = bridge.np.array(bridge.bpy.context.scene.camera.location)
     board_location = bridge.np.array(board_obj.get_location())
     distance = calculate_distance(board_location, cam_location)
@@ -338,7 +368,22 @@ def generate_board_records(board_obj: Any, image_id: str) -> list[DetectionRecor
     angle_deg = calculate_angle_of_incidence(board_location, world_normal, cam_location)
     pose = calculate_relative_pose(world_matrix, blender_cam_mat)
 
-    # 3. Process Tags
+    return (
+        world_matrix,
+        blender_cam_mat,
+        k_matrix,
+        res,
+        (distance, angle_deg, pose),
+    )
+
+
+def _process_board_tags(
+    layout, marker_size, world_matrix, blender_cam_mat, res, k_matrix, image_id, dictionary, meta
+) -> list[DetectionRecord]:
+    """Project and create records for all tags in the layout."""
+    distance, angle_deg, pose = meta
+    records = []
+
     for sq in layout.squares:
         if not sq.has_tag:
             continue
@@ -381,15 +426,19 @@ def generate_board_records(board_obj: Any, image_id: str) -> list[DetectionRecor
                 rotation_quaternion=pose["rotation_quaternion"],
             )
         )
+    return records
 
-    # 4. Handle Extra Keypoints (Saddle Points / Corner Squares)
+
+def _process_board_keypoints(
+    b_type, rows, cols, spec, world_matrix, blender_cam_mat, res, k_matrix, image_id, meta
+) -> list[DetectionRecord]:
+    """Process extra keypoints (saddle points or corners) for specific board types."""
+    distance, angle_deg, pose = meta
+    records = []
+
     if b_type == "charuco":
-        # ChArUco: Saddle points are at the intersections of the checkerboard squares
-        # For a (rows, cols) grid, there are (rows-1) * (cols-1) internal intersections.
         for r in range(1, rows):
             for c in range(1, cols):
-                # Intersection point in meters (local board coords)
-                # Origin is board center.
                 lx = -spec.board_width / 2.0 + c * spec.square_size
                 ly = -spec.board_height / 2.0 + r * spec.square_size
 
@@ -408,7 +457,7 @@ def generate_board_records(board_obj: Any, image_id: str) -> list[DetectionRecor
                     records.append(
                         DetectionRecord(
                             image_id=image_id,
-                            tag_id=r * 100 + c,  # Artificial ID for saddle points
+                            tag_id=r * 100 + c,
                             tag_family="charuco_saddle",
                             corners=[(float(px[0]), float(px[1]))],
                             record_type="CHARUCO_SADDLE",
@@ -419,8 +468,6 @@ def generate_board_records(board_obj: Any, image_id: str) -> list[DetectionRecor
                         )
                     )
     elif b_type == "aprilgrid":
-        # AprilGrid: Corner points are the centers of the small black corner squares
-        # These are at every intersection (rows+1) * (cols+1)
         for r in range(rows + 1):
             for c in range(cols + 1):
                 lx = -spec.board_width / 2.0 + c * spec.square_size
@@ -451,5 +498,4 @@ def generate_board_records(board_obj: Any, image_id: str) -> list[DetectionRecor
                             rotation_quaternion=pose["rotation_quaternion"],
                         )
                     )
-
     return records

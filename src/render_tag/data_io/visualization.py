@@ -160,55 +160,9 @@ def visualize_dataset(
     detections: dict[str, list[dict]] = {}
 
     if coco_path.exists():
-        import json
-
-        with open(coco_path) as f:
-            coco = json.load(f)
-
-        # Map image id to file name
-        img_map = {img["id"]: Path(img["file_name"]).stem for img in coco["images"]}
-
-        for ann in coco["annotations"]:
-            img_id_str = img_map.get(ann["image_id"])
-            if not img_id_str:
-                continue
-
-            if img_id_str not in detections:
-                detections[img_id_str] = []
-
-            # Extract corners from keypoints [x, y, v, x, y, v...]
-            kp = ann.get("keypoints", [])
-            corners = []
-            if kp:
-                for i in range(0, len(kp), 3):
-                    corners.append((float(kp[i]), float(kp[i + 1])))
-            else:
-                # Fallback to bbox if no keypoints (approximation)
-                x, y, w, h = ann["bbox"]
-                corners = [(x, y), (x + w, y), (x + w, y + h), (x, y + h)]
-
-            detections[img_id_str].append(
-                {"tag_id": ann.get("attributes", {}).get("tag_id", "?"), "corners": corners}
-            )
-
+        detections = _load_detections_from_coco(coco_path)
     elif csv_path.exists():
-        with open(csv_path, newline="") as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                img_id = row["image_id"]
-                if img_id not in detections:
-                    detections[img_id] = []
-                detections[img_id].append(
-                    {
-                        "tag_id": int(row["tag_id"]),
-                        "corners": [
-                            (float(row["x1"]), float(row["y1"])),
-                            (float(row["x2"]), float(row["y2"])),
-                            (float(row["x3"]), float(row["y3"])),
-                            (float(row["x4"]), float(row["y4"])),
-                        ],
-                    }
-                )
+        detections = _load_detections_from_csv(csv_path)
     else:
         msg = f"No annotations found (tags.csv or annotations.json) in {output_dir}"
         console.print(f"[bold red]Error:[/bold red] {msg}")
@@ -229,22 +183,7 @@ def visualize_dataset(
             continue
 
         img = Image.open(img_path).convert("RGB")
-        draw = ImageDraw.Draw(img)
-
-        for det in detections[image_id]:
-            corners = det["corners"]
-            # Draw edges
-            if len(corners) == 4:
-                for i in range(4):
-                    draw.line([corners[i], corners[(i + 1) % 4]], fill="lime", width=2)
-
-            # Draw corners (crosshairs for precision)
-            for corner in corners:
-                cx, cy = corner
-                r = 3
-                # Crosshair
-                draw.line([(cx - r, cy), (cx + r, cy)], fill="red", width=1)
-                draw.line([(cx, cy - r), (cx, cy + r)], fill="red", width=1)
+        _draw_overlay_on_image(img, detections[image_id])
 
         if save_viz:
             out_path = viz_dir / f"{image_id}_viz.png"
@@ -253,6 +192,83 @@ def visualize_dataset(
 
         if specific_image:
             img.show()
+
+
+def _load_detections_from_coco(coco_path: Path) -> dict[str, list[dict]]:
+    """Load and format detections from COCO JSON."""
+    import json
+    detections = {}
+    with open(coco_path) as f:
+        coco = json.load(f)
+
+    # Map image id to file name
+    img_map = {img["id"]: Path(img["file_name"]).stem for img in coco["images"]}
+
+    for ann in coco["annotations"]:
+        img_id_str = img_map.get(ann["image_id"])
+        if not img_id_str:
+            continue
+
+        if img_id_str not in detections:
+            detections[img_id_str] = []
+
+        # Extract corners from keypoints [x, y, v, x, y, v...]
+        kp = ann.get("keypoints", [])
+        corners = []
+        if kp:
+            for i in range(0, len(kp), 3):
+                corners.append((float(kp[i]), float(kp[i + 1])))
+        else:
+            # Fallback to bbox if no keypoints (approximation)
+            x, y, w, h = ann["bbox"]
+            corners = [(x, y), (x + w, y), (x + w, y + h), (x, y + h)]
+
+        detections[img_id_str].append(
+            {"tag_id": ann.get("attributes", {}).get("tag_id", "?"), "corners": corners}
+        )
+    return detections
+
+
+def _load_detections_from_csv(csv_path: Path) -> dict[str, list[dict]]:
+    """Load and format detections from legacy CSV."""
+    detections = {}
+    with open(csv_path, newline="") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            img_id = row["image_id"]
+            if img_id not in detections:
+                detections[img_id] = []
+            detections[img_id].append(
+                {
+                    "tag_id": int(row["tag_id"]),
+                    "corners": [
+                        (float(row["x1"]), float(row["y1"])),
+                        (float(row["x2"]), float(row["y2"])),
+                        (float(row["x3"]), float(row["y3"])),
+                        (float(row["x4"]), float(row["y4"])),
+                    ],
+                }
+            )
+    return detections
+
+
+def _draw_overlay_on_image(img: Image.Image, detections: list[dict]):
+    """Draw lime edges and red crosshair corners on image."""
+    draw = ImageDraw.Draw(img)
+    for det in detections:
+        corners = det["corners"]
+        # Draw edges
+        if len(corners) == 4:
+            for i in range(4):
+                draw.line([corners[i], corners[(i + 1) % 4]], fill="lime", width=2)
+
+        # Draw corners (crosshairs for precision)
+        for corner in corners:
+            cx, cy = corner
+            r = 3
+            # Crosshair
+            draw.line([(cx - r, cy), (cx + r, cy)], fill="red", width=1)
+            draw.line([(cx, cy - r), (cx, cy + r)], fill="red", width=1)
 
 
 def visualize_recipe(recipe_path: Path, output_dir: Path):

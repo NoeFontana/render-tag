@@ -317,12 +317,52 @@ def execute_recipe(
     )
     scene_logger.info(f"--- Executing Scene {scene_idx} ---")
 
+    # 2. Setup Scene
+    renderer, tag_objects = _setup_scene(recipe, ctx, scene_logger)
+
+    cam_recipes = recipe["cameras"]
+    res = cam_recipes[0]["intrinsics"].get("resolution", [640, 480])
+
+    provenance = {
+        "git_hash": get_git_hash(),
+        "timestamp": datetime.now(UTC).isoformat(),
+        "recipe_snapshot": recipe,
+        "seeds": {
+            "global_seed": ctx.global_seed,
+            "scene_seed": recipe.get("random_seed", 0),
+        },
+    }
+
+    # 3. Render Cameras and Save Data
+    for cam_idx, cam_recipe in enumerate(cam_recipes):
+        coco_img_id, image_name = _render_camera_and_save(
+            renderer, cam_idx, cam_recipe, recipe, ctx, scene_logger, provenance, res
+        )
+
+        _extract_and_save_ground_truth(
+            tag_objects, image_name, coco_img_id, res, ctx, scene_logger
+        )
+
+        scene_logger.info(
+            f"Scene {scene_idx} progress: {cam_idx + 1}/{len(cam_recipes)}",
+            extra={
+                "log_type": "progress",
+                "payload": {
+                    "current": cam_idx + 1,
+                    "total": len(cam_recipes),
+                    "scene_id": scene_idx,
+                },
+            },
+        )
+
+    scene_logger.info(f"✓ Rendered scene {scene_idx}")
+
+
+def _setup_scene(recipe: dict, ctx: RenderContext, scene_logger) -> tuple[RenderFacade, list]:
+    """Initialize renderer, world, and spawn objects."""
     # All randomness is now resolved on the host side (Compiler).
-    # The backend is a pure, reactive executor.
     bridge.bpy.context.scene.cycles.use_animated_seed = False
 
-    # 3. Initialize Renderer
-    # Parse renderer config from recipe
     renderer_recipe = recipe.get("renderer", {})
     if isinstance(renderer_recipe, RendererConfig):
         renderer_config = renderer_recipe
@@ -340,101 +380,98 @@ def execute_recipe(
         family = tag.blender_obj.get("tag_family")
         if family:
             ctx.coco_writer.add_category(family)
+            
+    return renderer, tag_objects
 
-    cam_recipes = recipe["cameras"]
-    res = cam_recipes[0]["intrinsics"].get("resolution", [640, 480])
 
-    provenance = {
-        "git_hash": get_git_hash(),
-        "timestamp": datetime.now(UTC).isoformat(),
-        "recipe_snapshot": recipe,
-        "seeds": {
-            "global_seed": ctx.global_seed,
-            "scene_seed": recipe.get("random_seed", 0),
+def _render_camera_and_save(
+    renderer: RenderFacade,
+    cam_idx: int,
+    cam_recipe: dict,
+    recipe: dict,
+    ctx: RenderContext,
+    scene_logger,
+    provenance: dict,
+    res: list[int]
+) -> tuple[int, str]:
+    """Render a single camera view and save artifacts (image, sidecar)."""
+    scene_idx = recipe["scene_id"]
+    start_time = time.time()
+    render_out = renderer.render_camera(cam_recipe)
+    render_time = time.time() - start_time
+
+    scene_logger.info(
+        f"Rendered camera {cam_idx}",
+        extra={
+            "log_type": "metric",
+            "payload": {
+                "metric": "render_time",
+                "value": render_time,
+                "unit": "seconds",
+                "camera_idx": cam_idx,
+            },
         },
-    }
+    )
 
-    # 4. Render Cameras
-    for cam_idx, cam_recipe in enumerate(cam_recipes):
-        start_time = time.time()
-        render_out = renderer.render_camera(cam_recipe)
-        render_time = time.time() - start_time
+    image_name = f"scene_{scene_idx:04d}_cam_{cam_idx:04d}"
+    image_path = ctx.output_dir / "images" / f"{image_name}.png"
+    image_path.parent.mkdir(parents=True, exist_ok=True)
 
-        scene_logger.info(
-            f"Rendered camera {cam_idx}",
-            extra={
-                "log_type": "metric",
-                "payload": {
-                    "metric": "render_time",
-                    "value": render_time,
-                    "unit": "seconds",
-                    "camera_idx": cam_idx,
-                },
-            },
+    img_array = render_out.get("img")
+    if img_array is not None and bridge.np.asarray(img_array).size > 0:
+        Image.fromarray(bridge.np.asarray(img_array).astype(bridge.np.uint8)).save(
+            str(image_path)
         )
 
-        image_name = f"scene_{scene_idx:04d}_cam_{cam_idx:04d}"
-        image_path = ctx.output_dir / "images" / f"{image_name}.png"
-        image_path.parent.mkdir(parents=True, exist_ok=True)
+    ctx.sidecar_writer.write_sidecar(image_name, provenance)
+    coco_img_id = ctx.coco_writer.add_image(f"images/{image_path.name}", res[0], res[1])
 
-        img_array = render_out.get("img")
-        if img_array is not None and bridge.np.asarray(img_array).size > 0:
-            Image.fromarray(bridge.np.asarray(img_array).astype(bridge.np.uint8)).save(
-                str(image_path)
-            )
+    # Force subframe update for motion blur / consistency if needed
+    bridge.bpy.context.scene.frame_set(0, subframe=0.5)
+    bridge.bpy.context.view_layer.update()
+    
+    return coco_img_id, image_name
 
-        ctx.sidecar_writer.write_sidecar(image_name, provenance)
-        coco_img_id = ctx.coco_writer.add_image(f"images/{image_path.name}", res[0], res[1])
 
-        # Force subframe update for motion blur / consistency if needed
-        bridge.bpy.context.scene.frame_set(0, subframe=0.5)
-        bridge.bpy.context.view_layer.update()
+def _extract_and_save_ground_truth(
+    tag_objects: list,
+    image_name: str,
+    coco_img_id: int,
+    res: list[int],
+    ctx: RenderContext,
+    scene_logger
+):
+    """Project objects to image space and save detection records."""
+    all_detections: list[DetectionRecord] = []
 
-        # 5. Extract Ground Truth
-        all_detections: list[DetectionRecord] = []
-
-        if ctx.skip_visibility:
-            for obj in tag_objects:
-                all_detections.append(
-                    DetectionRecord(
-                        image_id=image_name,
-                        tag_id=obj.blender_obj.get("tag_id", 0),
-                        tag_family=obj.blender_obj.get("tag_family", "unknown"),
-                        corners=[[0, 0], [res[0], 0], [res[0], res[1]], [0, res[1]]],
-                        distance=0.0,
-                        angle_of_incidence=0.0,
-                    )
+    if ctx.skip_visibility:
+        for obj in tag_objects:
+            all_detections.append(
+                DetectionRecord(
+                    image_id=image_name,
+                    tag_id=obj.blender_obj.get("tag_id", 0),
+                    tag_family=obj.blender_obj.get("tag_family", "unknown"),
+                    corners=[[0, 0], [res[0], 0], [res[0], res[1]], [0, res[1]]],
+                    distance=0.0,
+                    angle_of_incidence=0.0,
                 )
-        else:
-            from render_tag.backend.projection import generate_subject_records
-
-            for obj in tag_objects:
-                records = generate_subject_records(obj, image_name)
-                all_detections.extend(records)
-
-        # 6. Save Ground Truth
-        for det in all_detections:
-            ctx.csv_writer.write_detection(det, res[0], res[1])
-            ctx.coco_writer.add_annotation(
-                image_id=coco_img_id,
-                category_id=ctx.coco_writer.add_category(det.tag_family),
-                corners=det.corners,
-                width=res[0],
-                height=res[1],
-                detection=det,
             )
-            ctx.rich_writer.add_detection(det)
+    else:
+        from render_tag.backend.projection import generate_subject_records
 
-        scene_logger.info(
-            f"Scene {scene_idx} progress: {cam_idx + 1}/{len(cam_recipes)}",
-            extra={
-                "log_type": "progress",
-                "payload": {
-                    "current": cam_idx + 1,
-                    "total": len(cam_recipes),
-                    "scene_id": scene_idx,
-                },
-            },
+        for obj in tag_objects:
+            records = generate_subject_records(obj, image_name)
+            all_detections.extend(records)
+
+    # Save Ground Truth
+    for det in all_detections:
+        ctx.csv_writer.write_detection(det, res[0], res[1])
+        ctx.coco_writer.add_annotation(
+            image_id=coco_img_id,
+            category_id=ctx.coco_writer.add_category(det.tag_family),
+            corners=det.corners,
+            width=res[0],
+            height=res[1],
+            detection=det,
         )
-
-    scene_logger.info(f"✓ Rendered scene {scene_idx}")
+        ctx.rich_writer.add_detection(det)

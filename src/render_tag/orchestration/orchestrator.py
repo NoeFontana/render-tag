@@ -196,11 +196,21 @@ class UnifiedWorkerOrchestrator:
         If a worker has exceeded its render limit or resource threshold, it is
         restarted before being returned to the queue.
         """
-        should_restart = False
-        limit_exceeded = False
         intentional_exit = (
             worker.max_renders is not None and worker.renders_completed >= worker.max_renders
         )
+
+        should_restart, limit_exceeded = self._check_worker_health(worker, intentional_exit)
+
+        if should_restart or intentional_exit:
+            worker = self._restart_worker(worker, limit_exceeded)
+
+        self.worker_queue.put(worker)
+
+    def _check_worker_health(self, worker: PersistentWorkerProcess, intentional_exit: bool) -> tuple[bool, bool]:
+        """Check if a worker needs to be restarted due to health or resource limits."""
+        should_restart = False
+        limit_exceeded = False
 
         if worker.client:
             try:
@@ -229,39 +239,42 @@ class UnifiedWorkerOrchestrator:
             and (not worker.client or not worker.process or not worker.is_healthy())
         ):
             should_restart = True
-
-        if should_restart or intentional_exit:
-            if limit_exceeded:
-                logger.info(
-                    f"Preventative restart for {worker.worker_id} (Resource limit exceeded)"
-                )
             
-            worker.stop()
-            slot_id = worker.shard_id.split("_")[0]
-            unique_shard_id = f"{slot_id}_{uuid.uuid4().hex[:6]}"
-            new_worker = PersistentWorkerProcess(
-                worker.worker_id,
-                worker.port,
-                self.blender_script,
-                self.blender_executable,
-                use_blenderproc=self.use_blenderproc,
-                mock=self.mock,
-                max_renders=self.max_renders_per_worker,
-                shard_id=unique_shard_id,
-                context=self.context,
-                thread_budget=self.thread_budget,
-                seed=self.seed,
-                job_id=self.job_id,
-                memory_limit_mb=worker.memory_limit_mb,
-            )
-            new_worker.start()
-            for idx, w in enumerate(self.workers):
-                if w.worker_id == worker.worker_id:
-                    self.workers[idx] = new_worker
-                    break
-            worker = new_worker
+        return should_restart, limit_exceeded
 
-        self.worker_queue.put(worker)
+    def _restart_worker(self, worker: PersistentWorkerProcess, limit_exceeded: bool) -> PersistentWorkerProcess:
+        """Stop and restart a worker process."""
+        if limit_exceeded:
+            logger.info(
+                f"Preventative restart for {worker.worker_id} (Resource limit exceeded)"
+            )
+        
+        worker.stop()
+        slot_id = worker.shard_id.split("_")[0]
+        unique_shard_id = f"{slot_id}_{uuid.uuid4().hex[:6]}"
+        new_worker = PersistentWorkerProcess(
+            worker.worker_id,
+            worker.port,
+            self.blender_script,
+            self.blender_executable,
+            use_blenderproc=self.use_blenderproc,
+            mock=self.mock,
+            max_renders=self.max_renders_per_worker,
+            shard_id=unique_shard_id,
+            context=self.context,
+            thread_budget=self.thread_budget,
+            seed=self.seed,
+            job_id=self.job_id,
+            memory_limit_mb=worker.memory_limit_mb,
+        )
+        new_worker.start()
+        
+        # Replace in active workers list
+        for idx, w in enumerate(self.workers):
+            if w.worker_id == worker.worker_id:
+                self.workers[idx] = new_worker
+                break
+        return new_worker
 
     def execute_recipe(
         self, recipe: dict, output_dir: Path, rm: str = "cycles", sid: str | None = None
@@ -357,22 +370,8 @@ def _signal_handler(sig, frame):
     sys.exit(0)
 
 
-def orchestrate(
-    job_spec: JobSpec,
-    workers: int = 1,
-    executor_type: str = "local",
-    resume: bool = False,
-    batch_size: int = 5,
-    verbose: bool = False,
-) -> None:
-    """Main orchestration loop for executing a JobSpec.
-
-    Handles sharding, resumption, and parallel execution of render tasks.
-    """
-    import typer
-
-    signal.signal(signal.SIGINT, _signal_handler)
-    signal.signal(signal.SIGTERM, _signal_handler)
+def _prepare_batches(job_spec: JobSpec, workers: int, batch_size: int, resume: bool):
+    """Calculate shards and generate recipe batch files."""
     from render_tag.generation.scene import Generator
     from render_tag.orchestration.validator import ShardValidator
 
@@ -393,8 +392,7 @@ def orchestrate(
     ) if resume else list(range(total_shards))
 
     if not missing_shard_indices:
-        console.print("[green]All shards are already complete. Skipping orchestration.[/green]")
-        return
+        return None, actual_batch_size, total_shards
 
     batches = []
     for shard_idx in missing_shard_indices:
@@ -408,6 +406,81 @@ def orchestrate(
         if recipes:
             batch_path = gen.save_recipe_json(recipes, f"recipes_shard_{shard_idx}.json")
             batches.append(batch_path)
+            
+    return batches, actual_batch_size, total_shards
+
+
+def _run_orchestration_loop(
+    orchestrator: UnifiedWorkerOrchestrator,
+    batches: list[Path],
+    workers: int,
+    output_dir: Path,
+    rm: str
+) -> bool:
+    """Run the parallel orchestration loop using a worker pool."""
+    q = queue.Queue()
+    for path in batches:
+        q.put(path)
+
+    any_failed = False
+
+    def worker_thread():
+        nonlocal any_failed
+        while not q.empty():
+            try:
+                path = q.get_nowait()
+                with open(path) as f:
+                    batch_recipes = json.load(f)
+                for recipe in batch_recipes:
+                    m = re.search(r"shard_(\d+)", path.name)
+                    shard_idx_str = m.group(1) if m else "0"
+                    
+                    resp = orchestrator.execute_recipe(
+                        recipe, output_dir, rm, sid=shard_idx_str
+                    )
+                    if resp.status != ResponseStatus.SUCCESS:
+                        console.print(f"[red]Render failed: {resp.message}[/red]")
+                        any_failed = True
+            except queue.Empty:
+                break
+            except Exception as e:
+                console.print(f"[red]Batch processing failed: {e}[/red]")
+                any_failed = True
+            finally:
+                q.task_done()
+
+    threads = [threading.Thread(target=worker_thread, daemon=True) for _ in range(workers)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+        
+    return any_failed
+
+
+def orchestrate(
+    job_spec: JobSpec,
+    workers: int = 1,
+    executor_type: str = "local",
+    resume: bool = False,
+    batch_size: int = 5,
+    verbose: bool = False,
+) -> None:
+    """Main orchestration loop for executing a JobSpec.
+
+    Handles sharding, resumption, and parallel execution of render tasks.
+    """
+    import typer
+
+    signal.signal(signal.SIGINT, _signal_handler)
+    signal.signal(signal.SIGTERM, _signal_handler)
+
+    output_dir = job_spec.paths.output_dir
+    batches, actual_batch_size, total_shards = _prepare_batches(job_spec, workers, batch_size, resume)
+
+    if batches is None:
+        console.print("[green]All shards are already complete. Skipping orchestration.[/green]")
+        return
 
     if not batches:
         return
@@ -426,44 +499,7 @@ def orchestrate(
         seed=job_spec.global_seed,
         memory_limit_mb=job_spec.infrastructure.max_memory_mb,
     ) as orchestrator:
-        q = queue.Queue()
-        for path in batches:
-            q.put(path)
-
-        any_failed = False
-
-        def worker_thread():
-            nonlocal any_failed
-            while not q.empty():
-                try:
-                    path = q.get_nowait()
-                    with open(path) as f:
-                        batch_recipes = json.load(f)
-                    for recipe in batch_recipes:
-                        # Extract shard index from filename if not available elsewhere
-                        # recipes_shard_{shard_idx}.json
-                        m = re.search(r"shard_(\d+)", path.name)
-                        shard_idx_str = m.group(1) if m else "0"
-                        
-                        resp = orchestrator.execute_recipe(
-                            recipe, output_dir, rm, sid=shard_idx_str
-                        )
-                        if resp.status != ResponseStatus.SUCCESS:
-                            console.print(f"[red]Render failed: {resp.message}[/red]")
-                            any_failed = True
-                except queue.Empty:
-                    break
-                except Exception as e:
-                    console.print(f"[red]Batch processing failed: {e}[/red]")
-                    any_failed = True
-                finally:
-                    q.task_done()
-
-        threads = [threading.Thread(target=worker_thread, daemon=True) for _ in range(workers)]
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
+        any_failed = _run_orchestration_loop(orchestrator, batches, workers, output_dir, rm)
 
     for path in batches:
         if path.exists():
