@@ -9,6 +9,9 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ## Archived Tracks
 
+- [x] **Track: Polymorphic Subject Architecture (Phase 1)**
+  *Link: [./archive/polymorphic_subject_p1_20260217/](./archive/polymorphic_subject_p1_20260217/)*
+
 - [x] **Track: High-Fidelity Calibration Targets (ChArUco & AprilGrid)**
   *Link: [./archive/calibration_targets_20260217/](./archive/calibration_targets_20260217/)*
 
@@ -41,11 +44,6 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 - [x] **Track: Codebase Modernization and Refactoring**
   *Link: [./archive/codebase_modernization_20260208/](./archive/codebase_modernization_20260208/)*
-
----
-
-- [x] **Track: Polymorphic Subject Architecture (Phase 1)**
-  *Link: [./tracks/polymorphic_subject_p1_20260217/](./tracks/polymorphic_subject_p1_20260217/)*
 
 ---
 
