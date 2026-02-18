@@ -17,6 +17,7 @@ Procedural 3D data generation for AprilTag training (Offline).
 - **Sensor Simulation:** Accurately model camera sensor characteristics, including noise profiles, lens distortion, motion blur, and rolling shutter artifacts.
 - **Automated Annotations:** Produce pixel-perfect ground-truth data, including 2D/3D bounding boxes, segmentation masks, and standard formats like COCO.
 - **Polymorphic Subject Architecture:** Agnostic rendering pipeline that treats all subjects (Tags, Calibration Boards) as generic primitives. Shifts domain-specific logic to the Host, enabling rapid support for new subject types without modifying the core renderer.
+- **Strategy-Patterned Generation:** Decoupled compilation loop that utilizes interchangeable "Subject Strategies" to orchestrate asset preparation and pose sampling, ensuring maximum architectural flexibility and extensibility.
 - **Immutable Job Specs & Strict Versioning:** Cryptographically verifiable "Unit of Work" definitions with mandatory schema versioning (v0.2+). Supports polymorphic subject definitions with explicit type discriminators.
 - **Dataset Auditing:** Integrated "Contract of Trust" validation to verify geometric coverage (incidence angles, distances), environmental variance, and data integrity via automated Quality Gates.
 - **High-Fidelity Calibration Targets:** Mathematically perfect targets (ChArUco, AprilGrid) using Bit-Perfect Texture Synthesis and a Single-Plane Architecture to eliminate geometric drift and Z-fighting. Supports sub-pixel accurate keypoint export (Saddle Points, Corners).
