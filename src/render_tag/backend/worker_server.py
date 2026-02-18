@@ -127,6 +127,7 @@ class ZmqBackendServer:
             )
 
     def _setup_writers(self, output_dir: Path, shard_id: str):
+        """Initialize data writers for the current shard."""
         if self.current_output_dir == output_dir:
             return
         self.current_output_dir = output_dir
@@ -140,6 +141,7 @@ class ZmqBackendServer:
         self.writers["csv"]._ensure_initialized()
 
     def _finalize_writers(self):
+        """Flush and save data from active writers."""
         for w in self.writers.values():
             if hasattr(w, "save"):
                 w.save()
@@ -231,6 +233,7 @@ class ZmqBackendServer:
         self._finalize_writers()
 
     def _handle_command(self, cmd: Command) -> Response:
+        """Dispatch a command to the appropriate handler."""
         handlers = {
             CommandType.STATUS: self._on_status,
             CommandType.INIT: self._on_init,
@@ -253,6 +256,7 @@ class ZmqBackendServer:
             )
 
     def _on_status(self, cmd: Command) -> Response:
+        """Handle STATUS command (Health check)."""
         return Response(
             status=ResponseStatus.SUCCESS,
             request_id=cmd.request_id,
@@ -261,6 +265,7 @@ class ZmqBackendServer:
         )
 
     def _on_init(self, cmd: Command) -> Response:
+        """Handle INIT command (Load assets/settings)."""
         with self._lock:
             if not self.bproc_initialized and bridge.bproc:
                 bridge.bproc.init()
@@ -283,6 +288,7 @@ class ZmqBackendServer:
             )
 
     def _on_render(self, cmd: Command) -> Response:
+        """Handle RENDER command (Execute recipe)."""
         with self._lock:
             self.status = WorkerStatus.BUSY
 
@@ -331,10 +337,12 @@ class ZmqBackendServer:
                     self.status = WorkerStatus.IDLE
 
     def _on_reset(self, cmd: Command) -> Response:
+        """Handle RESET command (Clear scene)."""
         global_pool.release_all()
         return Response(status=ResponseStatus.SUCCESS, request_id=cmd.request_id, message="Reset")
 
     def _on_shutdown(self, cmd: Command) -> Response:
+        """Handle SHUTDOWN command (Stop server)."""
         self.running = False
         return Response(
             status=ResponseStatus.SUCCESS, request_id=cmd.request_id, message="Shutdown"

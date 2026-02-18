@@ -173,18 +173,22 @@ class SeedConfig(BaseModel):
 
     @property
     def layout_seed(self) -> int:
+        """Get seed for layout generation."""
         return self.layout if self.layout is not None else self.global_seed
 
     @property
     def lighting_seed(self) -> int:
+        """Get seed for lighting generation."""
         return self.lighting if self.lighting is not None else self.global_seed
 
     @property
     def camera_seed(self) -> int:
+        """Get seed for camera sampling."""
         return self.camera if self.camera is not None else self.global_seed
 
     @property
     def noise_seed(self) -> int:
+        """Get seed for image noise/augmentation."""
         return self.noise if self.noise is not None else self.global_seed + 1
 
 
@@ -226,6 +230,7 @@ class DatasetConfig(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def map_intent_to_scopes(cls, data: Any) -> Any:
+        """Map legacy 'intent' field to 'evaluation_scopes'."""
         if isinstance(data, dict) and "intent" in data and "evaluation_scopes" not in data:
             # If intent is provided but evaluation_scopes is not, map it
             intent_val = data["intent"]
@@ -243,11 +248,13 @@ class DatasetConfig(BaseModel):
     # Backwards compatibility property
     @property
     def seed(self) -> int:
+        """Alias for global_seed for backwards compatibility."""
         return self.seeds.global_seed
 
     @model_validator(mode="before")
     @classmethod
     def map_legacy_seed(cls, data: Any) -> Any:
+        """Map legacy top-level 'seed' to nested 'seeds.global_seed'."""
         if isinstance(data, dict) and "seed" in data:
             if "seeds" not in data:
                 data["seeds"] = {}
@@ -310,6 +317,7 @@ class CameraIntrinsics(BaseModel):
     @field_validator("k_matrix")
     @classmethod
     def validate_k_matrix(cls, v: list[list[float]] | None) -> list[list[float]] | None:
+        """Ensure K matrix is 3x3 and has valid intrinsic properties."""
         if v is None:
             return v
         if len(v) != 3 or any(len(row) != 3 for row in v):
@@ -437,6 +445,7 @@ class CameraConfig(BaseModel):
     # Backwards compatibility properties
     @property
     def velocity_mean(self) -> float:
+        """Alias for sensor_dynamics.velocity_mean."""
         return self.sensor_dynamics.velocity_mean
 
     @velocity_mean.setter
@@ -445,6 +454,7 @@ class CameraConfig(BaseModel):
 
     @property
     def velocity_std(self) -> float:
+        """Alias for sensor_dynamics.velocity_std."""
         return self.sensor_dynamics.velocity_std
 
     @velocity_std.setter
@@ -453,6 +463,7 @@ class CameraConfig(BaseModel):
 
     @property
     def shutter_time_ms(self) -> float:
+        """Alias for sensor_dynamics.shutter_time_ms."""
         return self.sensor_dynamics.shutter_time_ms
 
     @shutter_time_ms.setter
@@ -461,10 +472,12 @@ class CameraConfig(BaseModel):
 
     @property
     def width(self) -> int:
+        """Image width from resolution."""
         return self.resolution[0]
 
     @property
     def height(self) -> int:
+        """Image height from resolution."""
         return self.resolution[1]
 
     @property
@@ -569,6 +582,7 @@ class LightingConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_ranges(self) -> "LightingConfig":
+        """Ensure minimum values do not exceed maximum values."""
         if self.intensity_min > self.intensity_max:
             raise ValueError("intensity_min must be <= intensity_max")
         if self.radius_min > self.radius_max:
@@ -626,6 +640,7 @@ class SceneConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_scale_range(self) -> "SceneConfig":
+        """Ensure min scale <= max scale and apply lighting preset."""
         if self.texture_scale_min > self.texture_scale_max:
             raise ValueError("texture_scale_min must be <= texture_scale_max")
 
@@ -686,6 +701,7 @@ class ScenarioConfig(BaseModel):
     @field_validator("tags_per_scene")
     @classmethod
     def validate_tags_per_scene(cls, v: tuple[int, int]) -> tuple[int, int]:
+        """Ensure tag count range is valid."""
         if v[0] < 1:
             raise ValueError("Minimum tags per scene must be >= 1")
         if v[0] > v[1]:
@@ -849,26 +865,29 @@ def _convert_flat_config(flat: dict) -> dict:
         "physics": {},
     }
 
-    # Map flat keys to nested structure
-    if "resolution" in flat:
-        nested["camera"]["resolution"] = flat["resolution"]
-    if "samples" in flat:
-        nested["camera"]["samples_per_scene"] = flat["samples"]
-    if "tag_family" in flat:
-        nested["tag"]["family"] = flat["tag_family"]
-    if "lighting" in flat:
-        nested["scene"]["lighting"] = flat["lighting"]
+    key_map = {
+        "resolution": ("camera", "resolution"),
+        "samples": ("camera", "samples_per_scene"),
+        "tag_family": ("tag", "family"),
+        "lighting": ("scene", "lighting"),
+        "physics": ("physics", None),  # None means copy whole dict
+        "output_dir": ("dataset", "output_dir"),
+    }
+
+    for flat_key, (section, nested_key) in key_map.items():
+        if flat_key in flat:
+            if nested_key:
+                nested[section][nested_key] = flat[flat_key]
+            else:
+                nested[section] = flat[flat_key]
+
     if "backgrounds" in flat:
-        if "hdri_path" in flat["backgrounds"]:
-            nested["scene"]["background_hdri"] = flat["backgrounds"]["hdri_path"]
-        if "texture_dir" in flat["backgrounds"]:
-            nested["scene"]["texture_dir"] = flat["backgrounds"]["texture_dir"]
-    if "physics" in flat:
-        nested["physics"] = flat["physics"]
-    if "output_dir" in flat:
-        nested["dataset"]["output_dir"] = flat["output_dir"]
-    if "output_dir" in flat:
-        nested["dataset"]["output_dir"] = flat["output_dir"]
+        bg = flat["backgrounds"]
+        if "hdri_path" in bg:
+            nested["scene"]["background_hdri"] = bg["hdri_path"]
+        if "texture_dir" in bg:
+            nested["scene"]["texture_dir"] = bg["texture_dir"]
+
     if "seed" in flat:
         nested["dataset"]["seeds"] = {"global_seed": flat["seed"]}
 

@@ -95,11 +95,17 @@ class UnifiedWorkerOrchestrator:
 
     @classmethod
     def cleanup_all(cls):
+        """Stop all active orchestrator instances and their workers."""
         for i in list(cls._instances):
             i.stop()
         cls._instances.clear()
 
     def start(self, shard_id: str = "main"):
+        """Initialize the worker pool and start persistent processes.
+
+        Calculates memory budgets, verifies port availability, and launches workers
+        in parallel.
+        """
         with self._lock:
             if self.running:
                 return
@@ -167,6 +173,7 @@ class UnifiedWorkerOrchestrator:
                     raise WorkerStartupError(f"Startup failed: {e}") from e
 
     def stop(self):
+        """Shutdown all workers and release resources."""
         with self._lock:
             if not self.running:
                 return
@@ -180,9 +187,15 @@ class UnifiedWorkerOrchestrator:
             self.running = False
 
     def get_worker(self) -> PersistentWorkerProcess:
+        """Acquire an available worker from the queue (blocking)."""
         return self.worker_queue.get()
 
     def release_worker(self, worker: PersistentWorkerProcess):
+        """Return a worker to the pool, handling health checks and restarts.
+
+        If a worker has exceeded its render limit or resource threshold, it is
+        restarted before being returned to the queue.
+        """
         should_restart = False
         limit_exceeded = False
         intentional_exit = (
@@ -253,6 +266,10 @@ class UnifiedWorkerOrchestrator:
     def execute_recipe(
         self, recipe: dict, output_dir: Path, rm: str = "cycles", sid: str | None = None
     ) -> Response:
+        """Execute a single render job on an available worker.
+
+        Handles retries for transient failures and resource exhaustion.
+        """
         max_retries = 2
         attempt = 0
         last_error = None
@@ -303,15 +320,18 @@ class UnifiedWorkerOrchestrator:
         )
 
     def __enter__(self):
+        """Context manager entry: starts the orchestrator."""
         if not self.running:
             self.start()
         return self
 
     def __exit__(self, et, ev, tb):
+        """Context manager exit: stops the orchestrator."""
         self.stop()
 
 
 def get_completed_scene_ids(output_dir: Path) -> set[int]:
+    """Scan output directory for completed scene metadata files."""
     completed_ids = set()
     images_dir = output_dir / "images"
     if not images_dir.exists():
@@ -325,6 +345,7 @@ def get_completed_scene_ids(output_dir: Path) -> set[int]:
 
 
 def resolve_shard_index() -> int:
+    """Resolve the current shard index from cloud environment variables."""
     for ev in ["AWS_BATCH_JOB_ARRAY_INDEX", "CLOUD_RUN_TASK_INDEX", "JOB_COMPLETION_INDEX"]:
         if ev in os.environ:
             return int(os.environ[ev])
@@ -344,6 +365,10 @@ def orchestrate(
     batch_size: int = 5,
     verbose: bool = False,
 ) -> None:
+    """Main orchestration loop for executing a JobSpec.
+
+    Handles sharding, resumption, and parallel execution of render tasks.
+    """
     import typer
 
     signal.signal(signal.SIGINT, _signal_handler)

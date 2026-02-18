@@ -85,6 +85,7 @@ dev = [
     "import-linter",
     "fake-bpy-module-4.2",
     "bandit>=1.9.3",
+    "interrogate>=1.7.0",
 ]
 
 [tool.ruff]
