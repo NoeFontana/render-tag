@@ -9,6 +9,9 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ## Archived Tracks
 
+- [x] **Track: Codebase Health Review 2026-02-18**
+  *Link: [./archive/codebase_health_20260218/](./archive/codebase_health_20260218/)*
+
 - [x] **Track: Subject Strategy Pattern (Phase 2)**
   *Link: [./archive/subject_strategy_p2_20260217/](./subject_strategy_p2_20260217/)*
 
