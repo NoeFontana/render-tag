@@ -1,9 +1,10 @@
 
 import json
-import time
-import sys
-from pathlib import Path
 import subprocess
+import sys
+import time
+from pathlib import Path
+
 
 def run_gen(config_path, output_dir):
     cmd = [
@@ -43,19 +44,16 @@ renderer:
 
     # We need to ensure both use the same seed for direct comparison
     # The CLI --seed flag can be used.
-    seed = 42
 
     print("--- Rendering Reference (High Quality) ---")
     hq_dir = base_dir / "hq"
     hq_time = run_gen(hq_config_path, hq_dir)
     
-    print("
---- Rendering CV-Safe (Optimized) ---")
+    print("\n--- Rendering CV-Safe (Optimized) ---")
     cv_safe_dir = base_dir / "cv_safe"
     cv_safe_time = run_gen(cv_safe_config_path, cv_safe_dir)
     
-    print(f"
-Results:")
+    print("\nResults:")
     print(f"HQ Render Time:      {hq_time:.2f}s")
     print(f"CV-Safe Render Time: {cv_safe_time:.2f}s")
     print(f"Speedup:             {hq_time/cv_safe_time:.2f}x")
@@ -74,8 +72,7 @@ Results:")
     df_hq = pl.read_csv(hq_csv)
     df_cv = pl.read_csv(cv_safe_csv)
     
-    print(f"
-HQ Detections:      {len(df_hq)}")
+    print(f"\nHQ Detections:      {len(df_hq)}")
     print(f"CV-Safe Detections: {len(df_cv)}")
     
     if len(df_hq) != len(df_cv):
@@ -89,8 +86,7 @@ HQ Detections:      {len(df_hq)}")
 
     # Simplified corner comparison for this sanity check
     # We'll just verify the detections are present and "close"
-    print("
-Corner Accuracy Check (First tag):")
+    print("\nCorner Accuracy Check (First tag):")
     if len(df_hq) > 0 and len(df_cv) > 0:
         c_hq = parse_corners(df_hq[0, "corners"])
         c_cv = parse_corners(df_cv[0, "corners"])

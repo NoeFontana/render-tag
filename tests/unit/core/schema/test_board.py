@@ -1,7 +1,9 @@
 
 import pytest
 from pydantic import ValidationError
+
 from render_tag.core.schema.board import BoardConfig, BoardType
+
 
 def test_board_config_aprilgrid():
     """Verify AprilGrid configuration parsing."""

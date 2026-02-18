@@ -1,9 +1,9 @@
-import pytest
 from unittest.mock import MagicMock, patch
-from pathlib import Path
+
 from render_tag.core.config import GenConfig
 from render_tag.generation.compiler import SceneCompiler
 from render_tag.generation.strategy.base import SubjectStrategy
+
 
 def test_compiler_agnostic_loop():
     config = GenConfig()

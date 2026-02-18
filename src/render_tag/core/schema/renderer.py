@@ -3,7 +3,9 @@ Schema for rendering engine configuration.
 """
 
 from typing import Literal
+
 from pydantic import BaseModel, Field
+
 
 class RendererConfig(BaseModel):
     """Configuration for the rendering engine."""

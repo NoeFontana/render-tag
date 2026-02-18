@@ -1,9 +1,8 @@
 
-import pytest
-from pathlib import Path
 from render_tag.core.config import GenConfig
-from render_tag.core.schema.subject import TagSubjectConfig, BoardSubjectConfig
+from render_tag.core.schema.subject import BoardSubjectConfig, TagSubjectConfig
 from render_tag.generation.compiler import SceneCompiler
+
 
 def test_compile_tag_subject():
     config = GenConfig()

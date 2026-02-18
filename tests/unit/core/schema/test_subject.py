@@ -1,6 +1,8 @@
 import pytest
 from pydantic import ValidationError
-from render_tag.core.schema.subject import TagSubjectConfig, BoardSubjectConfig, SubjectConfig
+
+from render_tag.core.schema.subject import BoardSubjectConfig, SubjectConfig, TagSubjectConfig
+
 
 def test_tag_subject_config_valid():
     config = TagSubjectConfig(

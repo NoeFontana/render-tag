@@ -1,7 +1,9 @@
 
 import pytest
 from pydantic import ValidationError
+
 from render_tag.core.schema.renderer import RendererConfig
+
 
 def test_renderer_config_new_fields():
     """Verify that RendererConfig accepts the new CV-Safe parameters."""

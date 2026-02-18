@@ -84,6 +84,7 @@ dev = [
     "pymdown-extensions>=10.20.1",
     "import-linter",
     "fake-bpy-module-4.2",
+    "bandit>=1.9.3",
 ]
 
 [tool.ruff]

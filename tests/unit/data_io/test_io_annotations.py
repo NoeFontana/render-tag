@@ -27,7 +27,7 @@ def test_compute_bbox():
 
 def test_normalize_corner_order_default():
     # Input: BL, BR, TR, TL
-    corners = np.array([[0, 0], [1, 0], [1, 1], [0, 1]])
+    np.array([[0, 0], [1, 0], [1, 1], [0, 1]])
     # Implementation currently assumes input is already CW from TL or just maps indices directly.
     # Wait, the implementation is: tl, tr, br, bl = corners[0], corners[1], corners[2], corners[3]
     # So if we want TL to be (0,1), it MUST be at index 0.

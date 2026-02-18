@@ -52,7 +52,9 @@ class ConfigLoadingStage(PipelineStage):
     def _load_from_resume(self, ctx: GenerationContext) -> None:
         console.print(f"[bold blue]Resuming from Job Spec:[/bold blue] {ctx.resume_from}")
         if not ctx.resume_from.exists():
-            console.print(f"[bold red]Error:[/bold red] Resume path does not exist: {ctx.resume_from}")
+            console.print(
+                f"[bold red]Error:[/bold red] Resume path does not exist: {ctx.resume_from}"
+            )
             raise typer.Exit(code=1)
 
         try:

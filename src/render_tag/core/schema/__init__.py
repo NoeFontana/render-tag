@@ -2,15 +2,6 @@
 Core data schemas for render-tag.
 """
 
-from .board import (
-    BoardConfig as BoardConfig,
-    BoardType as BoardType,
-)
-from .subject import (
-    BoardSubjectConfig as BoardSubjectConfig,
-    SubjectConfig as SubjectConfig,
-    TagSubjectConfig as TagSubjectConfig,
-)
 from .base import (
     Corner as Corner,
 )
@@ -32,6 +23,12 @@ from .base import (
 from .base import (
     TagFamily as TagFamily,
 )
+from .board import (
+    BoardConfig as BoardConfig,
+)
+from .board import (
+    BoardType as BoardType,
+)
 from .hot_loop import (
     Command as Command,
 )
@@ -49,9 +46,6 @@ from .hot_loop import (
 )
 from .hot_loop import (
     calculate_state_hash as calculate_state_hash,
-)
-from .renderer import (
-    RendererConfig as RendererConfig,
 )
 from .recipe import (
     CameraIntrinsics as CameraIntrinsics,
@@ -76,4 +70,16 @@ from .recipe import (
 )
 from .recipe import (
     WorldRecipe as WorldRecipe,
+)
+from .renderer import (
+    RendererConfig as RendererConfig,
+)
+from .subject import (
+    BoardSubjectConfig as BoardSubjectConfig,
+)
+from .subject import (
+    SubjectConfig as SubjectConfig,
+)
+from .subject import (
+    TagSubjectConfig as TagSubjectConfig,
 )

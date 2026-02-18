@@ -1,7 +1,8 @@
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
 from render_tag.backend.worker_server import ZmqBackendServer
 from render_tag.core.schema.hot_loop import WorkerStatus
+
 
 def test_worker_memory_enforcement():
     """Verify that worker shuts down when memory limit is exceeded."""
@@ -23,7 +24,7 @@ def test_worker_memory_enforcement():
         server._check_memory()
         
         assert server.status == WorkerStatus.RESOURCE_LIMIT_EXCEEDED
-        assert server.running == False
+        assert not server.running
 
 def test_worker_memory_within_limit():
     """Verify that worker continues running when within memory limits."""
@@ -44,4 +45,4 @@ def test_worker_memory_within_limit():
         server._check_memory()
         
         assert server.status == WorkerStatus.IDLE
-        assert server.running == True
+        assert server.running

@@ -50,7 +50,9 @@ class PreparationStage(PipelineStage):
             )
             
             if is_complete:
-                console.print(f"[green]Shard {ctx.shard_index} is already complete. Skipping.[/green]")
+                console.print(
+                    f"[green]Shard {ctx.shard_index} is already complete. Skipping.[/green]"
+                )
                 ctx.skip_execution = True
                 return
             

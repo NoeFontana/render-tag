@@ -1,9 +1,9 @@
 
-import pytest
 import numpy as np
-import cv2
+
 from render_tag.core.schema.board import BoardConfig, BoardType
 from render_tag.generation.texture_factory import TextureFactory
+
 
 def test_texture_factory_aprilgrid():
     """Verify AprilGrid texture generation."""
@@ -100,7 +100,11 @@ def test_texture_factory_id_increment():
 def test_texture_factory_hashing():
     """Verify that different configs produce different hashes."""
     factory = TextureFactory()
-    config1 = BoardConfig(type=BoardType.APRILGRID, rows=2, cols=2, marker_size=0.1, spacing_ratio=0.1)
-    config2 = BoardConfig(type=BoardType.APRILGRID, rows=2, cols=2, marker_size=0.1, spacing_ratio=0.2)
+    config1 = BoardConfig(
+        type=BoardType.APRILGRID, rows=2, cols=2, marker_size=0.1, spacing_ratio=0.1
+    )
+    config2 = BoardConfig(
+        type=BoardType.APRILGRID, rows=2, cols=2, marker_size=0.1, spacing_ratio=0.2
+    )
     
     assert factory._calculate_hash(config1) != factory._calculate_hash(config2)

@@ -1,9 +1,7 @@
 import sys
-from pathlib import Path
-import pytest
-import zmq
-import json
+
 from render_tag.orchestration import PersistentWorkerProcess
+
 
 def test_memory_limit_injection(tmp_path):
     """Verify that memory_limit_mb is passed to the worker subprocess."""

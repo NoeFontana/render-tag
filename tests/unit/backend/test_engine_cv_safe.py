@@ -1,9 +1,10 @@
 
-import pytest
 from unittest.mock import MagicMock, patch
+
 from render_tag.backend.bridge import bridge
 from render_tag.backend.engine import RenderFacade
 from render_tag.core.schema.renderer import RendererConfig
+
 
 def test_render_facade_cv_safe_settings():
     """Verify that RenderFacade applies CV-Safe sampling and denoising settings."""
@@ -28,7 +29,7 @@ def test_render_facade_cv_safe_settings():
     # update how it's initialized in execute_recipe.
     
     # For TDD, let's assume we update RenderFacade to accept an optional config.
-    facade = RenderFacade(renderer_mode="cycles", config=cv_safe_config)
+    RenderFacade(renderer_mode="cycles", config=cv_safe_config)
     
     # Verify BlenderProc renderer calls
     mock_renderer.set_noise_threshold.assert_called_once_with(0.02)
@@ -39,9 +40,10 @@ def test_render_facade_cv_safe_settings():
 
 def test_execute_recipe_passes_config():
     """Verify that execute_recipe passes RendererConfig to RenderFacade."""
-    from render_tag.backend.engine import execute_recipe, RenderContext
-    from render_tag.data_io.writers import CSVWriter, COCOWriter, RichTruthWriter, SidecarWriter
     from pathlib import Path
+
+    from render_tag.backend.engine import RenderContext, execute_recipe
+    from render_tag.data_io.writers import COCOWriter, CSVWriter, RichTruthWriter, SidecarWriter
     
     bridge.stabilize()
     mock_renderer = MagicMock()
@@ -75,15 +77,12 @@ def test_execute_recipe_passes_config():
     
     # Mock some dependencies called in execute_recipe
     with patch("render_tag.backend.engine.RenderFacade", wraps=RenderFacade) as MockFacade:
-        try:
+        import contextlib
+        with contextlib.suppress(Exception):
             execute_recipe(recipe, ctx)
-        except Exception:
-            # execute_recipe might fail later due to missing objects/cameras in recipe,
-            # but we only care about RenderFacade initialization.
-            pass
             
         # Check if RenderFacade was called with the correct config
-        args, kwargs = MockFacade.call_args
+        _args, kwargs = MockFacade.call_args
         assert kwargs["config"].noise_threshold == 0.03
         assert kwargs["config"].max_samples == 32
         

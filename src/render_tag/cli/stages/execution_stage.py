@@ -16,7 +16,9 @@ class ExecutionStage(PipelineStage):
 
     def execute(self, ctx: GenerationContext) -> None:
         if ctx.skip_execution:
-            console.print("[green]Resumption: Shard already complete. Skipping execution stage.[/green]")
+            console.print(
+                "[green]Resumption: Shard already complete. Skipping execution stage.[/green]"
+            )
             return
 
         self._check_dependencies(ctx)

@@ -1,8 +1,10 @@
 
-import pytest
 from unittest.mock import MagicMock, patch
+
 import numpy as np
+
 from render_tag.backend.projection import generate_subject_records
+
 
 @patch("render_tag.backend.projection.bridge")
 def test_generate_subject_records_tag(mock_bridge):
@@ -12,7 +14,12 @@ def test_generate_subject_records_tag(mock_bridge):
         "type": "TAG",
         "tag_id": 42,
         "tag_family": "tag36h11",
-        "keypoints_3d": [[-0.05, 0.05, 0.0], [0.05, 0.05, 0.0], [0.05, -0.05, 0.0], [-0.05, -0.05, 0.0]]
+        "keypoints_3d": [
+            [-0.05, 0.05, 0.0],
+            [0.05, 0.05, 0.0],
+            [0.05, -0.05, 0.0],
+            [-0.05, -0.05, 0.0],
+        ],
     }
     
     mock_obj.get_local2world_mat.return_value = np.eye(4)
@@ -30,9 +37,12 @@ def test_generate_subject_records_tag(mock_bridge):
         [0, 0, 1]
     ])
     
-    # We need to mock project_points because it uses internal logic that might be complex to mock fully
+    # We need to mock project_points because it uses internal logic 
+    # that might be complex to mock fully
     with patch("render_tag.backend.projection.project_points") as mock_proj:
-        mock_proj.return_value = np.array([[300, 200], [340, 200], [340, 280], [300, 280]])
+        mock_proj.return_value = np.array(
+            [[300, 200], [340, 200], [340, 280], [300, 280]]
+        )
         
         records = generate_subject_records(mock_obj, "test_img")
         

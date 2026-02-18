@@ -7,7 +7,7 @@ strict validation and type safety for all generation parameters.
 
 from enum import Enum
 from pathlib import Path
-from typing import Annotated, Any, Literal, Optional
+from typing import Annotated, Any, Literal
 
 import yaml
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -546,7 +546,9 @@ class TagConfig(BaseModel):
     size_meters: float = Field(
         default=0.1,
         gt=0,
-        description="[DEPRECATED] Tag size in meters (outer edge). Use ScenarioConfig.subject instead.",
+        description=(
+            "[DEPRECATED] Tag size in meters (outer edge). Use ScenarioConfig.subject instead."
+        ),
     )
     margin_bits: int = Field(default=1, ge=0, description="Width of the white quiet zone in bits")
     texture_path: Path | None = Field(default=None, description="Path to tag texture directory")
@@ -647,7 +649,7 @@ class ScenarioConfig(BaseModel):
     Defines the subject (Tags or Board) and environmental constraints.
     """
 
-    subject: Optional[SubjectConfig] = Field(
+    subject: SubjectConfig | None = Field(
         default_factory=lambda: SubjectConfig(root=TagSubjectConfig()),
         description="The subject of the scene (TAGS or BOARD).",
     )

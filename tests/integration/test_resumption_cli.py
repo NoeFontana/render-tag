@@ -1,9 +1,9 @@
-import pytest
-import json
 import csv
+import json
 import re
-from pathlib import Path
+
 from typer.testing import CliRunner
+
 from render_tag.cli import app
 
 runner = CliRunner()
@@ -26,7 +26,7 @@ def test_cli_resume_from_valid_job_spec(tmp_path):
     # 1. Create a dummy JobSpec
     job_spec_path = tmp_path / "job_spec.json"
     
-    from render_tag.core.schema.job import JobSpec, JobPaths, get_env_fingerprint
+    from render_tag.core.schema.job import JobPaths, JobSpec, get_env_fingerprint
     env_hash, blender_ver = get_env_fingerprint()
     
     from render_tag.core.config import GenConfig
@@ -39,7 +39,9 @@ def test_cli_resume_from_valid_job_spec(tmp_path):
     
     spec = JobSpec(
         job_id="resume_test",
-        paths=JobPaths(output_dir=output_dir, logs_dir=tmp_path/"logs", assets_dir=tmp_path/"assets"),
+        paths=JobPaths(
+            output_dir=output_dir, logs_dir=tmp_path / "logs", assets_dir=tmp_path / "assets"
+        ),
         global_seed=42,
         scene_config=config,
         env_hash=env_hash,
@@ -54,7 +56,8 @@ def test_cli_resume_from_valid_job_spec(tmp_path):
     with open(shard_0_csv, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["scene_id"])
-        for i in range(10): writer.writerow([i])
+        for i in range(10):
+            writer.writerow([i])
     with open(output_dir / "coco_shard_0.json", "w") as f:
         json.dump({"images": []}, f)
         
@@ -63,7 +66,8 @@ def test_cli_resume_from_valid_job_spec(tmp_path):
     with open(shard_1_csv, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["scene_id"])
-        for i in range(5): writer.writerow([i])
+        for i in range(5):
+            writer.writerow([i])
     with open(output_dir / "coco_shard_1.json", "w") as f:
         json.dump({"images": []}, f)
         
@@ -80,14 +84,16 @@ def test_cli_resume_from_valid_job_spec(tmp_path):
     assert "Resumption: Shard already complete. Skipping execution stage." in stdout0
 
     # 5. Test Case B: Shard 1 (Incomplete -> Aggressive Cleanup)
-    # Re-create files because FinalizationStage might have cleaned them up if it thought it merged them
-    # (Though it shouldn't have found them if it ran for shard 0 and they were shard 1... 
+    # Re-create files because FinalizationStage might have cleaned them up
+    # if it thought it merged them
+    # (Though it shouldn't have found them if it ran for shard 0 and they were shard 1...
     # but wait, merge_shards glob matches all tags_shard_*.csv)
     shard_1_csv = output_dir / "tags_shard_1.csv"
     with open(shard_1_csv, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["scene_id"])
-        for i in range(5): writer.writerow([i])
+        for i in range(5):
+            writer.writerow([i])
     with open(output_dir / "coco_shard_1.json", "w") as f:
         json.dump({"images": []}, f)
 

@@ -1,9 +1,9 @@
 
 import json
-import pytest
-from pathlib import Path
-from render_tag.data_io.writers import COCOWriter
+
 from render_tag.core.schema.base import DetectionRecord
+from render_tag.data_io.writers import COCOWriter
+
 
 def test_coco_keypoint_compliance_tag(tmp_path):
     writer = COCOWriter(tmp_path)

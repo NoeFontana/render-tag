@@ -1,8 +1,9 @@
 import socket
-import pytest
 from unittest.mock import patch
-from render_tag.orchestration.orchestrator import UnifiedWorkerOrchestrator
+
 from render_tag.core.utils import is_port_in_use
+from render_tag.orchestration.orchestrator import UnifiedWorkerOrchestrator
+
 
 def test_is_port_in_use():
     port = 35005
@@ -17,7 +18,11 @@ def test_is_port_in_use():
     assert not is_port_in_use(port)
 
 def test_orchestrator_port_collision_avoidance():
-    with patch("hashlib.md5") as mock_md5, patch("random.randint") as mock_randint, patch("random.random") as mock_random:
+    with (
+        patch("hashlib.md5") as mock_md5,
+        patch("random.randint") as mock_randint,
+        patch("random.random") as mock_random,
+    ):
         mock_md5.return_value.hexdigest.return_value = "0"
         mock_randint.return_value = 0
         mock_random.return_value = 0

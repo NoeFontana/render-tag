@@ -1,8 +1,11 @@
 import json
-import numpy as np
-from pathlib import Path
 import sys
+from pathlib import Path
+
+import numpy as np
+
 from render_tag.generation.projection_math import quaternion_xyzw_to_matrix
+
 
 def main():
     dataset_dir = Path("output/dataset_01")
@@ -68,7 +71,8 @@ def main():
                                 found = True
                                 break
                             tid += 1
-                    if found: break
+                    if found:
+                        break
             
             lx = -board_width / 2.0 + c_idx * square_size + square_size / 2.0
             ly = -board_height / 2.0 + r_idx * square_size + square_size / 2.0

@@ -1,8 +1,9 @@
-import pytest
 from unittest.mock import MagicMock
+
 from render_tag.backend.bridge import bridge
 from render_tag.backend.engine import RenderFacade
 from render_tag.core.schema.renderer import RendererConfig
+
 
 def test_render_facade_light_path_settings():
     """Verify that RenderFacade applies CV-Safe light path settings."""
@@ -24,7 +25,7 @@ def test_render_facade_light_path_settings():
     )
     
     # Initialize RenderFacade with the config
-    facade = RenderFacade(renderer_mode="cycles", config=config)
+    RenderFacade(renderer_mode="cycles", config=config)
     
     # Verify BlenderProc renderer calls for light paths
     mock_renderer.set_light_bounces.assert_called_once_with(
@@ -45,7 +46,7 @@ def test_render_facade_light_path_defaults():
     bridge.bproc.renderer = mock_renderer
     
     config = RendererConfig() # Uses defaults
-    facade = RenderFacade(renderer_mode="cycles", config=config)
+    RenderFacade(renderer_mode="cycles", config=config)
     
     # Verify defaults are applied
     mock_renderer.set_light_bounces.assert_called_with(

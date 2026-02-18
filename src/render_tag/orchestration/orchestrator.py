@@ -105,10 +105,14 @@ class UnifiedWorkerOrchestrator:
                 return
 
             seed_str = f"{shard_id}-{os.getpid()}-{random.random()}"
-            port_offset = int(hashlib.md5(seed_str.encode()).hexdigest(), 16) % 10000
-            current_base_port = self.base_port + port_offset + random.randint(0, 50) * 10
-
-            # Calculate memory budget per worker
+            port_offset = (
+                int(hashlib.md5(seed_str.encode(), usedforsecurity=False).hexdigest(), 16)
+                % 10000
+            )
+            current_base_port = (
+                self.base_port + port_offset + random.randint(0, 50) * 10
+            )
+                        # Calculate memory budget per worker
             effective_memory_limit = calculate_worker_memory_budget(
                 num_workers=self.num_workers,
                 explicit_limit_mb=self.memory_limit_mb
@@ -215,7 +219,9 @@ class UnifiedWorkerOrchestrator:
 
         if should_restart or intentional_exit:
             if limit_exceeded:
-                logger.info(f"Preventative restart for {worker.worker_id} (Resource limit exceeded)")
+                logger.info(
+                    f"Preventative restart for {worker.worker_id} (Resource limit exceeded)"
+                )
             
             worker.stop()
             slot_id = worker.shard_id.split("_")[0]
@@ -273,7 +279,10 @@ class UnifiedWorkerOrchestrator:
                     and resp.message 
                     and "RESOURCE_LIMIT_EXCEEDED" in resp.message
                 ):
-                    logger.info(f"Worker {worker.worker_id} exceeded resource limits during render. Retrying.")
+                    logger.info(
+                        f"Worker {worker.worker_id} exceeded resource limits during render. "
+                        "Retrying."
+                    )
                     worker.stop()
                     # Do not increment attempt counter
                     continue
@@ -411,7 +420,9 @@ def orchestrate(
                         m = re.search(r"shard_(\d+)", path.name)
                         shard_idx_str = m.group(1) if m else "0"
                         
-                        resp = orchestrator.execute_recipe(recipe, output_dir, rm, sid=shard_idx_str)
+                        resp = orchestrator.execute_recipe(
+                            recipe, output_dir, rm, sid=shard_idx_str
+                        )
                         if resp.status != ResponseStatus.SUCCESS:
                             console.print(f"[red]Render failed: {resp.message}[/red]")
                             any_failed = True

@@ -2,7 +2,9 @@
 import csv
 import json
 from pathlib import Path
+
 from rich.console import Console
+
 from render_tag.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -14,7 +16,9 @@ class ShardValidator:
     def __init__(self, output_dir: Path):
         self.output_dir = output_dir
 
-    def validate_shard(self, shard_id: str | int, expected_scenes: int, delete_invalid: bool = True) -> bool:
+    def validate_shard(
+        self, shard_id: str | int, expected_scenes: int, delete_invalid: bool = True
+    ) -> bool:
         """Verify that a specific shard is complete on disk.
         
         Checks:
@@ -41,7 +45,10 @@ class ShardValidator:
                     row_count = sum(1 for _ in reader) - 1
                     if row_count != expected_scenes:
                         is_valid = False
-                        reason = f"CSV row count mismatch for shard {shard_id}: expected {expected_scenes}, got {row_count}"
+                        reason = (
+                            f"CSV row count mismatch for shard {shard_id}: "
+                            f"expected {expected_scenes}, got {row_count}"
+                        )
             except Exception as e:
                 is_valid = False
                 reason = f"CSV read error for shard {shard_id}: {e}"
@@ -59,17 +66,22 @@ class ShardValidator:
                     is_valid = False
                     reason = f"COCO JSON parse error for shard {shard_id}: {e}"
                     
-        if not is_valid and reason:
-            if csv_path.exists() or coco_path.exists():
-                logger.warning(reason)
-                if delete_invalid:
-                    console.print(f"[yellow]Aggressive Cleanup: Removing invalid shard {shard_id} files[/yellow]")
-                    if csv_path.exists(): csv_path.unlink()
-                    if coco_path.exists(): coco_path.unlink()
+        if not is_valid and reason and (csv_path.exists() or coco_path.exists()):
+            logger.warning(reason)
+            if delete_invalid:
+                console.print(
+                    f"[yellow]Aggressive Cleanup: Removing invalid shard {shard_id} files[/yellow]"
+                )
+                if csv_path.exists():
+                    csv_path.unlink()
+                if coco_path.exists():
+                    coco_path.unlink()
             
         return is_valid
 
-    def get_missing_shard_indices(self, num_shards: int, scenes_per_shard: int, total_scenes: int | None = None) -> list[int]:
+    def get_missing_shard_indices(
+        self, num_shards: int, scenes_per_shard: int, total_scenes: int | None = None
+    ) -> list[int]:
         """Scan all shards and return indices of those that need (re)rendering.
         
         Automatically cleans up invalid shards.

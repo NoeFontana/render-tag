@@ -13,7 +13,6 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from ..core.config import GenConfig
-from ..core.constants import TAG_GRID_SIZES
 from ..core.schema import (
     CameraIntrinsics,
     CameraRecipe,

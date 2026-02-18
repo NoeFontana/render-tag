@@ -56,7 +56,10 @@ def test_ppm_sampling_enforcement(tmp_path):
         # Black border size = 0.16 * (8 / 10) = 0.128
         black_border_size = 0.16 * (8 / 10)
         actual_ppm = calculate_ppm(
-            distance_m=dist, tag_size_m=black_border_size, focal_length_px=f_px, tag_grid_size=grid_size
+            distance_m=dist,
+            tag_size_m=black_border_size,
+            focal_length_px=f_px,
+            tag_grid_size=grid_size,
         )
 
         # Should be within [10, 20] range (allowing for small tolerance due to facing angle etc)

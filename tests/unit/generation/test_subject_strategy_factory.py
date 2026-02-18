@@ -1,9 +1,11 @@
 
 import pytest
-from render_tag.core.schema.subject import TagSubjectConfig, BoardSubjectConfig
+
+from render_tag.core.schema.subject import BoardSubjectConfig, TagSubjectConfig
+from render_tag.generation.strategy.board import BoardStrategy
 from render_tag.generation.strategy.factory import get_subject_strategy
 from render_tag.generation.strategy.tags import TagStrategy
-from render_tag.generation.strategy.board import BoardStrategy
+
 
 def test_get_subject_strategy_tags():
     config = TagSubjectConfig(

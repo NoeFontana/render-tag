@@ -1,8 +1,9 @@
 
-import pytest
 from pathlib import Path
-from render_tag.core.schema.job import JobSpec, JobPaths, JobInfrastructure
+
 from render_tag.core.config import GenConfig
+from render_tag.core.schema.job import JobPaths, JobSpec
+
 
 def test_job_spec_shard_mapping_is_deterministic():
     """Verify that a JobSpec returns consistent scene indices for a given shard."""

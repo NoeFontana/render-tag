@@ -1,8 +1,9 @@
-import pytest
-from unittest.mock import MagicMock, patch
 from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+from render_tag.core.schema.hot_loop import Response, ResponseStatus
 from render_tag.orchestration.orchestrator import UnifiedWorkerOrchestrator
-from render_tag.core.schema.hot_loop import Response, ResponseStatus, WorkerStatus, CommandType
+
 
 def test_orchestrator_maintenance_restart():
     """Verify that orchestrator retries on RESOURCE_LIMIT_EXCEEDED without counting as failure."""

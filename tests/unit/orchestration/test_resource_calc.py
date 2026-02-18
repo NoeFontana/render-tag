@@ -1,7 +1,8 @@
 
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
 from render_tag.core.resources import calculate_worker_memory_budget
+
 
 def test_calculate_worker_memory_budget_explicit():
     """Verify explicit memory limit is respected."""

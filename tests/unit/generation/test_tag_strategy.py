@@ -1,11 +1,12 @@
 
-import pytest
-from unittest.mock import MagicMock
 from pathlib import Path
-from render_tag.core.schema.subject import TagSubjectConfig
-from render_tag.generation.strategy.tags import TagStrategy
+from unittest.mock import MagicMock
+
 from render_tag.cli.pipeline import GenerationContext
 from render_tag.core.config import GenConfig
+from render_tag.core.schema.subject import TagSubjectConfig
+from render_tag.generation.strategy.tags import TagStrategy
+
 
 def test_tag_strategy_sample_pose():
     config = TagSubjectConfig(

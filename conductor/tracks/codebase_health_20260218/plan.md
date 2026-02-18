@@ -1,10 +1,10 @@
 # Implementation Plan: Codebase Health Review
 
 ## Phase 1: Static Analysis & Security
-- [ ] Task: Run `ruff check .` and fix all linting errors.
-- [ ] Task: Run `ty` (or `mypy`) and fix type checking errors.
-- [ ] Task: Install and run `bandit` to identify security vulnerabilities.
-- [ ] Task: Fix high-severity security issues found by `bandit`.
+- [x] Task: Run `ruff check .` and fix all linting errors.
+- [x] Task: Run `ty` (or `mypy`) and fix type checking errors.
+- [x] Task: Install and run `bandit` to identify security vulnerabilities.
+- [~] Task: Fix high-severity security issues found by `bandit`.
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Static Analysis & Security' (Protocol in workflow.md)
 
 ## Phase 2: Documentation & Refactoring

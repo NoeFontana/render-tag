@@ -87,6 +87,7 @@ class ZmqBackendServer:
 
         import gc
         import os
+
         import psutil
 
         # Trigger GC before final measurement to avoid premature restarts
@@ -110,6 +111,7 @@ class ZmqBackendServer:
     def get_telemetry(self) -> Telemetry:
         """Returns current worker health and state metrics (Thread Safe)."""
         import os
+
         import psutil
         process = psutil.Process(os.getpid())
         

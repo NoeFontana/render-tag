@@ -1,8 +1,11 @@
 
+from pathlib import Path
+
 import cv2
+
 from render_tag.core.schema.board import BoardConfig, BoardType
 from render_tag.generation.texture_factory import TextureFactory
-from pathlib import Path
+
 
 def debug_visualize():
     output_dir = Path("output/test_debug")

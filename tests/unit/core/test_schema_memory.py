@@ -1,6 +1,6 @@
 
-import pytest
 from render_tag.core.schema.job import JobInfrastructure
+
 
 def test_job_infrastructure_max_memory_mb():
     """Verify max_memory_mb field in JobInfrastructure."""

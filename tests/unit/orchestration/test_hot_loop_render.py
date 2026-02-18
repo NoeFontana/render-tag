@@ -1,3 +1,4 @@
+import socket
 import threading
 import time
 
@@ -5,8 +6,6 @@ from render_tag.backend.worker_server import ZmqBackendServer
 from render_tag.core.schema.hot_loop import CommandType, ResponseStatus
 from render_tag.orchestration import ZmqHostClient
 
-
-import socket
 
 def get_free_port():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
