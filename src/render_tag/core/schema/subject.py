@@ -26,6 +26,7 @@ class TagSubjectConfig(BaseModel):
     tag_families: list[str] = Field(default_factory=lambda: ["tag36h11"])
     size_meters: PositiveFloat = 0.1
     tags_per_scene: PositiveInt = 10
+    tag_spacing_bits: float = Field(default=2.0, description="Spacing between tags in bits")
     
     model_config = ConfigDict(use_enum_values=True)
 

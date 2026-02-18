@@ -539,8 +539,15 @@ class MaterialConfig(BaseModel):
 class TagConfig(BaseModel):
     """AprilTag configuration."""
 
-    family: TagFamily = Field(default=TagFamily.TAG36H11, description="AprilTag family")
-    size_meters: float = Field(default=0.1, gt=0, description="Tag size in meters (outer edge)")
+    family: TagFamily = Field(
+        default=TagFamily.TAG36H11,
+        description="[DEPRECATED] AprilTag family. Use ScenarioConfig.subject instead.",
+    )
+    size_meters: float = Field(
+        default=0.1,
+        gt=0,
+        description="[DEPRECATED] Tag size in meters (outer edge). Use ScenarioConfig.subject instead.",
+    )
     margin_bits: int = Field(default=1, ge=0, description="Width of the white quiet zone in bits")
     texture_path: Path | None = Field(default=None, description="Path to tag texture directory")
     material: MaterialConfig = Field(default_factory=MaterialConfig)
@@ -641,8 +648,8 @@ class ScenarioConfig(BaseModel):
     """
 
     subject: Optional[SubjectConfig] = Field(
-        default=None,
-        description="The subject of the scene (TAGS or BOARD). If None, uses TagSubjectConfig with GenConfig defaults.",
+        default_factory=lambda: SubjectConfig(root=TagSubjectConfig()),
+        description="The subject of the scene (TAGS or BOARD).",
     )
     tag_families: list[TagFamily] = Field(
         default=[TagFamily.TAG36H11],
@@ -783,27 +790,6 @@ class GenConfig(BaseModel):
     environment: EnvironmentConfig = Field(
         default_factory=EnvironmentConfig, description="Environmental distractors and effects"
     )
-
-    @model_validator(mode="after")
-    def sync_scenario_subject(self) -> "GenConfig":
-        if self.scenario.subject is None:
-            self.scenario.subject = SubjectConfig(
-                root=TagSubjectConfig(
-                    tag_families=[f.value for f in self.scenario.tag_families],
-                    size_meters=self.tag.size_meters,
-                    tags_per_scene=self.scenario.tags_per_scene[1],
-                )
-            )
-        else:
-            # If it's TAGS, ensure it stays synced with top-level if top-level was modified
-            # (Test support staff pattern)
-            actual = self.scenario.subject.root
-            if isinstance(actual, TagSubjectConfig):
-                # Update if they match the default size but top-level doesn't
-                # This is tricky because we don't know if the user explicitly set TagSubjectConfig
-                # For now, we prioritize explicit SubjectConfig if present.
-                pass
-        return self
 
     # Asset Management
     force_reload_assets: bool = Field(
