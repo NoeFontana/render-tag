@@ -1,3 +1,4 @@
+
 """
 Deterministic Scene Compiler for render-tag.
 
@@ -7,13 +8,13 @@ from the Blender runtime to the pure-Python preparation phase.
 
 import math
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 from ..core.config import TAG_MAX_IDS, GenConfig
 from ..core.constants import TAG_GRID_SIZES
 from ..core.schema import (
-    BoardConfig,
     CameraIntrinsics,
     CameraRecipe,
     LightRecipe,
@@ -22,13 +23,14 @@ from ..core.schema import (
     SensorDynamicsRecipe,
     WorldRecipe,
 )
-from ..core.schema.subject import BoardSubjectConfig
 from ..core.seeding import derive_seed
 from ..data_io.assets import AssetProvider
 from .camera import sample_camera_pose
-from .layouts import apply_flying_layout, apply_grid_layout
-from .texture_factory import TextureFactory
+from .strategy.factory import get_subject_strategy
 from .visibility import is_facing_camera
+
+if TYPE_CHECKING:
+    from .strategy.base import SubjectStrategy
 
 
 class SceneCompiler:
@@ -49,6 +51,9 @@ class SceneCompiler:
         self.global_seed = global_seed
         self.output_dir = output_dir
         self.asset_provider = AssetProvider()
+
+        # Initialize Subject Strategy
+        self.strategy: SubjectStrategy = get_subject_strategy(self.config.scenario.subject)
 
         # Cache textures
         self.textures = []
@@ -74,6 +79,18 @@ class SceneCompiler:
             total_shards = total_scenes
             if shard_index >= total_shards:
                 return []
+
+        # Prepare assets for the subject once per job/shard
+        # (This is where board textures are generated or tag BoMs are built)
+        # Note: We pass a mock context or enough info for strategy to work.
+        # Ideally we'd pass a real GenerationContext if we had it, or strategy uses self.output_dir.
+        # Since strategy.prepare_assets needs context, we build a minimal one if needed.
+        from render_tag.cli.pipeline import GenerationContext
+        ctx = GenerationContext(
+            gen_config=self.config,
+            output_dir=self.output_dir or Path("output")
+        )
+        self.strategy.prepare_assets(ctx)
 
         scenes_per_shard = total_scenes // total_shards
         start_idx = shard_index * scenes_per_shard
@@ -175,198 +192,28 @@ class SceneCompiler:
             texture_rotation=texture_rotation,
         )
 
-        # 2. Objects
-        layout_seed = derive_seed(seed, "layout", 0)
-        rng = np.random.default_rng(layout_seed)
-
-        tag_config = self.config.tag
-        scenario = self.config.scenario
-        subject = scenario.subject.root
-
-        objects = []
-
-        if isinstance(subject, BoardSubjectConfig):
-            # High-Fidelity Calibration Board (Single Texture)
-            board_config = BoardConfig(
-                type="charuco" if subject.type == "BOARD" else "aprilgrid",  # Map if needed
-                rows=subject.rows,
-                cols=subject.cols,
-                marker_size=subject.marker_size,
-                dictionary=subject.dictionary,
-                spacing_ratio=subject.spacing_ratio,
-                square_size=subject.square_size,
-            )
-            # Re-map type based on our logic if it's simplified in SubjectConfig
-            # Actually BoardSubjectConfig already has AprilGrid specific fields.
-            # We'll use the BoardSpec/compute_layout logic.
-            from .board import (
-                BoardSpec,
-                BoardType,
-                compute_aprilgrid_layout,
-                compute_charuco_layout,
-            )
-
-            if subject.spacing_ratio is not None:
-                b_type = BoardType.APRILGRID
-                square_size = subject.marker_size * (1.0 + subject.spacing_ratio)
-                spec = BoardSpec(
-                    rows=subject.rows,
-                    cols=subject.cols,
-                    square_size=square_size,
-                    marker_margin=(square_size - subject.marker_size) / 2.0,
-                    board_type=b_type,
-                )
-                layout = compute_aprilgrid_layout(spec)
-            else:
-                b_type = BoardType.CHARUCO
-                spec = BoardSpec(
-                    rows=subject.rows,
-                    cols=subject.cols,
-                    square_size=subject.square_size,
-                    marker_margin=(subject.square_size - subject.marker_size) / 2.0,
-                    board_type=b_type,
-                )
-                layout = compute_charuco_layout(spec)
-
-            # 3D Keypoints for the board
-            keypoints_3d = []
-            # 1. Tag corners
-            m = subject.marker_size / 2.0
-            for pos in layout.tag_positions:
-                # Local space keypoints for each tag on the board
-                # TL, TR, BR, BL order
-                keypoints_3d.extend(
-                    [
-                        [pos.x - m, pos.y + m, 0.0],
-                        [pos.x + m, pos.y + m, 0.0],
-                        [pos.x + m, pos.y - m, 0.0],
-                        [pos.x - m, pos.y - m, 0.0],
-                    ]
-                )
-            # 2. Saddle points / Grid intersections
-            for pos in layout.corner_positions:
-                keypoints_3d.append([pos.x, pos.y, pos.z])
-
-            # Use TextureFactory to generate/ensure board texture
-            cache_dir = self.output_dir / "cache" / "boards" if self.output_dir else None
-            factory = TextureFactory(cache_dir=cache_dir)
-            factory.generate_board_texture(board_config)
-
-            texture_path = None
-            if cache_dir:
-                config_hash = factory._calculate_hash(board_config)
-                texture_path = str((cache_dir / f"board_{config_hash}.png").absolute())
-
-            objects.append(
-                ObjectRecipe(
-                    type="BOARD",
-                    name="CalibrationBoard",
-                    location=[0, 0, 0],
-                    rotation_euler=[0, 0, 0],
-                    scale=[1, 1, 1],
-                    texture_path=texture_path,
-                    board=board_config,
-                    keypoints_3d=keypoints_3d,
-                )
-            )
-        else:
-            # TAGS mode (Legacy "Flying Tags" or "Grid Layout")
-            num_tags = subject.tags_per_scene
-            tag_size = subject.size_meters
-            tag_families = subject.tag_families
-
-            for i in range(num_tags):
-                obj_seed = derive_seed(layout_seed, "tag_obj", i)
-                obj_rng = np.random.default_rng(obj_seed)
-
-                family = obj_rng.choice(tag_families)
-                max_id = TAG_MAX_IDS.get(family, 100)
-                tag_id = int(obj_rng.integers(0, max_id))
-
-                tex_base = None
-                if tag_config.texture_path:
-                    tex_base = str(
-                        self.asset_provider.resolve_path(str(tag_config.texture_path)).absolute()
-                    )
-
-                # Material properties
-                roughness = 0.8
-                specular = 0.2
-                if tag_config.material and tag_config.material.randomize:
-                    roughness = obj_rng.uniform(
-                        tag_config.material.roughness_min, tag_config.material.roughness_max
-                    )
-                    specular = obj_rng.uniform(
-                        tag_config.material.specular_min, tag_config.material.specular_max
-                    )
-
-                texture_path = None
-                if self.output_dir:
-                    margin_bits = tag_config.margin_bits
-                    texture_path = str(
-                        (
-                            self.output_dir
-                            / "cache"
-                            / "tags"
-                            / f"{family}_{tag_id}_m{margin_bits}.png"
-                        ).absolute()
-                    )
-
-                # Local keypoints for a single tag (TL, TR, BR, BL)
-                m = tag_size / 2.0
-                kps = [[-m, m, 0.0], [m, m, 0.0], [m, -m, 0.0], [-m, -m, 0.0]]
-
-                objects.append(
-                    ObjectRecipe(
-                        type="TAG",
-                        name=f"Tag_{i}",
-                        location=[0, 0, 0],
-                        rotation_euler=[0, 0, 0],
-                        scale=[1, 1, 1],
-                        texture_path=texture_path,
-                        material={
-                            "roughness": roughness,
-                            "specular": specular,
-                        },
-                        properties={
-                            "tag_id": tag_id,
-                            "tag_family": family,
-                            "tag_size": tag_size,
-                            "margin_bits": tag_config.margin_bits,
-                            "texture_base_path": tex_base,
-                        },
-                        keypoints_3d=kps,
-                    )
-                )
-
-            # Apply layout (only for TAGS mode)
-            # TagSubjectConfig doesn't have grid_size/layout_mode yet in the new schema,
-            # but legacy migration might have provided it.
-            # For Phase 1, we assume TagSubjectConfig uses flying or grid based on GenConfig.
-            if scenario.flying:
-                apply_flying_layout(objects, self.config.physics.scatter_radius, rng=rng)
-            else:
-                # Default to a grid layout if not flying
-                # Note: we need grid dimensions. We'll use defaults or derive from count.
-                cols = math.ceil(math.sqrt(num_tags))
-                rows = math.ceil(num_tags / cols)
-                apply_grid_layout(
-                    objects,
-                    "plain",
-                    cols,
-                    rows,
-                    tag_size,
-                    tag_spacing_bits=2.0,
-                    tag_families=tag_families,
-                )
+        # 2. Objects (Agnostic Subject Generation)
+        from render_tag.cli.pipeline import GenerationContext
+        ctx = GenerationContext(
+            gen_config=self.config,
+            output_dir=self.output_dir or Path("output")
+        )
+        
+        objects = self.strategy.sample_pose(seed, ctx)
         recipe.objects = objects
 
         # 3. Cameras
         camera_seed = derive_seed(seed, "camera", 0)
         np_rng = np.random.default_rng(camera_seed)
         camera_config = self.config.camera
+        scenario = self.config.scenario
 
+        # Find target for orientation/sizing constraints (first tag found)
         target_tag = next((obj for obj in objects if obj.type == "TAG"), None)
+        # If no TAG found (e.g. BOARD subject), we look at the first object as representative
+        if not target_tag and objects:
+            target_tag = objects[0]
+            
         camera_recipes = []
 
         for _ in range(camera_config.samples_per_scene):
@@ -393,9 +240,15 @@ class SceneCompiler:
                 target_ppm = np_rng.uniform(
                     camera_config.ppm_constraint.min, camera_config.ppm_constraint.max
                 )
+                
+                # Use property or default for size
+                tag_size_m = target_tag.properties.get("tag_size", 0.1)
+                if target_tag.type == "BOARD" and target_tag.board:
+                    tag_size_m = target_tag.board.marker_size
+                
                 dist_override = solve_distance_for_ppm(
                     target_ppm=target_ppm,
-                    tag_size_m=target_tag.properties.get("tag_size", 0.1),
+                    tag_size_m=tag_size_m,
                     focal_length_px=f_px,
                     tag_grid_size=TAG_GRID_SIZES.get(
                         target_tag.properties.get("tag_family", "tag36h11"), 8
@@ -456,9 +309,18 @@ class SceneCompiler:
                             camera_config.resolution[0] * camera_config.resolution[1]
                         )
 
+                        # Bounding box for sizing check
+                        # If board, we use the whole board plane or just markers? 
+                        # Specification says "sizing constraints validation". 
+                        # We'll use marker size for boards.
+                        check_size = target_tag.properties.get("tag_size", 0.1)
+                        if target_tag.type == "BOARD" and target_tag.board:
+                            check_size = target_tag.board.marker_size
+                            
+                        half = check_size / 2.0
                         corners_local = np.array(
-                            [[-0.5, -0.5, 0], [0.5, -0.5, 0], [0.5, 0.5, 0], [-0.5, 0.5, 0]]
-                        ) * target_tag.properties.get("tag_size", 0.1)
+                            [[-half, -half, 0], [half, -half, 0], [half, half, 0], [-half, half, 0]]
+                        )
                         corners_world = (
                             tag_world_mat @ np.hstack([corners_local, np.ones((4, 1))]).T
                         ).T[:, :3]
