@@ -1,0 +1,43 @@
+dataset:
+  num_scenes: 50
+  seeds:
+    global_seed: 2026
+  evaluation_scopes: [corner_accuracy, calibration]
+  metadata:
+    benchmark: calibration_charuco_opencv
+    focus: reprojection_error_vs_incidence_angle
+
+camera:
+  resolution: [1920, 1080]
+  fov: 70.0
+  samples_per_scene: 5
+  min_distance: 0.5
+  max_distance: 3.0
+  # Stress incidence angle: lower elevation (more tilt)
+  min_elevation: 0.1
+  max_elevation: 0.5
+  tone_mapping: filmic
+  iso: 100
+
+scenario:
+  subject:
+    type: BOARD
+    rows: 6
+    cols: 6
+    marker_size: 0.08
+    dictionary: DICT_6X6_250
+    square_size: 0.10  # Zero spacing between squares (marker_size < square_size)
+  sampling_mode: random
+
+scene:
+  lighting_preset: warehouse
+  texture_dir: assets/textures/background
+  texture_scale_min: 1.0
+  texture_scale_max: 5.0
+
+renderer:
+  mode: cycles
+  noise_threshold: 0.01  # Ultra precision for saddle point intersections
+  max_samples: 512
+
+version: '0.2'

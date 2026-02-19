@@ -1,0 +1,47 @@
+dataset:
+  num_scenes: 50
+  seeds:
+    global_seed: 2026
+  evaluation_scopes: [detection, calibration]
+  metadata:
+    benchmark: calibration_aprilgrid_kalibr
+    focus: detection_rate_vs_motion_blur
+
+camera:
+  resolution: [1920, 1080]
+  fov: 70.0
+  samples_per_scene: 5
+  min_distance: 0.5
+  max_distance: 3.0
+  min_elevation: 0.2
+  max_elevation: 0.9
+  # Stress motion blur: mean velocity 2.0 m/s
+  sensor_dynamics:
+    velocity_mean: 2.0
+    velocity_std: 0.5
+    shutter_time_ms: 10.0
+  tone_mapping: filmic
+  iso: 100
+
+scenario:
+  subject:
+    type: BOARD
+    rows: 6
+    cols: 6
+    marker_size: 0.08
+    dictionary: tag36h11
+    spacing_ratio: 0.3  # Kalibr standard 30% spacing
+  sampling_mode: random
+
+scene:
+  lighting_preset: factory
+  texture_dir: assets/textures/background
+  texture_scale_min: 1.0
+  texture_scale_max: 5.0
+
+renderer:
+  mode: cycles
+  noise_threshold: 0.02  # Higher precision for calibration
+  max_samples: 256
+
+version: '0.2'
