@@ -7,7 +7,7 @@ Procedural 3D synthetic data generation for fiducial marker (AprilTag/ArUco) det
 ```bash
 # Clone the repository
 git clone https://github.com/NoeFontana/render-tag.git
-cd render-tag/render-tag
+cd render-tag
 
 # Install with uv (recommended)
 uv sync
@@ -262,7 +262,10 @@ output/dataset_01/
 │   └── ...
 ├── tags.csv              # Corner annotations
 ├── annotations.json      # COCO format annotations
+├── rich_truth.json       # Extended metadata (occlusions, noise levels, etc.)
 └── visualizations/       # Debug visualizations (from viz command)
+
+output/test_results/      # Automatic redirection for pytest artifacts
 ```
 
 ### CSV Format

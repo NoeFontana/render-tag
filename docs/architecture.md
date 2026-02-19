@@ -73,4 +73,5 @@ Correctness in synthetic data requires strict reproducibility. `render-tag` ensu
 
 - **Environment Fingerprinting:** We hash the `uv.lock` and record the Blender version. If the environment changes, the system issues a warning or error.
 - **Config Hashing:** Every dataset contains a `job.json` (JobSpec) that includes a SHA256 hash of the exact configuration used.
+- **Asset Hashing:** The `JobSpec` includes a SHA256 hash of all external assets (HDRIs, floor textures, tag images) referenced by the job. This prevents "silent" dataset drift when binary assets are updated on disk or on the Hub.
 - **Deterministic Sharding:** Seeds are derived from a master seed and shard index, ensuring that scene #500 is identical regardless of whether it was rendered in a single batch or as part of a specific shard.
