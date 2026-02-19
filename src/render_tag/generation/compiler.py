@@ -211,16 +211,6 @@ class SceneCompiler:
             texture_rotation=texture_rotation,
         )
 
-        # 2. Objects (Agnostic Subject Generation)
-        from render_tag.cli.pipeline import GenerationContext
-        ctx = GenerationContext(
-            gen_config=self.config,
-            output_dir=self.output_dir or Path("output")
-        )
-        
-        objects = self.strategy.sample_pose(seed, ctx)
-        recipe.objects = objects
-
     def _calculate_ppm_distance(self, target_tag, np_rng) -> float | None:
         """Calculate override distance for a target PPM."""
         from .projection_math import solve_distance_for_ppm
@@ -432,5 +422,3 @@ class SceneCompiler:
                 return False
 
         return True
-        recipe.cameras = camera_recipes
-        return recipe

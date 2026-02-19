@@ -282,7 +282,7 @@ def generate_board_records(board_obj: Any, image_id: str) -> list[DetectionRecor
     # 2. Get Transformation
     transform_data = _get_scene_transformations(board_obj)
     world_matrix, blender_cam_mat, k_matrix, res, meta = transform_data
-    distance, angle_deg, pose = meta
+    _, _, _ = meta
 
     records = []
 

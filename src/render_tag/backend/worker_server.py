@@ -63,6 +63,7 @@ class ZmqBackendServer:
         self.mgmt_socket.setsockopt(zmq.LINGER, 0)
         self.mgmt_socket.bind(f"tcp://127.0.0.1:{self.mgmt_port}")
 
+        # Ensure dependencies are stabilized for rendering
         bridge.stabilize(mocks.get("bproc_mock"), mocks.get("bpy_mock"), mocks.get("math_mock"))
 
         self.running = False

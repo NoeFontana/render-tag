@@ -98,6 +98,10 @@ class RenderFacade:
         logger: logging.Logger | None = None,
         config: RendererConfig | None = None,
     ):
+        # Ensure bridge is stabilized before using it
+        if not bridge.bpy or not bridge.bproc:
+            bridge.stabilize()
+
         self.renderer_mode = renderer_mode
         self.logger = logger or get_logger(__name__)
         self.config = config

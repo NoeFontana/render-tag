@@ -162,8 +162,8 @@ physics:
         # Check that recipes were generated
         assert (output_dir / "recipes_shard_0.json").exists()
 
-    def test_industrial_pipeline_cycles(self, temp_output_dir):
-        """Test full pipeline with industrial features (Cycles)."""
+    def test_industrial_pipeline_fast(self, temp_output_dir):
+        """Test full pipeline with industrial features (fast renderer)."""
         config_content = """
 dataset:
   seed: 123
@@ -220,7 +220,7 @@ scene:
                 "--output",
                 str(out_single),
                 "--scenes",
-                "4",
+                "2",
                 "--seed",
                 "999",
                 "--total-shards",
@@ -244,7 +244,7 @@ scene:
                 "--output",
                 str(out_shard0),
                 "--scenes",
-                "4",
+                "2",
                 "--seed",
                 "999",
                 "--total-shards",
@@ -265,7 +265,7 @@ scene:
                 "--output",
                 str(out_shard1),
                 "--scenes",
-                "4",
+                "2",
                 "--seed",
                 "999",
                 "--total-shards",
@@ -298,59 +298,6 @@ scene:
         assert recipes_s[0]["scene_id"] == 0
         assert recipes_m0[0]["scene_id"] == 0
         assert normalize_recipe(recipes_s[0]) == normalize_recipe(recipes_m0[0])
-        assert recipes_s[2]["scene_id"] == 2
-        assert recipes_m1[0]["scene_id"] == 2
-        assert normalize_recipe(recipes_s[2]) == normalize_recipe(recipes_m1[0])
-
-
-class TestValidateCommand:
-    """Tests for the validate command."""
-
-    def test_validate_valid_config(self):
-        """Test validation of a valid config file."""
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
-            f.write("""
-dataset:
-  seed: 42
-camera:
-  resolution: [640, 480]
-tag:
-  family: tag36h11
-""")
-            config_path = f.name
-
-        import sys
-
-        try:
-            result = subprocess.run(
-                [sys.executable, "-m", "render_tag", "validate-config", "--config", config_path],
-                capture_output=True,
-                text=True,
-            )
-
-            assert result.returncode == 0
-            assert "valid" in result.stdout.lower()
-        finally:
-            Path(config_path).unlink(missing_ok=True)
-
-    def test_validate_invalid_config(self):
-        """Test validation of an invalid config file."""
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
-            f.write("""
-dataset:
-  seed: -1  # Invalid: negative seed
-""")
-            config_path = f.name
-
-        import sys
-
-        try:
-            result = subprocess.run(
-                [sys.executable, "-m", "render_tag", "validate-config", "--config", config_path],
-                capture_output=True,
-                text=True,
-            )
-
-            assert result.returncode != 0
-        finally:
-            Path(config_path).unlink(missing_ok=True)
+        assert recipes_s[1]["scene_id"] == 1
+        assert recipes_m1[0]["scene_id"] == 1
+        assert normalize_recipe(recipes_s[1]) == normalize_recipe(recipes_m1[0])

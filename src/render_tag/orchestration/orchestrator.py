@@ -207,7 +207,9 @@ class UnifiedWorkerOrchestrator:
 
         self.worker_queue.put(worker)
 
-    def _check_worker_health(self, worker: PersistentWorkerProcess, intentional_exit: bool) -> tuple[bool, bool]:
+    def _check_worker_health(
+        self, worker: PersistentWorkerProcess, intentional_exit: bool
+    ) -> tuple[bool, bool]:
         """Check if a worker needs to be restarted due to health or resource limits."""
         should_restart = False
         limit_exceeded = False
@@ -242,7 +244,9 @@ class UnifiedWorkerOrchestrator:
             
         return should_restart, limit_exceeded
 
-    def _restart_worker(self, worker: PersistentWorkerProcess, limit_exceeded: bool) -> PersistentWorkerProcess:
+    def _restart_worker(
+        self, worker: PersistentWorkerProcess, limit_exceeded: bool
+    ) -> PersistentWorkerProcess:
         """Stop and restart a worker process."""
         if limit_exceeded:
             logger.info(
@@ -476,7 +480,7 @@ def orchestrate(
     signal.signal(signal.SIGTERM, _signal_handler)
 
     output_dir = job_spec.paths.output_dir
-    batches, actual_batch_size, total_shards = _prepare_batches(job_spec, workers, batch_size, resume)
+    batches, _, _ = _prepare_batches(job_spec, workers, batch_size, resume)
 
     if batches is None:
         console.print("[green]All shards are already complete. Skipping orchestration.[/green]")

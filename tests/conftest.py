@@ -35,6 +35,49 @@ sys.modules["mathutils"] = mathutils_api
 # --- MOCK INJECTION END ---
 
 
+def pytest_configure(config):
+    """Custom configuration for pytest."""
+    # Redirect all temporary test data to output/test_results (gitignored)
+    # This prevents proliferation of /tmp/pytest-of-dev directories
+    # and keeps artifacts discoverable during development.
+    project_root = Path(__file__).parent.parent
+    test_results_dir = project_root / "output" / "test_results"
+    test_results_dir.mkdir(parents=True, exist_ok=True)
+    
+    # basetemp is the root for all tmp_path fixtures
+    config.option.basetemp = str(test_results_dir)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def stabilized_bridge():
+    """
+    Ensure BlenderBridge is stabilized for all tests.
+    Autouse session fixture to avoid redundant stabilize() calls.
+    """
+    import numpy as np
+
+    from render_tag.backend.bridge import bridge
+    bridge.np = np
+    bridge.stabilize()
+    return bridge
+
+@pytest.fixture
+def port_generator():
+    """
+    Provides a unique, available port for each test.
+    Helps avoid collisions in parallel execution.
+    """
+    import random
+    import socket
+    
+    def _find_free_port():
+        while True:
+            port = random.randint(20000, 30000)
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                if s.connect_ex(("127.0.0.1", port)) != 0:
+                    return port
+    return _find_free_port
+
 @pytest.fixture(scope="session")
 def mock_blender_environment():
     """

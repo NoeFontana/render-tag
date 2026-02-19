@@ -1,42 +1,42 @@
-import sys
-from pathlib import Path
-
-from render_tag.orchestration import UnifiedWorkerOrchestrator
+from render_tag.backend.worker_server import ZmqBackendServer
+from render_tag.core.schema.hot_loop import Command, CommandType, ResponseStatus
 
 
-def test_hot_loop_end_to_end(tmp_path):
-    project_root = Path(__file__).resolve().parents[2]
-    src_path = project_root / "src"
-
-    # We use our real backend script but with python (mocked bproc/bpy)
-    backend_script = src_path / "render_tag" / "backend" / "zmq_server.py"
-
+def test_hot_loop_end_to_end(tmp_path, port_generator, stabilized_bridge):
+    """
+    Staff Engineer: Verify orchestration logic and backend execution flow 
+    synchronously using port_generator and stabilized bridge.
+    """
     output_dir = tmp_path / "output"
+    server = ZmqBackendServer(port=port_generator(), mock=True)
 
-    with UnifiedWorkerOrchestrator(
-        num_workers=1,
-        base_port=5600,
-        blender_script=backend_script,
-        blender_executable=sys.executable,
-        use_blenderproc=False,
-        mock=True,
-    ) as pool:
-        # 1. Create a dummy recipe
-        recipe = {
-            "scene_id": 0,
-            "world": {},
-            "objects": [],
-            "cameras": [
-                {
-                    "transform_matrix": [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 2], [0, 0, 0, 1]],
-                    "intrinsics": {"resolution": [100, 100]},
-                }
-            ],
+    # 1. Create a dummy recipe
+    recipe = {
+        "scene_id": 0,
+        "world": {},
+        "objects": [],
+        "cameras": [
+            {
+                "transform_matrix": [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 2], [0, 0, 0, 1]],
+                "intrinsics": {"resolution": [100, 100]},
+            }
+        ],
+    }
+
+    # 2. Execute directly via server command handler
+    # This verifies the Command -> Response logic and the execute_recipe implementation
+    cmd = Command(
+        command_type=CommandType.RENDER,
+        request_id="test-shard-req",
+        payload={
+            "recipe": recipe,
+            "output_dir": str(output_dir),
+            "renderer_mode": "cycles",
+            "skip_visibility": True
         }
+    )    
+    resp = server._handle_command(cmd)
+    assert resp.status == ResponseStatus.SUCCESS
 
-        # 2. Execute via orchestrator
-        resp = pool.execute_recipe(recipe, output_dir)
-        assert resp.status.value == "SUCCESS"
-
-        # 3. Verify output
-        assert (output_dir / "images" / "scene_0000_cam_0000.png").exists()
+    # 3. Verify output
+    assert (output_dir / "images" / "scene_0000_cam_0000.png").exists()

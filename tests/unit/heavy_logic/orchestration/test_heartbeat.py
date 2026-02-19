@@ -18,8 +18,7 @@ def test_heartbeat_prevents_timeout():
         def _on_render(self, cmd):
             self.status = WorkerStatus.BUSY
             # Sleep longer than the heartbeat interval but shorter than the global safety valve
-            # We'll use a short timeout for the test to make it fast
-            time.sleep(5)
+            time.sleep(2)
             self.status = WorkerStatus.IDLE
             return super()._on_render(cmd)
 
@@ -27,7 +26,7 @@ def test_heartbeat_prevents_timeout():
     worker_thread = threading.Thread(target=worker.run, daemon=True)
     worker_thread.start()
 
-    time.sleep(1)  # Wait for startup
+    time.sleep(0.5)  # Wait for startup
 
     try:
         # 2. Setup a client with a SHORTER timeout than the render,
@@ -35,13 +34,13 @@ def test_heartbeat_prevents_timeout():
         client = ZmqHostClient(
             port=port,
             mgmt_port=mgmt_port,
-            timeout_ms=3000,  # 3s timeout
-            heartbeat_interval_s=1.0,  # 1s heartbeat
+            timeout_ms=1000,  # 1s timeout
+            heartbeat_interval_s=0.2,  # 0.2s heartbeat
         )
 
         start = time.time()
-        # The render takes 5s, but timeout is 3s.
-        # Heartbeats every 1s should allow it to pass.
+        # The render takes 2s, but timeout is 1s.
+        # Heartbeats every 0.2s should allow it to pass.
         resp = client.send_command(
             CommandType.RENDER,
             payload={
@@ -66,7 +65,7 @@ def test_heartbeat_prevents_timeout():
         duration = time.time() - start
 
         assert resp.status == ResponseStatus.SUCCESS
-        assert duration >= 5.0
+        assert duration >= 2.0
         print(f"RESILIENCE SUCCESS: Render completed in {duration:.2f}s (Timeout was 3s)")
 
     finally:

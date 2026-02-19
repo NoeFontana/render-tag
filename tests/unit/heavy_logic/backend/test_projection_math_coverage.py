@@ -1,12 +1,14 @@
-import pytest
+from unittest.mock import patch
+
 import numpy as np
-from unittest.mock import MagicMock, patch
+
 from render_tag.backend.projection import (
-    project_points,
-    is_facing_camera,
-    validate_visibility_metrics,
     compute_tag_area_in_image,
+    is_facing_camera,
+    project_points,
+    validate_visibility_metrics,
 )
+
 
 def test_project_points_simple():
     """Test pure math projection without bridge dependencies."""

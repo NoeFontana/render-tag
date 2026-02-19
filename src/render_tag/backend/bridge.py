@@ -30,14 +30,12 @@ class BlenderBridge:
 
     def stabilize(self, bproc_module: Any = None, bpy_module: Any = None, math_module: Any = None):
         """Explicitly set the dependencies or attempt auto-discovery."""
-        # 1. Handle NumPy
-        if not self.np:
-            try:
-                import numpy as np
-
-                self.np = np
-            except ImportError:
-                pass
+        # 1. Ensure NumPy is available
+        try:
+            import numpy as np
+            self.np = np
+        except ImportError:
+            pass
 
         # 2. Use provided modules
         if bproc_module or bpy_module:

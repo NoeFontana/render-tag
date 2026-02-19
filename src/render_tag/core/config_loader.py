@@ -103,6 +103,8 @@ class ConfigResolver:
         job_id_hash = hashlib.sha256(json.dumps(spec_content, sort_keys=True).encode()).hexdigest()
         job_id = f"job-{job_id_hash[:8]}"
 
+        assets_hash = self._calculate_assets_hash(gen_config)
+
         spec = JobSpec(
             version="0.1",
             job_id=job_id,
@@ -112,12 +114,50 @@ class ConfigResolver:
             scene_config=gen_config,
             env_hash=env_hash,
             blender_version=blender_ver,
-            assets_hash="unknown",  # TODO: Implement asset hashing
+            assets_hash=assets_hash,
             config_hash=hashlib.sha256(gen_config.model_dump_json().encode()).hexdigest(),
             shard_index=shard_index,
         )
 
         return spec
+
+    def _calculate_assets_hash(self, config: GenConfig) -> str:
+        """Calculate a hash of all assets referenced in the configuration."""
+        import hashlib
+
+        hasher = hashlib.sha256()
+
+        def hash_path(path: Path | None) -> None:
+            if path is None:
+                hasher.update(b"none")
+                return
+
+            if path.exists():
+                if path.is_file():
+                    with open(path, "rb") as f:
+                        for chunk in iter(lambda: f.read(4096), b""):
+                            hasher.update(chunk)
+                elif path.is_dir():
+                    # Hash all files in directory, sorted by name
+                    for p in sorted(path.rglob("*")):
+                        if p.is_file():
+                            hasher.update(str(p.relative_to(path)).encode())
+                            with open(p, "rb") as f:
+                                for chunk in iter(lambda: f.read(4096), b""):
+                                    hasher.update(chunk)
+            else:
+                hasher.update(f"missing:{path}".encode())
+
+        # 1. HDRI
+        hash_path(config.scene.background_hdri)
+
+        # 2. Textures (Directory)
+        hash_path(config.scene.texture_dir)
+
+        # 3. Tag Texture
+        hash_path(config.tag.texture_path)
+
+        return hasher.hexdigest()
 
     def _apply_overrides(self, config: GenConfig, overrides: dict[str, Any]) -> None:
         """Apply CLI overrides to the configuration."""

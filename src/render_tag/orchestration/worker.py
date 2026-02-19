@@ -174,10 +174,21 @@ class PersistentWorkerProcess:
                 # Always attempt to kill the entire process group.
                 # This handles cases where the launcher (e.g., blenderproc) exits
                 # but the child (Blender) stays alive.
-                os.killpg(pid, signal.SIGKILL)
+                # STAFF ENGINEER: Safety check to avoid killpg(0) or killpg(1).
+                # Handle MagicMock in tests by forcing to int if possible.
+                actual_pid = int(pid) if not isinstance(pid, (int, float)) else pid
+                if actual_pid > 1:
+                    os.killpg(actual_pid, signal.SIGKILL)
+                
                 if self.process.poll() is None:
                     self.process.wait(timeout=2)
-            except (subprocess.TimeoutExpired, ProcessLookupError, PermissionError):
+            except (
+                subprocess.TimeoutExpired,
+                ProcessLookupError,
+                PermissionError,
+                ValueError,
+                TypeError,
+            ):
                 pass
             self.process = None
 
