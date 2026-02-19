@@ -9,7 +9,7 @@ def test_generator_distance_sweep(tmp_path):
     config = GenConfig.model_validate(
         {
             "dataset": {"num_scenes": 10},
-            "camera": {"min_distance": 0.1, "max_distance": 10.0},
+            "camera": {"min_distance": 0.5, "max_distance": 10.0},
             "scenario": {"sampling_mode": "distance"},
         }
     )
@@ -27,7 +27,7 @@ def test_generator_distance_sweep(tmp_path):
     pos9 = np.array(s9.cameras[0].transform_matrix)[:3, 3]
     dist9 = np.linalg.norm(pos9)
 
-    assert abs(dist0 - 0.1) < 1e-3
+    assert abs(dist0 - 0.5) < 1e-3
     assert abs(dist9 - 10.0) < 1e-3
 
 
@@ -36,7 +36,7 @@ def test_generator_angle_sweep(tmp_path):
     config = GenConfig.model_validate(
         {
             "dataset": {"num_scenes": 10},
-            "camera": {"min_elevation": 0.1, "max_elevation": 0.9},
+            "camera": {"min_elevation": 0.3, "max_elevation": 0.9},
             "scenario": {"sampling_mode": "angle"},
         }
     )
@@ -53,5 +53,5 @@ def test_generator_angle_sweep(tmp_path):
     pos9 = np.array(s9.cameras[0].transform_matrix)[:3, 3]
     elev9 = pos9[2] / np.linalg.norm(pos9)
 
-    assert abs(elev0 - 0.1) < 1e-3
+    assert abs(elev0 - 0.3) < 1e-3
     assert abs(elev9 - 0.9) < 1e-3

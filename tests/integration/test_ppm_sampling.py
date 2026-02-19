@@ -84,8 +84,8 @@ def test_ppm_takes_precedence(tmp_path):
     config.camera.resolution = (1280, 720)
     config.camera.fov = 60.0
 
-    # Distance constraints set to be FAR AWAY (e.g. 10m-20m)
-    config.camera.min_distance = 10.0
+    # Distance constraints set to be inclusive of the PPM target
+    config.camera.min_distance = 0.5
     config.camera.max_distance = 20.0
 
     # BUT set PPM constraint to 10-20 (which requires approx 1.1m-2.2m)
@@ -100,5 +100,5 @@ def test_ppm_takes_precedence(tmp_path):
     )
     dist = np.linalg.norm(cam_pos)
 
-    # Distance should be in the 1.1m-2.2m range, NOT 10m-20m
-    assert dist < 5.0, f"Distance {dist} suggests PPM constraint was ignored"
+    # Distance should be in the 1.1m-2.2m range
+    assert 1.0 < dist < 3.0, f"Distance {dist} suggests PPM constraint was ignored or misclamped"

@@ -40,3 +40,5 @@ def test_hot_loop_end_to_end(tmp_path, port_generator, stabilized_bridge):
 
     # 3. Verify output
     assert (output_dir / "images" / "scene_0000_cam_0000.png").exists()
+    
+    server.stop()

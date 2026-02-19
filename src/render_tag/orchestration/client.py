@@ -33,6 +33,7 @@ class ZmqHostClient:
     ):
         self.port = port
         self.mgmt_port = mgmt_port or (port + 100)
+        self.owns_context = context is None
         self.context = context or (zmq.Context() if zmq else None)
         self.timeout_ms = timeout_ms
         self.heartbeat_interval_s = heartbeat_interval_s
@@ -73,8 +74,14 @@ class ZmqHostClient:
     def disconnect(self):
         if self.task_socket:
             self.task_socket.close()
+            self.task_socket = None
         if self.mgmt_socket:
             self.mgmt_socket.close()
+            self.mgmt_socket = None
+        
+        if self.owns_context and self.context:
+            self.context.term()
+            self.context = None
 
     def _check_heartbeat(self) -> bool:
         """Query management channel to see if worker is alive."""

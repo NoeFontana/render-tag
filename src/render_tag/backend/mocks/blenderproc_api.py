@@ -82,7 +82,11 @@ class MockCamera:
 
 class MockRenderer:
     def render(self):
-        return {"colors": [np.zeros((480, 640, 3))], "segmentation": [np.zeros((480, 640))]}
+        # Return a non-empty white image for PIL to save in tests
+        return {
+            "colors": [np.ones((100, 100, 3), dtype=np.uint8) * 255],
+            "segmentation": [np.zeros((100, 100), dtype=np.uint32)],
+        }
 
     def enable_depth_output(self, **kwargs):
         pass

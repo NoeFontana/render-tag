@@ -44,11 +44,12 @@ class SceneCompiler:
         config: GenConfig,
         global_seed: int = 42,
         output_dir: Path | None = None,
+        asset_provider: AssetProvider | None = None,
     ):
         self.config = config
         self.global_seed = global_seed
         self.output_dir = output_dir
-        self.asset_provider = AssetProvider()
+        self.asset_provider = asset_provider or AssetProvider()
 
         # Initialize Subject Strategy
         self.strategy: SubjectStrategy = get_subject_strategy(self.config.scenario.subject)
@@ -247,6 +248,16 @@ class SceneCompiler:
     def _sample_single_pose(self, np_rng, dist_override, elev_override, target_tag):
         """Sample a single valid camera pose using rejection sampling."""
         camera_config = self.config.camera
+        scenario = self.config.scenario
+        
+        # Use target tag location as look-at point in random mode to ensure visibility.
+        # In sweep modes, we look at the origin [0,0,0] to maintain the geometric contract
+        # relative to the center of the world.
+        if scenario.sampling_mode == "random" and target_tag:
+            look_at = np.array(target_tag.location)
+        else:
+            look_at = np.array([0.0, 0.0, 0.0])
+        
         for _ in range(20):  # Rejection sampling
             roll = (
                 np_rng.uniform(
@@ -256,7 +267,7 @@ class SceneCompiler:
                 else 0.0
             )
             pose = sample_camera_pose(
-                look_at_point=[0, 0, 0],
+                look_at_point=look_at,
                 min_distance=camera_config.min_distance,
                 max_distance=camera_config.max_distance,
                 min_elevation=camera_config.min_elevation,
@@ -306,8 +317,13 @@ class SceneCompiler:
                         camera_config.max_elevation - camera_config.min_elevation
                     )
 
-            if camera_config.ppm_constraint and target_tag:
+            # PPM constraint only applies if not already in a sweep mode
+            if scenario.sampling_mode == "random" and camera_config.ppm_constraint and target_tag:
                 dist_override = self._calculate_ppm_distance(target_tag, np_rng)
+                # Ensure PPM distance respects configured bounds
+                dist_override = np.clip(
+                    dist_override, camera_config.min_distance, camera_config.max_distance
+                )
 
             pose = self._sample_single_pose(np_rng, dist_override, elev_override, target_tag)
             
@@ -385,7 +401,32 @@ class SceneCompiler:
         ):
             return False
 
-        # 2. Sizing constraints validation
+        # 2. Mandatory Frame Visibility check
+        # All 4 corners of the tag (or target object) must be within the frame
+        check_size = target_tag.properties.get("tag_size", 0.1)
+        if target_tag.type == "BOARD" and target_tag.board:
+            check_size = target_tag.board.marker_size
+
+        half = check_size / 2.0
+        corners_local = np.array(
+            [[-half, -half, 0], [half, -half, 0], [half, half, 0], [-half, half, 0]]
+        )
+        corners_world = (tag_world_mat @ np.hstack([corners_local, np.ones((4, 1))]).T).T[:, :3]
+        pixels = project_points(
+            corners_world,
+            pose.transform_matrix,
+            list(camera_config.resolution),
+            camera_config.get_k_matrix(),
+        )
+
+        # Strict boundary check (all corners must be visible)
+        if not all(
+            0 <= px <= camera_config.resolution[0] and 0 <= py <= camera_config.resolution[1]
+            for px, py in pixels
+        ):
+            return False
+
+        # 3. Optional Sizing constraints validation (Pixel Area)
         if camera_config.min_tag_pixels or camera_config.max_tag_pixels:
             family = target_tag.properties.get("tag_family", "tag36h11")
             min_allowed = camera_config.min_tag_pixels or get_min_pixel_area(family)
@@ -393,32 +434,7 @@ class SceneCompiler:
                 camera_config.resolution[0] * camera_config.resolution[1]
             )
 
-            check_size = target_tag.properties.get("tag_size", 0.1)
-            if target_tag.type == "BOARD" and target_tag.board:
-                check_size = target_tag.board.marker_size
-                
-            half = check_size / 2.0
-            corners_local = np.array(
-                [[-half, -half, 0], [half, -half, 0], [half, half, 0], [-half, half, 0]]
-            )
-            corners_world = (
-                tag_world_mat @ np.hstack([corners_local, np.ones((4, 1))]).T
-            ).T[:, :3]
-            pixels = project_points(
-                corners_world,
-                pose.transform_matrix,
-                list(camera_config.resolution),
-                camera_config.get_k_matrix(),
-            )
-
-            if not (
-                all(
-                    0 <= px <= camera_config.resolution[0]
-                    and 0 <= py <= camera_config.resolution[1]
-                    for px, py in pixels
-                )
-                and min_allowed <= calculate_pixel_area(pixels) <= max_allowed
-            ):
+            if not (min_allowed <= calculate_pixel_area(pixels) <= max_allowed):
                 return False
 
         return True

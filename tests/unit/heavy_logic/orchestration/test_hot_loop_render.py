@@ -11,6 +11,18 @@ def test_hot_loop_render_command(tmp_path, port_generator, stabilized_bridge):
     # Initialize server but don't start its loop
     server = ZmqBackendServer(port=port_generator())
     
+    # Staff Engineer: Enforce mock state to prevent pollution from other tests
+    from render_tag.backend.bridge import bridge
+    from render_tag.backend.mocks import blenderproc_api
+    import numpy as np
+    
+    bridge.bproc = blenderproc_api
+    # Ensure render returns valid data
+    blenderproc_api.renderer.render = lambda: {
+        "colors": [np.ones((100, 100, 3), dtype=np.uint8) * 255],
+        "segmentation": [np.zeros((100, 100), dtype=np.uint32)],
+    }
+    
     output_dir = tmp_path / "output"
 
     # Minimal mock recipe
@@ -64,3 +76,5 @@ def test_hot_loop_render_command(tmp_path, port_generator, stabilized_bridge):
     cmd_shutdown = Command(command_type=CommandType.SHUTDOWN, request_id="req_3")
     resp = server._handle_command(cmd_shutdown)
     assert resp.status == ResponseStatus.SUCCESS
+    
+    server.stop()

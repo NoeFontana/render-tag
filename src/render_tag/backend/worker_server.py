@@ -151,9 +151,12 @@ class ZmqBackendServer:
         """Stops the server loop and closes sockets."""
         self.running = False
         try:
-            self.task_socket.close(linger=0)
-            self.mgmt_socket.close(linger=0)
-            self.context.term()
+            if hasattr(self, "task_socket") and self.task_socket:
+                self.task_socket.close(linger=0)
+            if hasattr(self, "mgmt_socket") and self.mgmt_socket:
+                self.mgmt_socket.close(linger=0)
+            if hasattr(self, "context") and self.context:
+                self.context.term()
         except Exception:
             pass
 
@@ -348,3 +351,9 @@ class ZmqBackendServer:
         return Response(
             status=ResponseStatus.SUCCESS, request_id=cmd.request_id, message="Shutdown"
         )
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.stop()

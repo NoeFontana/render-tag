@@ -11,6 +11,7 @@ These constraints are absolute. Violation leads to immediate failure.
 2.  **The Subprocess Pattern**: Blender runs in its own process. You interact with it ONLY via `SceneRecipe` JSON files.
 3.  **Schema is King**: If it doesn't validate against `src/render_tag/schema.py`, it doesn't exist.
 4.  **UV Only**: All package management and command execution must use `uv`. NEVER use `pip` or `conda` directly.
+5.  **Gitignored Outputs**: All temporary data, logs, debug artifacts, and generated datasets MUST be saved to gitignored directories (e.g., `output/`, `tmp/`, or `fast_output/`). NEVER commit generated data to the repository.
 
 ## Agent Behaviors
 1.  **Explain Before Acting**: Always provide a one-sentence explanation before running shell commands or editing files.

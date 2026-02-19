@@ -7,14 +7,16 @@ from __future__ import annotations
 
 import numpy as np
 
+from render_tag.generation.math import Matrix3x3, Matrix4x4, Vector3
 
-def calculate_distance(point1: np.ndarray, point2: np.ndarray) -> float:
+
+def calculate_distance(point1: Vector3, point2: Vector3) -> float:
     """Calculates Euclidean distance between two 3D points."""
     return float(np.linalg.norm(point1 - point2))
 
 
 def calculate_angle_of_incidence(
-    target_location: np.ndarray, target_normal: np.ndarray, camera_location: np.ndarray
+    target_location: Vector3, target_normal: Vector3, camera_location: Vector3
 ) -> float:
     """
     Calculates the angle of incidence (in degrees) between a target surface and a camera.
@@ -43,7 +45,7 @@ def calculate_angle_of_incidence(
     return float(np.degrees(angle_rad))
 
 
-def get_opencv_camera_matrix(blender_matrix: np.ndarray) -> np.ndarray:
+def get_opencv_camera_matrix(blender_matrix: Matrix4x4) -> Matrix4x4:
     """
     Converts a 4x4 Blender Camera-to-World matrix to OpenCV convention.
 
@@ -55,8 +57,8 @@ def get_opencv_camera_matrix(blender_matrix: np.ndarray) -> np.ndarray:
 
 
 def get_world_normal(
-    world_matrix: np.ndarray, local_normal: np.ndarray | None = None
-) -> np.ndarray:
+    world_matrix: Matrix4x4, local_normal: Vector3 | None = None
+) -> Vector3:
     """
     Transforms a local normal vector to world space using a 4x4 transformation matrix.
     """
@@ -70,7 +72,7 @@ def get_world_normal(
     return world_normal / norm
 
 
-def matrix_to_quaternion_wxyz(matrix: np.ndarray) -> list[float]:
+def matrix_to_quaternion_wxyz(matrix: Matrix4x4 | Matrix3x3) -> list[float]:
     """Convert a 4x4 or 3x3 rotation matrix to a scalar-first unit quaternion [w, x, y, z].
 
     Uses a numerically stable algorithm (Shepperd's method) to avoid
@@ -113,7 +115,7 @@ def matrix_to_quaternion_wxyz(matrix: np.ndarray) -> list[float]:
     return [float(w), float(x), float(y), float(z)]
 
 
-def matrix_to_quaternion_xyzw(matrix: np.ndarray) -> list[float]:
+def matrix_to_quaternion_xyzw(matrix: Matrix4x4 | Matrix3x3) -> list[float]:
     """Convert a 4x4 or 3x3 rotation matrix to a scalar-last unit quaternion [x, y, z, w].
 
     Args:
@@ -126,7 +128,7 @@ def matrix_to_quaternion_xyzw(matrix: np.ndarray) -> list[float]:
     return [x, y, z, w]
 
 
-def quaternion_xyzw_to_matrix(quat: list[float]) -> np.ndarray:
+def quaternion_xyzw_to_matrix(quat: list[float]) -> Matrix3x3:
     """Convert a scalar-last unit quaternion [x, y, z, w] to a 3x3 rotation matrix."""
     x, y, z, w = quat
     return np.array(
@@ -139,7 +141,7 @@ def quaternion_xyzw_to_matrix(quat: list[float]) -> np.ndarray:
 
 
 def calculate_relative_pose(
-    tag_world_matrix: np.ndarray, blender_cam_world_matrix: np.ndarray
+    tag_world_matrix: Matrix4x4, blender_cam_world_matrix: Matrix4x4
 ) -> dict[str, list[float]]:
     """
     Calculates the relative pose of a tag in OpenCV camera coordinates.
@@ -173,7 +175,7 @@ def calculate_relative_pose(
 
 def project_points(
     points_world: np.ndarray,
-    cam_world_matrix: np.ndarray,
+    cam_world_matrix: Matrix4x4,
     resolution: list[int],
     k_matrix: list[list[float]],
 ) -> np.ndarray:
@@ -276,7 +278,7 @@ def solve_distance_for_ppm(
     return (focal_length_px * tag_size_m) / (target_ppm * tag_grid_size)
 
 
-def calculate_incidence_angle(cam_world_matrix: np.ndarray, tag_world_matrix: np.ndarray) -> float:
+def calculate_incidence_angle(cam_world_matrix: Matrix4x4, tag_world_matrix: Matrix4x4) -> float:
     """
     Calculates the angle of incidence between the camera forward vector and the tag normal.
 
@@ -309,7 +311,7 @@ def calculate_incidence_angle(cam_world_matrix: np.ndarray, tag_world_matrix: np
     return float(np.degrees(angle_rad))
 
 
-def euler_to_matrix(euler: list[float]) -> np.ndarray:
+def euler_to_matrix(euler: list[float]) -> Matrix3x3:
     """
     Converts XYZ Euler angles (radians) to a 3x3 rotation matrix.
     Uses Blender's default XYZ order.
@@ -334,7 +336,7 @@ def euler_to_matrix(euler: list[float]) -> np.ndarray:
 
 def get_world_matrix(
     location: list[float], rotation_euler: list[float], scale: list[float] | None = None
-) -> np.ndarray:
+) -> Matrix4x4:
     """
     Creates a 4x4 transformation matrix from location, euler rotation, and scale.
     """

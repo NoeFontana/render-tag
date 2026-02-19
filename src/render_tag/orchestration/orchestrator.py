@@ -15,6 +15,7 @@ import signal
 import sys
 import threading
 import uuid
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import ClassVar
 
@@ -48,50 +49,95 @@ logger = get_logger(__name__)
 console = Console()
 
 
+@dataclass(frozen=True)
+class OrchestratorConfig:
+    """Immutable configuration for the UnifiedWorkerOrchestrator."""
+
+    num_workers: int = 1
+    base_port: int = 20000
+    blender_script: Path | None = None
+    blender_executable: str | None = None
+    use_blenderproc: bool = True
+    mock: bool = False
+    vram_threshold_mb: float | None = None
+    ephemeral: bool = False
+    max_renders_per_worker: int | None = None
+    worker_id_prefix: str = "worker"
+    seed: int = 42
+    memory_limit_mb: int | None = None
+
+    def __post_init__(self):
+        # Handle default path for blender_script if not provided
+        if self.blender_script is None:
+            # We can't easily use Path(__file__) in frozen dataclass post_init for default
+            # but we can handle it in the Orchestrator
+            pass
+
+
 class UnifiedWorkerOrchestrator:
     """Manages a pool of persistent Blender workers."""
 
     _instances: ClassVar[list["UnifiedWorkerOrchestrator"]] = []
 
-    def __init__(
-        self,
-        num_workers: int = 1,
-        base_port: int = 20000,
-        blender_script: Path | None = None,
-        blender_executable: str | None = None,
-        use_blenderproc: bool = True,
-        mock: bool = False,
-        vram_threshold_mb: float | None = None,
-        ephemeral: bool = False,
-        max_renders_per_worker: int | None = None,
-        worker_id_prefix: str = "worker",
-        seed: int = 42,
-        memory_limit_mb: int | None = None,
-    ):
-        self.num_workers, self.base_port = num_workers, base_port
-        self.mock = mock or (os.environ.get("RENDER_TAG_FORCE_MOCK") == "1")
+    def __init__(self, config: OrchestratorConfig | None = None, **kwargs):
+        if config is None:
+            # Fallback for backwards compatibility or quick instantiation
+            config = OrchestratorConfig(**kwargs)
+        self.config = config
+
+        self.mock = self.config.mock or (os.environ.get("RENDER_TAG_FORCE_MOCK") == "1")
         self.blender_script = (
-            blender_script
+            self.config.blender_script
             or Path(__file__).resolve().parents[3] / "scripts" / "worker_bootstrap.py"
         )
-        self.blender_executable = blender_executable or (sys.executable if mock else "blenderproc")
-        self.use_blenderproc, self.vram_threshold_mb, self.ephemeral = (
-            use_blenderproc,
-            vram_threshold_mb,
-            ephemeral,
+        self.blender_executable = self.config.blender_executable or (
+            sys.executable if self.mock else "blenderproc"
         )
-        self.max_renders_per_worker = max_renders_per_worker
-        self.worker_id_prefix = worker_id_prefix
-        self.seed = seed
+
         self.job_id = str(uuid.uuid4())
-        self.memory_limit_mb = memory_limit_mb
         self.context = zmq.Context() if zmq else None
-        self.thread_budget = get_thread_budget(num_workers=self.num_workers)
+        self.thread_budget = get_thread_budget(num_workers=self.config.num_workers)
         self.workers, self.worker_queue = [], queue.Queue()
         self.auditor = TelemetryAuditor()
         self._lock, self.running = threading.Lock(), False
         self._resource_stack = ResourceStack()
         UnifiedWorkerOrchestrator._instances.append(self)
+
+    @property
+    def num_workers(self) -> int:
+        return self.config.num_workers
+
+    @property
+    def base_port(self) -> int:
+        return self.config.base_port
+
+    @property
+    def use_blenderproc(self) -> bool:
+        return self.config.use_blenderproc
+
+    @property
+    def vram_threshold_mb(self) -> float | None:
+        return self.config.vram_threshold_mb
+
+    @property
+    def ephemeral(self) -> bool:
+        return self.config.ephemeral
+
+    @property
+    def max_renders_per_worker(self) -> int | None:
+        return self.config.max_renders_per_worker
+
+    @property
+    def worker_id_prefix(self) -> str:
+        return self.config.worker_id_prefix
+
+    @property
+    def seed(self) -> int:
+        return self.config.seed
+
+    @property
+    def memory_limit_mb(self) -> int | None:
+        return self.config.memory_limit_mb
 
     @classmethod
     def cleanup_all(cls):
@@ -150,7 +196,7 @@ class UnifiedWorkerOrchestrator:
                             shard_id=unique_shard_id,
                             context=self.context,
                             thread_budget=self.thread_budget,
-                            seed=self.seed,
+                            seed=self.config.seed,
                             job_id=self.job_id,
                             memory_limit_mb=effective_memory_limit,
                         )
@@ -184,6 +230,14 @@ class UnifiedWorkerOrchestrator:
                     self.worker_queue.get_nowait()
                 except queue.Empty:
                     break
+            
+            if self.context:
+                self.context.term()
+                self.context = None
+
+            if self in UnifiedWorkerOrchestrator._instances:
+                UnifiedWorkerOrchestrator._instances.remove(self)
+                
             self.running = False
 
     def get_worker(self) -> PersistentWorkerProcess:
@@ -267,7 +321,7 @@ class UnifiedWorkerOrchestrator:
             shard_id=unique_shard_id,
             context=self.context,
             thread_budget=self.thread_budget,
-            seed=self.seed,
+            seed=self.config.seed,
             job_id=self.job_id,
             memory_limit_mb=worker.memory_limit_mb,
         )
@@ -495,14 +549,16 @@ def orchestrate(
     )
     use_bproc = (shutil.which("blenderproc") is not None) and not force_mock
 
-    with UnifiedWorkerOrchestrator(
+    config = OrchestratorConfig(
         num_workers=workers,
         ephemeral=True,
         max_renders_per_worker=batch_size,
         mock=not use_bproc,
         seed=job_spec.global_seed,
         memory_limit_mb=job_spec.infrastructure.max_memory_mb,
-    ) as orchestrator:
+    )
+
+    with UnifiedWorkerOrchestrator(config=config) as orchestrator:
         any_failed = _run_orchestration_loop(orchestrator, batches, workers, output_dir, rm)
 
     for path in batches:

@@ -38,14 +38,20 @@ sys.modules["mathutils"] = mathutils_api
 def pytest_configure(config):
     """Custom configuration for pytest."""
     # Redirect all temporary test data to output/test_results (gitignored)
-    # This prevents proliferation of /tmp/pytest-of-dev directories
-    # and keeps artifacts discoverable during development.
     project_root = Path(__file__).parent.parent
     test_results_dir = project_root / "output" / "test_results"
     test_results_dir.mkdir(parents=True, exist_ok=True)
     
     # basetemp is the root for all tmp_path fixtures
     config.option.basetemp = str(test_results_dir)
+
+
+@pytest.fixture(autouse=True)
+def cleanup_orchestrators():
+    """Ensure all orchestrators and workers are cleaned up after each test."""
+    yield
+    from render_tag.orchestration.orchestrator import UnifiedWorkerOrchestrator
+    UnifiedWorkerOrchestrator.cleanup_all()
 
 
 @pytest.fixture(scope="session", autouse=True)

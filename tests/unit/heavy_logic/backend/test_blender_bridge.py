@@ -45,8 +45,5 @@ def test_bridge_injection():
     assert isinstance(bridge.bproc, FakeBproc)
     assert isinstance(bridge.bpy, FakeBpy)
 
-    # Reset for other tests if needed, but since it's a singleton it might affect them.
-    # For unit tests, we'll just re-init or accept it.
-    bridge._initialized = False
-    bridge.bpy = None
-    bridge.bproc = None
+    # Restabilize for other tests since this is a singleton
+    bridge.stabilize()

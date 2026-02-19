@@ -33,8 +33,10 @@ graph TD
     Generator --> Recipe[scene_recipes.json - Contract]
     Recipe --> Validator[Validator/Visualizer - Host]
     Recipe --> Executor[scripts/blender_main.py - Backend]
-    Executor --> Output[Golden Dataset]
+    Executor --> Output[Golden Dataset - output/]
 ```
+
+All datasets and transient artifacts MUST reside in the gitignored `output/` or `tmp/` directories.
 
 ## Specific Logic Rules
 - **Corner Ordering**: When extracting tag corners, always project 3D vertices and verify CLOCKWISE order (Top-Left -> Top-Right -> Bottom-Right -> Bottom-Left).

@@ -7,7 +7,14 @@ No Blender dependencies.
 
 from __future__ import annotations
 
+from typing import TypeAlias
+
 import numpy as np
+
+# Staff Engineer: Define semantic type aliases for better readability and type checking
+Vector3: TypeAlias = np.ndarray  # (3,) float array
+Matrix3x3: TypeAlias = np.ndarray  # (3, 3) float array
+Matrix4x4: TypeAlias = np.ndarray  # (4, 4) float array
 
 
 def compute_polygon_area(points: np.ndarray) -> float:
@@ -31,9 +38,9 @@ def compute_polygon_area(points: np.ndarray) -> float:
 
 
 def make_transformation_matrix(
-    translation: np.ndarray | list[float],
-    rotation_matrix: np.ndarray,
-) -> np.ndarray:
+    translation: Vector3 | list[float],
+    rotation_matrix: Matrix3x3,
+) -> Matrix4x4:
     """Build a 4x4 transformation matrix from translation and rotation.
 
     Args:
@@ -49,7 +56,7 @@ def make_transformation_matrix(
     return mat
 
 
-def rotation_matrix_from_vectors(vec1: np.ndarray, vec2: np.ndarray) -> np.ndarray:
+def rotation_matrix_from_vectors(vec1: Vector3, vec2: Vector3) -> Matrix3x3:
     """Find the rotation matrix that aligns vec1 to vec2.
 
     Args:
@@ -74,7 +81,7 @@ def rotation_matrix_from_vectors(vec1: np.ndarray, vec2: np.ndarray) -> np.ndarr
         else:
             # 180 degree rotation around any orthogonal vector
             # Find an orthogonal vector
-            ortho = np.array([1, 0, 0]) if abs(a[0]) < 0.9 else np.array([0, 1, 0])
+            ortho = np.array([1, 0, 0], dtype=np.float64) if abs(a[0]) < 0.9 else np.array([0, 1, 0], dtype=np.float64)
             v_ortho = np.cross(a, ortho)
             v_ortho /= np.linalg.norm(v_ortho)
             # Rodrigues rotation for 180 degrees
@@ -87,7 +94,7 @@ def rotation_matrix_from_vectors(vec1: np.ndarray, vec2: np.ndarray) -> np.ndarr
     return rotation_matrix
 
 
-def look_at_rotation(forward_vec: np.ndarray, up_vec: np.ndarray | None = None) -> np.ndarray:
+def look_at_rotation(forward_vec: Vector3, up_vec: Vector3 | None = None) -> Matrix3x3:
     """Compute a rotation matrix from a forward vector and an up vector.
 
     Args:

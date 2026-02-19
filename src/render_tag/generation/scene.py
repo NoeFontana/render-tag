@@ -14,6 +14,7 @@ from ..core.config import GenConfig
 from ..core.logging import get_logger
 from ..core.schema import SceneRecipe
 from ..core.seeding import derive_seed
+from ..data_io.assets import AssetProvider
 from .compiler import SceneCompiler
 
 logger = get_logger(__name__)
@@ -30,13 +31,20 @@ class Generator:
         config: GenConfig,
         output_dir: Path,
         global_seed: int = 42,
+        asset_provider: AssetProvider | None = None,
     ):
         self.config = config
         self.output_dir = output_dir
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.global_seed = global_seed
         self.rng = np.random.default_rng(global_seed)
-        self.compiler = SceneCompiler(config, global_seed=global_seed, output_dir=output_dir)
+        self.asset_provider = asset_provider or AssetProvider()
+        self.compiler = SceneCompiler(
+            config,
+            global_seed=global_seed,
+            output_dir=output_dir,
+            asset_provider=self.asset_provider,
+        )
 
     def generate_all(self, exclude_ids: set[int] | None = None) -> list[SceneRecipe]:
         num_scenes = self.config.dataset.num_scenes
