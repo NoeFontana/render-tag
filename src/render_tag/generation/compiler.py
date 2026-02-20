@@ -253,12 +253,41 @@ class SceneCompiler:
         # Use target tag location as look-at point in random mode to ensure visibility.
         # In sweep modes, we look at the origin [0,0,0] to maintain the geometric contract
         # relative to the center of the world.
-        if scenario.sampling_mode == "random" and target_tag:
-            look_at = np.array(target_tag.location)
-        else:
-            look_at = np.array([0.0, 0.0, 0.0])
+        look_at = np.array(target_tag.location) if target_tag else np.array([0.0, 0.0, 0.0])
         
-        for _ in range(20):  # Rejection sampling
+        for _ in range(50):  # Increased retries for better coverage of edge cases
+            # 1. Determine camera location parameters
+            dist = dist_override if dist_override is not None else np_rng.uniform(
+                camera_config.min_distance, camera_config.max_distance
+            )
+            elev = elev_override if elev_override is not None else (
+                camera_config.elevation if camera_config.elevation is not None else np_rng.uniform(
+                    camera_config.min_elevation, camera_config.max_elevation
+                )
+            )
+            azim = camera_config.azimuth if camera_config.azimuth is not None else np_rng.uniform(0, 2 * np.pi)
+            
+            # 2. Sample target position in image frame if in random mode
+            target_image_pos = None
+            if scenario.sampling_mode == "random" and target_tag:
+                # Estimate tag angular size to define a safe sampling margin.
+                # Max extent from center is diagonal: size * sqrt(2) / 2 approx 0.707 * size.
+                # We use a 1.0x factor to be very safe against roll and perspective distortion.
+                tag_size = target_tag.properties.get("tag_size", 0.1)
+                if target_tag.type == "BOARD" and target_tag.board:
+                    tag_size = max(target_tag.board.cols * target_tag.board.marker_size, 
+                                   target_tag.board.rows * target_tag.board.marker_size)
+                
+                f_px = camera_config.resolution[0] / (2.0 * np.tan(np.radians(camera_config.fov) / 2.0))
+                pixel_margin = (f_px * tag_size) / dist
+                
+                w, h = camera_config.resolution
+                if pixel_margin * 2 < min(w, h):
+                    u = np_rng.uniform(pixel_margin, w - pixel_margin)
+                    v = np_rng.uniform(pixel_margin, h - pixel_margin)
+                    target_image_pos = np.array([u, v])
+            
+            # 3. Sample roll
             roll = (
                 np_rng.uniform(
                     np.radians(camera_config.min_roll), np.radians(camera_config.max_roll)
@@ -266,21 +295,20 @@ class SceneCompiler:
                 if abs(camera_config.max_roll - camera_config.min_roll) > 1e-6
                 else 0.0
             )
+            
+            # 4. Generate candidate pose
             pose = sample_camera_pose(
                 look_at_point=look_at,
-                min_distance=camera_config.min_distance,
-                max_distance=camera_config.max_distance,
-                min_elevation=camera_config.min_elevation,
-                max_elevation=camera_config.max_elevation,
-                azimuth=camera_config.azimuth,
-                distance=dist_override,
-                elevation=elev_override
-                if elev_override is not None
-                else camera_config.elevation,
+                distance=dist,
+                elevation=elev,
+                azimuth=azim,
                 inplane_rot=roll,
+                target_image_pos=target_image_pos,
+                k_matrix=camera_config.get_k_matrix(),
                 rng=np_rng,
             )
 
+            # 5. Validate all constraints
             if self._validate_pose_constraints(pose, target_tag):
                 return pose
         
@@ -293,16 +321,20 @@ class SceneCompiler:
         camera_config = self.config.camera
         scenario = self.config.scenario
 
-        # Find target for orientation/sizing constraints
-        # 1. Prefer an actual TAG
-        target_tag = next((obj for obj in objects if obj.type == "TAG"), None)
-        # 2. Fallback to any object if no TAG found (e.g. BOARD subject)
-        if not target_tag and objects:
-            target_tag = objects[0]
-            
+        # Find potential targets for orientation/sizing constraints
+        # Prefer actual TAGs, fallback to any object
+        all_tags = [obj for obj in objects if obj.type == "TAG"]
+        
         camera_recipes = []
 
         for cam_idx in range(camera_config.samples_per_scene):
+            # Select target tag for this specific camera sample to maximize diversity
+            target_tag = None
+            if all_tags:
+                target_tag = np_rng.choice(all_tags)
+            elif objects:
+                target_tag = objects[0]
+            
             dist_override = None
             elev_override = None
 
@@ -403,13 +435,23 @@ class SceneCompiler:
 
         # 2. Mandatory Frame Visibility check
         # All 4 corners of the tag (or target object) must be within the frame
-        check_size = target_tag.properties.get("tag_size", 0.1)
         if target_tag.type == "BOARD" and target_tag.board:
-            check_size = target_tag.board.marker_size
+            # Rigid Calibration Board (Strategy uses scale in recipe)
+            hw, hh = 0.5, 0.5
+        elif target_tag.type == "BOARD":
+            # Background Board (TagStrategy uses unit scale in recipe)
+            cols = target_tag.properties.get("cols", 1)
+            rows = target_tag.properties.get("rows", 1)
+            sq = target_tag.properties.get("square_size", 0.1)
+            hw = (cols * sq) / 2.0
+            hh = (rows * sq) / 2.0
+        else:
+            # Individual Tag
+            size = target_tag.properties.get("tag_size", 0.1)
+            hw = hh = size / 2.0
 
-        half = check_size / 2.0
         corners_local = np.array(
-            [[-half, -half, 0], [half, -half, 0], [half, half, 0], [-half, half, 0]]
+            [[-hw, -hh, 0], [hw, -hh, 0], [hw, hh, 0], [-hw, hh, 0]]
         )
         corners_world = (tag_world_mat @ np.hstack([corners_local, np.ones((4, 1))]).T).T[:, :3]
         pixels = project_points(

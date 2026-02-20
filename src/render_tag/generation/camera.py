@@ -10,7 +10,11 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from render_tag.generation.math import look_at_rotation, make_transformation_matrix
+from render_tag.generation.math import (
+    look_at_rotation,
+    make_transformation_matrix,
+    rotation_matrix_from_vectors,
+)
 
 
 @dataclass
@@ -32,6 +36,8 @@ def sample_camera_pose(
     distance: float | None = None,
     elevation: float | None = None,
     inplane_rot: float = 0.0,
+    target_image_pos: np.ndarray | list[float] | None = None,
+    k_matrix: np.ndarray | list[list[float]] | None = None,
     rng: np.random.Generator | None = None,
 ) -> CameraPose:
     """Sample a single camera pose looking at a point.
@@ -46,6 +52,8 @@ def sample_camera_pose(
         distance: Optional fixed distance (meters).
         elevation: Optional fixed elevation [0, 1].
         inplane_rot: Optional roll rotation (radians).
+        target_image_pos: Optional (u, v) pixel coordinates where the look_at_point should appear.
+        k_matrix: Optional 3x3 intrinsic matrix (required if target_image_pos is set).
         rng: Optional NumPy random generator for isolation.
 
     Returns:
@@ -72,10 +80,34 @@ def sample_camera_pose(
     location = look_at_point + np.array([dx, dy, dz])
 
     # 4. Compute rotation to look at target
+    # Start with ideal upright rotation looking at center
     forward_vec = look_at_point - location
     rotation_matrix = look_at_rotation(forward_vec)
 
-    # Apply inplane rotation (roll) if specified
+    # 5. Apply offset if target_image_pos is specified
+    if target_image_pos is not None and k_matrix is not None:
+        # Decompose K
+        fx = k_matrix[0][0]
+        fy = k_matrix[1][1]
+        cx = k_matrix[0][2]
+        cy = k_matrix[1][2]
+        u, v = target_image_pos
+
+        # Ray in OpenCV camera coordinates (Z forward)
+        v_cv = np.array([(u - cx) / fx, (v - cy) / fy, 1.0])
+        # Ray in Blender camera coordinates (X right, Y up, Z backward => Forward is -Z)
+        v_bl = np.array([v_cv[0], -v_cv[1], -v_cv[2]])
+        v_bl_unit = v_bl / np.linalg.norm(v_bl)
+
+        # We want to rotate the camera such that v_bl_unit points to forward_vec
+        # ideal_R maps (0,0,-1) to forward_vec_unit
+        # We want R such that R @ v_bl_unit = forward_vec_unit
+        # Let R_offset be the rotation from (0,0,-1) to v_bl_unit
+        # Then ideal_R = R @ R_offset  =>  R = ideal_R @ R_offset.T
+        r_offset = rotation_matrix_from_vectors(np.array([0, 0, -1]), v_bl_unit)
+        rotation_matrix = rotation_matrix @ r_offset.T
+
+    # 6. Apply inplane rotation (roll) if specified
     if abs(inplane_rot) > 1e-6:
         # Rodrigues' rotation formula around the local Z axis
         # Local Z axis is the 3rd column of the rotation matrix

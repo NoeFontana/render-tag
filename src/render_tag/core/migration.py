@@ -85,14 +85,37 @@ class SchemaMigrator:
         upgraded = data.copy()
         upgraded["version"] = "0.2"
 
-        # Note: ScenarioConfig.migrate_legacy_layout already handles dict-level
-        # transformation, but we must ensure it happens at the root level too
-        # if the input is a full GenConfig dictionary.
         if "scenario" in upgraded and isinstance(upgraded["scenario"], dict):
             scenario = upgraded["scenario"]
             if "subject" not in scenario:
-                # If we have legacy fields, let the ScenarioConfig validation handle it
-                # or do a shallow migration here if needed for robustness.
-                pass
+                # Staff Engineer: Synchronize tag size from 'tag' section if missing in 'scenario'
+                # This prevents defaulting to 0.1m when 0.16m was intended.
+                base_tag_size = 0.1
+                if "tag" in upgraded and isinstance(upgraded["tag"], dict):
+                    base_tag_size = upgraded["tag"].get("size_meters", base_tag_size)
+
+                # Check for legacy fields in scenario to trigger TAGS migration
+                if "tag_families" in scenario or "tags_per_scene" in scenario:
+                    tag_families = scenario.pop("tag_families", ["tag36h11"])
+                    tags_per_scene = scenario.pop("tags_per_scene", 10)
+                    
+                    # Handle legacy [min, max] tuple often used in early locus-tag configs
+                    if isinstance(tags_per_scene, (list, tuple)) and len(tags_per_scene) > 0:
+                        tags_per_scene = tags_per_scene[-1]
+                    
+                    # Override base size if specific tag_size was provided in scenario
+                    actual_tag_size = scenario.pop("tag_size", base_tag_size)
+                    
+                    scenario["subject"] = {
+                        "type": "TAGS",
+                        "tag_families": tag_families,
+                        "size_meters": actual_tag_size,
+                        "tags_per_scene": tags_per_scene
+                    }
+                
+                # Detect legacy Board config
+                elif scenario.get("layout") == "board" or "board" in scenario:
+                    # Boards usually had explicit sizes, but we'll let ScenarioConfig handle defaults
+                    pass
 
         return upgraded

@@ -204,7 +204,6 @@ class RenderFacade:
                 tag_obj.blender_obj.pass_index = props["tag_id"] + 1
                 tag_obj.set_location(location)
                 tag_obj.set_rotation_euler(rotation)
-                tag_obj.set_scale(scale)
                 
                 # Attach metadata
                 if keypoints_3d:

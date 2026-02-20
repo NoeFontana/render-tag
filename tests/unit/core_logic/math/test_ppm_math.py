@@ -1,48 +1,37 @@
-"""
-Unit tests for PPM (Pixels Per Module) mathematics.
-"""
 
+import numpy as np
 import pytest
-
 from render_tag.generation.projection_math import calculate_ppm, solve_distance_for_ppm
 
-
 def test_calculate_ppm():
-    # Known scenario:
-    # Tag size: 0.16m
-    # Tag grid size: 8 bits
-    # Focal length: 1000px
-    # Distance: 2.0m
-    # PPM = (f * tag_size) / (distance * grid_size)
-    # PPM = (1000 * 0.16) / (2.0 * 8) = 160 / 16 = 10.0
-
-    ppm = calculate_ppm(distance_m=2.0, tag_size_m=0.16, focal_length_px=1000.0, tag_grid_size=8)
-    assert pytest.approx(ppm) == 10.0
-
+    # distance = 1.0m, tag_size = 0.1m, f_px = 1000px, grid_size = 10
+    # PPM = (1000 * 0.1) / (1.0 * 10) = 100 / 10 = 10
+    ppm = calculate_ppm(distance_m=1.0, tag_size_m=0.1, focal_length_px=1000.0, tag_grid_size=10)
+    assert ppm == pytest.approx(10.0)
+    
+    # distance = 2.0m -> PPM should be 5
+    ppm = calculate_ppm(distance_m=2.0, tag_size_m=0.1, focal_length_px=1000.0, tag_grid_size=10)
+    assert ppm == pytest.approx(5.0)
 
 def test_solve_distance_for_ppm():
-    # Invert the above:
-    # Target PPM: 10.0
-    # Tag size: 0.16m
-    # Tag grid size: 8 bits
-    # Focal length: 1000px
-    # Distance = (f * tag_size) / (target_ppm * grid_size)
-    # Distance = (1000 * 0.16) / (10.0 * 8) = 160 / 80 = 2.0
-
-    distance = solve_distance_for_ppm(
-        target_ppm=10.0, tag_size_m=0.16, focal_length_px=1000.0, tag_grid_size=8
-    )
-    assert pytest.approx(distance) == 2.0
-
+    # target_ppm = 10, tag_size = 0.1m, f_px = 1000px, grid_size = 10
+    # distance = (1000 * 0.1) / (10 * 10) = 100 / 100 = 1.0
+    dist = solve_distance_for_ppm(target_ppm=10.0, tag_size_m=0.1, focal_length_px=1000.0, tag_grid_size=10)
+    assert dist == pytest.approx(1.0)
+    
+    # target_ppm = 5 -> distance should be 2.0
+    dist = solve_distance_for_ppm(target_ppm=5.0, tag_size_m=0.1, focal_length_px=1000.0, tag_grid_size=10)
+    assert dist == pytest.approx(2.0)
 
 def test_ppm_roundtrip():
-    # Ensure they are inverse functions
-    dist = 5.43
-    size = 0.12
-    f = 1200.0
-    grid = 10
-
-    ppm = calculate_ppm(dist, size, f, grid)
-    solved_dist = solve_distance_for_ppm(ppm, size, f, grid)
-
-    assert pytest.approx(solved_dist) == dist
+    rng = np.random.default_rng(42)
+    for _ in range(100):
+        target_ppm = rng.uniform(5, 100)
+        tag_size = rng.uniform(0.05, 0.5)
+        f_px = rng.uniform(500, 2000)
+        grid_size = int(rng.integers(6, 12))
+        
+        dist = solve_distance_for_ppm(target_ppm, tag_size, f_px, grid_size)
+        actual_ppm = calculate_ppm(dist, tag_size, f_px, grid_size)
+        
+        assert actual_ppm == pytest.approx(target_ppm)

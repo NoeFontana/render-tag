@@ -136,11 +136,22 @@ class BoardStrategy(SubjectStrategy):
         for pos in layout.corner_positions:
             keypoints_3d.append([pos.x, pos.y, pos.z])
 
+        # Apply a small random offset to the board to avoid centering bias
+        import numpy as np
+        from render_tag.core.seeding import derive_seed
+        rng = np.random.default_rng(derive_seed(seed, "layout_offset", 0))
+        offset_radius = context.gen_config.physics.scatter_radius * 0.5
+        location = [
+            rng.uniform(-offset_radius, offset_radius),
+            rng.uniform(-offset_radius, offset_radius),
+            0.0,
+        ]
+
         return [
             ObjectRecipe(
                 type="BOARD",
                 name="CalibrationBoard",
-                location=[0, 0, 0],
+                location=location,
                 rotation_euler=[0, 0, 0],
                 scale=[width_m, height_m, 1.0], # Map unit plane to physical meters
                 texture_path=self._texture_path,

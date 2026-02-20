@@ -184,5 +184,20 @@ class TagStrategy(SubjectStrategy):
                         },
                     )
                 )
+
+            # Apply a small random offset to the entire group to avoid centering bias
+            # Uses a fraction of the scatter_radius for non-physics randomization
+            offset_radius = gen_config.physics.scatter_radius * 0.5
+            group_offset = [
+                rng.uniform(-offset_radius, offset_radius),
+                rng.uniform(-offset_radius, offset_radius),
+                0.0
+            ]
+            for obj in objects:
+                obj.location = [
+                    obj.location[0] + group_offset[0],
+                    obj.location[1] + group_offset[1],
+                    obj.location[2] + group_offset[2],
+                ]
                 
         return objects
