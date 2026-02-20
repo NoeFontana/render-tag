@@ -12,9 +12,10 @@ def test_hot_loop_render_command(tmp_path, port_generator, stabilized_bridge):
     server = ZmqBackendServer(port=port_generator())
     
     # Staff Engineer: Enforce mock state to prevent pollution from other tests
+    import numpy as np
+
     from render_tag.backend.bridge import bridge
     from render_tag.backend.mocks import blenderproc_api
-    import numpy as np
     
     bridge.bproc = blenderproc_api
     # Ensure render returns valid data

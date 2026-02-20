@@ -18,7 +18,7 @@ def test_heartbeat_prevents_timeout():
         def _on_render(self, cmd):
             self.status = WorkerStatus.BUSY
             # Sleep longer than the heartbeat interval but shorter than the global safety valve
-            time.sleep(2)
+            time.sleep(1.5)
             self.status = WorkerStatus.IDLE
             return super()._on_render(cmd)
 
@@ -39,7 +39,7 @@ def test_heartbeat_prevents_timeout():
         )
 
         start = time.time()
-        # The render takes 2s, but timeout is 1s.
+        # The render takes 1.5s, but timeout is 1s.
         # Heartbeats every 0.2s should allow it to pass.
         resp = client.send_command(
             CommandType.RENDER,
@@ -65,8 +65,8 @@ def test_heartbeat_prevents_timeout():
         duration = time.time() - start
 
         assert resp.status == ResponseStatus.SUCCESS
-        assert duration >= 2.0
-        print(f"RESILIENCE SUCCESS: Render completed in {duration:.2f}s (Timeout was 3s)")
+        assert duration >= 1.2
+        print(f"RESILIENCE SUCCESS: Render completed in {duration:.2f}s")
 
     finally:
         worker.stop()

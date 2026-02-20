@@ -15,7 +15,7 @@ import signal
 import sys
 import threading
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import ClassVar
 
@@ -223,8 +223,11 @@ class UnifiedWorkerOrchestrator:
         with self._lock:
             if not self.running:
                 return
+            
+            logger.info("Stopping Orchestrator and shutting down workers...")
             self._resource_stack.close()
             self.workers.clear()
+            
             while not self.worker_queue.empty():
                 try:
                     self.worker_queue.get_nowait()
@@ -232,13 +235,22 @@ class UnifiedWorkerOrchestrator:
                     break
             
             if self.context:
-                self.context.term()
+                logger.debug("Terminating ZMQ context...")
+                try:
+                    # According to ZMQ best practices, we should close ALL sockets 
+                    # before context.term(). ResourceStack.close() should have 
+                    # done this via PersistentWorkerProcess.stop() -> Client.disconnect().
+                    self.context.term()
+                    logger.debug("ZMQ context terminated.")
+                except Exception as e:
+                    logger.warning(f"Error terminating ZMQ context: {e}")
                 self.context = None
 
             if self in UnifiedWorkerOrchestrator._instances:
                 UnifiedWorkerOrchestrator._instances.remove(self)
                 
             self.running = False
+            logger.info("Orchestrator stopped.")
 
     def get_worker(self) -> PersistentWorkerProcess:
         """Acquire an available worker from the queue (blocking)."""
@@ -476,6 +488,7 @@ def _run_orchestration_loop(
     rm: str
 ) -> bool:
     """Run the parallel orchestration loop using a worker pool."""
+    logger.info(f"Starting orchestration loop with {len(batches)} batches and {workers} workers.")
     q = queue.Queue()
     for path in batches:
         q.put(path)
@@ -489,6 +502,8 @@ def _run_orchestration_loop(
                 path = q.get_nowait()
                 with open(path) as f:
                     batch_recipes = json.load(f)
+                
+                logger.debug(f"Worker thread processing batch: {path.name}")
                 for recipe in batch_recipes:
                     m = re.search(r"shard_(\d+)", path.name)
                     shard_idx_str = m.group(1) if m else "0"
@@ -499,10 +514,12 @@ def _run_orchestration_loop(
                     if resp.status != ResponseStatus.SUCCESS:
                         console.print(f"[red]Render failed: {resp.message}[/red]")
                         any_failed = True
+                logger.debug(f"Worker thread finished batch: {path.name}")
             except queue.Empty:
                 break
             except Exception as e:
                 console.print(f"[red]Batch processing failed: {e}[/red]")
+                logger.error(f"Batch processing failed: {e}", exc_info=True)
                 any_failed = True
             finally:
                 q.task_done()
@@ -510,9 +527,12 @@ def _run_orchestration_loop(
     threads = [threading.Thread(target=worker_thread, daemon=True) for _ in range(workers)]
     for t in threads:
         t.start()
+    
+    logger.info(f"Waiting for {len(threads)} worker threads to complete...")
     for t in threads:
         t.join()
         
+    logger.info("Orchestration loop completed.")
     return any_failed
 
 

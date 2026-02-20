@@ -138,6 +138,7 @@ class BoardStrategy(SubjectStrategy):
 
         # Apply a small random offset to the board to avoid centering bias
         import numpy as np
+
         from render_tag.core.seeding import derive_seed
         rng = np.random.default_rng(derive_seed(seed, "layout_offset", 0))
         offset_radius = context.gen_config.physics.scatter_radius * 0.5

@@ -73,14 +73,17 @@ class ZmqHostClient:
 
     def disconnect(self):
         if self.task_socket:
-            self.task_socket.close()
+            with contextlib.suppress(Exception):
+                self.task_socket.close(linger=0)
             self.task_socket = None
         if self.mgmt_socket:
-            self.mgmt_socket.close()
+            with contextlib.suppress(Exception):
+                self.mgmt_socket.close(linger=0)
             self.mgmt_socket = None
         
         if self.owns_context and self.context:
-            self.context.term()
+            with contextlib.suppress(Exception):
+                self.context.term()
             self.context = None
 
     def _check_heartbeat(self) -> bool:

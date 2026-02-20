@@ -161,15 +161,19 @@ class PersistentWorkerProcess:
         raise WorkerStartupError("Worker timeout")
 
     def stop(self):
+        """Shut down the worker process and its communication client."""
         self._stop_event.set()
         if self.client:
             if self.process and self.process.poll() is None:
+                self.logger.info(f"Sending SHUTDOWN command to worker {self.worker_id}...")
                 with contextlib.suppress(Exception):
                     self.client.send_command(CommandType.SHUTDOWN, timeout_ms=500)
             self.client.disconnect()
             self.client = None
+        
         if self.process:
             pid = self.process.pid
+            self.logger.info(f"Terminating worker {self.worker_id} (PID: {pid})...")
             try:
                 # Always attempt to kill the entire process group.
                 # This handles cases where the launcher (e.g., blenderproc) exits
@@ -182,6 +186,7 @@ class PersistentWorkerProcess:
                 
                 if self.process.poll() is None:
                     self.process.wait(timeout=2)
+                self.logger.info(f"Worker {self.worker_id} terminated.")
             except (
                 subprocess.TimeoutExpired,
                 ProcessLookupError,
@@ -189,7 +194,7 @@ class PersistentWorkerProcess:
                 ValueError,
                 TypeError,
             ):
-                pass
+                self.logger.debug(f"Process cleanup issues for {self.worker_id}, ignoring.")
             self.process = None
 
     @retry_with_backoff(retries=2, initial_delay=0.1, exceptions=(Exception,))

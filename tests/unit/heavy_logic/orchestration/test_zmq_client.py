@@ -15,6 +15,7 @@ def mock_zmq_server(port, delay=0):
 
     context = zmq.Context()
     socket = context.socket(zmq.REP)
+    socket.setsockopt(zmq.LINGER, 0)
     socket.bind(f"tcp://127.0.0.1:{port}")
 
     try:

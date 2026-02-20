@@ -39,10 +39,13 @@ def pytest_configure(config):
     """Custom configuration for pytest."""
     # Redirect all temporary test data to output/test_results (gitignored)
     project_root = Path(__file__).parent.parent
-    test_results_dir = project_root / "output" / "test_results"
+    test_results_dir = project_dir = project_root / "output" / "test_results"
     test_results_dir.mkdir(parents=True, exist_ok=True)
     
     # basetemp is the root for all tmp_path fixtures
+    # In pytest-xdist, each worker might try to create this.
+    # We should use a worker-specific temp dir if xdist is present, 
+    # but for now let's just make it robust.
     config.option.basetemp = str(test_results_dir)
 
 

@@ -1,7 +1,9 @@
 
 import numpy as np
 import pytest
+
 from render_tag.generation.projection_math import calculate_ppm, solve_distance_for_ppm
+
 
 def test_calculate_ppm():
     # distance = 1.0m, tag_size = 0.1m, f_px = 1000px, grid_size = 10

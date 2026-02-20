@@ -34,6 +34,7 @@ class ExecutionStage(PipelineStage):
                 batch_size=ctx.batch_size,
                 verbose=ctx.verbose,
             )
+            console.print("\n[bold green]✓ Parallel generation complete![/bold green]")
             return
 
         if ctx.skip_render:

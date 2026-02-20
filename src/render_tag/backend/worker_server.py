@@ -143,9 +143,19 @@ class ZmqBackendServer:
 
     def _finalize_writers(self):
         """Flush and save data from active writers."""
-        for w in self.writers.values():
+        if not self.writers:
+            return
+            
+        logger.info(f"Finalizing data for {len(self.writers)} writers...")
+        for name, w in self.writers.items():
             if hasattr(w, "save"):
-                w.save()
+                try:
+                    w.save()
+                    logger.debug(f"Saved {name} writer")
+                except Exception as e:
+                    logger.error(f"Error saving {name} writer: {e}")
+        # Clear writers so we don't save multiple times if not needed
+        self.writers = {}
 
     def stop(self):
         """Stops the server loop and closes sockets."""
@@ -216,11 +226,15 @@ class ZmqBackendServer:
                 # Execute command (Blocks the task loop, but mgmt thread stays alive)
                 resp = self._handle_command(cmd)
 
+                at_limit = False
                 with self._lock:
-                    at_limit = max_renders and self.renders_completed >= max_renders
+                    at_limit = bool(max_renders and self.renders_completed >= max_renders)
                     if at_limit:
                         self.status = WorkerStatus.FINISHED
-                        self._finalize_writers()
+                
+                if at_limit:
+                    logger.info("Worker reached max renders limit. Finalizing data...")
+                    self._finalize_writers()
 
                 self.task_socket.send_string(resp.model_dump_json())
 
