@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import csv
 import json
+import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -40,6 +41,28 @@ if TYPE_CHECKING:
     from render_tag.core.schema import BoardConfig, DetectionRecord, SceneProvenance
 
 
+class AtomicWriter:
+    """Mixin for atomic file writing using temp file + rename."""
+
+    def _write_atomic(self, path: Path, data: Any) -> None:
+        """Write data to a temp file then rename atomically."""
+        temp_path = path.with_suffix(".tmp")
+        try:
+            with open(temp_path, "w") as f:
+                if isinstance(data, (dict, list)):
+                    json.dump(data, f, indent=2)
+                else:
+                    f.write(data)
+                f.flush()
+                os.fsync(f.fileno())
+            
+            temp_path.rename(path)
+        except Exception:
+            if temp_path.exists():
+                temp_path.unlink()
+            raise
+
+
 class CSVWriter:
     """Writes detection data to a CSV file."""
 
@@ -58,6 +81,8 @@ class CSVWriter:
             with open(self.output_path, "w", newline="") as f:
                 writer = csv.writer(f)
                 writer.writerow(header)
+                f.flush()
+                os.fsync(f.fileno())
             self._initialized = True
 
     def write_detection(
@@ -82,6 +107,8 @@ class CSVWriter:
         with open(self.output_path, "a", newline="") as f:
             writer = csv.writer(f)
             writer.writerow(row)
+            # Frequent fsync kills performance, but ensures data safety.
+            # We rely on OS buffering here, accepting minor loss on crash.
 
     def write_detections(self, detections: list[DetectionRecord]) -> None:
         """Write multiple detections to the CSV file."""
@@ -89,7 +116,7 @@ class CSVWriter:
             self.write_detection(detection)
 
 
-class COCOWriter:
+class COCOWriter(AtomicWriter):
     """Writer for COCO format annotations."""
 
     def __init__(self, output_dir: Path, filename: str = "annotations.json") -> None:
@@ -286,14 +313,13 @@ class COCOWriter:
             "categories": self.categories,
         }
 
-        with open(output_path, "w") as f:
-            json.dump(coco_data, f, indent=2)
+        self._write_atomic(output_path, coco_data)
 
         self._dirty = False
         return output_path
 
 
-class RichTruthWriter:
+class RichTruthWriter(AtomicWriter):
     """Writer for structured JSON 'Data Product' containing all metadata."""
 
     def __init__(self, output_path: Path) -> None:
@@ -332,12 +358,11 @@ class RichTruthWriter:
     def save(self) -> Path:
         """Save all detections to the JSON file."""
         self.output_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.output_path, "w") as f:
-            json.dump(self._detections, f, indent=2)
+        self._write_atomic(self.output_path, self._detections)
         return self.output_path
 
 
-class SidecarWriter:
+class SidecarWriter(AtomicWriter):
     """Writes metadata sidecar files for generated images."""
 
     def __init__(self, output_dir: Path) -> None:
@@ -380,11 +405,8 @@ class SidecarWriter:
 
         # We also have COCOWriter attributes.
 
-        with open(path, "w") as f:
-            if isinstance(provenance, dict):
-                json.dump(provenance, f, indent=2, default=str)
-            else:
-                f.write(provenance.model_dump_json(indent=2))
+        data = provenance.model_dump(mode="json") if hasattr(provenance, "model_dump") else provenance
+        self._write_atomic(path, data)
 
         return path
 
