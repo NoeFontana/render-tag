@@ -133,6 +133,7 @@ class ZmqHostClient:
 
         timeout = timeout_ms if timeout_ms is not None else self.timeout_ms
         self.task_socket.setsockopt(zmq.RCVTIMEO, timeout)
+        self.task_socket.setsockopt(zmq.SNDTIMEO, timeout)
 
         try:
             self.task_socket.send_string(cmd.model_dump_json())
@@ -179,6 +180,7 @@ class ZmqHostClient:
             raise
         finally:
             self.task_socket.setsockopt(zmq.RCVTIMEO, self.timeout_ms)
+            self.task_socket.setsockopt(zmq.SNDTIMEO, self.timeout_ms)
 
     def __enter__(self):
         self.connect()
