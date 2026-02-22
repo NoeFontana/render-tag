@@ -237,13 +237,13 @@ class UnifiedWorkerOrchestrator:
             if self.context:
                 logger.debug("Terminating ZMQ context...")
                 try:
-                    # According to ZMQ best practices, we should close ALL sockets 
-                    # before context.term(). ResourceStack.close() should have 
-                    # done this via PersistentWorkerProcess.stop() -> Client.disconnect().
-                    self.context.term()
-                    logger.debug("ZMQ context terminated.")
+                    # FORCE CLOSE ALL SOCKETS with linger=0.
+                    # This is the nuclear option to prevent hangs if any socket was leaked
+                    # or if a worker is stuck.
+                    self.context.destroy(linger=0)
+                    logger.debug("ZMQ context destroyed.")
                 except Exception as e:
-                    logger.warning(f"Error terminating ZMQ context: {e}")
+                    logger.warning(f"Error destroying ZMQ context: {e}")
                 self.context = None
 
             if self in UnifiedWorkerOrchestrator._instances:
