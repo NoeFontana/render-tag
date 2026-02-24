@@ -2,10 +2,13 @@ dataset:
   num_scenes: 100
   seeds:
     global_seed: 42
-  evaluation_scopes: [detection, pose_estimation]
-
+  evaluation_scopes:
+  - detection
+  - pose_estimation
 camera:
-  resolution: [1920, 1080]
+  resolution:
+  - 1920
+  - 1080
   fov: 70.0
   samples_per_scene: 1
   min_distance: 0.5
@@ -17,13 +20,11 @@ camera:
   tone_mapping: filmic
   iso: 100
   sensor_noise_sigma: 0.002
-  min_tag_pixels: 36  # Exactly num bits for this family
-
+  min_tag_pixels: 36
   ppm_constraint:
     min: 5.0
     max: 40.0
     distribution: uniform
-
 tag:
   family: tag36h11
   size_meters: 0.16
@@ -34,14 +35,16 @@ tag:
     roughness_max: 0.8
     specular_min: 0.1
     specular_max: 0.3
-
 scenario:
   layout: plain
-  tag_families: [tag36h11]
-  tags_per_scene: [1, 1]
   sampling_mode: random
   use_board: false
-
+  subject:
+    type: TAGS
+    tag_families:
+    - tag36h11
+    size_meters: 0.16
+    tags_per_scene: 1
 scene:
   lighting:
     intensity_min: 100
@@ -51,5 +54,4 @@ scene:
   texture_dir: assets/textures/background
   texture_scale_min: 0.1
   texture_scale_max: 20.0
-
-version: '0.1'
+version: '0.2'
