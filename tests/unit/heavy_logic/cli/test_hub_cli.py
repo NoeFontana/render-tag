@@ -56,6 +56,49 @@ class TestHubManager(unittest.TestCase):
         self.assertEqual(record["tag_family"], "tag36h11")
         self.assertEqual(float(record["ppm"]), 25.0)
 
+    def test_render_generator_from_rich_truth(self):
+        """Verify that generator yields records from rich_truth.json in new benchmark structure."""
+        # Create rich_truth.json structure
+        rich_truth_path = self.test_dir / "rich_truth.json"
+        rich_truth_data = [
+            {
+                "image_id": "scene_0001_cam_0001",
+                "tag_id": 42,
+                "tag_family": "tag36h11",
+                "record_type": "TAG",
+                "corners": [[10.0, 10.0], [20.0, 10.0], [20.0, 20.0], [10.0, 20.0]],
+                "keypoints": None,
+                "distance": 1.5,
+                "angle_of_incidence": 0.0,
+                "pixel_area": 0.0,
+                "occlusion_ratio": 0.0,
+                "ppm": 25.0,
+                "position": [0.0, 0.0, 1.5],
+                "rotation_quaternion": [1.0, 0.0, 0.0, 0.0],
+                "metadata": {}
+            }
+        ]
+        with open(rich_truth_path, "w") as f:
+            json.dump(rich_truth_data, f)
+            
+        # Overwrite the existing _meta.json with new recipe snapshot structure (no detections)
+        self.meta_data = {
+            "git_hash": "deadbeef",
+            "recipe_snapshot": {"scene_id": 1}
+        }
+        with open(self.meta_path, "w") as f:
+            json.dump(self.meta_data, f)
+
+        gen = render_generator(self.test_dir)
+        records = list(gen)
+
+        self.assertEqual(len(records), 1)
+        record = records[0]
+        self.assertEqual(record["image_id"], "scene_0001_cam_0001")
+        self.assertEqual(record["tag_id"], 42)
+        self.assertEqual(record["tag_family"], "tag36h11")
+        self.assertEqual(float(record["ppm"]), 25.0)
+
     def test_dataset_schema_integrity(self):
         """Verify that our features match the expected schema."""
         features = get_dataset_features()
