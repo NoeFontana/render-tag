@@ -155,14 +155,13 @@ class TestHubManager(unittest.TestCase):
         # Verify files exist
         images_dir = out_dir / "images"
         self.assertTrue((images_dir / "scene_9999_cam_0000.png").exists())
-        self.assertTrue((images_dir / "scene_9999_cam_0000_meta.json").exists())
+        self.assertTrue((out_dir / "rich_truth.json").exists())
 
         # Verify content of restored meta
-        with open(images_dir / "scene_9999_cam_0000_meta.json") as f:
+        with open(out_dir / "rich_truth.json") as f:
             restored_meta = json.load(f)
-            self.assertEqual(len(restored_meta["detections"]), 1)
-            self.assertEqual(restored_meta["detections"][0]["tag_id"], 1)
-            self.assertTrue(restored_meta["provenance"]["restored_from_hub"])
+            self.assertEqual(len(restored_meta), 1)
+            self.assertEqual(restored_meta[0]["tag_id"], 1)
 
     @patch("render_tag.cli.hub.AssetManager")
     def test_pull_assets(self, mock_asset_manager_class):

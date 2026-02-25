@@ -19,10 +19,12 @@ except ImportError:
     Value = None
     load_dataset = None
 
+from render_tag.core.logging import get_logger
 from render_tag.orchestration.assets import AssetManager
 
 from .tools import check_hub_installed, console
 
+logger = get_logger(__name__)
 app = typer.Typer(help="Manage datasets and assets on Hugging Face Hub.")
 
 
@@ -43,7 +45,7 @@ def get_dataset_features() -> Any:
             "camera_idx": Value("int32"),
             "tag_id": Value("int32"),
             "tag_family": Value("string"),
-            "corners": Sequence(Sequence(Value("float32"), length=2), length=4),
+            "corners": Sequence(Sequence(Value("float32"), length=2)),
             "distance": Value("float32"),
             "angle_of_incidence": Value("float32"),
             "pixel_area": Value("float32"),
@@ -63,7 +65,53 @@ def render_generator(data_dir: Path) -> Generator[dict[str, Any], None, None]:
         console.print(f"[red]Error:[/red] Images directory not found: {images_dir}")
         return
 
-    # Find all meta.json files
+    # 1. New Format: Read from rich_truth.json if it exists
+    rich_truth_path = data_dir / "rich_truth.json"
+    if rich_truth_path.exists():
+        console.print(f"[dim]Found rich_truth.json in {data_dir}[/dim]")
+        try:
+            with open(rich_truth_path) as f:
+                records = json.load(f)
+
+            for record in records:
+                image_id = record.get("image_id")
+                if not image_id:
+                    continue
+
+                image_path = images_dir / f"{image_id}.png"
+                if not image_path.exists():
+                    logger.warning(
+                        "Image not found for record", image_id=image_id, path=str(image_path)
+                    )
+                    continue
+
+                parts = image_id.split("_")
+                scene_id = int(parts[1]) if len(parts) > 1 else 0
+                camera_idx = int(parts[3]) if len(parts) > 3 else 0
+
+                yield {
+                    "image": str(image_path),
+                    "image_id": image_id,
+                    "scene_id": scene_id,
+                    "camera_idx": camera_idx,
+                    "tag_id": record.get("tag_id", 0),
+                    "tag_family": record.get("tag_family", "unknown"),
+                    "corners": record.get("corners", []),
+                    "distance": record.get("distance", 0.0),
+                    "angle_of_incidence": record.get("angle_of_incidence", 0.0),
+                    "pixel_area": record.get("pixel_area", 0.0),
+                    "occlusion_ratio": record.get("occlusion_ratio", 0.0),
+                    "ppm": record.get("ppm", 0.0),
+                    "position": record.get("position", [0.0, 0.0, 0.0]),
+                    "rotation_quaternion": record.get("rotation_quaternion", [1.0, 0.0, 0.0, 0.0]),
+                    "metadata": json.dumps(record.get("metadata", {})),
+                }
+        except Exception as e:
+            logger.error("Error processing rich_truth.json", error=str(e), exc_info=True)
+            console.print(f"[red]Error processing rich_truth.json:[/red] {e}")
+        return
+
+    # 2. Legacy Format: Fallback to reading individual _meta.json files
     meta_files = sorted(images_dir.glob("*_meta.json"))
     console.print(f"[dim]Found {len(meta_files)} metadata files in {images_dir}[/dim]")
 
@@ -152,6 +200,32 @@ def push_dataset(
         private=private,
         embed_external_files=True,
     )
+
+    # Upload consolidated metadata files
+    from huggingface_hub import HfApi
+
+    api = HfApi()
+
+    metadata_files = [
+        "checksums.json",
+        "coco_labels.json",
+        "ground_truth.csv",
+        "job_spec.json",
+        "manifest.json",
+        "rich_truth.json",
+    ]
+    for file_name in metadata_files:
+        file_path = data_dir / file_name
+        if file_path.exists():
+            console.print(f"[dim]☁️ Pushing {file_name} to {repo_id}...[/dim]")
+            api.upload_file(
+                path_or_fileobj=str(file_path),
+                path_in_repo=f"{config_name}/{file_name}",
+                repo_id=repo_id,
+                repo_type="dataset",
+                revision=revision,
+            )
+
     console.print("[bold green]✅ Upload successful![/bold green]")
 
 
@@ -207,31 +281,54 @@ def pull_dataset(
         if limit and len(image_metadata) >= limit:
             break
 
-    console.print(f"[dim]Restoring {len(image_metadata)} images and sidecars...[/dim]")
+    console.print(f"[dim]Restoring {len(image_objects)} images...[/dim]")
 
-    for image_id, detections in image_metadata.items():
-        # 2. Save Image
+    for image_id, img in image_objects.items():
         image_path = images_dir / f"{image_id}.png"
-        image_objects[image_id].save(image_path)
+        img.save(image_path)
 
-        # 3. Save sidecar _meta.json
-        meta_path = images_dir / f"{image_id}_meta.json"
-        meta_content = {
-            "detections": detections,
-            "provenance": {
-                "restored_from_hub": True,
-                "repo_id": repo_id,
-                "config_name": config_name,
-                "revision": revision,
-            },
-        }
+    # Reconstruct rich_truth.json instead of per-image metadata
+    rich_truth_path = output_dir / "rich_truth.json"
+    rich_truth_data = []
+    for image_id, detections in image_metadata.items():
+        for det in detections:
+            # Format according to new benchmark structure
+            rich_truth_data.append(
+                {
+                    "image_id": image_id,
+                    **det,
+                }
+            )
 
-        with open(meta_path, "w") as f:
-            json.dump(meta_content, f, indent=2)
+    with open(rich_truth_path, "w") as f:
+        json.dump(rich_truth_data, f, indent=2)
 
-    console.print(
-        f"[bold green]✅ Successfully restored {len(image_metadata)} scenes.[/bold green]"
-    )
+    # Attempt to download other metadata files directly
+    from huggingface_hub import hf_hub_download
+
+    metadata_files = [
+        "checksums.json",
+        "coco_labels.json",
+        "ground_truth.csv",
+        "job_spec.json",
+        "manifest.json",
+    ]
+    for file_name in metadata_files:
+        try:
+            downloaded_path = hf_hub_download(
+                repo_id=repo_id,
+                filename=f"{config_name}/{file_name}",
+                repo_type="dataset",
+                revision=revision,
+            )
+            import shutil
+
+            shutil.copy2(downloaded_path, output_dir / file_name)
+        except Exception:
+            # File might not exist in the repo, that's okay
+            pass
+
+    console.print(f"[bold green]✅ Successfully restored {len(image_objects)} scenes.[/bold green]")
 
 
 @app.command(name="pull-assets")
