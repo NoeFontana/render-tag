@@ -13,8 +13,8 @@
 - [x] Task: Implement structured logging and error handling. [e1501fb]
 - [x] Task: Conductor - User Manual Verification 'Phase 2: Implementation of Fixes' (Protocol in workflow.md) [ecfe2b4]
 
-## Phase 3: Verification and Testing
-- [ ] Task: Update and run unit/integration tests to verify the new transformation logic.
-- [ ] Task: Perform a dry-run test upload using the `output/benchmarks/single_pose*` dataset.
-- [ ] Task: Verify the dataset format is compliant and no temporary files are included in the payload.
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: Verification and Testing' (Protocol in workflow.md)
+## Phase 3: Verification and Testing [checkpoint: 42824b1]
+- [x] Task: Update and run unit/integration tests to verify the new transformation logic. [5a0feac]
+- [x] Task: Perform a dry-run test upload using the `output/benchmarks/single_pose*` dataset. [verified]
+- [x] Task: Verify the dataset format is compliant and no temporary files are included in the payload. [verified]
+- [x] Task: Conductor - User Manual Verification 'Phase 3: Verification and Testing' (Protocol in workflow.md) [42824b1]
