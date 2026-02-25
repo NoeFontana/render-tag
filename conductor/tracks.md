@@ -61,5 +61,5 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-- [ ] **Track: bug fix. upload benchmark dataset**
+- [x] **Track: bug fix. upload benchmark dataset**
 *Link: [./tracks/benchmark_upload_20260224/](./tracks/benchmark_upload_20260224/)*
