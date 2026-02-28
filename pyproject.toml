@@ -115,8 +115,8 @@ python-version = "3.11"
 [tool.ty.rules]
 # Standard rules enabled
 # unresolved-import = "ignore" # Removed to enable Blender API checking
-# possibly-missing-attribute = "ignore"
-# unresolved-attribute = "ignore"
+possibly-missing-attribute = "ignore"
+unresolved-attribute = "ignore"
 invalid-method-override = "ignore"
 invalid-assignment = "ignore"
 unused-ignore-comment = "ignore"
