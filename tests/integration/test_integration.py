@@ -22,6 +22,16 @@ pytestmark = pytest.mark.skipif(
 )
 
 
+@pytest.fixture(scope="session", autouse=True)
+def ensure_dummy_assets():
+    """Ensure that dummy assets used in tests exist on disk."""
+    hdri_dir = Path("assets/hdri")
+    hdri_dir.mkdir(parents=True, exist_ok=True)
+    dummy_hdri = hdri_dir / "dummy.exr"
+    if not dummy_hdri.exists():
+        dummy_hdri.touch()
+
+
 @pytest.mark.integration
 class TestFullPipeline:
     """Integration tests that run the complete generation pipeline."""
