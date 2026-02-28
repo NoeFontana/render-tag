@@ -54,8 +54,4 @@ This file tracks all major tracks for the project. Each track has its own detail
 - [x] **Track: Codebase Modernization and Refactoring**
   *Link: [./archive/codebase_modernization_20260208/](./archive/codebase_modernization_20260208/)*
 
----
-
-- [x] **Track: Automated CI Quality Gates (GitHub Actions)**
-*Link: [./tracks/ci_workflow_20260228/](./tracks/ci_workflow_20260228/)*
 
