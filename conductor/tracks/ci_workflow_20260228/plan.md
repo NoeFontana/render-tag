@@ -10,10 +10,10 @@ Goal: Establish the base GitHub Actions workflow with fast dependency resolution
 ## Phase 2: Implementation of Static Quality Gates
 Goal: Automate linting, formatting, and structural enforcement to maintain the codebase's integrity.
 
-- [ ] Task: Add a step to check code formatting using `uv run ruff format --check`.
-- [ ] Task: Add a step to lint the codebase and check for style violations using `uv run ruff check`.
-- [ ] Task: Add a step to enforce architectural layer boundaries using `uv run render-tag lint-arch`.
-- [ ] Task: Add a step for static type checking across the project using `uv run ty check`.
+- [x] Task: Add a step to check code formatting using `uv run ruff format --check`. 1b32268
+- [x] Task: Add a step to lint the codebase and check for style violations using `uv run ruff check`. 1b32268
+- [x] Task: Add a step to enforce architectural layer boundaries using `uv run render-tag lint-arch`. 1b32268
+- [x] Task: Add a step for static type checking across the project using `uv run ty check`. 1b32268
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Implementation of Static Quality Gates' (Protocol in workflow.md)
 
 ## Phase 3: Functional Verification and Regression Testing
