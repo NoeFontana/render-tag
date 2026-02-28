@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  quality-gates:
+    name: Code Quality & Tests
+    runs-on: ubuntu-latest
+    
+    # Run all steps in the context of the uv environment
+    env:
+      UV_SYSTEM_PYTHON: 1
+      
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+          
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: "pyproject.toml"
+          
+      - name: Install Dependencies
+        run: uv sync --all-groups
