@@ -1,8 +1,0 @@
-{
-  "track_id": "pose_baseline_20260212",
-  "type": "feature",
-  "status": "new",
-  "created_at": "2026-02-12T16:30:00Z",
-  "updated_at": "2026-02-12T16:30:00Z",
-  "description": "Establish a high-precision pose estimation baseline using a declarative API and quaternion ground truth."
-}
