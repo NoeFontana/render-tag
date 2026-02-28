@@ -9,8 +9,8 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-- [ ] **Track: Local Automation Release Script**
-*Link: [./tracks/release_script_20260228/](./tracks/release_script_20260228/)*
+- [ ] **Track: Tag-Driven Automated Release Pipeline**
+*Link: [./tracks/automated_release_pipeline_20260228/](./tracks/automated_release_pipeline_20260228/)*
 
 ## Archived Tracks
 
