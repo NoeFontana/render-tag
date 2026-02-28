@@ -95,6 +95,7 @@ def generate_dataset_info(
         metadata=extra_metadata or {},
     )
 
+    dataset_dir.mkdir(parents=True, exist_ok=True)
     with open(dataset_dir / "manifest.json", "w") as f:
         f.write(manifest.model_dump_json(indent=2))
     return manifest

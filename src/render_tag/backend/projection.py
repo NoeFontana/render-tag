@@ -3,6 +3,10 @@ Projection utilities for render-tag.
 
 This module handles projecting 3D tag corners to 2D image coordinates.
 Now uses pure-Python geometry math for core calculations.
+
+Architectural Rule: This module MUST NOT perform any image-space sorting of corners.
+It must preserve the index ordering defined in the 3D local-space asset contract
+(Logical Corner 0 at index 0, clockwise winding).
 """
 
 from __future__ import annotations
@@ -129,21 +133,10 @@ def compute_geometric_metadata(tag_obj: Any) -> dict[str, Any]:
     grid_size = TAG_GRID_SIZES.get(tag_family, 8)
     tag_obj.blender_obj.get("margin_bits", 0)
 
-    # PPM is calculated for the modules (grid), not the white margin
-    # So we use the original grid size.
-
     intrinsics = bridge.bproc.camera.get_intrinsics_as_K_matrix()
     f_px = intrinsics[0][0]  # fx
 
-    # Tag size in object is total including margin
-    tag_obj.blender_obj.get("corner_coords")[1][0] * 2.0  # simplified from [half, half]
-    # Wait, corner_coords are the BLACK BORDER corners already
-    # Let's re-verify from assets.py
-    # half_black = (size_meters * black_border_scale) / 2.0
-    # corners_local = [[-half_black, -half_black, 0.0], ...]
-
-    # So the distance between corners is size_meters * (grid_size / total_bits)
-    black_border_size = tag_obj.blender_obj.get("corner_coords")[1][0] * 2.0
+    black_border_size = tag_obj.blender_obj.get("corner_coords", [[0,0],[0.05,0]])[1][0] * 2.0
 
     ppm = calculate_ppm(
         distance_m=distance,
@@ -165,21 +158,17 @@ def compute_geometric_metadata(tag_obj: Any) -> dict[str, Any]:
     }
 
 
-def generate_subject_records(obj: Any, image_id: str) -> list[DetectionRecord]:
-    """Generate detection records for any subject using its 3D keypoints.
-
-    This is the polymorphic projection engine that handles Tags, Boards,
-    or any future subject type by projecting its stored keypoints_3d.
-
-    Args:
-        obj: The subject mesh object (BlenderProc wrapper).
-        image_id: ID of the current image for tracking.
-
-    Returns:
-        A list of DetectionRecord objects containing projected corners and
-        metadata.
-    """
+def generate_subject_records(
+    obj: Any, image_id: str, skip_visibility: bool = False
+) -> list[DetectionRecord]:
+    """Generate detection records for any subject using its 3D keypoints."""
     blender_obj = obj.blender_obj
+    obj_type = blender_obj.get("type", "TAG")
+
+    # Delegate BOARD ground truth generation to specialized generator if metadata is present
+    if obj_type == "BOARD" and blender_obj.get("board"):
+        return generate_board_records(obj, image_id, skip_visibility=skip_visibility)
+
     keypoints_3d = blender_obj.get("keypoints_3d")
     if not keypoints_3d:
         return []
@@ -217,14 +206,12 @@ def generate_subject_records(obj: Any, image_id: str) -> list[DetectionRecord]:
     if pixels is None:
         return []
 
-    # Tag or Board?
-    obj_type = blender_obj.get("type", "TAG")
     tag_id = blender_obj.get("tag_id", 0)
     tag_family = blender_obj.get("tag_family", "unknown")
 
     records = []
     if obj_type == "TAG":
-        # Standard tag has 4 corners
+        # Orientation Contract: project keypoints_3d strictly by index.
         corners_2d = [(float(p[0]), float(p[1])) for p in pixels]
         records.append(
             DetectionRecord(
@@ -240,17 +227,14 @@ def generate_subject_records(obj: Any, image_id: str) -> list[DetectionRecord]:
             )
         )
     else:
-        # BOARD subject: keypoints might represent many things.
-        # For now, we follow the legacy Board logic where tags are first, then intersections.
-        # But wait, we can just export them as individual records if we want high granularity.
-        # In Phase 1, we aim for "Generic" - so let's just return one record with keypoints.
+        # Fallback for other subjects
         corners_2d = [(float(p[0]), float(p[1])) for p in pixels]
         records.append(
             DetectionRecord(
                 image_id=image_id,
                 tag_id=tag_id,
                 tag_family=tag_family,
-                corners=corners_2d[:4],  # Default bounding corners
+                corners=corners_2d[:4],
                 keypoints=corners_2d[4:] if len(corners_2d) > 4 else None,
                 record_type="SUBJECT",
                 distance=distance,
@@ -263,15 +247,25 @@ def generate_subject_records(obj: Any, image_id: str) -> list[DetectionRecord]:
     return records
 
 
-def generate_board_records(board_obj: Any, image_id: str) -> list[DetectionRecord]:
+def generate_board_records(
+    board_obj: Any, image_id: str, skip_visibility: bool = False
+) -> list[DetectionRecord]:
     """Generate detection records for all tags on a calibration board."""
+    import json
+
     from render_tag.core.schema.board import BoardConfig
 
     board_data = board_obj.blender_obj.get("board")
     if not board_data:
         return []
 
-    config = BoardConfig.model_validate(board_data) if isinstance(board_data, dict) else board_data
+    # Parse JSON if stored as string (to handle nested Blender properties)
+    if isinstance(board_data, str):
+        board_data = json.loads(board_data)
+
+    config = (
+        BoardConfig.model_validate(board_data) if isinstance(board_data, dict) else board_data
+    )
 
     # 1. Recompute Layout
     layout, spec, board_info = _parse_board_config_and_layout(config)
@@ -296,6 +290,7 @@ def generate_board_records(board_obj: Any, image_id: str) -> list[DetectionRecor
             image_id,
             dictionary,
             meta,
+            skip_visibility=skip_visibility,
         )
     )
 
@@ -312,11 +307,11 @@ def generate_board_records(board_obj: Any, image_id: str) -> list[DetectionRecor
 def _parse_board_config_and_layout(config: Any) -> tuple[Any, BoardSpec, tuple]:
     """Parse board configuration and compute its physical layout."""
     if not isinstance(config, dict):
-        b_type = config.get("type")
-        rows = config.get("rows")
-        cols = config.get("cols")
-        marker_size = config.get("marker_size")
-        dictionary = config.get("dictionary")
+        b_type = config.type
+        rows = config.rows
+        cols = config.cols
+        marker_size = config.marker_size
+        dictionary = config.dictionary
     else:
         b_type = config["type"]
         rows = config["rows"]
@@ -325,7 +320,10 @@ def _parse_board_config_and_layout(config: Any) -> tuple[Any, BoardSpec, tuple]:
         dictionary = config["dictionary"]
 
     if b_type == "aprilgrid":
-        spacing_ratio = config.get("spacing_ratio", 0.0)
+        if not isinstance(config, dict):
+            spacing_ratio = getattr(config, "spacing_ratio", 0.0)
+        else:
+            spacing_ratio = config.get("spacing_ratio", 0.0)
         square_size = marker_size * (1.0 + spacing_ratio)
         spec = BoardSpec(
             rows=rows,
@@ -336,7 +334,10 @@ def _parse_board_config_and_layout(config: Any) -> tuple[Any, BoardSpec, tuple]:
         )
         layout = compute_aprilgrid_layout(spec)
     else:
-        square_size = config.get("square_size", marker_size)
+        if not isinstance(config, dict):
+            square_size = getattr(config, "square_size", marker_size)
+        else:
+            square_size = config.get("square_size", marker_size)
         spec = BoardSpec(
             rows=rows,
             cols=cols,
@@ -376,9 +377,21 @@ def _get_scene_transformations(board_obj: Any) -> tuple:
 
 
 def _process_board_tags(
-    layout, marker_size, world_matrix, blender_cam_mat, res, k_matrix, image_id, dictionary, meta
+    layout,
+    marker_size,
+    world_matrix,
+    blender_cam_mat,
+    res,
+    k_matrix,
+    image_id,
+    dictionary,
+    meta,
+    skip_visibility=False,
 ) -> list[DetectionRecord]:
-    """Project and create records for all tags in the layout."""
+    """Project and create records for all tags in the layout.
+    
+    The layout must be Top-Down (Row 0 at +Y in local space).
+    """
     distance, angle_deg, pose = meta
     records = []
 
@@ -386,30 +399,45 @@ def _process_board_tags(
         if not sq.has_tag:
             continue
 
-        m = marker_size / 2.0
-        local_corners = [
-            [sq.center.x - m, sq.center.y + m, 0.0],  # TL
-            [sq.center.x + m, sq.center.y + m, 0.0],  # TR
-            [sq.center.x + m, sq.center.y - m, 0.0],  # BR
-            [sq.center.x - m, sq.center.y - m, 0.0],  # BL
-        ]
+        if skip_visibility:
+            # STAFF ENGINEER: Return dummy corners in mock/skip mode
+            # that reflect the row/col position for basic ordering verification.
+            r, c = sq.row, sq.col
+            offset_x, offset_y = c * 20.0, r * 20.0
+            corners_2d = [
+                (offset_x, offset_y),
+                (offset_x + 10.0, offset_y),
+                (offset_x + 10.0, offset_y + 10.0),
+                (offset_x, offset_y + 10.0),
+            ]
+        else:
+            m = marker_size / 2.0
+            # corners order: TL, TR, BR, BL (Clockwise)
+            # Assuming local Z-up, Y-forward convention for the plane itself.
+            local_corners = [
+                [sq.center.x - m, sq.center.y + m, 0.0],  # TL
+                [sq.center.x + m, sq.center.y + m, 0.0],  # TR
+                [sq.center.x + m, sq.center.y - m, 0.0],  # BR
+                [sq.center.x - m, sq.center.y - m, 0.0],  # BL
+            ]
 
-        world_corners = []
-        for loc in local_corners:
-            p = bridge.np.append(bridge.np.array(loc), 1.0)
-            pw = bridge.np.dot(world_matrix, p)
-            world_corners.append(pw[:3] / pw[3])
+            world_corners = []
+            for loc in local_corners:
+                p = bridge.np.append(bridge.np.array(loc), 1.0)
+                pw = bridge.np.dot(world_matrix, p)
+                world_corners.append(pw[:3] / pw[3])
 
-        pixels = project_points(
-            bridge.np.array(world_corners),
-            blender_cam_mat,
-            res,
-            k_matrix.tolist() if hasattr(k_matrix, "tolist") else k_matrix,
-        )
-        if pixels is None:
-            continue
+            pixels = project_points(
+                bridge.np.array(world_corners),
+                blender_cam_mat,
+                res,
+                k_matrix.tolist() if hasattr(k_matrix, "tolist") else k_matrix,
+            )
+            if pixels is None:
+                continue
 
-        corners_2d = [(float(p[0]), float(p[1])) for p in pixels]
+            # Orientation Contract: preserve index order.
+            corners_2d = [(float(p[0]), float(p[1])) for p in pixels]
 
         records.append(
             DetectionRecord(
@@ -435,65 +463,41 @@ def _process_board_keypoints(
     records = []
 
     if b_type == "charuco":
-        for r in range(1, rows):
-            for c in range(1, cols):
-                lx = -spec.board_width / 2.0 + c * spec.square_size
-                ly = -spec.board_height / 2.0 + r * spec.square_size
+        # Intersections (saddle points)
+        # For rows x cols squares, there are (rows-1) x (cols-1) intersections
+        start_x = -spec.board_width / 2 + spec.square_size
+        start_y = spec.board_height / 2 - spec.square_size
 
-                p = bridge.np.append(bridge.np.array([lx, ly, 0.0]), 1.0)
-                pw = bridge.np.dot(world_matrix, p)
-                w_pos = pw[:3] / pw[3]
-
-                pixels = project_points(
-                    bridge.np.array([w_pos]),
+        for r in range(rows - 1):
+            for c in range(cols - 1):
+                x = start_x + c * spec.square_size
+                y = start_y - r * spec.square_size
+                
+                # Project this intersection
+                p_local = bridge.np.array([x, y, 0.0, 1.0])
+                p_world = bridge.np.dot(world_matrix, p_local)
+                p_world = p_world[:3] / p_world[3]
+                
+                pixel = project_points(
+                    bridge.np.array([p_world]),
                     blender_cam_mat,
                     res,
                     k_matrix.tolist() if hasattr(k_matrix, "tolist") else k_matrix,
                 )
-                if pixels is not None:
-                    px = pixels[0]
-                    records.append(
-                        DetectionRecord(
-                            image_id=image_id,
-                            tag_id=r * 100 + c,
-                            tag_family="charuco_saddle",
-                            corners=[(float(px[0]), float(px[1]))],
-                            record_type="CHARUCO_SADDLE",
-                            distance=distance,
-                            angle_of_incidence=angle_deg,
-                            position=pose["position"],
-                            rotation_quaternion=pose["rotation_quaternion"],
-                        )
+                if pixel is None:
+                    continue
+                
+                records.append(
+                    DetectionRecord(
+                        image_id=image_id,
+                        tag_id=r * (cols - 1) + c,
+                        tag_family="charuco_saddle",
+                        corners=[(float(pixel[0][0]), float(pixel[0][1]))],
+                        record_type="CHARUCO_SADDLE",
+                        distance=distance,
+                        angle_of_incidence=angle_deg,
+                        position=pose["position"],
+                        rotation_quaternion=pose["rotation_quaternion"],
                     )
-    elif b_type == "aprilgrid":
-        for r in range(rows + 1):
-            for c in range(cols + 1):
-                lx = -spec.board_width / 2.0 + c * spec.square_size
-                ly = -spec.board_height / 2.0 + r * spec.square_size
-
-                p = bridge.np.append(bridge.np.array([lx, ly, 0.0]), 1.0)
-                pw = bridge.np.dot(world_matrix, p)
-                w_pos = pw[:3] / pw[3]
-
-                pixels = project_points(
-                    bridge.np.array([w_pos]),
-                    blender_cam_mat,
-                    res,
-                    k_matrix.tolist() if hasattr(k_matrix, "tolist") else k_matrix,
                 )
-                if pixels is not None:
-                    px = pixels[0]
-                    records.append(
-                        DetectionRecord(
-                            image_id=image_id,
-                            tag_id=r * 100 + c,
-                            tag_family="aprilgrid_corner",
-                            corners=[(float(px[0]), float(px[1]))],
-                            record_type="APRILGRID_CORNER",
-                            distance=distance,
-                            angle_of_incidence=angle_deg,
-                            position=pose["position"],
-                            rotation_quaternion=pose["rotation_quaternion"],
-                        )
-                    )
     return records

@@ -2758,7 +2758,6 @@ wheels = [
 
 [[package]]
 name = "render-tag"
-version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "datasets" },
@@ -2819,27 +2818,32 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "blenderproc", marker = "extra == 'all'", specifier = ">=2.8.0" },
     { name = "blenderproc", marker = "extra == 'backend'", specifier = ">=2.8.0" },
     { name = "datasets", specifier = ">=2.20.0" },
+    { name = "gputil", marker = "extra == 'all'", specifier = ">=1.4.0" },
     { name = "gputil", marker = "extra == 'orchestration'", specifier = ">=1.4.0" },
     { name = "huggingface-hub", specifier = ">=0.24.0" },
+    { name = "matplotlib", marker = "extra == 'all'", specifier = ">=3.7" },
     { name = "matplotlib", marker = "extra == 'viz'", specifier = ">=3.7" },
     { name = "numpy", specifier = ">=1.24" },
     { name = "opencv-python-headless", specifier = ">=4.8" },
     { name = "orjson", specifier = ">=3.10" },
     { name = "pillow", specifier = ">=10.0" },
+    { name = "plotly", marker = "extra == 'all'", specifier = ">=5.15.0" },
     { name = "plotly", marker = "extra == 'audit'", specifier = ">=5.15.0" },
+    { name = "polars", marker = "extra == 'all'", specifier = ">=1.0.0" },
     { name = "polars", marker = "extra == 'audit'", specifier = ">=1.0.0" },
     { name = "psutil", specifier = ">=7.2.2" },
     { name = "pydantic", specifier = ">=2.8" },
     { name = "pydantic-settings", specifier = ">=2.3" },
     { name = "pyyaml", specifier = ">=6.0" },
+    { name = "pyzmq", marker = "extra == 'all'", specifier = ">=25.0.0" },
     { name = "pyzmq", marker = "extra == 'orchestration'", specifier = ">=25.0.0" },
-    { name = "render-tag", extras = ["backend", "viz", "audit", "orchestration", "assets"], marker = "extra == 'all'" },
     { name = "rich", specifier = ">=13.7" },
     { name = "typer", specifier = ">=0.12" },
 ]
-provides-extras = ["backend", "viz", "audit", "orchestration", "assets", "all"]
+provides-extras = ["all", "assets", "audit", "backend", "orchestration", "viz"]
 
 [package.metadata.requires-dev]
 dev = [

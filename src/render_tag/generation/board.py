@@ -20,6 +20,19 @@ class BoardType(Enum):
     APRILGRID = "aprilgrid"
 
 
+class BoardFrameConstants:
+    """Constants for the Canonical Board Coordinate System.
+    
+    Standardized for Computer Vision (CV) compatibility:
+    - Origin (0,0,0) is at the TOP-LEFT corner of the board.
+    - X-axis increases from LEFT to RIGHT (Columns 0 to C).
+    - Y-axis decreases from TOP to BOTTOM (Rows 0 to R) in Blender local space.
+    """
+    ROW_ORIGIN_TOP = True  # Row 0 is at the top (+Y)
+    COL_ORIGIN_LEFT = True  # Col 0 is at the left (-X)
+    Y_DOWN = True           # Moving from Row 0 to Row R decreases Y
+
+
 @dataclass
 class BoardPosition:
     """A position on the board (tag center or corner)."""
@@ -132,16 +145,17 @@ def compute_charuco_layout(
         center=BoardPosition(*center),
     )
 
-    # Calculate starting position (center of bottom-left cell)
+    # Calculate starting position (center of top-left cell)
+    # CV-Standard: Row 0 is at the top (+Y in Blender local)
     start_x = center[0] - spec.board_width / 2 + spec.square_size / 2
-    start_y = center[1] - spec.board_height / 2 + spec.square_size / 2
+    start_y = center[1] + spec.board_height / 2 - spec.square_size / 2
 
     tag_id = 0
 
     for row in range(spec.rows):
         for col in range(spec.cols):
             x = start_x + col * spec.square_size
-            y = start_y + row * spec.square_size
+            y = start_y - row * spec.square_size
             z = center[2]
 
             # In standard ChArUco: (row+col) % 2 == 0 are white squares
@@ -189,16 +203,17 @@ def compute_aprilgrid_layout(
         center=BoardPosition(*center),
     )
 
-    # Calculate starting position
+    # Calculate starting position (center of top-left cell)
+    # CV-Standard: Row 0 is at the top (+Y in Blender local)
     start_x = center[0] - spec.board_width / 2 + spec.square_size / 2
-    start_y = center[1] - spec.board_height / 2 + spec.square_size / 2
+    start_y = center[1] + spec.board_height / 2 - spec.square_size / 2
 
     # All cells have tags in AprilGrid
     tag_id = 0
     for row in range(spec.rows):
         for col in range(spec.cols):
             x = start_x + col * spec.square_size
-            y = start_y + row * spec.square_size
+            y = start_y - row * spec.square_size
             z = center[2]
 
             square = SquareInfo(
@@ -215,12 +230,12 @@ def compute_aprilgrid_layout(
 
     # Compute corner positions (at grid intersections)
     corner_start_x = center[0] - spec.board_width / 2
-    corner_start_y = center[1] - spec.board_height / 2
+    corner_start_y = center[1] + spec.board_height / 2
 
     for row in range(spec.rows + 1):
         for col in range(spec.cols + 1):
             x = corner_start_x + col * spec.square_size
-            y = corner_start_y + row * spec.square_size
+            y = corner_start_y - row * spec.square_size
             layout.corner_positions.append(BoardPosition(x, y, center[2]))
 
     return layout

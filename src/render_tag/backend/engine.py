@@ -210,7 +210,8 @@ class RenderFacade:
                     tag_obj.blender_obj["keypoints_3d"] = keypoints_3d
                 tag_obj.blender_obj["tag_id"] = props["tag_id"]
                 tag_obj.blender_obj["tag_family"] = props["tag_family"]
-
+                tag_obj.blender_obj["type"] = "TAG"
+                
                 tag_objects.append(tag_obj)
 
             elif obj_type == "BOARD":
@@ -241,6 +242,9 @@ class RenderFacade:
                         rotation_euler=rotation,
                     )
                     board_obj.blender_obj["tag_family"] = "calibration_board"
+                    import json
+                    board_obj.blender_obj["board"] = json.dumps(board_cfg)
+                    board_obj.blender_obj["type"] = "BOARD"
                 else:
                     # Legacy or procedural board
                     props = obj_recipe.get("properties", {})
@@ -447,24 +451,32 @@ def _extract_and_save_ground_truth(
 ):
     """Project objects to image space and save detection records."""
     all_detections: list[DetectionRecord] = []
-
     if ctx.skip_visibility:
         for obj in tag_objects:
-            all_detections.append(
-                DetectionRecord(
-                    image_id=image_name,
-                    tag_id=obj.blender_obj.get("tag_id", 0),
-                    tag_family=obj.blender_obj.get("tag_family", "unknown"),
-                    corners=[[0, 0], [res[0], 0], [res[0], res[1]], [0, res[1]]],
-                    distance=0.0,
-                    angle_of_incidence=0.0,
+            obj_type = obj.blender_obj.get("type", "TAG")
+            if obj_type == "BOARD":
+                # STAFF ENGINEER: Even in skip_visibility mode, we want
+                # high-granularity records for boards if possible.
+                from render_tag.backend.projection import generate_board_records
+                all_detections.extend(
+                    generate_board_records(obj, image_name, skip_visibility=ctx.skip_visibility)
                 )
-            )
+            else:
+                all_detections.append(
+                    DetectionRecord(
+                        image_id=image_name,
+                        tag_id=obj.blender_obj.get("tag_id", 0),
+                        tag_family=obj.blender_obj.get("tag_family", "unknown"),
+                        corners=[[0, 0], [res[0], 0], [res[0], res[1]], [0, res[1]]],
+                        distance=0.0,
+                        angle_of_incidence=0.0,
+                    )
+                )
     else:
         from render_tag.backend.projection import generate_subject_records
 
         for obj in tag_objects:
-            records = generate_subject_records(obj, image_name)
+            records = generate_subject_records(obj, image_name, skip_visibility=ctx.skip_visibility)
             all_detections.extend(records)
 
     # Save Ground Truth

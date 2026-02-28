@@ -1,30 +1,33 @@
 # Coordinate Systems
 
-Correct orientation and corner ordering are critical for fiducial marker detection. `render-tag` uses standard robotics and computer vision conventions.
+This document defines the canonical coordinate systems used within the `render-tag` pipeline.
 
-## World Space
-- **Z-axis**: Up
-- **X-axis**: Forward
-- **Y-axis**: Left
-- **Origin**: Center of the ground plane.
+## 1. Canonical Board Frame (Local Space)
 
-## Camera Space (OpenCV Convention)
-While Blender uses a different camera convention (Z-forward, Y-up), `render-tag` exports all metadata in the **OpenCV convention**:
-- **Z-axis**: Forward (optical axis)
-- **X-axis**: Right
-- **Y-axis**: Down
+When defining the geometry of a calibration board (ChArUco, AprilGrid, Checkerboard, etc.), we follow a **Computer Vision (CV) Standard** mapping. This ensures seamless integration with libraries like OpenCV and Kalibr.
 
-## Tag Corners
-Corners are indexed from 0 to 3 in **clockwise (CW)** order, starting from the **top-left** of the tag image (OpenCV convention).
+### Origin and Axes
+- **Origin (0,0,0):** The physical **Top-Left** corner of the board's active area.
+- **+X Axis:** Left-to-Right (traversing Columns).
+- **-Y Axis (Blender Local):** Top-to-Bottom (traversing Rows).
 
-| Index | Name | Local Coordinate |
-|-------|------|------------------|
-| 0 | Top-Left (TL) | (-s/2, s/2) |
-| 1 | Top-Right (TR) | (s/2, s/2) |
-| 2 | Bottom-Right (BR) | (s/2, -s/2) |
-| 3 | Bottom-Left (BL) | (-s/2, -s/2) |
+### Why the -Y Axis?
+In the Blender Cartesian coordinate system, `+Y` points "Up". However, in standard image sensors and computer vision libraries, `+Y` points "Down". 
+To bridge this gap without introducing mirroring or 180-degree rotation errors:
+1. Row 0 (the top row) is located at the board's physical top.
+2. Subsequent rows ($R > 0$) move in the **negative Y direction** in Blender's local space.
 
-*(where s is the marker size)*
+### Physical Mapping
+For a board of size $(W, H)$:
+- **Top-Left Corner:** $(0, 0, 0)$ relative to the board's top-left origin.
+- **In Blender Global Space (if board is centered):**
+  - Row 0, Col 0: $(-W/2, +H/2, 0)$
+  - Row R, Col C: $(-W/2 + C \cdot square\_size, +H/2 - R \cdot square\_size, 0)$
 
-## Angle of Incidence
-Defined as the angle between the camera's optical axis and the surface normal of the tag. 0° means the camera is looking directly at the tag face.
+## 2. Global Scene Space
+- **Z-Up:** Blender's default world coordinate system.
+- **Camera Orientation:** Standard OpenCV camera model (Z forward, X right, Y down).
+
+## 3. Keypoint Convention
+- **Ordering:** Row-major, zero-indexed.
+- **Topology:** Continuous numbering starting from the Top-Left corner (Row 0, Col 0).

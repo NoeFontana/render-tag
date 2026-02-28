@@ -154,8 +154,8 @@ def visualize_dataset(
     save_viz: bool = True,
 ) -> None:
     """Visualize dataset detections overlaid on rendered images."""
-    csv_path = output_dir / "tags.csv"
-    coco_path = output_dir / "annotations.json"
+    csv_path = output_dir / "ground_truth.csv"
+    coco_path = output_dir / "coco_labels.json"
     images_dir = output_dir / "images"
     viz_dir = output_dir / "visualizations"
 
@@ -166,9 +166,17 @@ def visualize_dataset(
     elif csv_path.exists():
         detections = _load_detections_from_csv(csv_path)
     else:
-        msg = f"No annotations found (tags.csv or annotations.json) in {output_dir}"
-        console.print(f"[bold red]Error:[/bold red] {msg}")
-        return
+        # Fallback to legacy names
+        legacy_csv = output_dir / "tags.csv"
+        legacy_coco = output_dir / "annotations.json"
+        if legacy_coco.exists():
+            detections = _load_detections_from_coco(legacy_coco)
+        elif legacy_csv.exists():
+            detections = _load_detections_from_csv(legacy_csv)
+        else:
+            msg = f"No annotations found (ground_truth.csv or coco_labels.json) in {output_dir}"
+            console.print(f"[bold red]Error:[/bold red] {msg}")
+            return
 
     if save_viz:
         viz_dir.mkdir(parents=True, exist_ok=True)
@@ -256,22 +264,62 @@ def _load_detections_from_csv(csv_path: Path) -> dict[str, list[dict]]:
 
 
 def _draw_overlay_on_image(img: Image.Image, detections: list[dict]):
-    """Draw lime edges and red crosshair corners on image."""
+    """Draw lime edges, red crosshairs, corner indices and winding arrows."""
+    from PIL import ImageFont
+    
     draw = ImageDraw.Draw(img)
+    
+    # Try to load a font, fallback to default
+    try:
+        font = ImageFont.load_default()
+    except Exception:
+        font = None
+
     for det in detections:
         corners = det["corners"]
-        # Draw edges
+        # Draw edges and winding arrows
         if len(corners) == 4:
             for i in range(4):
-                draw.line([corners[i], corners[(i + 1) % 4]], fill="lime", width=2)
+                p1 = corners[i]
+                p2 = corners[(i + 1) % 4]
+                # Edge
+                draw.line([p1, p2], fill="lime", width=2)
+                
+                # Winding arrow (cyan) at midpoint
+                mid_x = (p1[0] + p2[0]) / 2
+                mid_y = (p1[1] + p2[1]) / 2
+                # Small directional tick
+                v_x = p2[0] - p1[0]
+                v_y = p2[1] - p1[1]
+                v_len = (v_x**2 + v_y**2)**0.5
+                if v_len > 1e-6:
+                    v_x /= v_len
+                    v_y /= v_len
+                    # Arrow head
+                    ah_len = 5
+                    ah_angle = 0.5 # radians
+                    # Back vectors
+                    b1_x = -v_x * np.cos(ah_angle) + v_y * np.sin(ah_angle)
+                    b1_y = -v_x * np.sin(ah_angle) - v_y * np.cos(ah_angle)
+                    b2_x = -v_x * np.cos(ah_angle) - v_y * np.sin(ah_angle)
+                    b2_y = v_x * np.sin(ah_angle) - v_y * np.cos(ah_angle)
+                    
+                    draw.line([(mid_x, mid_y), (mid_x + b1_x * ah_len, mid_y + b1_y * ah_len)], fill="cyan", width=2)
+                    draw.line([(mid_x, mid_y), (mid_x + b2_x * ah_len, mid_y + b2_y * ah_len)], fill="cyan", width=2)
 
-        # Draw corners (crosshairs for precision)
-        for corner in corners:
+        # Draw corners (crosshairs for precision) and indices
+        for i, corner in enumerate(corners):
             cx, cy = corner
             r = 3
             # Crosshair
             draw.line([(cx - r, cy), (cx + r, cy)], fill="red", width=1)
             draw.line([(cx, cy - r), (cx, cy + r)], fill="red", width=1)
+            
+            # Index (yellow)
+            if font:
+                draw.text((cx + 5, cy + 5), str(i), fill="yellow", font=font)
+            else:
+                draw.text((cx + 5, cy + 5), str(i), fill="yellow")
 
 
 def visualize_recipe(recipe_path: Path, output_dir: Path):
