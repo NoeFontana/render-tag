@@ -115,7 +115,14 @@ class TagStrategy(SubjectStrategy):
                 )
 
             # Define 3D Keypoints in local object space (TL, TR, BR, BL order)
-            m = tag_size / 2.0
+            # The renderer uses a 2x2 plane (from -1 to 1) and scales it by size/2.
+            # To avoid double-scaling, we provide keypoints in the normalized [-1, 1] space.
+            grid_size = TAG_GRID_SIZES.get(family, 8)
+            margin_bits = tag_config.margin_bits
+            total_bits = grid_size + (2 * margin_bits)
+            
+            # Local scale factor for the black border relative to the full plane (2x2)
+            m = grid_size / total_bits
             kps = [[-m, m, 0.0], [m, m, 0.0], [m, -m, 0.0], [-m, -m, 0.0]]
 
             objects.append(

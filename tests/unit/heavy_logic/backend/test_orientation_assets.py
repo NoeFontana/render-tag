@@ -60,8 +60,9 @@ def test_create_tag_plane_assigns_keypoints_3d(mock_bridge):
     assert len(kps) == 4
 
     # PLANE primitive is centered at 0,0.
-    # With size 0.1 and margin 0, corners should be at +/- 0.05
-    half = size / 2.0
+    # With size 0.1 and margin 0, local corners should be at +/- 1.0
+    # because the plane is 2x2.
+    half = 1.0
 
     # Contract: TL, TR, BR, BL
     # Logical Space (Z-up, Y-forward):
@@ -102,3 +103,93 @@ def test_get_corner_world_coords_uses_keypoints_3d(mock_bridge):
 
     # Verify
     assert world_coords == custom_kps
+
+
+def test_get_corner_world_coords_with_scaling(mock_bridge):
+    """Verify that get_corner_world_coords handles scaling correctly.
+    
+    If keypoints_3d are in local space (e.g. +/- 1.0 for a 2x2 plane),
+    and the world matrix has a scale of 0.05 (for a 0.1m tag),
+    the world coordinates should be +/- 0.05.
+    """
+    bridge, mock_obj, props = mock_bridge
+    import numpy as np
+    bridge.np = np
+
+    # 1. Setup local keypoints (Normalized to +/- 1.0 for a 2x2 plane)
+    local_kps = [
+        [-1.0, 1.0, 0.0],
+        [1.0, 1.0, 0.0],
+        [1.0, -1.0, 0.0],
+        [-1.0, -1.0, 0.0]
+    ]
+    props["keypoints_3d"] = local_kps
+
+    # 2. Setup world matrix with scale 0.05 (size 0.1m) and a translation
+    size = 0.1
+    scale = size / 2.0
+    world_mat = np.eye(4)
+    world_mat[0, 0] = scale
+    world_mat[1, 1] = scale
+    world_mat[0, 3] = 10.0 # Translate by 10m in X
+    mock_obj.get_local2world_mat.return_value = world_mat
+
+    # 3. Execute
+    world_coords = get_corner_world_coords(mock_obj)
+
+    # 4. Verify
+    # Expected: 10.0 +/- 0.05
+    expected = [
+        [9.95, 0.05, 0.0],
+        [10.05, 0.05, 0.0],
+        [10.05, -0.05, 0.0],
+        [9.95, -0.05, 0.0]
+    ]
+    
+    for i in range(4):
+        for j in range(3):
+            assert pytest.approx(world_coords[i][j]) == expected[i][j]
+
+
+def test_integrated_tag_creation_and_projection(mock_bridge):
+    """Verify the full lifecycle of tag creation and world-coordinate extraction.
+    
+    This test is CRITICAL as it mimics the actual backend execution flow.
+    """
+    bridge, mock_obj, props = mock_bridge
+    import numpy as np
+    bridge.np = np
+
+    # 1. Create a tag (0.2m size)
+    # The user reported 10x error for a tag (42 vs 424 pixels).
+    # If size=0.2m, then scale=0.1.
+    size = 0.2
+    create_tag_plane(size_meters=size, texture_path=None, tag_family="tag36h11")
+
+    # 2. Setup world matrix with scale size/2 (as BlenderProc does for the object)
+    scale = size / 2.0 # 0.1
+    world_mat = np.eye(4)
+    world_mat[0, 0] = scale
+    world_mat[1, 1] = scale
+    # Position doesn't matter for the factor error, but let's put it somewhere
+    world_mat[:3, 3] = [1.0, 1.0, 1.0]
+    mock_obj.get_local2world_mat.return_value = world_mat
+
+    # 3. Extract world coordinates
+    world_coords = get_corner_world_coords(mock_obj)
+
+    # 4. Verify
+    # Correct result should be 1.0 +/- 0.1 (total width 0.2m)
+    # Broken result will be 1.0 +/- 0.01 (total width 0.02m)
+    expected_half = size / 2.0 # 0.1
+    expected = [
+        [1.0 - expected_half, 1.0 + expected_half, 1.0],
+        [1.0 + expected_half, 1.0 + expected_half, 1.0],
+        [1.0 + expected_half, 1.0 - expected_half, 1.0],
+        [1.0 - expected_half, 1.0 - expected_half, 1.0]
+    ]
+
+    for i in range(4):
+        for j in range(3):
+            # If this is broken, it will find 0.99 instead of 0.9 (for 1.0 - 0.1)
+            assert pytest.approx(world_coords[i][j]) == expected[i][j]

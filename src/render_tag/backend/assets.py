@@ -25,11 +25,12 @@ if TYPE_CHECKING:
 
 # Corner order: Clockwise from Top-Left (Industry Standard)
 # TL (0), TR (1), BR (2), BL (3)
+# Note: Blender PLANE primitive is 2x2, so corners are at +/- 1.0 in local space.
 CORNER_ORDER = [
-    (-0.5, 0.5, 0),  # Top-Left
-    (0.5, 0.5, 0),  # Top-Right
-    (0.5, -0.5, 0),  # Bottom-Right
-    (-0.5, -0.5, 0),  # Bottom-Left
+    (-1.0, 1.0, 0),  # Top-Left
+    (1.0, 1.0, 0),  # Top-Right
+    (1.0, -1.0, 0),  # Bottom-Right
+    (-1.0, -1.0, 0),  # Bottom-Left
 ]
 
 
@@ -128,9 +129,10 @@ def create_tag_plane(
     grid_size = TAG_GRID_SIZES.get(tag_family, 8)
     total_bits = grid_size + (2 * margin_bits)
 
-    # Calculate scale factor for black border relative to total plane
-    black_border_scale = grid_size / total_bits
-    half_black = (size_meters * black_border_scale) / 2.0
+    # Calculate local scale factor for black border relative to total plane.
+    # Since the local plane is 2x2 (from -1 to 1), the half-width of the 
+    # full plane is 1.0. The half-width of the black border is thus:
+    half_black = grid_size / total_bits
 
     corners_local = [
         [-half_black, half_black, 0.0],  # TL
@@ -268,9 +270,10 @@ def get_corner_world_coords(tag_obj: Any) -> list[list[float]]:
         corners_local = tag_obj.blender_obj.get("corner_coords", [])
 
     if not corners_local:
-        # Fallback: compute from default corners
-        size = max(tag_obj.blender_obj.dimensions[:2])
-        corners_local = [[c[0] * size, c[1] * size, c[2]] for c in CORNER_ORDER]
+        # Fallback: use default corners in local space.
+        # Orientation Contract: world_matrix handles the local-to-world conversion 
+        # including scale, so we use normalized local corners here.
+        corners_local = [list(c) for c in CORNER_ORDER]
 
     world_matrix = tag_obj.get_local2world_mat()
     corners_world = []
