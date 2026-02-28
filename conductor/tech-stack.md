@@ -37,4 +37,5 @@
 - **Pytest:** The primary testing framework for unit and integration tests.
 - **Ruff:** Used for extremely fast linting and code formatting, ensuring adherence to project standards.
 - **Mypy/Ty:** Employed for static type checking to catch errors early and improve codebase maintainability.
+- **GitHub Actions:** Orchestrates the automated CI pipeline, utilizing `astral-sh/setup-uv` for high-speed dependency resolution and environment isolation.
 - **fake-bpy-module**: High-fidelity static type stubs for Blender and mathutils, enabling robust static analysis and IDE autocompletion.
