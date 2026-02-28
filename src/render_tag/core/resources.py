@@ -125,7 +125,7 @@ class ResourceStack:
         def _cleanup():
             try:
                 if hasattr(resource, "worker_id"):
-                     logger.debug(f"Cleaning up worker: {resource.worker_id}")
+                    logger.debug(f"Cleaning up worker: {resource.worker_id}")
                 resource.stop()
             except Exception as e:
                 logger.error("Error during resource cleanup", error=str(e))

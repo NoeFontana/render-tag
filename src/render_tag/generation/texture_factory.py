@@ -1,4 +1,3 @@
-
 import hashlib
 import json
 from pathlib import Path
@@ -75,7 +74,7 @@ class TextureFactory:
 
     def _draw_charuco(self, img: np.ndarray, config: BoardConfig, square_px: int, marker_px: int):
         """Draw a ChArUco checkerboard pattern.
-        
+
         Args:
             img: The target image array.
             config: The board configuration.
@@ -90,7 +89,7 @@ class TextureFactory:
                 # Checkerboard pattern
                 # OpenCV ChArUco: (0,0) is white. (r+c) % 2 == 0 is white.
                 is_white = (r + c) % 2 == 0
-                
+
                 y0, x0 = r * square_px, c * square_px
                 # Handle potential rounding drift at the edges
                 y1 = (r + 1) * square_px if r < rows - 1 else img.shape[0]
@@ -116,7 +115,7 @@ class TextureFactory:
 
     def _draw_aprilgrid(self, img: np.ndarray, config: BoardConfig, square_px: int, marker_px: int):
         """Draw an AprilGrid pattern (tags in every cell + corner squares).
-        
+
         Args:
             img: The target image array.
             config: The board configuration.
@@ -125,10 +124,10 @@ class TextureFactory:
         """
         rows, cols = config.rows, config.cols
         tag_id = 0
-        
+
         # AprilGrid: 1 bit border, 1 bit white margin by default in Kalibr?
         # Specification says: tags in every cell.
-        
+
         for r in range(rows):
             for c in range(cols):
                 y0, x0 = r * square_px, c * square_px
@@ -150,28 +149,28 @@ class TextureFactory:
 
         # Draw black corner squares (AprilGrid characteristic)
         # These are at the intersections of the grid
-        corner_px = round(marker_px * 0.1) # Small fixed ratio for now or parametric?
-        # Specification says "Small black corner squares". 
+        corner_px = round(marker_px * 0.1)  # Small fixed ratio for now or parametric?
+        # Specification says "Small black corner squares".
         # Usually they are quite small, e.g. 2-5% of marker size.
-        
+
         for r in range(rows + 1):
             for c in range(cols + 1):
                 y = r * square_px
                 x = c * square_px
-                
+
                 cy0 = max(0, y - corner_px // 2)
                 cy1 = min(img.shape[0], y + (corner_px + 1) // 2)
                 cx0 = max(0, x - corner_px // 2)
                 cx1 = min(img.shape[1], x + (corner_px + 1) // 2)
-                
+
                 img[cy0:cy1, cx0:cx1] = 0
 
     def _calculate_hash(self, config: BoardConfig) -> str:
         """Calculate a unique hash for a board configuration.
-        
+
         Args:
             config: The board configuration.
-            
+
         Returns:
             A SHA256 hash string.
         """

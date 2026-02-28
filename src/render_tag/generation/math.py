@@ -81,7 +81,11 @@ def rotation_matrix_from_vectors(vec1: Vector3, vec2: Vector3) -> Matrix3x3:
         else:
             # 180 degree rotation around any orthogonal vector
             # Find an orthogonal vector
-            ortho = np.array([1, 0, 0], dtype=np.float64) if abs(a[0]) < 0.9 else np.array([0, 1, 0], dtype=np.float64)
+            ortho = (
+                np.array([1, 0, 0], dtype=np.float64)
+                if abs(a[0]) < 0.9
+                else np.array([0, 1, 0], dtype=np.float64)
+            )
             v_ortho = np.cross(a, ortho)
             v_ortho /= np.linalg.norm(v_ortho)
             # Rodrigues rotation for 180 degrees

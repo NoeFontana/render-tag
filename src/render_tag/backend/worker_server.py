@@ -79,7 +79,7 @@ class ZmqBackendServer:
 
     def _check_memory(self) -> bool:
         """Checks current memory usage and triggers shutdown if limit exceeded.
-        
+
         Returns:
             True if memory is within limits, False if exceeded.
         """
@@ -114,8 +114,9 @@ class ZmqBackendServer:
         import os
 
         import psutil
+
         process = psutil.Process(os.getpid())
-        
+
         with self._lock:
             return Telemetry(
                 status=self.status,
@@ -145,7 +146,7 @@ class ZmqBackendServer:
         """Flush and save data from active writers."""
         if not self.writers:
             return
-            
+
         logger.info(f"Finalizing data for {len(self.writers)} writers...")
         for name, w in self.writers.items():
             if hasattr(w, "save"):
@@ -231,7 +232,7 @@ class ZmqBackendServer:
                     at_limit = bool(max_renders and self.renders_completed >= max_renders)
                     if at_limit:
                         self.status = WorkerStatus.FINISHED
-                
+
                 if at_limit:
                     logger.info("Worker reached max renders limit. Finalizing data...")
                     self._finalize_writers()

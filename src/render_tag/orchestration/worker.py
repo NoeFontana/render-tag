@@ -170,7 +170,7 @@ class PersistentWorkerProcess:
                     self.client.send_command(CommandType.SHUTDOWN, timeout_ms=500)
             self.client.disconnect()
             self.client = None
-        
+
         if self.process:
             pid = self.process.pid
             self.logger.info(f"Terminating worker {self.worker_id} (PID: {pid})...")
@@ -183,7 +183,7 @@ class PersistentWorkerProcess:
                 actual_pid = int(pid) if not isinstance(pid, (int, float)) else pid
                 if actual_pid > 1:
                     os.killpg(actual_pid, signal.SIGKILL)
-                
+
                 if self.process.poll() is None:
                     self.process.wait(timeout=2)
                 self.logger.info(f"Worker {self.worker_id} terminated.")

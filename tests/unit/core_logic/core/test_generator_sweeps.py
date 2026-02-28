@@ -10,10 +10,7 @@ def test_generator_distance_sweep(tmp_path):
         {
             "dataset": {"num_scenes": 10},
             "camera": {"min_distance": 0.5, "max_distance": 10.0},
-            "scenario": {
-                "sampling_mode": "distance",
-                "tags_per_scene": [1, 1]
-            },
+            "scenario": {"sampling_mode": "distance", "tags_per_scene": [1, 1]},
         }
     )
 
@@ -30,7 +27,7 @@ def test_generator_distance_sweep(tmp_path):
     pos9 = np.array(s9.cameras[0].transform_matrix)[:3, 3]
     dist9 = np.linalg.norm(pos9)
 
-    assert abs(dist0 - 0.5) < 1e-2 # Slightly higher tolerance due to z=0.001 offset
+    assert abs(dist0 - 0.5) < 1e-2  # Slightly higher tolerance due to z=0.001 offset
     assert abs(dist9 - 10.0) < 1e-2
 
 
@@ -40,10 +37,7 @@ def test_generator_angle_sweep(tmp_path):
         {
             "dataset": {"num_scenes": 10},
             "camera": {"min_elevation": 0.3, "max_elevation": 0.9},
-            "scenario": {
-                "sampling_mode": "angle",
-                "tags_per_scene": [1, 1]
-            },
+            "scenario": {"sampling_mode": "angle", "tags_per_scene": [1, 1]},
         }
     )
 

@@ -47,10 +47,10 @@ def test_render_facade_light_path_settings(config_params, expected_bounces, expe
     """Verify that RenderFacade applies CV-Safe light path settings (parameterized)."""
     mock_renderer = MagicMock()
     bridge.bproc.renderer = mock_renderer
-    
+
     config = RendererConfig(**config_params)
     RenderFacade(renderer_mode="cycles", config=config)
-    
+
     mock_renderer.set_light_bounces.assert_called_with(**expected_bounces)
     assert bridge.bpy.context.scene.cycles.caustics_reflective is expected_caustics
     assert bridge.bpy.context.scene.cycles.caustics_refractive is expected_caustics

@@ -158,16 +158,12 @@ class UnifiedWorkerOrchestrator:
 
             seed_str = f"{shard_id}-{os.getpid()}-{random.random()}"
             port_offset = (
-                int(hashlib.md5(seed_str.encode(), usedforsecurity=False).hexdigest(), 16)
-                % 10000
+                int(hashlib.md5(seed_str.encode(), usedforsecurity=False).hexdigest(), 16) % 10000
             )
-            current_base_port = (
-                self.base_port + port_offset + random.randint(0, 50) * 10
-            )
-                        # Calculate memory budget per worker
+            current_base_port = self.base_port + port_offset + random.randint(0, 50) * 10
+            # Calculate memory budget per worker
             effective_memory_limit = calculate_worker_memory_budget(
-                num_workers=self.num_workers,
-                explicit_limit_mb=self.memory_limit_mb
+                num_workers=self.num_workers, explicit_limit_mb=self.memory_limit_mb
             )
 
             # Port scanning: Ensure the entire range is free
@@ -223,17 +219,17 @@ class UnifiedWorkerOrchestrator:
         with self._lock:
             if not self.running:
                 return
-            
+
             logger.info("Stopping Orchestrator and shutting down workers...")
             self._resource_stack.close()
             self.workers.clear()
-            
+
             while not self.worker_queue.empty():
                 try:
                     self.worker_queue.get_nowait()
                 except queue.Empty:
                     break
-            
+
             if self.context:
                 logger.debug("Terminating ZMQ context...")
                 try:
@@ -248,7 +244,7 @@ class UnifiedWorkerOrchestrator:
 
             if self in UnifiedWorkerOrchestrator._instances:
                 UnifiedWorkerOrchestrator._instances.remove(self)
-                
+
             self.running = False
             logger.info("Orchestrator stopped.")
 
@@ -286,7 +282,7 @@ class UnifiedWorkerOrchestrator:
                 if resp.status == ResponseStatus.SUCCESS and resp.data:
                     telemetry = Telemetry(**resp.data)
                     self.auditor.add_entry(worker.worker_id, telemetry)
-                    
+
                     # Check for memory or VRAM limits
                     if telemetry.status == WorkerStatus.RESOURCE_LIMIT_EXCEEDED:
                         limit_exceeded = True
@@ -307,7 +303,7 @@ class UnifiedWorkerOrchestrator:
             and (not worker.client or not worker.process or not worker.is_healthy())
         ):
             should_restart = True
-            
+
         return should_restart, limit_exceeded
 
     def _restart_worker(
@@ -315,10 +311,8 @@ class UnifiedWorkerOrchestrator:
     ) -> PersistentWorkerProcess:
         """Stop and restart a worker process."""
         if limit_exceeded:
-            logger.info(
-                f"Preventative restart for {worker.worker_id} (Resource limit exceeded)"
-            )
-        
+            logger.info(f"Preventative restart for {worker.worker_id} (Resource limit exceeded)")
+
         worker.stop()
         slot_id = worker.shard_id.split("_")[0]
         unique_shard_id = f"{slot_id}_{uuid.uuid4().hex[:6]}"
@@ -338,7 +332,7 @@ class UnifiedWorkerOrchestrator:
             memory_limit_mb=worker.memory_limit_mb,
         )
         new_worker.start()
-        
+
         # Replace in active workers list
         for idx, w in enumerate(self.workers):
             if w.worker_id == worker.worker_id:
@@ -356,7 +350,7 @@ class UnifiedWorkerOrchestrator:
         max_retries = 2
         attempt = 0
         last_error = None
-        
+
         while attempt <= max_retries:
             worker = self.get_worker()
             try:
@@ -371,12 +365,12 @@ class UnifiedWorkerOrchestrator:
                         "skip_visibility": self.mock,
                     },
                 )
-                
+
                 # Check for memory limit exceeded during render
                 # In this case, we don't count it as a failed attempt
                 if (
-                    resp.status == ResponseStatus.FAILURE 
-                    and resp.message 
+                    resp.status == ResponseStatus.FAILURE
+                    and resp.message
                     and "RESOURCE_LIMIT_EXCEEDED" in resp.message
                 ):
                     logger.info(
@@ -397,7 +391,7 @@ class UnifiedWorkerOrchestrator:
                 attempt += 1
             finally:
                 self.release_worker(worker)
-        
+
         raise WorkerCommunicationError(
             f"Execute recipe failed after {max_retries} retries: {last_error}"
         )
@@ -447,19 +441,23 @@ def _prepare_batches(job_spec: JobSpec, workers: int, batch_size: int, resume: b
 
     output_dir = job_spec.paths.output_dir
     gen = Generator(job_spec.scene_config, output_dir, global_seed=job_spec.global_seed)
-    
+
     # Calculate shard plan
     actual_batch_size = (
         min(batch_size, max(1, job_spec.shard_size // workers)) if batch_size == 5 else batch_size
     )
     total_shards = job_spec.get_total_shards(actual_batch_size)
-    
+
     validator = ShardValidator(output_dir)
-    missing_shard_indices = validator.get_missing_shard_indices(
-        num_shards=total_shards,
-        scenes_per_shard=actual_batch_size,
-        total_scenes=job_spec.shard_size
-    ) if resume else list(range(total_shards))
+    missing_shard_indices = (
+        validator.get_missing_shard_indices(
+            num_shards=total_shards,
+            scenes_per_shard=actual_batch_size,
+            total_scenes=job_spec.shard_size,
+        )
+        if resume
+        else list(range(total_shards))
+    )
 
     if not missing_shard_indices:
         return None, actual_batch_size, total_shards
@@ -471,12 +469,12 @@ def _prepare_batches(job_spec: JobSpec, workers: int, batch_size: int, resume: b
             total_scenes=job_spec.shard_size,
             shard_index=shard_idx,
             total_shards=total_shards,
-            exclude_ids=get_completed_scene_ids(output_dir) if resume else set()
+            exclude_ids=get_completed_scene_ids(output_dir) if resume else set(),
         )
         if recipes:
             batch_path = gen.save_recipe_json(recipes, f"recipes_shard_{shard_idx}.json")
             batches.append(batch_path)
-            
+
     return batches, actual_batch_size, total_shards
 
 
@@ -485,7 +483,7 @@ def _run_orchestration_loop(
     batches: list[Path],
     workers: int,
     output_dir: Path,
-    rm: str
+    rm: str,
 ) -> bool:
     """Run the parallel orchestration loop using a worker pool."""
     logger.info(f"Starting orchestration loop with {len(batches)} batches and {workers} workers.")
@@ -502,15 +500,13 @@ def _run_orchestration_loop(
                 path = q.get_nowait()
                 with open(path) as f:
                     batch_recipes = json.load(f)
-                
+
                 logger.debug(f"Worker thread processing batch: {path.name}")
                 for recipe in batch_recipes:
                     m = re.search(r"shard_(\d+)", path.name)
                     shard_idx_str = m.group(1) if m else "0"
-                    
-                    resp = orchestrator.execute_recipe(
-                        recipe, output_dir, rm, sid=shard_idx_str
-                    )
+
+                    resp = orchestrator.execute_recipe(recipe, output_dir, rm, sid=shard_idx_str)
                     if resp.status != ResponseStatus.SUCCESS:
                         console.print(f"[red]Render failed: {resp.message}[/red]")
                         any_failed = True
@@ -527,11 +523,11 @@ def _run_orchestration_loop(
     threads = [threading.Thread(target=worker_thread, daemon=True) for _ in range(workers)]
     for t in threads:
         t.start()
-    
+
     logger.info(f"Waiting for {len(threads)} worker threads to complete...")
     for t in threads:
         t.join()
-        
+
     logger.info("Orchestration loop completed.")
     return any_failed
 

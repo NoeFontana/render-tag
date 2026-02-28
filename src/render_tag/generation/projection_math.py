@@ -56,9 +56,7 @@ def get_opencv_camera_matrix(blender_matrix: Matrix4x4) -> Matrix4x4:
     return blender_matrix @ flip_mat
 
 
-def get_world_normal(
-    world_matrix: Matrix4x4, local_normal: Vector3 | None = None
-) -> Vector3:
+def get_world_normal(world_matrix: Matrix4x4, local_normal: Vector3 | None = None) -> Vector3:
     """
     Transforms a local normal vector to world space using a 4x4 transformation matrix.
     """

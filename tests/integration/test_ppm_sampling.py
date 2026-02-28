@@ -14,15 +14,14 @@ def test_ppm_sampling_enforcement(tmp_path):
     config = GenConfig()
     config.tag.family = "tag36h11"
     config.tag.size_meters = 0.16
-    
+
     # Ensure polymorphic subject is also updated (Staff Engineer sync pattern)
     from render_tag.core.schema.subject import TagSubjectConfig
+
     config.scenario.subject.root = TagSubjectConfig(
-        tag_families=["tag36h11"],
-        size_meters=0.16,
-        tags_per_scene=1
+        tag_families=["tag36h11"], size_meters=0.16, tags_per_scene=1
     )
-    
+
     config.camera.resolution = (1280, 720)
     config.camera.fov = 60.0
     config.camera.samples_per_scene = 1
@@ -42,14 +41,17 @@ def test_ppm_sampling_enforcement(tmp_path):
     f_px = 1280 / (2.0 * np.tan(np.radians(60.0 / 2.0)))
 
     for i, recipe in enumerate(recipes):
-        # In our simple test, we have exactly one tag at [0,0,0] (or near it)
-        # and one camera.
+        # In our simple test, we have exactly one tag and one camera.
         cam = recipe.cameras[0]
-        # Distance from camera to origin
+        # Find the tag
+        tag = next(obj for obj in recipe.objects if obj.type == "TAG")
+
+        # Distance from camera to tag center
         cam_pos = np.array(
             [cam.transform_matrix[0][3], cam.transform_matrix[1][3], cam.transform_matrix[2][3]]
         )
-        dist = np.linalg.norm(cam_pos)
+        tag_pos = np.array(tag.location)
+        dist = np.linalg.norm(cam_pos - tag_pos)
 
         # Calculate actual PPM using black border size
         # tag36h11 has 8x8 grid. Default margin is 1 bit. Total bits = 10.
@@ -61,7 +63,6 @@ def test_ppm_sampling_enforcement(tmp_path):
             focal_length_px=f_px,
             tag_grid_size=grid_size,
         )
-
         # Should be within [10, 20] range (allowing for small tolerance due to facing angle etc)
         # Note: PPM formula uses direct distance.
         assert actual_ppm >= 9.9, f"Scene {i}: PPM {actual_ppm} too low (min 10.0)"
@@ -73,14 +74,13 @@ def test_ppm_takes_precedence(tmp_path):
     config = GenConfig()
     config.tag.family = "tag36h11"
     config.tag.size_meters = 0.16
-    
+
     from render_tag.core.schema.subject import TagSubjectConfig
+
     config.scenario.subject.root = TagSubjectConfig(
-        tag_families=["tag36h11"],
-        size_meters=0.16,
-        tags_per_scene=1
+        tag_families=["tag36h11"], size_meters=0.16, tags_per_scene=1
     )
-    
+
     config.camera.resolution = (1280, 720)
     config.camera.fov = 60.0
 

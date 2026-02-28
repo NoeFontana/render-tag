@@ -204,13 +204,13 @@ class RenderFacade:
                 tag_obj.blender_obj.pass_index = props["tag_id"] + 1
                 tag_obj.set_location(location)
                 tag_obj.set_rotation_euler(rotation)
-                
+
                 # Attach metadata
                 if keypoints_3d:
                     tag_obj.blender_obj["keypoints_3d"] = keypoints_3d
                 tag_obj.blender_obj["tag_id"] = props["tag_id"]
                 tag_obj.blender_obj["tag_family"] = props["tag_family"]
-                
+
                 tag_objects.append(tag_obj)
 
             elif obj_type == "BOARD":
@@ -222,7 +222,7 @@ class RenderFacade:
                     width = scale[0]
                     height = scale[1]
                     # Note: compiler.py currently sets scale=[1,1,1] and expects create_board_plane
-                    # to handle dimensions via width/height params. 
+                    # to handle dimensions via width/height params.
                     # We'll stick to compiler's logic for now.
                     if isinstance(board_cfg, dict):
                         cols, rows = board_cfg.get("cols"), board_cfg.get("rows")
@@ -257,7 +257,7 @@ class RenderFacade:
 
                 if keypoints_3d:
                     board_obj.blender_obj["keypoints_3d"] = keypoints_3d
-                
+
                 tag_objects.append(board_obj)
         return tag_objects
 
@@ -342,9 +342,7 @@ def execute_recipe(
             renderer, cam_idx, cam_recipe, recipe, ctx, scene_logger, provenance, res
         )
 
-        _extract_and_save_ground_truth(
-            tag_objects, image_name, coco_img_id, res, ctx, scene_logger
-        )
+        _extract_and_save_ground_truth(tag_objects, image_name, coco_img_id, res, ctx, scene_logger)
 
         scene_logger.info(
             f"Scene {scene_idx} progress: {cam_idx + 1}/{len(cam_recipes)}",
@@ -383,7 +381,7 @@ def _setup_scene(recipe: dict, ctx: RenderContext, scene_logger) -> tuple[Render
         family = tag.blender_obj.get("tag_family")
         if family:
             ctx.coco_writer.add_category(family)
-            
+
     return renderer, tag_objects
 
 
@@ -395,7 +393,7 @@ def _render_camera_and_save(
     ctx: RenderContext,
     scene_logger,
     provenance: dict,
-    res: list[int]
+    res: list[int],
 ) -> tuple[int, str]:
     """Render a single camera view and save artifacts (image, sidecar)."""
     scene_idx = recipe["scene_id"]
@@ -422,9 +420,7 @@ def _render_camera_and_save(
 
     img_array = render_out.get("img")
     if img_array is not None and bridge.np.asarray(img_array).size > 0:
-        Image.fromarray(bridge.np.asarray(img_array).astype(bridge.np.uint8)).save(
-            str(image_path)
-        )
+        Image.fromarray(bridge.np.asarray(img_array).astype(bridge.np.uint8)).save(str(image_path))
 
     ctx.sidecar_writer.write_sidecar(image_name, provenance)
     coco_img_id = ctx.coco_writer.add_image(f"images/{image_path.name}", res[0], res[1])
@@ -432,7 +428,7 @@ def _render_camera_and_save(
     # Force subframe update for motion blur / consistency if needed
     bridge.bpy.context.scene.frame_set(0, subframe=0.5)
     bridge.bpy.context.view_layer.update()
-    
+
     return coco_img_id, image_name
 
 
@@ -442,7 +438,7 @@ def _extract_and_save_ground_truth(
     coco_img_id: int,
     res: list[int],
     ctx: RenderContext,
-    scene_logger
+    scene_logger,
 ):
     """Project objects to image space and save detection records."""
     all_detections: list[DetectionRecord] = []

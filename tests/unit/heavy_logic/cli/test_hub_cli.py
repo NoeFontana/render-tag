@@ -75,17 +75,14 @@ class TestHubManager(unittest.TestCase):
                 "ppm": 25.0,
                 "position": [0.0, 0.0, 1.5],
                 "rotation_quaternion": [1.0, 0.0, 0.0, 0.0],
-                "metadata": {}
+                "metadata": {},
             }
         ]
         with open(rich_truth_path, "w") as f:
             json.dump(rich_truth_data, f)
-            
+
         # Overwrite the existing _meta.json with new recipe snapshot structure (no detections)
-        self.meta_data = {
-            "git_hash": "deadbeef",
-            "recipe_snapshot": {"scene_id": 1}
-        }
+        self.meta_data = {"git_hash": "deadbeef", "recipe_snapshot": {"scene_id": 1}}
         with open(self.meta_path, "w") as f:
             json.dump(self.meta_data, f)
 
