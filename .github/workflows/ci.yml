@@ -42,3 +42,15 @@ jobs:
           
       - name: Install Dependencies
         run: uv sync --all-groups
+
+      - name: Check Formatting (Ruff)
+        run: uv run ruff format --check .
+
+      - name: Lint Code (Ruff)
+        run: uv run ruff check .
+
+      - name: Enforce Architecture Layers (Import Linter)
+        run: uv run render-tag lint-arch
+
+      - name: Static Type Checking (Ty)
+        run: uv run ty check
