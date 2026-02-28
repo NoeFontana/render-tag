@@ -1,4 +1,4 @@
-# Track release_script_20260228 Context
+# Track automated_release_pipeline_20260228 Context
 
 - [Specification](./spec.md)
 - [Implementation Plan](./plan.md)
