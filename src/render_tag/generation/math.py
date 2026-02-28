@@ -26,11 +26,12 @@ def compute_polygon_area(points: np.ndarray) -> float:
     Returns:
         Area of the polygon.
     """
-    if len(points) < 3:
+    pts = np.asarray(points)
+    if len(pts) < 3:
         return 0.0
 
-    x = points[:, 0]
-    y = points[:, 1]
+    x = pts[:, 0]
+    y = pts[:, 1]
 
     # Shoelace formula: 0.5 * |sum(x_i * y_{i+1} - x_{i+1} * y_i)|
     area = 0.5 * np.abs(np.dot(x, np.roll(y, -1)) - np.dot(y, np.roll(x, -1)))

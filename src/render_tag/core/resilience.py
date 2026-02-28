@@ -53,7 +53,7 @@ def retry_with_backoff(
                     if attempt == retries:
                         logger.error(
                             "Operation failed after retries",
-                            operation=func.__name__,
+                            operation=getattr(func, "__name__", str(func)),
                             attempts=retries + 1,
                             error=str(e),
                         )
@@ -66,7 +66,7 @@ def retry_with_backoff(
 
                     logger.warning(
                         "Operation failed, retrying",
-                        operation=func.__name__,
+                        operation=getattr(func, "__name__", str(func)),
                         attempt=attempt + 1,
                         max_retries=retries,
                         retry_delay=f"{sleep_time:.2f}s",

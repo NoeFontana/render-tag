@@ -11,8 +11,9 @@ def test_flying_tag_orientation():
     config.scenario.flying = True
     # Staff Engineer: Force 1 tag to ensure unambiguous target-to-camera check
     from render_tag.core.schema.subject import TagSubjectConfig
+
     config.scenario.subject.root = TagSubjectConfig(tags_per_scene=1)
-    
+
     config.camera.samples_per_scene = 5
     config.dataset.num_scenes = 2
 

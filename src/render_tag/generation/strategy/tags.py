@@ -182,7 +182,7 @@ class TagStrategy(SubjectStrategy):
                     )
                 )
 
-            # Staff Engineer: Apply a small random offset to the entire group to avoid centering bias
+            # Staff Engineer: Apply random offset to the group to avoid centering bias.
             # Skip this for sweep modes to maintain the geometric contract (distance/angle)
             if scenario.sampling_mode == "random":
                 offset_radius = gen_config.physics.scatter_radius * 0.5

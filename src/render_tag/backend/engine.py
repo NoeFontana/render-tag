@@ -308,10 +308,15 @@ def execute_recipe(
     seed: int | None = None,
 ) -> None:
     """Execute a single scene recipe using the RenderContext."""
+    # Staff Engineer: Normalize input to dictionary for uniform processing
     if hasattr(recipe, "model_dump"):
-        recipe = recipe.model_dump()
+        # Pydantic model
+        recipe_dict: Any = recipe.model_dump()  # type: ignore
+    else:
+        # Already a dict
+        recipe_dict = recipe  # type: ignore
 
-    scene_idx = recipe["scene_id"]
+    scene_idx = recipe_dict["scene_id"]
 
     # 1. Setup Context-Aware Logger
     base_logger = ctx.logger or logger
@@ -321,18 +326,18 @@ def execute_recipe(
     scene_logger.info(f"--- Executing Scene {scene_idx} ---")
 
     # 2. Setup Scene
-    renderer, tag_objects = _setup_scene(recipe, ctx, scene_logger)
+    renderer, tag_objects = _setup_scene(recipe_dict, ctx, scene_logger)
 
-    cam_recipes = recipe["cameras"]
+    cam_recipes = recipe_dict["cameras"]
     res = cam_recipes[0]["intrinsics"].get("resolution", [640, 480])
 
     provenance = {
         "git_hash": get_git_hash(),
         "timestamp": datetime.now(UTC).isoformat(),
-        "recipe_snapshot": recipe,
+        "recipe_snapshot": recipe_dict,
         "seeds": {
             "global_seed": ctx.global_seed,
-            "scene_seed": recipe.get("random_seed", 0),
+            "scene_seed": recipe_dict.get("random_seed", 0),
         },
     }
 

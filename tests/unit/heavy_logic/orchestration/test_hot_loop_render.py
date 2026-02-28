@@ -66,6 +66,7 @@ def test_hot_loop_render_command(tmp_path, port_generator, stabilized_bridge):
     resp = server._handle_command(cmd_render)
 
     assert resp.status == ResponseStatus.SUCCESS
+    assert resp.message is not None
     assert "Rendered scene 42" in resp.message
 
     # Verify output exists immediately (no race condition)

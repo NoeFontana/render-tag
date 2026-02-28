@@ -217,6 +217,8 @@ class SceneCompiler:
         from .projection_math import solve_distance_for_ppm
 
         camera_config = self.config.camera
+        if not camera_config.ppm_constraint:
+            return None
 
         f_px = camera_config.resolution[0] / (2.0 * np.tan(np.radians(camera_config.fov) / 2.0))
         target_ppm = np_rng.uniform(
@@ -250,7 +252,8 @@ class SceneCompiler:
         camera_config = self.config.camera
         scenario = self.config.scenario
 
-        # Staff Engineer: Use target tag location as look-at point in random mode to ensure visibility.
+        # Staff Engineer: Use target tag location as look-at point in random mode to
+        # ensure visibility.
         # In sweep modes, we look at the origin [0,0,0] to maintain the geometric contract
         # relative to the center of the world.
         if scenario.sampling_mode == "random" and target_tag:
@@ -370,9 +373,10 @@ class SceneCompiler:
             if scenario.sampling_mode == "random" and camera_config.ppm_constraint and target_tag:
                 dist_override = self._calculate_ppm_distance(target_tag, np_rng)
                 # Ensure PPM distance respects configured bounds
-                dist_override = np.clip(
-                    dist_override, camera_config.min_distance, camera_config.max_distance
-                )
+                if dist_override is not None:
+                    dist_override = np.clip(
+                        dist_override, camera_config.min_distance, camera_config.max_distance
+                    )
 
             pose = self._sample_single_pose(np_rng, dist_override, elev_override, target_tag)
 

@@ -182,7 +182,7 @@ def run(
                 ephemeral=True,
                 max_renders_per_worker=len(recipes),
                 mock=(renderer_mode == "mock"),
-                seed=variant.config.seed,
+                seed=variant.config.dataset.seed,
             ) as orchestrator:
                 orchestrator.start(shard_id=f"exp_{variant.variant_id}")
 
