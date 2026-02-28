@@ -22,15 +22,16 @@ class BoardType(Enum):
 
 class BoardFrameConstants:
     """Constants for the Canonical Board Coordinate System.
-    
+
     Standardized for Computer Vision (CV) compatibility:
     - Origin (0,0,0) is at the TOP-LEFT corner of the board.
     - X-axis increases from LEFT to RIGHT (Columns 0 to C).
     - Y-axis decreases from TOP to BOTTOM (Rows 0 to R) in Blender local space.
     """
+
     ROW_ORIGIN_TOP = True  # Row 0 is at the top (+Y)
     COL_ORIGIN_LEFT = True  # Col 0 is at the left (-X)
-    Y_DOWN = True           # Moving from Row 0 to Row R decreases Y
+    Y_DOWN = True  # Moving from Row 0 to Row R decreases Y
 
 
 @dataclass

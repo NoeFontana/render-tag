@@ -68,13 +68,13 @@ def apply_grid_layout(
         grid_width = (grid_cols - 1) * cell_size
         grid_height = (grid_rows - 1) * cell_size
         start_x = -grid_width / 2
-        start_y = +grid_height / 2 # CV-Standard: Start at top
+        start_y = +grid_height / 2  # CV-Standard: Start at top
 
         for i, obj in enumerate(objects):
             col, row = i % grid_cols, i // grid_cols
             obj.location = [
                 start_x + col * cell_size,
-                start_y - row * cell_size, # Move down for subsequent rows
+                start_y - row * cell_size,  # Move down for subsequent rows
                 0.001,
             ]
 

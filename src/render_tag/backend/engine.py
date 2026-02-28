@@ -211,7 +211,7 @@ class RenderFacade:
                 tag_obj.blender_obj["tag_id"] = props["tag_id"]
                 tag_obj.blender_obj["tag_family"] = props["tag_family"]
                 tag_obj.blender_obj["type"] = "TAG"
-                
+
                 tag_objects.append(tag_obj)
 
             elif obj_type == "BOARD":
@@ -243,6 +243,7 @@ class RenderFacade:
                     )
                     board_obj.blender_obj["tag_family"] = "calibration_board"
                     import json
+
                     board_obj.blender_obj["board"] = json.dumps(board_cfg)
                     board_obj.blender_obj["type"] = "BOARD"
                 else:
@@ -368,7 +369,9 @@ def execute_recipe(
     scene_logger.info(f"✓ Rendered scene {scene_idx}")
 
 
-def _setup_scene(recipe: dict, ctx: RenderContext, scene_logger) -> tuple[RenderFacade, list]:
+def _setup_scene(
+    recipe: dict[str, Any], ctx: RenderContext, scene_logger: Any
+) -> tuple[RenderFacade, list[Any]]:
     """Initialize renderer, world, and spawn objects."""
     # All randomness is now resolved on the host side (Compiler).
     bridge.bpy.context.scene.cycles.use_animated_seed = False
@@ -397,15 +400,15 @@ def _setup_scene(recipe: dict, ctx: RenderContext, scene_logger) -> tuple[Render
 def _render_camera_and_save(
     renderer: RenderFacade,
     cam_idx: int,
-    cam_recipe: dict,
-    recipe: dict,
+    cam_recipe: dict[str, Any],
+    recipe: dict[str, Any],
     ctx: RenderContext,
-    scene_logger,
-    provenance: dict,
+    scene_logger: Any,
+    provenance: dict[str, Any],
     res: list[int],
 ) -> tuple[int, str]:
     """Render a single camera view and save artifacts (image, sidecar)."""
-    scene_idx = recipe["scene_id"]
+    scene_idx = int(recipe["scene_id"])
     start_time = time.time()
     render_out = renderer.render_camera(cam_recipe)
     render_time = time.time() - start_time
@@ -442,13 +445,13 @@ def _render_camera_and_save(
 
 
 def _extract_and_save_ground_truth(
-    tag_objects: list,
+    tag_objects: list[Any],
     image_name: str,
     coco_img_id: int,
     res: list[int],
     ctx: RenderContext,
-    scene_logger,
-):
+    scene_logger: Any,
+) -> None:
     """Project objects to image space and save detection records."""
     all_detections: list[DetectionRecord] = []
     if ctx.skip_visibility:
@@ -458,6 +461,7 @@ def _extract_and_save_ground_truth(
                 # STAFF ENGINEER: Even in skip_visibility mode, we want
                 # high-granularity records for boards if possible.
                 from render_tag.backend.projection import generate_board_records
+
                 all_detections.extend(
                     generate_board_records(obj, image_name, skip_visibility=ctx.skip_visibility)
                 )
@@ -465,9 +469,14 @@ def _extract_and_save_ground_truth(
                 all_detections.append(
                     DetectionRecord(
                         image_id=image_name,
-                        tag_id=obj.blender_obj.get("tag_id", 0),
-                        tag_family=obj.blender_obj.get("tag_family", "unknown"),
-                        corners=[[0, 0], [res[0], 0], [res[0], res[1]], [0, res[1]]],
+                        tag_id=int(obj.blender_obj.get("tag_id", 0)),
+                        tag_family=str(obj.blender_obj.get("tag_family", "unknown")),
+                        corners=[
+                            (0.0, 0.0),
+                            (float(res[0]), 0.0),
+                            (float(res[0]), float(res[1])),
+                            (0.0, float(res[1])),
+                        ],
                         distance=0.0,
                         angle_of_incidence=0.0,
                     )
