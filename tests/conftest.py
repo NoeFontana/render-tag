@@ -2,95 +2,141 @@
 Pytest configuration for render-tag.
 
 This file sets up the test environment by injecting mocks for Blender modules
-BEFORE any tests run or imports happen.
+BEFORE any tests run or imports happen. It also provides fixtures for
+orchestration cleanup and bridge stabilization.
 """
 
+from __future__ import annotations
+
+import os
+import socket
 import sys
+from collections.abc import Callable, Generator
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
-# Add src to pythonpath so we can import modules under test
-src_path = Path(__file__).parent.parent / "src"
-if str(src_path) not in sys.path:
-    sys.path.insert(0, str(src_path))
+if TYPE_CHECKING:
+    from _pytest.config import Config
+    from _pytest.main import Session
+    from _pytest.nodes import Item
 
-# --- MOCK INJECTION START ---
-# We must inject mocks BEFORE any test collection happens,
-# because test files import modules that import blenderproc.
+# --- PATH & MOCK INJECTION ---
+# We must inject mocks BEFORE any test collection happens, because many
+# modules under test import bpy or blenderproc at the module level.
 
-# Import our mocks
-# Add root to sys.path to find 'tests'
-sys.path.append(str(Path(__file__).parent.parent))
-from render_tag.backend.mocks import (  # noqa: E402
-    blender_api,
-    blenderproc_api,
-    mathutils_api,
-)
+# 1. Resolve project structure
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+SRC_PATH = PROJECT_ROOT / "src"
 
-# Inject them into sys.modules
-sys.modules["bpy"] = blender_api
-sys.modules["blenderproc"] = blenderproc_api
-sys.modules["mathutils"] = mathutils_api
-# --- MOCK INJECTION END ---
+# 2. Add src and root to sys.path
+# 'src' for the modules under test, 'root' for potential test-to-test imports
+for path in [SRC_PATH, PROJECT_ROOT]:
+    if str(path) not in sys.path:
+        sys.path.insert(0, str(path))
+
+def _inject_blender_mocks() -> None:
+    """Inject our custom mocks into sys.modules to satisfy Blender dependencies."""
+    try:
+        # Import the mock modules from the codebase
+        from render_tag.backend.mocks import (
+            blender_api,
+            blenderproc_api,
+            mathutils_api,
+        )
+
+        # Map them to the names expected by external libraries
+        sys.modules["bpy"] = blender_api
+        sys.modules["blenderproc"] = blenderproc_api
+        sys.modules["mathutils"] = mathutils_api
+    except ImportError as e:
+        # Fallback for edge cases where src/ is not yet fully available
+        print(f"Warning: Failed to inject Blender mocks: {e}", file=sys.stderr)
+
+# Execute immediately during conftest collection
+_inject_blender_mocks()
 
 
-def pytest_configure(config):
-    """Custom configuration for pytest."""
-    # Redirect all temporary test data to output/test_results (gitignored)
-    project_root = Path(__file__).parent.parent
-    test_results_dir = project_dir = project_root / "output" / "test_results"
+def pytest_configure(config: Config) -> None:
+    """
+    Custom configuration for pytest.
+    
+    Ensures test outputs are localized to output/test_results and handles
+    worker isolation for pytest-xdist.
+    """
+    test_results_dir = PROJECT_ROOT / "output" / "test_results"
     test_results_dir.mkdir(parents=True, exist_ok=True)
     
-    # basetemp is the root for all tmp_path fixtures
-    # In pytest-xdist, each worker might try to create this.
-    # We should use a worker-specific temp dir if xdist is present, 
-    # but for now let's just make it robust.
-    config.option.basetemp = str(test_results_dir)
+    # Configure basetemp for all tmp_path fixtures.
+    # In xdist, workers must have unique temp directories.
+    worker_id = os.environ.get("PYTEST_XDIST_WORKER")
+    if worker_id is not None:
+        config.option.basetemp = str(test_results_dir / worker_id)
+    else:
+        config.option.basetemp = str(test_results_dir)
+
+
+def pytest_collection_modifyitems(session: Session, config: Config, items: list[Item]) -> None:
+    """
+    Modify collected test items.
+    
+    Groups integration tests using the xdist_group marker to ensure they run
+    on a single worker (serially), preventing memory exhaustion from multiple
+    Blender/Subprocess instances.
+    """
+    for item in items:
+        # Group integration tests by location or marker
+        is_integration = "integration" in str(item.fspath) or item.get_closest_marker("integration")
+        if is_integration:
+            item.add_marker(pytest.mark.xdist_group(name="serial_integration"))
 
 
 @pytest.fixture(autouse=True)
-def cleanup_orchestrators():
+def cleanup_orchestrators() -> Generator[None, None, None]:
     """Ensure all orchestrators and workers are cleaned up after each test."""
     yield
+    # Late import to prevent circular dependency issues during collection
     from render_tag.orchestration.orchestrator import UnifiedWorkerOrchestrator
     UnifiedWorkerOrchestrator.cleanup_all()
 
 
 @pytest.fixture(scope="session", autouse=True)
-def stabilized_bridge():
+def stabilized_bridge() -> Any:
     """
     Ensure BlenderBridge is stabilized for all tests.
-    Autouse session fixture to avoid redundant stabilize() calls.
+    
+    Autouse session fixture to avoid redundant stabilize() calls across tests.
     """
     import numpy as np
 
     from render_tag.backend.bridge import bridge
+    
     bridge.np = np
     bridge.stabilize()
     return bridge
 
+
 @pytest.fixture
-def port_generator():
+def port_generator() -> Callable[[], int]:
     """
-    Provides a unique, available port for each test.
-    Helps avoid collisions in parallel execution.
-    """
-    import random
-    import socket
+    Provides a factory for finding available ephemeral ports.
     
-    def _find_free_port():
-        while True:
-            port = random.randint(20000, 30000)
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                if s.connect_ex(("127.0.0.1", port)) != 0:
-                    return port
+    Used to prevent port collisions when tests spin up independent ZMQ workers.
+    """
+    def _find_free_port() -> int:
+        """Find an available port using the OS ephemeral port range."""
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind(("", 0))
+            return int(s.getsockname()[1])
+            
     return _find_free_port
 
+
 @pytest.fixture(scope="session")
-def mock_blender_environment():
+def mock_blender_environment() -> None:
     """
-    Fixture to ensure mocks are present (redundant but explicit).
+    Fixture ensuring Blender mocks are active (redundant but explicit).
     """
-    # Already done at top level
-    yield
+    # Injection handled at module level, this fixture is for explicit test dependency.
+    pass
