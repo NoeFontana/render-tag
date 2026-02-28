@@ -98,24 +98,24 @@ class SchemaMigrator:
                 if "tag_families" in scenario or "tags_per_scene" in scenario:
                     tag_families = scenario.pop("tag_families", ["tag36h11"])
                     tags_per_scene = scenario.pop("tags_per_scene", 10)
-                    
+
                     # Handle legacy [min, max] tuple often used in early locus-tag configs
                     if isinstance(tags_per_scene, (list, tuple)) and len(tags_per_scene) > 0:
                         tags_per_scene = tags_per_scene[-1]
-                    
+
                     # Override base size if specific tag_size was provided in scenario
                     actual_tag_size = scenario.pop("tag_size", base_tag_size)
-                    
+
                     scenario["subject"] = {
                         "type": "TAGS",
                         "tag_families": tag_families,
                         "size_meters": actual_tag_size,
-                        "tags_per_scene": tags_per_scene
+                        "tags_per_scene": tags_per_scene,
                     }
-                
+
                 # Detect legacy Board config
                 elif scenario.get("layout") == "board" or "board" in scenario:
-                    # Boards usually had explicit sizes, but we'll let ScenarioConfig handle defaults
+                    # Let ScenarioConfig handle defaults
                     pass
 
         return upgraded
