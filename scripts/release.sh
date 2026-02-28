@@ -12,12 +12,21 @@ NEW_VERSION=$(uvx hatch version)
 NEW_TAG="v${NEW_VERSION}"
 echo "New version is $NEW_VERSION"
 
-# Identify baseline tag
+# Identify baseline tag (latest reachable tag)
 BASELINE_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+
+if [ -z "$BASELINE_TAG" ]; then
+    # Fallback: check if ANY tags exist, even if unreachable
+    LATEST_ANY_TAG=$(git tag --sort=-v:refname | head -n 1)
+    if [ -n "$LATEST_ANY_TAG" ]; then
+        echo "Warning: Latest tag $LATEST_ANY_TAG is not reachable from current HEAD."
+        echo "Changelog might contain duplicate entries."
+    fi
+fi
 
 echo "Extracting git notes..."
 if [ -z "$BASELINE_TAG" ]; then
-    echo "No previous tags found. Collecting notes from all commits."
+    echo "No reachable baseline tag found. Collecting notes from all commits."
     COMMITS=$(git log --format="%H")
 else
     echo "Baseline tag is $BASELINE_TAG. Collecting notes since then."
