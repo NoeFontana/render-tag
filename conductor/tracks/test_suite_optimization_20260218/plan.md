@@ -16,3 +16,6 @@
 - [x] Task: Staff Engineer - Fix critical session-killing bug in `PersistentWorkerProcess.stop` (safety check for `os.killpg(0)`).
 - [x] Task: Staff Engineer - Standardize `Command` and `Response` schemas across all tests (fix Pydantic `ValidationError`s).
 - [x] Task: Conductor - User Manual Verification 'Phase 3: Stability & Final Polish' (Protocol in workflow.md)
+
+## Phase: Review Fixes
+- [x] Task: Apply review suggestions 0348e79
