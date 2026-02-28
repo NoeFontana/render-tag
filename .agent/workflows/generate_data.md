@@ -21,7 +21,7 @@ This workflow implements the fast iteration loop described in AGENTS.md.
 3.  **Visualize (Shadow Render)**
     Create 2D visualizations of the recipes to verify logic without full 3D rendering.
     ```bash
-    uv run render-tag viz-recipe --recipe output/dev/scene_recipes.json --output output/dev/viz
+    uv run render-tag viz recipe --recipe output/dev/scene_recipes.json --output output/dev/viz
     ```
 
 4.  **Reflect**

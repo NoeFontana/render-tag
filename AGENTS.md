@@ -33,7 +33,7 @@ Do not wait for 3D renders. Use the **Shadow Render** loop.
     ```
 3.  **Visual Feedback**:
     ```bash
-    uv run render-tag viz-recipe --recipe output/test/scene_recipes.json --output output/test/viz
+    uv run render-tag viz recipe --recipe output/test/scene_recipes.json --output output/test/viz
     ```
 4.  **Optimize**: Refine math based on 2D PNG outputs.
 
