@@ -1,8 +1,0 @@
-{
-  "track_id": "hf_asset_migration_20260212",
-  "type": "feature",
-  "status": "new",
-  "created_at": "2026-02-12T14:30:00Z",
-  "updated_at": "2026-02-12T14:30:00Z",
-  "description": "Migrate binary assets from Git to a Hugging Face dataset with on-demand and sync-based retrieval."
-}

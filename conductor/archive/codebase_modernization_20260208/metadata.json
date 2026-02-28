@@ -1,8 +1,0 @@
-{
-  "track_id": "codebase_modernization_20260208",
-  "type": "refactor",
-  "status": "new",
-  "created_at": "2026-02-08T16:00:00Z",
-  "updated_at": "2026-02-08T16:00:00Z",
-  "description": "Refactor core components for standard logging, Pydantic V2 optimization, and RNG isolation."
-}

@@ -1,8 +1,0 @@
-{
-  "track_id": "arch_enforcement_20260213",
-  "type": "feature",
-  "status": "new",
-  "created_at": "2026-02-13T10:00:00Z",
-  "updated_at": "2026-02-13T10:00:00Z",
-  "description": "Enforce architectural boundaries using import-linter to prevent Host/Backend leakage."
-}
