@@ -54,3 +54,9 @@ jobs:
 
       - name: Static Type Checking (Ty)
         run: uv run ty check
+
+      - name: Validate Default Configurations
+        run: uv run render-tag validate-config
+
+      - name: Run Automated Tests (Pytest)
+        run: uv run pytest
