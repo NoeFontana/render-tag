@@ -27,4 +27,4 @@ scenario:
 renderer:
   mode: eevee
   max_samples: 32
-version: '0.1'
+version: '0.2'

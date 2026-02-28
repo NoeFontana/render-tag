@@ -30,4 +30,4 @@ scene:
   renderer: cycles
 physics:
   drop_height: 0.1
-version: '0.1'
+version: '0.2'
