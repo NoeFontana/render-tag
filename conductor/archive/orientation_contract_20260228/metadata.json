@@ -1,8 +1,0 @@
-{
-  "track_id": "orientation_contract_20260228",
-  "type": "feature",
-  "status": "new",
-  "created_at": "2026-02-28T15:00:00Z",
-  "updated_at": "2026-02-28T15:00:00Z",
-  "description": "Establish a strict 3D local-space asset contract to solve orientation loss by anchoring corner order in local 3D coordinates rather than 2D visual heuristics."
-}

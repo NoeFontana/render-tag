@@ -16,6 +16,7 @@ from typing import Any
 from render_tag.backend.bridge import bridge
 from render_tag.core.schema import DetectionRecord
 from render_tag.generation.board import (
+    BoardLayout,
     BoardSpec,
     BoardType,
     compute_aprilgrid_layout,
@@ -136,7 +137,7 @@ def compute_geometric_metadata(tag_obj: Any) -> dict[str, Any]:
     intrinsics = bridge.bproc.camera.get_intrinsics_as_K_matrix()
     f_px = intrinsics[0][0]  # fx
 
-    black_border_size = tag_obj.blender_obj.get("corner_coords", [[0,0],[0.05,0]])[1][0] * 2.0
+    black_border_size = tag_obj.blender_obj.get("corner_coords", [[0, 0], [0.05, 0]])[1][0] * 2.0
 
     ppm = calculate_ppm(
         distance_m=distance,
@@ -263,9 +264,7 @@ def generate_board_records(
     if isinstance(board_data, str):
         board_data = json.loads(board_data)
 
-    config = (
-        BoardConfig.model_validate(board_data) if isinstance(board_data, dict) else board_data
-    )
+    config = BoardConfig.model_validate(board_data) if isinstance(board_data, dict) else board_data
 
     # 1. Recompute Layout
     layout, spec, board_info = _parse_board_config_and_layout(config)
@@ -304,26 +303,30 @@ def generate_board_records(
     return records
 
 
-def _parse_board_config_and_layout(config: Any) -> tuple[Any, BoardSpec, tuple]:
+def _parse_board_config_and_layout(
+    config: Any,
+) -> tuple[BoardLayout, BoardSpec, tuple[str, int, int, float, str]]:
     """Parse board configuration and compute its physical layout."""
-    if not isinstance(config, dict):
-        b_type = config.type
-        rows = config.rows
-        cols = config.cols
-        marker_size = config.marker_size
-        dictionary = config.dictionary
+    if not hasattr(config, "type"):
+        # Dictionary-like access
+        b_type = str(config["type"])
+        rows = int(config["rows"])
+        cols = int(config["cols"])
+        marker_size = float(config["marker_size"])
+        dictionary = str(config["dictionary"])
     else:
-        b_type = config["type"]
-        rows = config["rows"]
-        cols = config["cols"]
-        marker_size = config["marker_size"]
-        dictionary = config["dictionary"]
+        # Object-like access (Pydantic model)
+        b_type = str(config.type)
+        rows = int(config.rows)
+        cols = int(config.cols)
+        marker_size = float(config.marker_size)
+        dictionary = str(config.dictionary)
 
     if b_type == "aprilgrid":
-        if not isinstance(config, dict):
-            spacing_ratio = getattr(config, "spacing_ratio", 0.0)
+        if not hasattr(config, "spacing_ratio"):
+            spacing_ratio = float(config.get("spacing_ratio", 0.0))
         else:
-            spacing_ratio = config.get("spacing_ratio", 0.0)
+            spacing_ratio = float(getattr(config, "spacing_ratio", 0.0))
         square_size = marker_size * (1.0 + spacing_ratio)
         spec = BoardSpec(
             rows=rows,
@@ -334,10 +337,10 @@ def _parse_board_config_and_layout(config: Any) -> tuple[Any, BoardSpec, tuple]:
         )
         layout = compute_aprilgrid_layout(spec)
     else:
-        if not isinstance(config, dict):
-            square_size = getattr(config, "square_size", marker_size)
+        if not hasattr(config, "square_size"):
+            square_size = float(config.get("square_size", marker_size))
         else:
-            square_size = config.get("square_size", marker_size)
+            square_size = float(getattr(config, "square_size", marker_size))
         spec = BoardSpec(
             rows=rows,
             cols=cols,
@@ -350,14 +353,22 @@ def _parse_board_config_and_layout(config: Any) -> tuple[Any, BoardSpec, tuple]:
     return layout, spec, (b_type, rows, cols, marker_size, dictionary)
 
 
-def _get_scene_transformations(board_obj: Any) -> tuple:
+def _get_scene_transformations(
+    board_obj: Any,
+) -> tuple[
+    bridge.np.ndarray,
+    bridge.np.ndarray,
+    bridge.np.ndarray,
+    list[int],
+    tuple[float, float, dict[str, Any]],
+]:
     """Extract world matrices, intrinsics, and compute common metadata."""
     world_matrix = bridge.np.array(board_obj.get_local2world_mat())
     blender_cam_mat = bridge.np.array(bridge.bpy.context.scene.camera.matrix_world)
     k_matrix = bridge.bproc.camera.get_intrinsics_as_K_matrix()
     res = [
-        bridge.bpy.context.scene.render.resolution_x,
-        bridge.bpy.context.scene.render.resolution_y,
+        int(bridge.bpy.context.scene.render.resolution_x),
+        int(bridge.bpy.context.scene.render.resolution_y),
     ]
 
     cam_location = bridge.np.array(bridge.bpy.context.scene.camera.location)
@@ -377,21 +388,18 @@ def _get_scene_transformations(board_obj: Any) -> tuple:
 
 
 def _process_board_tags(
-    layout,
-    marker_size,
-    world_matrix,
-    blender_cam_mat,
-    res,
-    k_matrix,
-    image_id,
-    dictionary,
-    meta,
-    skip_visibility=False,
+    layout: BoardLayout,
+    marker_size: float,
+    world_matrix: bridge.np.ndarray,
+    blender_cam_mat: bridge.np.ndarray,
+    res: list[int],
+    k_matrix: bridge.np.ndarray,
+    image_id: str,
+    dictionary: str,
+    meta: tuple[float, float, dict[str, Any]],
+    skip_visibility: bool = False,
 ) -> list[DetectionRecord]:
-    """Project and create records for all tags in the layout.
-    
-    The layout must be Top-Down (Row 0 at +Y in local space).
-    """
+    """Project and create records for all tags in the layout."""
     distance, angle_deg, pose = meta
     records = []
 
@@ -442,7 +450,7 @@ def _process_board_tags(
         records.append(
             DetectionRecord(
                 image_id=image_id,
-                tag_id=sq.tag_id,
+                tag_id=sq.tag_id if sq.tag_id is not None else 0,
                 tag_family=dictionary,
                 corners=corners_2d,
                 record_type="TAG",
@@ -456,7 +464,16 @@ def _process_board_tags(
 
 
 def _process_board_keypoints(
-    b_type, rows, cols, spec, world_matrix, blender_cam_mat, res, k_matrix, image_id, meta
+    b_type: str,
+    rows: int,
+    cols: int,
+    spec: BoardSpec,
+    world_matrix: bridge.np.ndarray,
+    blender_cam_mat: bridge.np.ndarray,
+    res: list[int],
+    k_matrix: bridge.np.ndarray,
+    image_id: str,
+    meta: tuple[float, float, dict[str, Any]],
 ) -> list[DetectionRecord]:
     """Process extra keypoints (saddle points or corners) for specific board types."""
     distance, angle_deg, pose = meta
@@ -472,12 +489,12 @@ def _process_board_keypoints(
             for c in range(cols - 1):
                 x = start_x + c * spec.square_size
                 y = start_y - r * spec.square_size
-                
+
                 # Project this intersection
                 p_local = bridge.np.array([x, y, 0.0, 1.0])
                 p_world = bridge.np.dot(world_matrix, p_local)
                 p_world = p_world[:3] / p_world[3]
-                
+
                 pixel = project_points(
                     bridge.np.array([p_world]),
                     blender_cam_mat,
@@ -486,7 +503,7 @@ def _process_board_keypoints(
                 )
                 if pixel is None:
                     continue
-                
+
                 records.append(
                     DetectionRecord(
                         image_id=image_id,

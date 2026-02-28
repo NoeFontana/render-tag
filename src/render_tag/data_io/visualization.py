@@ -266,9 +266,9 @@ def _load_detections_from_csv(csv_path: Path) -> dict[str, list[dict]]:
 def _draw_overlay_on_image(img: Image.Image, detections: list[dict]):
     """Draw lime edges, red crosshairs, corner indices and winding arrows."""
     from PIL import ImageFont
-    
+
     draw = ImageDraw.Draw(img)
-    
+
     # Try to load a font, fallback to default
     try:
         font = ImageFont.load_default()
@@ -284,28 +284,36 @@ def _draw_overlay_on_image(img: Image.Image, detections: list[dict]):
                 p2 = corners[(i + 1) % 4]
                 # Edge
                 draw.line([p1, p2], fill="lime", width=2)
-                
+
                 # Winding arrow (cyan) at midpoint
                 mid_x = (p1[0] + p2[0]) / 2
                 mid_y = (p1[1] + p2[1]) / 2
                 # Small directional tick
                 v_x = p2[0] - p1[0]
                 v_y = p2[1] - p1[1]
-                v_len = (v_x**2 + v_y**2)**0.5
+                v_len = (v_x**2 + v_y**2) ** 0.5
                 if v_len > 1e-6:
                     v_x /= v_len
                     v_y /= v_len
                     # Arrow head
                     ah_len = 5
-                    ah_angle = 0.5 # radians
+                    ah_angle = 0.5  # radians
                     # Back vectors
                     b1_x = -v_x * np.cos(ah_angle) + v_y * np.sin(ah_angle)
                     b1_y = -v_x * np.sin(ah_angle) - v_y * np.cos(ah_angle)
                     b2_x = -v_x * np.cos(ah_angle) - v_y * np.sin(ah_angle)
                     b2_y = v_x * np.sin(ah_angle) - v_y * np.cos(ah_angle)
-                    
-                    draw.line([(mid_x, mid_y), (mid_x + b1_x * ah_len, mid_y + b1_y * ah_len)], fill="cyan", width=2)
-                    draw.line([(mid_x, mid_y), (mid_x + b2_x * ah_len, mid_y + b2_y * ah_len)], fill="cyan", width=2)
+
+                    draw.line(
+                        [(mid_x, mid_y), (mid_x + b1_x * ah_len, mid_y + b1_y * ah_len)],
+                        fill="cyan",
+                        width=2,
+                    )
+                    draw.line(
+                        [(mid_x, mid_y), (mid_x + b2_x * ah_len, mid_y + b2_y * ah_len)],
+                        fill="cyan",
+                        width=2,
+                    )
 
         # Draw corners (crosshairs for precision) and indices
         for i, corner in enumerate(corners):
@@ -314,7 +322,7 @@ def _draw_overlay_on_image(img: Image.Image, detections: list[dict]):
             # Crosshair
             draw.line([(cx - r, cy), (cx + r, cy)], fill="red", width=1)
             draw.line([(cx, cy - r), (cx, cy + r)], fill="red", width=1)
-            
+
             # Index (yellow)
             if font:
                 draw.text((cx + 5, cy + 5), str(i), fill="yellow", font=font)

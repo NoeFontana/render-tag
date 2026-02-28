@@ -7,7 +7,7 @@ that the "Executor" (Blender) or "Shadow Renderer" (Visualization) can consume s
 """
 
 from enum import Enum
-from typing import Any, Self
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 

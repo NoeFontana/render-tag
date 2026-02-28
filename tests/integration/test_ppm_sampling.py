@@ -45,7 +45,7 @@ def test_ppm_sampling_enforcement(tmp_path):
         cam = recipe.cameras[0]
         tag_obj = next((obj for obj in recipe.objects if obj.type == "TAG"), None)
         assert tag_obj is not None, "Expected at least one tag"
-        
+
         # Distance from camera to tag center
         cam_pos = np.array(
             [cam.transform_matrix[0][3], cam.transform_matrix[1][3], cam.transform_matrix[2][3]]

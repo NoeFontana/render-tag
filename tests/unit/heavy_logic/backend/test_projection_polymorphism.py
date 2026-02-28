@@ -75,7 +75,7 @@ def test_generate_subject_records_board(mock_bridge):
         mock_proj.return_value = np.array(
             [[100, 100], [200, 100], [200, 200], [100, 200]] + [[100, 100]] * 9
         )
-        
+
         records = generate_subject_records(mock_obj, "test_img")
 
         assert len(records) == 1
