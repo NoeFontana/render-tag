@@ -1,7 +1,9 @@
-import zmq
+
 import pytest
-from unittest.mock import MagicMock, patch
-from render_tag.orchestration.orchestrator import UnifiedWorkerOrchestrator, OrchestratorConfig
+import zmq
+
+from render_tag.orchestration.orchestrator import OrchestratorConfig, UnifiedWorkerOrchestrator
+
 
 @pytest.mark.timeout(2)
 def test_orchestrator_forces_context_destroy():

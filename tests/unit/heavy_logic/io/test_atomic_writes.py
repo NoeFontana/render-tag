@@ -1,10 +1,11 @@
-import os
 import json
 from pathlib import Path
-from unittest.mock import MagicMock, call, patch, mock_open
+from unittest.mock import mock_open, patch
 
 import pytest
+
 from render_tag.data_io.writers import AtomicWriter, COCOWriter
+
 
 class TestAtomicWriter(AtomicWriter):
     """Concrete implementation for testing mixin."""
@@ -61,9 +62,8 @@ def test_atomic_write_failure_cleanup(tmp_path):
     data = {"a": 1}
     
     # Simulate error during JSON dump
-    with patch("json.dump", side_effect=RuntimeError("Disk full")):
-        with pytest.raises(RuntimeError):
-            writer._write_atomic(target_path, data)
+    with patch("json.dump", side_effect=RuntimeError("Disk full")), pytest.raises(RuntimeError):
+        writer._write_atomic(target_path, data)
             
     # Verify temp file is gone
     assert not temp_path.exists()
