@@ -9,15 +9,9 @@
 - [x] Task: In the script, stage `pyproject.toml` and `CHANGELOG.md`, create a `chore(release)` commit, and create an annotated Git tag. d023ea3
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Local Automation (The Release Script)' (Protocol in workflow.md) 9e71760
 
-## Phase 2: Docker Build and Multi-Tagging
-- [ ] Task: Modify the existing Docker build job to depend on the `build-python` job if the Dockerfile requires the host artifacts (or set up parallel execution if independent).
-- [ ] Task: Configure `docker/metadata-action` to automatically extract the version tag and generate both semantic (e.g., `1.2.3`) and `latest` tags.
-- [ ] Task: Update the `docker/build-push-action` to push the image to `ghcr.io` using the extracted tags.
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Docker Build and Multi-Tagging' (Protocol in workflow.md)
-
-## Phase 3: GitHub Release Publication
-- [ ] Task: Add a `publish-release` job that depends on both `build-python` and the Docker build job.
-- [ ] Task: In `publish-release`, use `actions/download-artifact@v4` to retrieve the built Python wheel and source tarball.
-- [ ] Task: Add a bash step to extract the git notes for the current tag `git notes show HEAD` (with a fallback mechanism).
-- [ ] Task: Use `softprops/action-gh-release@v2` (or GitHub CLI `gh release create`) to publish the release, passing the extracted notes as the body and attaching the downloaded artifacts.
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: GitHub Release Publication' (Protocol in workflow.md)
+## Phase 2: CI/CD Pipeline Modernization (GitHub Actions)
+- [x] Task: Modify `.github/workflows/release.yml`'s event trigger to listen exclusively for pushed Git tags (e.g., `v*`). 7895daa
+- [x] Task: Add a `build-python` job to the workflow to set up the `uv` environment and execute Python build (`uv build`) to compile `.whl` and `.tar.gz` artifacts. a70496e
+- [x] Task: Modify the Docker build job to extract the version string from the tag and apply both semantic and `latest` tags before pushing to GHCR. 11e3b78
+- [x] Task: Add a `publish-release` job dependent on artifact builds. Extract git notes for the pushed tag, create a formal GitHub Release, and attach the compiled Python assets. 11e3b78
+- [ ] Task: Conductor - User Manual Verification 'Phase 2: CI/CD Pipeline Modernization' (Protocol in workflow.md)
