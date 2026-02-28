@@ -56,11 +56,6 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-- [~] **Track: Test Suite Optimization 2026-02-18**
-*Link: [./tracks/test_suite_optimization_20260218/](./tracks/test_suite_optimization_20260218/)*
-
----
-
 - [x] **Track: Automated CI Quality Gates (GitHub Actions)**
 *Link: [./tracks/ci_workflow_20260228/](./tracks/ci_workflow_20260228/)*
 
