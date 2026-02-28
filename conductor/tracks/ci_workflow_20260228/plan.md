@@ -3,8 +3,8 @@
 ## Phase 1: CI Pipeline Scaffolding and Environment Setup
 Goal: Establish the base GitHub Actions workflow with fast dependency resolution and environment isolation.
 
-- [ ] Task: Create the `.github/workflows/ci.yml` file with basic push/PR triggers.
-- [ ] Task: Integrate `astral-sh/setup-uv` to aggressively cache dependencies and setup the project environment.
+- [x] Task: Create the `.github/workflows/ci.yml` file with basic push/PR triggers. c8d2855
+- [x] Task: Integrate `astral-sh/setup-uv` to aggressively cache dependencies and setup the project environment. c8d2855
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: CI Pipeline Scaffolding and Environment Setup' (Protocol in workflow.md)
 
 ## Phase 2: Implementation of Static Quality Gates
