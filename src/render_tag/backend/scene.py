@@ -186,6 +186,7 @@ def create_board(
 
     board.blender_obj.data.materials.clear()
     board.blender_obj.data.materials.append(mat)
+    board.blender_obj["type"] = "BOARD"
     board.enable_rigidbody(active=False)
 
     return board

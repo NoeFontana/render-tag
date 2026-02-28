@@ -120,7 +120,7 @@ class TagStrategy(SubjectStrategy):
             grid_size = TAG_GRID_SIZES.get(family, 8)
             margin_bits = tag_config.margin_bits
             total_bits = grid_size + (2 * margin_bits)
-            
+
             # Local scale factor for the black border relative to the full plane (2x2)
             m = grid_size / total_bits
             kps = [[-m, m, 0.0], [m, m, 0.0], [m, -m, 0.0], [-m, -m, 0.0]]
