@@ -94,7 +94,7 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "UP", "B", "A", "C4", "SIM", "RUF"]
-ignore = ["N803", "N806", "B008"]
+ignore = ["N803", "N806", "B008", "UP040"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["render_tag"]
