@@ -43,14 +43,14 @@ def test_ppm_sampling_enforcement(tmp_path):
     for i, recipe in enumerate(recipes):
         # In our simple test, we have exactly one tag and one camera.
         cam = recipe.cameras[0]
-        # Find the tag
-        tag = next(obj for obj in recipe.objects if obj.type == "TAG")
-
+        tag_obj = next((obj for obj in recipe.objects if obj.type == "TAG"), None)
+        assert tag_obj is not None, "Expected at least one tag"
+        
         # Distance from camera to tag center
         cam_pos = np.array(
             [cam.transform_matrix[0][3], cam.transform_matrix[1][3], cam.transform_matrix[2][3]]
         )
-        tag_pos = np.array(tag.location)
+        tag_pos = np.array(tag_obj.location)
         dist = np.linalg.norm(cam_pos - tag_pos)
 
         # Calculate actual PPM using black border size
@@ -95,10 +95,14 @@ def test_ppm_takes_precedence(tmp_path):
     recipe = compiler.compile_scene(0)
 
     cam = recipe.cameras[0]
+    tag_obj = next((obj for obj in recipe.objects if obj.type == "TAG"), None)
+    assert tag_obj is not None, "Expected at least one tag"
+    tag_pos = np.array(tag_obj.location)
+
     cam_pos = np.array(
         [cam.transform_matrix[0][3], cam.transform_matrix[1][3], cam.transform_matrix[2][3]]
     )
-    dist = np.linalg.norm(cam_pos)
+    dist = np.linalg.norm(cam_pos - tag_pos)
 
     # Distance should be in the 1.1m-2.2m range
     assert 1.0 < dist < 3.0, f"Distance {dist} suggests PPM constraint was ignored or misclamped"

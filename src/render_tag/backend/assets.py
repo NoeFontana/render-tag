@@ -2,6 +2,9 @@
 Asset loading utilities for render-tag.
 
 This module handles creating tag planes with proper texturing and corner tracking.
+All generated assets MUST adhere to the 3D-Anchored Orientation Contract:
+1. Index 0 is Logical Top-Left.
+2. Indices 1-3 follow a Clockwise winding in local 3D space.
 """
 
 from __future__ import annotations
@@ -137,7 +140,8 @@ def create_tag_plane(
     ]
 
     # Store metadata on the object
-    plane.blender_obj["corner_coords"] = corners_local
+    # Orientation Contract: keypoints_3d is the source of truth for ordered keypoints.
+    plane.blender_obj["keypoints_3d"] = corners_local
     plane.blender_obj["tag_id"] = tag_id
     plane.blender_obj["tag_family"] = tag_family
     plane.blender_obj["margin_bits"] = margin_bits
@@ -249,14 +253,19 @@ def apply_default_material(obj: Any) -> None:
 def get_corner_world_coords(tag_obj: Any) -> list[list[float]]:
     """Get the world coordinates of the tag corners.
 
+    Orientation Contract: Prefers 'keypoints_3d' (logical order).
+
     Args:
         tag_obj: The tag mesh object
 
     Returns:
         List of 4 corner coordinates in world space [x, y, z]
     """
-    # Get local corner coordinates from custom property
-    corners_local = tag_obj.blender_obj.get("corner_coords", [])
+    # 1. Get local corner coordinates from custom property
+    # Prefer keypoints_3d (new contract) over corner_coords (legacy)
+    corners_local = tag_obj.blender_obj.get("keypoints_3d")
+    if not corners_local:
+        corners_local = tag_obj.blender_obj.get("corner_coords", [])
 
     if not corners_local:
         # Fallback: compute from default corners

@@ -15,15 +15,16 @@ tag:
   size_meters: 0.1
 scenario:
   layout: plain
-  tag_families:
-  - tag36h11
-  tags_per_scene:
-  - 1
-  - 1
+  subject:
+    type: TAGS
+    tag_families:
+    - tag36h11
+    size_meters: 0.1
+    tags_per_scene: 1
 scene:
   lighting:
     intensity_min: 100
     intensity_max: 100
   background_hdri: null
   texture_dir: null
-version: '0.1'
+version: '0.2'

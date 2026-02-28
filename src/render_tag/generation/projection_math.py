@@ -309,6 +309,40 @@ def calculate_incidence_angle(cam_world_matrix: Matrix4x4, tag_world_matrix: Mat
     return float(np.degrees(angle_rad))
 
 
+def validate_winding_order(corners: list[tuple[float, float]]) -> bool:
+    """
+    Validates that a polygon is purely Clockwise in a Y-down coordinate system.
+    Uses the signed area (Shoelace formula).
+
+    In Y-down:
+    - Positive area = Clockwise
+    - Negative area = Counter-Clockwise
+    - Zero area = Degenerate or self-intersecting (bowtie)
+
+    Args:
+        corners: List of (x, y) tuples.
+
+    Returns:
+        True if Clockwise and non-degenerate.
+    """
+    if len(corners) < 3:
+        return False
+
+    pts = np.array(corners)
+    x = pts[:, 0]
+    y = pts[:, 1]
+
+    # Shoelace formula for signed area
+    # Area = 0.5 * sum(x_i * y_{i+1} - x_{i+1} * y_i)
+    signed_area = 0.5 * (np.dot(x, np.roll(y, -1)) - np.dot(y, np.roll(x, -1)))
+
+    # In Y-down, CW is positive.
+    # We also want to ensure it's not a bowtie.
+    # For 4 points, if it's convex and CW, area is significantly positive.
+    # If it's a bowtie, the signed area will be small (difference of two triangles).
+    return bool(signed_area > 1e-6)
+
+
 def euler_to_matrix(euler: list[float]) -> Matrix3x3:
     """
     Converts XYZ Euler angles (radians) to a 3x3 rotation matrix.

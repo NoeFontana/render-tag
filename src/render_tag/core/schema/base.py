@@ -7,9 +7,9 @@ that the "Executor" (Blender) or "Shadow Renderer" (Visualization) can consume s
 """
 
 from enum import Enum
-from typing import Any
+from typing import Any, Self
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class TagFamily(str, Enum):
@@ -96,6 +96,22 @@ class DetectionRecord(BaseModel):
     tag_id: int
     tag_family: str
     corners: list[tuple[float, float]]  # Standardized as list of tuples
+
+    @field_validator("corners")
+    @classmethod
+    def validate_corners_contract(cls, v: list[tuple[float, float]]) -> list[tuple[float, float]]:
+        """Verify that corners meet the strict geometric contract (CW winding)."""
+        if len(v) != 4:
+            return v  # Other logic (like saddles) might have different counts
+
+        from render_tag.generation.projection_math import validate_winding_order
+
+        if not validate_winding_order(v):
+            raise ValueError(
+                "Detection corners must follow a strictly Clockwise winding order "
+                "(OpenCV Y-down convention)."
+            )
+        return v
 
     # Calibration & Keypoint Support
     record_type: str = Field(default="TAG", description="TAG, CHARUCO_SADDLE, or APRILGRID_CORNER")

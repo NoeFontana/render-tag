@@ -72,8 +72,10 @@ def test_generate_subject_records_board(mock_bridge):
     mock_bridge.bproc.camera.get_intrinsics_as_K_matrix.return_value = np.eye(3)
 
     with patch("render_tag.backend.projection.project_points") as mock_proj:
-        mock_proj.return_value = np.array([[100, 100]] * 13)
-
+        mock_proj.return_value = np.array(
+            [[100, 100], [200, 100], [200, 200], [100, 200]] + [[100, 100]] * 9
+        )
+        
         records = generate_subject_records(mock_obj, "test_img")
 
         assert len(records) == 1
