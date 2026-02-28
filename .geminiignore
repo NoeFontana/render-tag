@@ -14,17 +14,13 @@ dist/
 build/
 *.egg-info/
 site/
-test_output.txt
-test_output_2.txt
-test_output_3.txt
-test_output_4.txt
-test_output_5.txt
-repro_visibility.py
-repro_tags/
-test_output/
-test_verify_fix/
-test_verify_fix_2/
+
+# Local artifacts (avoid root clutter)
 images/
-coco_shard_main.json
-rich_truth_shard_main.json
-tags_shard_main.csv
+coco_shard_*.json
+rich_truth_shard_*.json
+tags_shard_*.csv
+recipes_shard_*.json
+board_config.json
+dataset_info.json
+checksums.json

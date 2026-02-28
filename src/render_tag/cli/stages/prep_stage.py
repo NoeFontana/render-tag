@@ -29,8 +29,21 @@ class PreparationStage(PipelineStage):
         # 1. Assets
         self._ensure_assets(ctx)
 
-        # 2. Sharding / Resuming
+        # 2. Hygiene Check (Don't clutter project root)
+        project_root = Path(__file__).parents[4].resolve()
         ctx.output_dir = ctx.output_dir.resolve()
+
+        if ctx.output_dir == project_root:
+            console.print("[bold yellow]Warning:[/bold yellow] You are attempting to generate data directly into the project root.")
+            console.print("This will clutter the repository with shard files and image directories.")
+            if sys.stdin.isatty():
+                if not typer.confirm("Are you sure you want to continue?", default=False):
+                    raise typer.Exit(code=1)
+            else:
+                # In non-interactive mode, we log but continue for CI/automation safety
+                console.print("[dim]Non-interactive session: continuing with root output.[/dim]")
+
+        # 3. Sharding / Resuming
         ctx.output_dir.mkdir(parents=True, exist_ok=True)
 
         if ctx.shard_index == -1 and ctx.total_shards > 1:
