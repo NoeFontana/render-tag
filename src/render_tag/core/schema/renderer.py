@@ -13,7 +13,7 @@ class RendererConfig(BaseModel):
     mode: Literal["cycles", "eevee", "workbench"] = "cycles"
     samples: int = Field(default=128, ge=1)
     denoising: bool = True
-    
+
     # CV-Safe parameters
     noise_threshold: float = Field(default=0.05, ge=0.0)
     max_samples: int = Field(default=128, ge=1)

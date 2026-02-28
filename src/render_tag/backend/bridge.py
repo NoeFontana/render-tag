@@ -33,6 +33,7 @@ class BlenderBridge:
         # 1. Ensure NumPy is available
         try:
             import numpy as np
+
             self.np = np
         except ImportError:
             pass

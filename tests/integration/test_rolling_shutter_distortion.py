@@ -63,23 +63,22 @@ def test_rolling_shutter_backend_mapping_no_errors(tmp_path, stabilized_bridge):
     """
     output_dir = tmp_path / "out"
     output_dir.mkdir()
-    
+
     # Minimal recipe with rolling shutter
     recipe = {
         "scene_id": 1,
         "renderer": {"mode": "workbench"},
-        "cameras": [{
-            "transform_matrix": [[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]],
-            "intrinsics": {"resolution": [32, 32], "fov": 60.0},
-            "sensor_dynamics": {
-                "rolling_shutter_duration_ms": 5.0,
-                "shutter_time_ms": 10.0
+        "cameras": [
+            {
+                "transform_matrix": [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]],
+                "intrinsics": {"resolution": [32, 32], "fov": 60.0},
+                "sensor_dynamics": {"rolling_shutter_duration_ms": 5.0, "shutter_time_ms": 10.0},
             }
-        }],
+        ],
         "objects": [],
-        "world": {}
+        "world": {},
     }
-    
+
     ctx = RenderContext(
         output_dir=output_dir,
         renderer_mode="workbench",
@@ -88,11 +87,11 @@ def test_rolling_shutter_backend_mapping_no_errors(tmp_path, stabilized_bridge):
         rich_writer=MagicMock(),
         sidecar_writer=MagicMock(),
         global_seed=42,
-        skip_visibility=True
+        skip_visibility=True,
     )
-    
+
     # This verifies that engine.py -> camera.py -> blender mapping works without crash
     execute_recipe(recipe, ctx)
-    
+
     # If we reached here, no crash occurred
     assert (output_dir / "images" / "scene_0001_cam_0000.png").exists()

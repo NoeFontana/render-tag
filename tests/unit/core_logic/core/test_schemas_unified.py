@@ -21,27 +21,31 @@ def test_renderer_config_defaults():
     assert config.max_samples == 128
     assert config.noise_threshold == 0.05
 
+
 def test_board_config_validation():
     # Valid ChArUco
     cfg = BoardConfig(type="charuco", cols=5, rows=7, marker_size=0.03, square_size=0.04)
     assert cfg.marker_size == 0.03
-    
+
     # Missing required for AprilGrid
     with pytest.raises(ValidationError):
         BoardConfig(type="aprilgrid", cols=5)
+
 
 def test_hot_loop_command_validation():
     # Valid
     cmd = Command(command_type=CommandType.INIT, request_id="123")
     assert cmd.request_id == "123"
-    
+
     # Missing request_id
     with pytest.raises(ValidationError):
         Command(command_type=CommandType.INIT)
 
+
 def test_hot_loop_response_validation():
     resp = Response(status=ResponseStatus.SUCCESS, request_id="123")
     assert resp.status == ResponseStatus.SUCCESS
+
 
 def test_telemetry_schema():
     tel = Telemetry(
@@ -52,6 +56,7 @@ def test_telemetry_schema():
         uptime_seconds=100.0,
     )
     assert tel.vram_used_mb == 512.5
+
 
 def test_state_hash_determinism():
     assets = ["a.exr", "b.png"]

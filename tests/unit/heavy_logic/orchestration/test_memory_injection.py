@@ -45,7 +45,7 @@ if __name__ == "__main__":
         blender_executable=sys.executable,
         use_blenderproc=False,
         memory_limit_mb=4096,
-        startup_timeout=5
+        startup_timeout=5,
     )
 
     try:

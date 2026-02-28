@@ -80,7 +80,7 @@ class ZmqHostClient:
             with contextlib.suppress(Exception):
                 self.mgmt_socket.close(linger=0)
             self.mgmt_socket = None
-        
+
         if self.owns_context and self.context:
             with contextlib.suppress(Exception):
                 self.context.term()

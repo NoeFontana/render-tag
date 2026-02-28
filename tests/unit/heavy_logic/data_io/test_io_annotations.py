@@ -31,7 +31,7 @@ def test_normalize_corner_order_default():
     # Implementation currently assumes input is already CW from TL or just maps indices directly.
     # Wait, the implementation is: tl, tr, br, bl = corners[0], corners[1], corners[2], corners[3]
     # So if we want TL to be (0,1), it MUST be at index 0.
-    
+
     corners_ordered = np.array([[0, 1], [1, 1], [1, 0], [0, 0]])
     ordered = normalize_corner_order(corners_ordered)
 
@@ -43,20 +43,20 @@ def test_normalize_corner_order_default():
 
 def test_normalize_corner_order_ccw_bl():
     # Input is already ccw_bl: BL, BR, TR, TL
-    # Wait, the input is BL, BR, TR, TL. 
+    # Wait, the input is BL, BR, TR, TL.
     # normalize_corner_order with target_order="ccw_bl" expects input to be CW from TL?
     # Let's check the implementation.
     # It does: tl, tr, br, bl = corners[0], corners[1], corners[2], corners[3]
     # So it ASSUMES input is TL, TR, BR, BL.
-    
+
     # If input is [0,1], [1,1], [1,0], [0,0] (TL, TR, BR, BL)
     corners = np.array([[0, 1], [1, 1], [1, 0], [0, 0]])
     ordered = normalize_corner_order(corners, target_order="ccw_bl")
 
-    assert ordered[0] == (0.0, 0.0) # BL
-    assert ordered[1] == (1.0, 0.0) # BR
-    assert ordered[2] == (1.0, 1.0) # TR
-    assert ordered[3] == (0.0, 1.0) # TL
+    assert ordered[0] == (0.0, 0.0)  # BL
+    assert ordered[1] == (1.0, 0.0)  # BR
+    assert ordered[2] == (1.0, 1.0)  # TR
+    assert ordered[3] == (0.0, 1.0)  # TL
 
 
 def test_normalize_corner_order_cw_tl():

@@ -1,4 +1,3 @@
-
 from unittest.mock import MagicMock, patch
 
 from render_tag.core.schema.hot_loop import Response, ResponseStatus
@@ -8,7 +7,7 @@ from render_tag.orchestration import UnifiedWorkerOrchestrator
 @patch("render_tag.orchestration.orchestrator.PersistentWorkerProcess")
 def test_unified_orchestrator_ephemeral(mock_worker_cls, tmp_path):
     output_dir = tmp_path / "unified_output"
-    
+
     # Configure mock
     mock_worker = MagicMock()
     mock_worker.worker_id = "worker-0"
@@ -26,8 +25,8 @@ def test_unified_orchestrator_ephemeral(mock_worker_cls, tmp_path):
             "cpu_usage_percent": 10,
             "state_hash": "abc",
             "uptime_seconds": 10,
-            "status": "IDLE"
-        }
+            "status": "IDLE",
+        },
     )
     mock_worker_cls.return_value = mock_worker
 
@@ -57,10 +56,11 @@ def test_unified_orchestrator_ephemeral(mock_worker_cls, tmp_path):
         assert not df.is_empty()
         assert "worker-0" in df["worker_id"].to_list()
 
+
 @patch("render_tag.orchestration.orchestrator.PersistentWorkerProcess")
 def test_unified_orchestrator_persistent(mock_worker_cls, tmp_path):
     output_dir = tmp_path / "unified_persistent"
-    
+
     mock_worker = MagicMock()
     mock_worker.worker_id = "worker-0"
     mock_worker.is_healthy.return_value = True
@@ -76,14 +76,12 @@ def test_unified_orchestrator_persistent(mock_worker_cls, tmp_path):
             "cpu_usage_percent": 10,
             "state_hash": "abc",
             "uptime_seconds": 10,
-            "status": "IDLE"
-        }
+            "status": "IDLE",
+        },
     )
     mock_worker_cls.return_value = mock_worker
 
-    with UnifiedWorkerOrchestrator(
-        num_workers=1, mock=True, ephemeral=False
-    ) as orchestrator:
+    with UnifiedWorkerOrchestrator(num_workers=1, mock=True, ephemeral=False) as orchestrator:
         for i in range(3):
             recipe = {
                 "scene_id": i,
@@ -91,7 +89,12 @@ def test_unified_orchestrator_persistent(mock_worker_cls, tmp_path):
                 "objects": [],
                 "cameras": [
                     {
-                        "transform_matrix": [[1, 0, 0, 0],[0, 1, 0, 0],[0, 0, 1, 2],[0, 0, 0, 1]],
+                        "transform_matrix": [
+                            [1, 0, 0, 0],
+                            [0, 1, 0, 0],
+                            [0, 0, 1, 2],
+                            [0, 0, 0, 1],
+                        ],
                         "intrinsics": {"resolution": [100, 100]},
                     }
                 ],

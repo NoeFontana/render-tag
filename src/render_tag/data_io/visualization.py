@@ -197,6 +197,7 @@ def visualize_dataset(
 def _load_detections_from_coco(coco_path: Path) -> dict[str, list[dict]]:
     """Load and format detections from COCO JSON."""
     import json
+
     detections = {}
     with open(coco_path) as f:
         coco = json.load(f)

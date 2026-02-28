@@ -1,4 +1,3 @@
-
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -13,13 +12,14 @@ def mock_asset_provider():
     # We need to patch AssetProvider in both locations where it's used
     # 1. In compiler.py (for HDRI and backgrounds)
     # 2. In strategy/tags.py (for tag textures)
-    with patch("render_tag.generation.compiler.AssetProvider") as mock_comp, \
-         patch("render_tag.generation.strategy.tags.AssetProvider") as mock_strat:
-        
+    with (
+        patch("render_tag.generation.compiler.AssetProvider") as mock_comp,
+        patch("render_tag.generation.strategy.tags.AssetProvider") as mock_strat,
+    ):
         provider_instance = MagicMock()
         mock_comp.return_value = provider_instance
         mock_strat.return_value = provider_instance
-        
+
         # Default behavior: just return the path as is (simulating local hit)
         provider_instance.resolve_path.side_effect = lambda x: Path("/mock/assets") / x
         yield provider_instance

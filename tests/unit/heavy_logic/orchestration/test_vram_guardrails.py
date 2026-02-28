@@ -7,7 +7,7 @@ from render_tag.orchestration import UnifiedWorkerOrchestrator
 @patch("render_tag.orchestration.orchestrator.PersistentWorkerProcess")
 def test_vram_guardrail_restart(mock_worker_cls, tmp_path):
     """Verify that a worker is restarted if it exceeds VRAM threshold."""
-    
+
     # Setup mock for first worker (high VRAM)
     m1 = MagicMock()
     m1.worker_id = "worker-0"
@@ -26,15 +26,15 @@ def test_vram_guardrail_restart(mock_worker_cls, tmp_path):
             "cpu_usage_percent": 50,
             "status": "IDLE",
             "state_hash": "mock_hash",
-            "uptime_seconds": 123.4
-        }
+            "uptime_seconds": 123.4,
+        },
     )
-    
+
     # Setup mock for second worker (restarted one)
     m2 = MagicMock()
     m2.worker_id = "worker-0"
     m2.is_healthy.return_value = True
-    
+
     mock_worker_cls.side_effect = [m1, m2]
 
     # Start pool with low threshold (1000 MB)
@@ -51,6 +51,6 @@ def test_vram_guardrail_restart(mock_worker_cls, tmp_path):
 
         # Should have called constructor again for restart
         assert mock_worker_cls.call_count == 2
-        
+
         worker_new = pool.get_worker()
         assert worker_new is m2

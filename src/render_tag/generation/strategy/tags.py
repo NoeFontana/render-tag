@@ -1,4 +1,3 @@
-
 """
 Tag Strategy implementation for individual marker generation.
 """
@@ -26,7 +25,7 @@ if TYPE_CHECKING:
 
 class TagStrategy(SubjectStrategy):
     """Strategy for scattering individual fiducial markers in a scene.
-    
+
     This strategy handles the generation of multiple independent tags, applying
     various layout algorithms (e.g., flying, grid) and resolving material
     randomization for each tag instance.
@@ -34,7 +33,7 @@ class TagStrategy(SubjectStrategy):
 
     def __init__(self, config: TagSubjectConfig):
         """Initialize the strategy with specific tag configuration.
-        
+
         Args:
             config: Configuration for the tag subject domain.
         """
@@ -42,7 +41,7 @@ class TagStrategy(SubjectStrategy):
 
     def prepare_assets(self, context: GenerationContext) -> None:
         """Currently, tag textures are generated/resolved per-object if needed.
-        
+
         Future optimization: Pre-generate all unique tags required for the
         job to minimize filesystem I/O during the sampling loop.
 
@@ -53,31 +52,31 @@ class TagStrategy(SubjectStrategy):
 
     def sample_pose(self, seed: int, context: GenerationContext) -> list[ObjectRecipe]:
         """Generate a list of tags with deterministic random poses.
-        
+
         Args:
             seed: Scene-specific random seed.
             context: Shared generation context.
-            
+
         Returns:
             A list of ObjectRecipe instructions for the renderer.
         """
         layout_seed = derive_seed(seed, "layout", 0)
         rng = np.random.default_rng(layout_seed)
-        
+
         gen_config = context.gen_config
         if gen_config is None:
             raise ValueError("gen_config is required in GenerationContext")
-            
+
         tag_config = gen_config.tag
         scenario = gen_config.scenario
-        
+
         num_tags = self.config.tags_per_scene
         tag_size = self.config.size_meters
         tag_families = self.config.tag_families
-        
+
         objects = []
         asset_provider = AssetProvider()
-        
+
         for i in range(num_tags):
             obj_seed = derive_seed(layout_seed, "tag_obj", i)
             obj_rng = np.random.default_rng(obj_seed)
@@ -100,9 +99,7 @@ class TagStrategy(SubjectStrategy):
             # Resolve custom texture base path (for external assets)
             tex_base = None
             if tag_config.texture_path:
-                tex_base = str(
-                    asset_provider.resolve_path(str(tag_config.texture_path)).absolute()
-                )
+                tex_base = str(asset_provider.resolve_path(str(tag_config.texture_path)).absolute())
 
             # Resolve texture path to the local cache directory
             texture_path = None
@@ -160,7 +157,7 @@ class TagStrategy(SubjectStrategy):
                 tag_spacing_bits=self.config.tag_spacing_bits,
                 tag_families=tag_families,
             )
-            
+
             # Optional board background for better visual contrast
             if scenario.use_board:
                 primary_family = tag_families[0]
@@ -185,19 +182,20 @@ class TagStrategy(SubjectStrategy):
                     )
                 )
 
-            # Apply a small random offset to the entire group to avoid centering bias
-            # Uses a fraction of the scatter_radius for non-physics randomization
-            offset_radius = gen_config.physics.scatter_radius * 0.5
-            group_offset = [
-                rng.uniform(-offset_radius, offset_radius),
-                rng.uniform(-offset_radius, offset_radius),
-                0.0
-            ]
-            for obj in objects:
-                obj.location = [
-                    obj.location[0] + group_offset[0],
-                    obj.location[1] + group_offset[1],
-                    obj.location[2] + group_offset[2],
+            # Staff Engineer: Apply a small random offset to the entire group to avoid centering bias
+            # Skip this for sweep modes to maintain the geometric contract (distance/angle)
+            if scenario.sampling_mode == "random":
+                offset_radius = gen_config.physics.scatter_radius * 0.5
+                group_offset = [
+                    rng.uniform(-offset_radius, offset_radius),
+                    rng.uniform(-offset_radius, offset_radius),
+                    0.0,
                 ]
-                
+                for obj in objects:
+                    obj.location = [
+                        obj.location[0] + group_offset[0],
+                        obj.location[1] + group_offset[1],
+                        obj.location[2] + group_offset[2],
+                    ]
+
         return objects

@@ -1,4 +1,3 @@
-
 """
 Deterministic Scene Compiler for render-tag.
 
@@ -53,10 +52,11 @@ class SceneCompiler:
 
         # Initialize Subject Strategy
         self.strategy: SubjectStrategy = get_subject_strategy(self.config.scenario.subject)
-        
+
         # If it's a TagStrategy, we might need to synchronize its config with GenConfig
         # (Though ideally SubjectConfig should already be correct)
         from .strategy.tags import TagStrategy
+
         if isinstance(self.strategy, TagStrategy):
             # Update strategy config to match GenConfig if needed
             # For now, we assume SubjectConfig is the source of truth for the strategy
@@ -64,9 +64,9 @@ class SceneCompiler:
 
         # Prepare assets for the subject once per compiler instance
         from render_tag.cli.pipeline import GenerationContext
+
         ctx = GenerationContext(
-            gen_config=self.config,
-            output_dir=self.output_dir or Path("output")
+            gen_config=self.config, output_dir=self.output_dir or Path("output")
         )
         self.strategy.prepare_assets(ctx)
 
@@ -129,17 +129,17 @@ class SceneCompiler:
 
         # 2. Objects (Agnostic Subject Generation)
         from render_tag.cli.pipeline import GenerationContext
+
         ctx = GenerationContext(
-            gen_config=self.config,
-            output_dir=self.output_dir or Path("output")
+            gen_config=self.config, output_dir=self.output_dir or Path("output")
         )
-        
+
         objects = self.strategy.sample_pose(seed, ctx)
         recipe.objects = objects
 
         # 3. Cameras
         recipe.cameras = self._sample_camera_recipes(scene_id, seed, objects)
-        
+
         return recipe
 
     def _build_world_recipe(self, scene_id: int, seed: int) -> WorldRecipe:
@@ -215,19 +215,19 @@ class SceneCompiler:
     def _calculate_ppm_distance(self, target_tag, np_rng) -> float | None:
         """Calculate override distance for a target PPM."""
         from .projection_math import solve_distance_for_ppm
+
         camera_config = self.config.camera
 
-        f_px = camera_config.resolution[0] / (
-            2.0 * np.tan(np.radians(camera_config.fov) / 2.0)
-        )
+        f_px = camera_config.resolution[0] / (2.0 * np.tan(np.radians(camera_config.fov) / 2.0))
         target_ppm = np_rng.uniform(
             camera_config.ppm_constraint.min, camera_config.ppm_constraint.max
         )
-        
+
         # Use active marker size (black border) for PPM calculation
         tag_size_m = target_tag.properties.get("tag_size", 0.1)
         if target_tag.type == "TAG":
             from render_tag.core.constants import TAG_GRID_SIZES
+
             family = target_tag.properties.get("tag_family", "tag36h11")
             margin_bits = target_tag.properties.get("margin_bits", 0)
             grid_size = TAG_GRID_SIZES.get(family, 8)
@@ -235,7 +235,7 @@ class SceneCompiler:
             tag_size_m = tag_size_m * (grid_size / total_bits)
         elif target_tag.type == "BOARD" and target_tag.board:
             tag_size_m = target_tag.board.marker_size
-        
+
         return solve_distance_for_ppm(
             target_ppm=target_ppm,
             tag_size_m=tag_size_m,
@@ -249,24 +249,37 @@ class SceneCompiler:
         """Sample a single valid camera pose using rejection sampling."""
         camera_config = self.config.camera
         scenario = self.config.scenario
-        
-        # Use target tag location as look-at point in random mode to ensure visibility.
+
+        # Staff Engineer: Use target tag location as look-at point in random mode to ensure visibility.
         # In sweep modes, we look at the origin [0,0,0] to maintain the geometric contract
         # relative to the center of the world.
-        look_at = np.array(target_tag.location) if target_tag else np.array([0.0, 0.0, 0.0])
-        
+        if scenario.sampling_mode == "random" and target_tag:
+            look_at = np.array(target_tag.location)
+        else:
+            look_at = np.array([0.0, 0.0, 0.0])
+
         for _ in range(50):  # Increased retries for better coverage of edge cases
             # 1. Determine camera location parameters
-            dist = dist_override if dist_override is not None else np_rng.uniform(
-                camera_config.min_distance, camera_config.max_distance
+            dist = (
+                dist_override
+                if dist_override is not None
+                else np_rng.uniform(camera_config.min_distance, camera_config.max_distance)
             )
-            elev = elev_override if elev_override is not None else (
-                camera_config.elevation if camera_config.elevation is not None else np_rng.uniform(
-                    camera_config.min_elevation, camera_config.max_elevation
+            elev = (
+                elev_override
+                if elev_override is not None
+                else (
+                    camera_config.elevation
+                    if camera_config.elevation is not None
+                    else np_rng.uniform(camera_config.min_elevation, camera_config.max_elevation)
                 )
             )
-            azim = camera_config.azimuth if camera_config.azimuth is not None else np_rng.uniform(0, 2 * np.pi)
-            
+            azim = (
+                camera_config.azimuth
+                if camera_config.azimuth is not None
+                else np_rng.uniform(0, 2 * np.pi)
+            )
+
             # 2. Sample target position in image frame if in random mode
             target_image_pos = None
             if scenario.sampling_mode == "random" and target_tag:
@@ -275,18 +288,22 @@ class SceneCompiler:
                 # We use a 1.0x factor to be very safe against roll and perspective distortion.
                 tag_size = target_tag.properties.get("tag_size", 0.1)
                 if target_tag.type == "BOARD" and target_tag.board:
-                    tag_size = max(target_tag.board.cols * target_tag.board.marker_size, 
-                                   target_tag.board.rows * target_tag.board.marker_size)
-                
-                f_px = camera_config.resolution[0] / (2.0 * np.tan(np.radians(camera_config.fov) / 2.0))
+                    tag_size = max(
+                        target_tag.board.cols * target_tag.board.marker_size,
+                        target_tag.board.rows * target_tag.board.marker_size,
+                    )
+
+                f_px = camera_config.resolution[0] / (
+                    2.0 * np.tan(np.radians(camera_config.fov) / 2.0)
+                )
                 pixel_margin = (f_px * tag_size) / dist
-                
+
                 w, h = camera_config.resolution
                 if pixel_margin * 2 < min(w, h):
                     u = np_rng.uniform(pixel_margin, w - pixel_margin)
                     v = np_rng.uniform(pixel_margin, h - pixel_margin)
                     target_image_pos = np.array([u, v])
-            
+
             # 3. Sample roll
             roll = (
                 np_rng.uniform(
@@ -295,7 +312,7 @@ class SceneCompiler:
                 if abs(camera_config.max_roll - camera_config.min_roll) > 1e-6
                 else 0.0
             )
-            
+
             # 4. Generate candidate pose
             pose = sample_camera_pose(
                 look_at_point=look_at,
@@ -311,7 +328,7 @@ class SceneCompiler:
             # 5. Validate all constraints
             if self._validate_pose_constraints(pose, target_tag):
                 return pose
-        
+
         return None
 
     def _sample_camera_recipes(self, scene_id: int, seed: int, objects: list) -> list[CameraRecipe]:
@@ -324,7 +341,7 @@ class SceneCompiler:
         # Find potential targets for orientation/sizing constraints
         # Prefer actual TAGs, fallback to any object
         all_tags = [obj for obj in objects if obj.type == "TAG"]
-        
+
         camera_recipes = []
 
         for cam_idx in range(camera_config.samples_per_scene):
@@ -334,7 +351,7 @@ class SceneCompiler:
                 target_tag = np_rng.choice(all_tags)
             elif objects:
                 target_tag = objects[0]
-            
+
             dist_override = None
             elev_override = None
 
@@ -358,7 +375,7 @@ class SceneCompiler:
                 )
 
             pose = self._sample_single_pose(np_rng, dist_override, elev_override, target_tag)
-            
+
             if not pose:
                 # Proper fix: Raise error if we cannot find a valid pose after rejection sampling.
                 # This ensures we don't generate invalid/incomplete recipes.
@@ -450,9 +467,7 @@ class SceneCompiler:
             size = target_tag.properties.get("tag_size", 0.1)
             hw = hh = size / 2.0
 
-        corners_local = np.array(
-            [[-hw, -hh, 0], [hw, -hh, 0], [hw, hh, 0], [-hw, hh, 0]]
-        )
+        corners_local = np.array([[-hw, -hh, 0], [hw, -hh, 0], [hw, hh, 0], [-hw, hh, 0]])
         corners_world = (tag_world_mat @ np.hstack([corners_local, np.ones((4, 1))]).T).T[:, :3]
         pixels = project_points(
             corners_world,

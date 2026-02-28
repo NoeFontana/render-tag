@@ -9,6 +9,10 @@ def test_flying_tag_orientation():
     """Verify that in flying mode, tags are always oriented towards the camera."""
     config = GenConfig()
     config.scenario.flying = True
+    # Staff Engineer: Force 1 tag to ensure unambiguous target-to-camera check
+    from render_tag.core.schema.subject import TagSubjectConfig
+    config.scenario.subject.root = TagSubjectConfig(tags_per_scene=1)
+    
     config.camera.samples_per_scene = 5
     config.dataset.num_scenes = 2
 
@@ -63,6 +67,4 @@ def test_grid_tag_orientation():
         for cam in recipe.cameras:
             cam_world_mat = np.array(cam.transform_matrix)
             angle = calculate_incidence_angle(cam_world_mat, tag_world_mat)
-            assert (
-                angle < 84.5
-            ), f"Tag {obj.name} is facing away from camera (angle: {angle:.2f})"
+            assert angle < 84.5, f"Tag {obj.name} is facing away from camera (angle: {angle:.2f})"

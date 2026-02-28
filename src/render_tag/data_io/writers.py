@@ -55,7 +55,7 @@ class AtomicWriter:
                     f.write(data)
                 f.flush()
                 os.fsync(f.fileno())
-            
+
             temp_path.rename(path)
         except Exception:
             if temp_path.exists():
@@ -206,7 +206,7 @@ class COCOWriter(AtomicWriter):
             y_coords = [c[1] for c in corners]
             min_x, max_x = min(x_coords), max(x_coords)
             min_y, max_y = min(y_coords), max(y_coords)
-            
+
             # If it's a single point, give it a tiny 1px box for COCO compatibility
             if min_x == max_x:
                 min_x -= 0.5
@@ -214,7 +214,7 @@ class COCOWriter(AtomicWriter):
             if min_y == max_y:
                 min_y -= 0.5
                 max_y += 0.5
-                
+
             bbox = [min_x, min_y, max_x - min_x, max_y - min_y]
             area = (max_x - min_x) * (max_y - min_y)
             segmentation = []
@@ -405,7 +405,9 @@ class SidecarWriter(AtomicWriter):
 
         # We also have COCOWriter attributes.
 
-        data = provenance.model_dump(mode="json") if hasattr(provenance, "model_dump") else provenance
+        data = (
+            provenance.model_dump(mode="json") if hasattr(provenance, "model_dump") else provenance
+        )
         self._write_atomic(path, data)
 
         return path
@@ -416,7 +418,7 @@ class BoardConfigWriter:
 
     def __init__(self, output_dir: Path) -> None:
         """Initialize the BoardConfig writer.
-        
+
         Args:
             output_dir: Root directory for dataset output.
         """
@@ -424,11 +426,11 @@ class BoardConfigWriter:
 
     def write_config(self, board_config: BoardConfig, filename: str = "board_config.json") -> Path:
         """Save the board configuration to a JSON file.
-        
+
         Args:
             board_config: The BoardConfig instance to save.
             filename: Name of the output JSON file.
-            
+
         Returns:
             Path to the written file.
         """

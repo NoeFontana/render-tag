@@ -1,4 +1,3 @@
-
 """
 Board Strategy implementation for rigid calibration targets.
 """
@@ -20,7 +19,7 @@ if TYPE_CHECKING:
 
 class BoardStrategy(SubjectStrategy):
     """Strategy for generating a single high-fidelity calibration board.
-    
+
     This strategy utilizes the TextureFactory to synthesize bit-perfect textures
     for ChArUco and AprilGrid targets. It ensures that the 3D model in the
     renderer exactly matches the physical dimensions specified in the config.
@@ -28,7 +27,7 @@ class BoardStrategy(SubjectStrategy):
 
     def __init__(self, config: BoardSubjectConfig):
         """Initialize the strategy.
-        
+
         Args:
             config: Configuration for the board subject domain.
         """
@@ -38,10 +37,10 @@ class BoardStrategy(SubjectStrategy):
 
     def _map_to_board_config(self, config: BoardSubjectConfig) -> BoardConfig:
         """Map the SubjectConfig to the standard BoardConfig used by the factory.
-        
+
         Args:
             config: The source subject configuration.
-            
+
         Returns:
             A BoardConfig instance compatible with the texture synthesizer.
         """
@@ -57,27 +56,27 @@ class BoardStrategy(SubjectStrategy):
 
     def prepare_assets(self, context: GenerationContext) -> None:
         """Generate and cache the high-resolution board texture.
-        
+
         Args:
             context: The shared generation context.
         """
         cache_dir = context.output_dir / "cache" / "boards" if context.output_dir else None
         factory = TextureFactory(cache_dir=cache_dir)
-        
+
         # Synthesis happens once per unique configuration using SHA256 caching
         factory.generate_board_texture(self._board_config)
-        
+
         if cache_dir:
             config_hash = factory._calculate_hash(self._board_config)
             self._texture_path = str((cache_dir / f"board_{config_hash}.png").absolute())
 
     def sample_pose(self, seed: int, context: GenerationContext) -> list[ObjectRecipe]:
         """Return a single rigidly-transformed BOARD object.
-        
+
         Args:
             seed: Scene-specific random seed.
             context: Shared generation context.
-            
+
         Returns:
             A list containing exactly one ObjectRecipe for the board plane.
         """
@@ -101,7 +100,7 @@ class BoardStrategy(SubjectStrategy):
         from render_tag.generation.board import (
             BoardType as GenBoardType,
         )
-        
+
         if self.config.spacing_ratio is not None:
             spec = BoardSpec(
                 rows=self.config.rows,
@@ -125,13 +124,15 @@ class BoardStrategy(SubjectStrategy):
         # 1. Tag corners (standardized order)
         m = self.config.marker_size / 2.0
         for pos in layout.tag_positions:
-            keypoints_3d.extend([
-                [pos.x - m, pos.y + m, 0.0],
-                [pos.x + m, pos.y + m, 0.0],
-                [pos.x + m, pos.y - m, 0.0],
-                [pos.x - m, pos.y - m, 0.0],
-            ])
-            
+            keypoints_3d.extend(
+                [
+                    [pos.x - m, pos.y + m, 0.0],
+                    [pos.x + m, pos.y + m, 0.0],
+                    [pos.x + m, pos.y - m, 0.0],
+                    [pos.x - m, pos.y - m, 0.0],
+                ]
+            )
+
         # 2. Saddle points / Grid intersections (for ChArUco/AprilGrid dot patterns)
         for pos in layout.corner_positions:
             keypoints_3d.append([pos.x, pos.y, pos.z])
@@ -140,6 +141,7 @@ class BoardStrategy(SubjectStrategy):
         import numpy as np
 
         from render_tag.core.seeding import derive_seed
+
         rng = np.random.default_rng(derive_seed(seed, "layout_offset", 0))
         offset_radius = context.gen_config.physics.scatter_radius * 0.5
         location = [
@@ -154,7 +156,7 @@ class BoardStrategy(SubjectStrategy):
                 name="CalibrationBoard",
                 location=location,
                 rotation_euler=[0, 0, 0],
-                scale=[width_m, height_m, 1.0], # Map unit plane to physical meters
+                scale=[width_m, height_m, 1.0],  # Map unit plane to physical meters
                 texture_path=self._texture_path,
                 board=self._board_config,
                 keypoints_3d=keypoints_3d,
