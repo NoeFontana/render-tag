@@ -1,7 +1,10 @@
-import zmq
 from unittest.mock import MagicMock, call, patch
-from render_tag.orchestration.client import ZmqHostClient
+
+import zmq
+
 from render_tag.core.schema.hot_loop import CommandType
+from render_tag.orchestration.client import ZmqHostClient
+
 
 def test_send_command_sets_send_timeout():
     """

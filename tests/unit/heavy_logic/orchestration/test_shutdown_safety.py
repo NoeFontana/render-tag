@@ -1,11 +1,8 @@
-import threading
-import time
-import zmq
-import pytest
 from unittest.mock import MagicMock, patch
+
 from render_tag.orchestration.client import ZmqHostClient
-from render_tag.orchestration.orchestrator import UnifiedWorkerOrchestrator, OrchestratorConfig
-from render_tag.orchestration.worker import PersistentWorkerProcess
+from render_tag.orchestration.orchestrator import OrchestratorConfig, UnifiedWorkerOrchestrator
+
 
 def test_zmq_client_disconnect_linger():
     """Verify that ZmqHostClient.disconnect sets linger=0 on sockets."""
@@ -58,7 +55,7 @@ def test_worker_server_finalize_outside_lock():
     
     with patch("render_tag.backend.worker_server.bridge"), \
          patch("render_tag.backend.worker_server.zmq.Context"), \
-         patch("threading.Thread") as mock_thread:
+         patch("threading.Thread"):
         
         server = ZmqBackendServer(port=5555)
         mock_writer = MagicMock()
