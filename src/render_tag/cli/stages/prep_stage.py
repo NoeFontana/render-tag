@@ -34,8 +34,13 @@ class PreparationStage(PipelineStage):
         ctx.output_dir = ctx.output_dir.resolve()
 
         if ctx.output_dir == project_root:
-            console.print("[bold yellow]Warning:[/bold yellow] You are attempting to generate data directly into the project root.")
-            console.print("This will clutter the repository with shard files and image directories.")
+            console.print(
+                "[bold yellow]Warning:[/bold yellow] "
+                "You are attempting to generate data directly into the project root."
+            )
+            console.print(
+                "This will clutter the repository with shard files and image directories."
+            )
             if sys.stdin.isatty():
                 if not typer.confirm("Are you sure you want to continue?", default=False):
                     raise typer.Exit(code=1)
