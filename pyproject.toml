@@ -1,6 +1,6 @@
 [project]
 name = "render-tag"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Procedural 3D data generation for AprilTag training (Offline)."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -144,3 +144,11 @@ layers = [
     "core",
     "backend",
 ]
+
+[tool.hatch.version]
+path = "pyproject.toml"
+pattern = '(?m)^version = "(?P<version>[^"]+)"'
+
+[tool.render_tag]
+version = "0.1.0"
+
