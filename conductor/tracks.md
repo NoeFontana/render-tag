@@ -7,6 +7,11 @@ This file tracks all major tracks for the project. Each track has its own detail
 - [x] **Track: Strict Schema Versioning**
   *Link: [./tracks/schema_versioning_20260215/](./tracks/schema_versioning_20260215/)*
 
+---
+
+- [ ] **Track: Local Automation Release Script**
+*Link: [./tracks/release_script_20260228/](./tracks/release_script_20260228/)*
+
 ## Archived Tracks
 
 - [x] **Track: Structural Refactoring 2026-02-18**
