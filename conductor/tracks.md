@@ -7,11 +7,6 @@ This file tracks all major tracks for the project. Each track has its own detail
 - [x] **Track: Strict Schema Versioning**
   *Link: [./tracks/schema_versioning_20260215/](./tracks/schema_versioning_20260215/)*
 
----
-
-- [x] **Track: Tag-Driven Automated Release Pipeline**
-*Link: [./tracks/automated_release_pipeline_20260228/](./tracks/automated_release_pipeline_20260228/)*
-
 ## Archived Tracks
 
 - [x] **Track: Structural Refactoring 2026-02-18**
@@ -58,5 +53,3 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 - [x] **Track: Codebase Modernization and Refactoring**
   *Link: [./archive/codebase_modernization_20260208/](./archive/codebase_modernization_20260208/)*
-
-
