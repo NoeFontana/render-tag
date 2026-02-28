@@ -1,13 +1,13 @@
 # Implementation Plan: Tag-Driven Automated Release Pipeline
 
-## Phase 1: Local Automation (The Release Script)
+## Phase 1: Local Automation (The Release Script) [checkpoint: 9e71760]
 - [x] Task: Create `scripts/release.sh` to encapsulate versioning and tagging logic. d023ea3
 - [x] Task: In the script, bump the semantic version using `uvx hatch version <bump_rule>` and capture the new version. d023ea3
 - [x] Task: In the script, query Git for the most recent semantic version tag to use as the baseline. d023ea3
 - [x] Task: In the script, extract `git notes` from baseline to HEAD and format them as Markdown bullet points. d023ea3
 - [x] Task: In the script, prepend the formatted notes to `CHANGELOG.md` under a new version header. d023ea3
 - [x] Task: In the script, stage `pyproject.toml` and `CHANGELOG.md`, create a `chore(release)` commit, and create an annotated Git tag. d023ea3
-- [ ] Task: Conductor - User Manual Verification 'Phase 1: Local Automation (The Release Script)' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 1: Local Automation (The Release Script)' (Protocol in workflow.md) 9e71760
 
 ## Phase 2: Docker Build and Multi-Tagging
 - [ ] Task: Modify the existing Docker build job to depend on the `build-python` job if the Dockerfile requires the host artifacts (or set up parallel execution if independent).
