@@ -9,9 +9,9 @@
 - [x] Task: In the script, stage `pyproject.toml` and `CHANGELOG.md`, create a `chore(release)` commit, and create an annotated Git tag. d023ea3
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Local Automation (The Release Script)' (Protocol in workflow.md) 9e71760
 
-## Phase 2: CI/CD Pipeline Modernization (GitHub Actions)
+## Phase 2: CI/CD Pipeline Modernization (GitHub Actions) [checkpoint: e1aa97f]
 - [x] Task: Modify `.github/workflows/release.yml`'s event trigger to listen exclusively for pushed Git tags (e.g., `v*`). 7895daa
 - [x] Task: Add a `build-python` job to the workflow to set up the `uv` environment and execute Python build (`uv build`) to compile `.whl` and `.tar.gz` artifacts. a70496e
 - [x] Task: Modify the Docker build job to extract the version string from the tag and apply both semantic and `latest` tags before pushing to GHCR. 11e3b78
 - [x] Task: Add a `publish-release` job dependent on artifact builds. Extract git notes for the pushed tag, create a formal GitHub Release, and attach the compiled Python assets. 11e3b78
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: CI/CD Pipeline Modernization' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 2: CI/CD Pipeline Modernization' (Protocol in workflow.md) e1aa97f
