@@ -28,3 +28,13 @@ assets/**/*.blend
 !assets/**/.keep
 !assets/**/.gitkeep
 blender_raw.log
+
+# Local artifacts (avoid root clutter)
+images/
+coco_shard_*.json
+rich_truth_shard_*.json
+tags_shard_*.csv
+recipes_shard_*.json
+board_config.json
+dataset_info.json
+checksums.json
