@@ -29,7 +29,7 @@ def test_board_config_validation():
 
     # Missing required for AprilGrid
     with pytest.raises(ValidationError):
-        BoardConfig(type="aprilgrid", cols=5)
+        BoardConfig(type="aprilgrid", cols=5)  # type: ignore
 
 
 def test_hot_loop_command_validation():
@@ -39,7 +39,7 @@ def test_hot_loop_command_validation():
 
     # Missing request_id
     with pytest.raises(ValidationError):
-        Command(command_type=CommandType.INIT)
+        Command(command_type=CommandType.INIT)  # type: ignore
 
 
 def test_hot_loop_response_validation():

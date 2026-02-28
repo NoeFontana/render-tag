@@ -44,7 +44,7 @@ class RecipeAuditor:
         tag_total = 0
 
         for recipe in self.recipes:
-            intensities.append(recipe.world.lighting.intensity)
+            intensities.append(sum(light.intensity for light in recipe.world.lights))
 
             tags = [obj for obj in recipe.objects if obj.type == "TAG"]
             tag_counts.append(len(tags))

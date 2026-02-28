@@ -796,8 +796,8 @@ def project_corners(
     corners_2d = []
     for corner in corners_3d:
         p2d = project_point_3d_to_2d(corner, K, R, t)
-        corners_2d.append([float(p2d[0]), float(p2d[1])])
-    return np.array(corners_2d)
+        corners_2d.append((float(p2d[0]), float(p2d[1])))
+    return corners_2d
 
 
 def compute_tag_corners_3d(

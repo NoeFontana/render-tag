@@ -9,9 +9,10 @@ def test_hot_loop_end_to_end(tmp_path, port_generator, stabilized_bridge):
     """
     # Enforce mock state to ensure render returns valid data
     import numpy as np
+
     from render_tag.backend.bridge import bridge
     from render_tag.backend.mocks import blenderproc_api
-    
+
     bridge.bproc = blenderproc_api
     blenderproc_api.renderer.render = lambda: {
         "colors": [np.ones((100, 100, 3), dtype=np.uint8) * 255],

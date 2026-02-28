@@ -149,9 +149,10 @@ class ZmqBackendServer:
 
         logger.info(f"Finalizing data for {len(self.writers)} writers...")
         for name, w in self.writers.items():
-            if hasattr(w, "save"):
+            save_func = getattr(w, "save", None)
+            if callable(save_func):
                 try:
-                    w.save()
+                    save_func()
                     logger.debug(f"Saved {name} writer")
                 except Exception as e:
                     logger.error(f"Error saving {name} writer: {e}")

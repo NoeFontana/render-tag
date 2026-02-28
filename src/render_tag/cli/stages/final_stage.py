@@ -66,19 +66,34 @@ class FinalizationStage(PipelineStage):
         merge_rich_truth_shards(output_dir, final_filename="rich_truth.json", cleanup=True)
 
     def _create_virtual_job_id(self, ctx: GenerationContext) -> str:
+        if not ctx.gen_config:
+            return "unknown"
+
         am = get_asset_manager()
         env_hash, blender_ver = get_env_fingerprint()
 
-        with open(ctx.config_path, "rb") as f:
-            cfg_hash = hashlib.sha256(f.read()).hexdigest()
+        cfg_hash = "unknown"
+        if ctx.config_path and ctx.config_path.exists():
+            with open(ctx.config_path, "rb") as f:
+                cfg_hash = hashlib.sha256(f.read()).hexdigest()
+
+        from render_tag.core.schema.job import JobPaths
+
+        paths = JobPaths(
+            output_dir=ctx.output_dir,
+            logs_dir=ctx.output_dir / "logs",
+            assets_dir=Path("assets"),
+        )
 
         adhoc = JobSpec(
+            job_id="adhoc",
+            paths=paths,
+            global_seed=ctx.seed,
+            scene_config=ctx.gen_config,
             env_hash=env_hash,
             blender_version=blender_ver,
             assets_hash=am.get_assets_hash(),
             config_hash=cfg_hash,
-            seed=ctx.seed,
             shard_index=ctx.shard_index,
-            shard_size=ctx.num_scenes,
         )
         return calculate_job_id(adhoc)

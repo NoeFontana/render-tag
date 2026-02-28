@@ -349,8 +349,9 @@ class RichTruthWriter(AtomicWriter):
         }
 
         # IO BOUNDARY: Flip quaternion from WXYZ (Blender/internal) to XYZW (SciPy/Rust)
-        if record["rotation_quaternion"] and len(record["rotation_quaternion"]) == 4:
-            w, x, y, z = record["rotation_quaternion"]
+        quat = record.get("rotation_quaternion")
+        if isinstance(quat, list) and len(quat) == 4:
+            w, x, y, z = quat
             record["rotation_quaternion"] = [x, y, z, w]
 
         self._detections.append(record)
@@ -405,9 +406,8 @@ class SidecarWriter(AtomicWriter):
 
         # We also have COCOWriter attributes.
 
-        data = (
-            provenance.model_dump(mode="json") if hasattr(provenance, "model_dump") else provenance
-        )
+        model_dump = getattr(provenance, "model_dump", None)
+        data = model_dump(mode="json") if callable(model_dump) else provenance
         self._write_atomic(path, data)
 
         return path

@@ -88,7 +88,7 @@ class ContextLogger(logging.LoggerAdapter):
                 context[k] = v
 
         # Start with adapter's bound context
-        merged_context = self.extra.copy()
+        merged_context = dict(self.extra) if self.extra else {}
 
         # Merge call-site context
         merged_context.update(context)
@@ -102,7 +102,7 @@ class ContextLogger(logging.LoggerAdapter):
 
     def bind(self, **kwargs: Any) -> "ContextLogger":
         """Return a new ContextLogger with the added context."""
-        new_context = self.extra.copy()
+        new_context = dict(self.extra) if self.extra else {}
         new_context.update(kwargs)
         return ContextLogger(self.logger, new_context)
 

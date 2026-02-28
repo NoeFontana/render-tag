@@ -39,14 +39,19 @@ class TextureFactory:
             config_hash = self._calculate_hash(config)
             cache_path = self.cache_dir / f"board_{config_hash}.png"
             if cache_path.exists():
-                return cv2.imread(str(cache_path), cv2.IMREAD_GRAYSCALE)
+                cached = cv2.imread(str(cache_path), cv2.IMREAD_GRAYSCALE)
+                if cached is not None:
+                    return cached
 
         # 2. Calculate Dimensions
         if config.type == BoardType.APRILGRID:
             # AprilGrid: square_size = marker_size * (1 + spacing_ratio)
+            # Staff Engineer: Ensure spacing_ratio is not None for calculation
+            assert config.spacing_ratio is not None
             square_size = config.marker_size * (1.0 + config.spacing_ratio)
         else:
             # ChArUco: square_size is explicit
+            assert config.square_size is not None
             square_size = config.square_size
 
         width_m = config.cols * square_size

@@ -121,7 +121,9 @@ class ShadowRenderer:
         width *= obj.scale[0]
         height *= obj.scale[1]
 
-        rot_z = obj.rotation_euler[2]
+        # Staff Engineer: Handle None for rotation_euler (default to zero rotation)
+        rotation = obj.rotation_euler or [0.0, 0.0, 0.0]
+        rot_z = rotation[2]
         w2, h2 = width / 2, height / 2
 
         cos_a = np.cos(rot_z)
