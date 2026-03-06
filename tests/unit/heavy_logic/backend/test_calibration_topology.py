@@ -177,3 +177,76 @@ def test_detection_record_tag_id_type_enforcement():
         DetectionRecord(
             image_id="test", tag_id="not_an_int", tag_family="tag36h11", corners=corners
         )
+
+
+def test_board_scale_independence(mock_bridge):
+    """
+    Verify that applying a `scale` to the Blender board object does not
+    double-scale the output ground truth coordinates. The local_corners are
+    already physically scaled based on the generator metrics.
+    """
+    mock_obj = MagicMock()
+    # Generic charuco config with 0.1m markers
+    board_config = {
+        "type": "charuco",
+        "rows": 2,
+        "cols": 2,
+        "marker_size": 0.1,
+        "square_size": 0.2,
+        "dictionary": "tag36h11",
+    }
+    mock_obj.blender_obj.get.side_effect = lambda key, default=None: {"board": board_config}.get(
+        key, default
+    )
+
+    # Simulate a Blender object that has a 0.1 scale and a simple translation
+    scaled_world_matrix = np.array(
+        [
+            [0.1, 0.0, 0.0, 1.0],
+            [0.0, 0.1, 0.0, 2.0],
+            [0.0, 0.0, 0.1, 3.0],
+            [0.0, 0.0, 0.0, 1.0],
+        ]
+    )
+    mock_obj.get_local2world_mat.return_value = scaled_world_matrix
+    mock_obj.get_location.return_value = [1.0, 2.0, 3.0]
+
+    mock_bridge.np = np
+    mock_bridge.bpy.context.scene.camera.matrix_world = np.eye(4)
+    mock_bridge.bpy.context.scene.camera.location = [0, 0, 10]
+    mock_bridge.bpy.context.scene.render.resolution_x = 1000
+    mock_bridge.bpy.context.scene.render.resolution_y = 1000
+    mock_bridge.bproc.camera.get_intrinsics_as_K_matrix.return_value = np.eye(3)
+
+    # Capture the projected points
+    projected_pts = []
+
+    def mock_project_points(pts, *args):
+        projected_pts.extend(pts)
+        return [[float(p[0]), float(-p[1])] for p in pts]
+
+    mock_bridge.project_points = mock_project_points
+    # Mocking in the module using it:
+    import render_tag.backend.projection
+
+    render_tag.backend.projection.project_points = mock_project_points
+
+    records = generate_board_records(mock_obj, "test_scale_img")
+
+    # We should have two tag records (since charuco 2x2 has 2
+    # white squares with tags: (0,0) and (1,1))
+    tag_records = [r for r in records if r.record_type == "TAG"]
+    assert len(tag_records) == 2
+
+    # The projected_pts passed to project_points should have standard physical size
+    # Width of the marker in 3D without the 0.1 object scale should be 0.1m.
+    # We check the world width (distance between TL and TR).
+    assert len(projected_pts) >= 4
+    # The first 4 points should be the corners of the single tag
+    tl, tr, _, _ = projected_pts[:4]
+
+    # Since rigid_matrix strips scale, distance in 3D should be exactly marker_size
+    diff = np.array(tr) - np.array(tl)
+    width_3d = np.linalg.norm(diff)
+
+    assert np.isclose(width_3d, 0.1), f"Expected marker 3D width 0.1, got {width_3d}"
