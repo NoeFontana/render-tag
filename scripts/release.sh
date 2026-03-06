@@ -20,7 +20,8 @@ if [ -z "$BASELINE_TAG" ]; then
     LATEST_ANY_TAG=$(git tag --sort=-v:refname | head -n 1)
     if [ -n "$LATEST_ANY_TAG" ]; then
         echo "Warning: Latest tag $LATEST_ANY_TAG is not reachable from current HEAD."
-        echo "Changelog might contain duplicate entries."
+        echo "Using it as baseline anyway. Changelog might contain duplicate entries."
+        BASELINE_TAG=$LATEST_ANY_TAG
     fi
 fi
 
