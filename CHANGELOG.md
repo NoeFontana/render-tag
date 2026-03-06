@@ -1,3 +1,10 @@
+# v0.2.0 (2026-03-06)
+
+- Resolve issue where release.sh fails to extract changelog notes
+- Explicitly use the latest unreachable tag as the changelog baseline and update the warning message.
+- Prevent double-scaling of ground truth coordinates by stripping scale from Blender object matrices, add a test for board scale independence.
+- Skip build provenance attestation for private repositories
+
 # v0.1.2 (2026-02-28)
 
 - Fix double-scaling in tag projection using normalized local coordinates (+/- 1.0)
