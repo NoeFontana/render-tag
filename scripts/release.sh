@@ -25,24 +25,29 @@ if [ -z "$BASELINE_TAG" ]; then
     fi
 fi
 
-echo "Extracting git notes..."
+echo "Extracting commit messages for changelog..."
 if [ -z "$BASELINE_TAG" ]; then
-    echo "No reachable baseline tag found. Collecting notes from all commits."
-    COMMITS=$(git log --format="%H")
+    echo "No reachable baseline tag found. Collecting commits from all history."
+    COMMITS=$(git log --no-merges --format="%H")
 else
-    echo "Baseline tag is $BASELINE_TAG. Collecting notes since then."
-    COMMITS=$(git log ${BASELINE_TAG}..HEAD --format="%H")
+    echo "Baseline tag is $BASELINE_TAG. Collecting commits since then."
+    COMMITS=$(git log ${BASELINE_TAG}..HEAD --no-merges --format="%H")
 fi
 
 NOTES=""
 for COMMIT in $COMMITS; do
-    NOTE=$(git notes show $COMMIT 2>/dev/null || echo "")
+    # Extract commit subject instead of relying on git notes
+    NOTE=$(git log -1 --format="%s" $COMMIT 2>/dev/null || echo "")
+    
+    # Filter out chore and docs commits from the changelog
+    if [[ "$NOTE" == chore* ]] || [[ "$NOTE" == docs* ]]; then
+        continue
+    fi
+    
     if [ -n "$NOTE" ]; then
-        # Format the note, perhaps indent lines
-        # First line is bulleted, subsequent lines are indented
-        FORMATTED_NOTE=$(echo "$NOTE" | awk 'NR==1{print "- " $0} NR>1{print "  " $0}')
-        NOTES="${NOTES}${FORMATTED_NOTE}
-
+        # Capitalize first letter of subject if it starts with a conventional commit type
+        FORMATTED_NOTE=$(echo "$NOTE" | sed 's/^[a-z]*\(([^)]*)\)*: //i' | awk '{print toupper(substr($0,1,1)) substr($0,2)}')
+        NOTES="${NOTES}- ${FORMATTED_NOTE}
 "
     fi
 done
