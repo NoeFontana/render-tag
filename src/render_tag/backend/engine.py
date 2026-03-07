@@ -287,7 +287,6 @@ class RenderFacade:
         """Configures a camera and renders the image."""
         pose_matrix = bridge.np.array(camera_recipe["transform_matrix"])
         bridge.bproc.camera.add_camera_pose(pose_matrix, frame=0)
-        bridge.bproc.camera.add_camera_pose(pose_matrix, frame=0)
         setup_sensor_dynamics(pose_matrix, camera_recipe.get("sensor_dynamics"))
 
         # Apply intrinsics (Resolution, FOV, etc.)
