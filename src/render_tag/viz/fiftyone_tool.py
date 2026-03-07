@@ -8,6 +8,7 @@ from typing import Any
 
 import fiftyone as fo
 
+
 def create_dataset(name: str) -> fo.Dataset:
     """
     Create a new FiftyOne dataset with the required schema.
@@ -61,7 +62,9 @@ def load_dataset_from_coco(dataset_dir: Path, name: str) -> fo.Dataset:
         name=name,
     )
 
-def index_rich_truth(rich_truth_data: list[dict[str, Any]]) -> dict[tuple[str, int], dict[str, Any]]:
+def index_rich_truth(
+    rich_truth_data: list[dict[str, Any]]
+) -> dict[tuple[str, int], dict[str, Any]]:
     """
     Index rich truth data by (image_id, tag_id) for rapid lookup.
     """
@@ -132,9 +135,7 @@ def check_oob(detection: fo.Detection) -> bool:
     
     x, y, w, h = bbox
     eps = 1e-6
-    if x < -eps or y < -eps or (x + w) > 1.0 + eps or (y + h) > 1.0 + eps:
-        return True
-    return False
+    return bool(x < -eps or y < -eps or (x + w) > 1.0 + eps or (y + h) > 1.0 + eps)
 
 def check_scale_drift(detection: fo.Detection, threshold: float = 0.5) -> bool:
     """
@@ -150,9 +151,7 @@ def check_scale_drift(detection: fo.Detection, threshold: float = 0.5) -> bool:
         return False
     
     rel_area = bbox[2] * bbox[3]
-    if ppm > 50.0 and rel_area < 0.001:
-        return True
-    return False
+    return bool(ppm > 50.0 and rel_area < 0.001)
 
 def compute_iou(box1: list[float], box2: list[float]) -> float:
     """
@@ -235,7 +234,7 @@ def visualize_fiftyone(
     rich_truth_file = dataset_path / "rich_truth.json"
     if rich_truth_file.exists():
         print(f"Hydrating with rich truth from {rich_truth_file}...")
-        with open(rich_truth_file, "r") as f:
+        with open(rich_truth_file) as f:
             rich_truth_data = json.load(f)
         
         rich_index = index_rich_truth(rich_truth_data)
@@ -255,8 +254,13 @@ def visualize_fiftyone(
             for det in detections:
                 img_stem = Path(sample.filepath).stem
                 # FiftyOne maps COCO attributes to 'attributes' dict or direct fields
-                # In latest FiftyOne, 'tag_id' from COCO is often a direct field if it was in 'attributes'
-                tag_id = det.get_field("tag_id") if hasattr(det, "get_field") else det.get("tag_id")
+                # In latest FiftyOne, 'tag_id' from COCO is often a direct field 
+                # if it was in 'attributes'
+                tag_id = (
+                    det.get_field("tag_id") 
+                    if hasattr(det, "get_field") 
+                    else det.get("tag_id")
+                )
                 
                 # If not found, check attributes
                 if tag_id is None and "tag_id" in det.attributes:

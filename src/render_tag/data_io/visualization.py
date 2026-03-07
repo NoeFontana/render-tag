@@ -344,6 +344,12 @@ def visualize_recipe(recipe_path: Path, output_dir: Path):
         renderer.render(output_dir / f"viz_scene_{recipe.scene_id:04d}.png")
 
 
-def visualize_fiftyone(dataset_path: Path, address: str = '0.0.0.0', port: int = 5151, remote: bool = False) -> None:
-    """Stub for FiftyOne visualization."""
-    pass
+def visualize_fiftyone(
+    dataset_path: Path, address: str = "0.0.0.0", port: int = 5151, remote: bool = False
+) -> None:
+    """
+    Visualize a dataset with Voxel51 FiftyOne.
+    """
+    from render_tag.viz.fiftyone_tool import visualize_fiftyone as _viz_fo
+
+    _viz_fo(dataset_path, address=address, port=port, remote=remote)
