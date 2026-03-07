@@ -1,7 +1,7 @@
 # Implementation Plan: Remediate Mathematical and Structural Defects
 
 ## Phase 1: Mathematical and Geometric Integrity
-- [ ] Task: Fix Camera Pose Math (Reflection Matrix Corruption)
+- [x] Task: Fix Camera Pose Math (Reflection Matrix Corruption) 4094324
     - [ ] Write failing test in `tests/unit/test_pose_swizzle.py` proving determinant flips and invalid quaternions.
     - [ ] Implement coordinate-axis swizzle in `calculate_relative_pose` and `get_opencv_camera_matrix`.
     - [ ] Verify determinant remains +1 and quaternions are valid.
