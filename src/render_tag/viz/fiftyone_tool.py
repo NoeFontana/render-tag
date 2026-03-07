@@ -156,13 +156,6 @@ def get_polyline_points(
     return pts
 
 
-def create_id_label(center: list[float], tag_id: int) -> fo.Keypoint:
-    """
-    Create a labeled keypoint for the tag ID.
-    """
-    return fo.Keypoint(label=f"ID: {tag_id}", points=[center])
-
-
 def quaternion_to_matrix(q: list[float]) -> np.ndarray:
     """
     Convert a wxyz quaternion to a 3x3 rotation matrix.
@@ -422,12 +415,6 @@ def visualize_fiftyone(
 
                             kps = map_corners_to_keypoints(record["corners"], width, height)
                             new_keypoints.extend(kps.keypoints)
-
-                            # ID Label Overlay
-                            center_px = np.mean(record["corners"], axis=0)
-                            center_norm = [center_px[0] / width, center_px[1] / height]
-                            id_kp = create_id_label(center_norm, tag_id)
-                            new_keypoints.append(id_kp)
 
                             # 3D Axes Overlay
                             if cam_meta:
