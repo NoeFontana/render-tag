@@ -16,9 +16,14 @@ def compute_bbox(points: np.ndarray) -> list[float]:
         points: (N, 2) array of coordinates.
 
     Returns:
-        [x_min, y_min, width, height]
+        [x_min, y_min, width, height]. 
+        Returns [0,0,0,0] if any point is invalid (behind camera, coord <= -999999).
     """
     if len(points) == 0:
+        return [0.0, 0.0, 0.0, 0.0]
+
+    # Check for invalid points (behind camera marker is -1e6)
+    if np.any(points <= -999999.0):
         return [0.0, 0.0, 0.0, 0.0]
 
     x_min, y_min = np.min(points, axis=0)
