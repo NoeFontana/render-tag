@@ -26,6 +26,7 @@ Procedural 3D data generation for AprilTag training (Offline).
 - **PPM-Driven Generation:** Goal-oriented visual resolution targets (Pixels Per Module) that linearize dataset difficulty and ensure uniform coverage across detection scenarios.
 - **FiftyOne Dataset Visualization:** Deep interactive inspection of synthetic datasets, joining standard COCO annotations with custom "rich truth" physics metadata. Enables complex queries and visual verification of geometric contracts.
 - **Automated Auditor ("Watchdog"):** Programmatic tagging of anomalous samples (e.g., out-of-bounds, overlapping tags, scale drift) to ensure dataset integrity before model training.
+- **Parametric Resolution Benchmarking:** CLI overrides and CI/CD pipelines enable generating dynamic benchmark datasets across standard hardware resolutions (VGA, 720p, 1080p, 4K) to systematically evaluate optical and tracking algorithms.
 - **Managed Assets:** Single Source of Truth (SSoT) for HDRIs, textures, and models via Hugging Face, ensuring zero-config onboarding and deterministic results across environments.
 
 ## Supported Environments
