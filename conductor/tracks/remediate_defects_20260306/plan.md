@@ -19,7 +19,7 @@
     - [ ] Verify overlapping tags are correctly rejected.
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Mathematical and Geometric Integrity' (Protocol in workflow.md)
 
-## Phase 2: Stability and Resource Management
+## Phase 2: Stability and Resource Management [checkpoint: 470e5a0]
 - [x] Task: Implement Smart Texture Pooling 894fce7
     - [ ] Write failing test in `tests/unit/test_texture_leak.py` counting Blender image datablocks during repeated floor generation.
     - [ ] Implement image registry check in `setup_floor_material` (`scene.py`).
