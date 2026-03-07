@@ -108,7 +108,11 @@ def setup_floor_material(
         return
 
     try:
-        image = bridge.bpy.data.images.load(str(texture_path))
+        # Check if already loaded to prevent RAM leaks
+        image_name = Path(texture_path).name
+        image = bridge.bpy.data.images.get(image_name)
+        if not image:
+            image = bridge.bpy.data.images.load(str(texture_path))
     except Exception as e:
         logger.error(f"Failed to load texture: {texture_path}, error: {e}")
         return
