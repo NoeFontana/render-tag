@@ -7,13 +7,13 @@ Establish the foundational infrastructure for FiftyOne integration.
 - [x] Task: **Define FiftyOne Schema** for custom metadata fields (`distance`, `ppm`, `angle`, `position`, `rotation`). (1fefd09)
 - [x] Task: **Conductor - User Manual Verification 'Phase 1: Environment & CLI Scaffolding' (Protocol in workflow.md)** (2c25d13)
 
-## Phase 2: ETL Layer (Data Ingestion & Schema Definition)
+## Phase 2: ETL Layer (Data Ingestion & Schema Definition) [checkpoint: 5301813]
 Develop the core logic for loading and indexing dataset artifacts.
-- [ ] Task: **Write Tests: COCO and Rich Truth Loader** (Success/Failure cases).
-- [ ] Task: **Implement COCO Ingestion** using FiftyOne standard importer.
-- [ ] Task: **Implement Rich Truth Indexing** for rapid lookup by `image_id` + `tag_id`.
-- [ ] Task: **Verify ETL Pipeline** on a sample dataset (`output/test_results`).
-- [ ] Task: **Conductor - User Manual Verification 'Phase 2: ETL Layer' (Protocol in workflow.md)**
+- [x] Task: **Write Tests: COCO and Rich Truth Loader** (Success/Failure cases). (27ae935)
+- [x] Task: **Implement COCO Ingestion** using FiftyOne standard importer. (27ae935)
+- [x] Task: **Implement Rich Truth Indexing** for rapid lookup by `image_id` + `tag_id`. (27ae935)
+- [x] Task: **Verify ETL Pipeline** on a sample dataset (`output/test_results`). (c4fa1ec)
+- [x] Task: **Conductor - User Manual Verification 'Phase 2: ETL Layer' (Protocol in workflow.md)** (5301813)
 
 ## Phase 3: Geometric Representation & Metadata Mapping
 Translate raw annotations into visual layers for deep debugging.
