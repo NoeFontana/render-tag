@@ -15,13 +15,13 @@ Develop the core logic for loading and indexing dataset artifacts.
 - [x] Task: **Verify ETL Pipeline** on a sample dataset (`output/test_results`). (c4fa1ec)
 - [x] Task: **Conductor - User Manual Verification 'Phase 2: ETL Layer' (Protocol in workflow.md)** (5301813)
 
-## Phase 3: Geometric Representation & Metadata Mapping
+## Phase 3: Geometric Representation & Metadata Mapping [checkpoint: 35b0348]
 Translate raw annotations into visual layers for deep debugging.
-- [ ] Task: **Write Tests: Keypoint and Polygon Mapping** (Winding order validation).
-- [ ] Task: **Implement Polygon Mapping** from COCO `segmentation` to FiftyOne `Polyline`.
-- [ ] Task: **Implement Labeled Keypoint Mapping** from `rich_truth.json` with indexed labels ("0", "1", "2", "3").
-- [ ] Task: **Implement Metadata Hydration** to populate FiftyOne `Detection` objects with physics/rendering metrics.
-- [ ] Task: **Conductor - User Manual Verification 'Phase 3: Geometric Representation' (Protocol in workflow.md)**
+- [x] Task: **Write Tests: Keypoint and Polygon Mapping** (Winding order validation). (d3b0928)
+- [x] Task: **Implement Polygon Mapping** from COCO `segmentation` to FiftyOne `Polyline`. (d3b0928)
+- [x] Task: **Implement Labeled Keypoint Mapping** from `rich_truth.json` with indexed labels ("0", "1", "2", "3"). (d3b0928)
+- [x] Task: **Implement Metadata Hydration** to populate FiftyOne `Detection` objects with physics/rendering metrics. (d3b0928)
+- [x] Task: **Conductor - User Manual Verification 'Phase 3: Geometric Representation' (Protocol in workflow.md)** (35b0348)
 
 ## Phase 4: Automated Auditing & Tagging ("Watchdog")
 Leverage the FiftyOne API to programmatically flag data quality issues.
