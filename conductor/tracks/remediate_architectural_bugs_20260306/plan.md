@@ -15,7 +15,7 @@
     - [ ] Add `persist_transformation_into_mesh()` to `create_board_plane` in `src/render_tag/backend/scene.py`.
     - [ ] Verify board objects remain at `[1,1,1]` scale.
     - [ ] Verify all tests pass and check coverage.
-- [ ] Task: Conductor - User Manual Verification 'Phase 1: Core Geometric Contracts' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 1: Core Geometric Contracts' (Protocol in workflow.md)
 
 ## Phase 2: Resolve Duplication & Spawning Conflicts
 - [ ] Task: Implement Scene Graph Deduplication
