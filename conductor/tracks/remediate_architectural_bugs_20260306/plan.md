@@ -29,7 +29,7 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 2: Resolve Duplication & Spawning Conflicts' (Protocol in workflow.md)
 
 ## Phase 3: Synchronize Ground Truth Extraction
-- [ ] Task: Remove SVD Scale-Stripping Hacks
+- [x] Task: Remove SVD Scale-Stripping Hacks (fe81759)
     - [ ] Write failing tests in `tests/unit/test_projection_matrices.py` to ensure raw `world_matrix` parity.
     - [ ] Revert SVD hack in `_get_scene_transformations` within `src/render_tag/backend/projection.py`.
     - [ ] Verify all tests pass and check coverage.
