@@ -28,7 +28,7 @@ def test_orchestrator_port_collision_avoidance():
         mock_md5.return_value.hexdigest.return_value = "0"
         mock_randint.return_value = 0
         mock_random.return_value = 0
-        
+
         # Deterministically mock port availability to avoid CI flakiness
         # Return True if port is 26000 (simulating collision), False otherwise
         mock_is_port_in_use.side_effect = lambda port: port == 26000
