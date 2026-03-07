@@ -5,7 +5,7 @@
     - [ ] Write failing tests in `tests/unit/test_annotations_winding.py` to confirm contradiction between `annotations.py` and `projection_math.py`.
     - [ ] Update `src/render_tag/core/annotations.py` to match the mathematical truth (Positive Area = CW).
     - [ ] Verify all tests pass and check coverage.
-- [ ] Task: Remove Dummy Visibility Data
+- [x] Task: Remove Dummy Visibility Data (b2b53df)
     - [ ] Write failing tests in `tests/unit/test_visibility_logic.py` for `skip_visibility` edge cases.
     - [ ] Delete hardcoded screen-size bounds and dummy `20.0` offsets in `engine.py` and `projection.py`.
     - [ ] Ensure `project_points` executes normally even when occlusion raycasting is skipped.
