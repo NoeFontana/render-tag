@@ -41,4 +41,4 @@
     - [ ] Write failing tests in `tests/unit/test_board_layout_origins.py` for saddle point double-translation.
     - [ ] Update layout generation in `src/render_tag/generation/board.py` to center at `(0,0,0)`.
     - [ ] Verify all tests pass and check coverage.
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: Synchronize Ground Truth Extraction' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 3: Synchronize Ground Truth Extraction' (Protocol in workflow.md)
