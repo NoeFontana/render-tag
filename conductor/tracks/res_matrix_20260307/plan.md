@@ -1,11 +1,11 @@
 # Implementation Plan - Resolution Matrix Benchmarking (res_matrix_20260307)
 
-## Phase 1: CLI Configuration Overrides
+## Phase 1: CLI Configuration Overrides [checkpoint: 2443215]
 - [x] Task: Implement dot-notation override logic in `src/render_tag/cli/generate.py`. 2c022c9
-    - [ ] Write unit tests for nested Pydantic attribute updates via dot-notation.
-    - [ ] Implement the override parser and integration with Typer.
-    - [ ] Verify overrides correctly modify the base config without mutating the source YAML.
-- [ ] Task: Conductor - User Manual Verification 'CLI Overrides' (Protocol in workflow.md)
+    - [x] Write unit tests for nested Pydantic attribute updates via dot-notation.
+    - [x] Implement the override parser and integration with Typer.
+    - [x] Verify overrides correctly modify the base config without mutating the source YAML.
+- [x] Task: Conductor - User Manual Verification 'CLI Overrides' (Protocol in workflow.md)
 
 ## Phase 2: Dynamic Camera Intrinsics Scaling
 - [ ] Task: Implement resolution-aware scaling of focal length and optical center in `src/render_tag/core/camera.py`.
