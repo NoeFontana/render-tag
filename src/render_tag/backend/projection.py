@@ -440,45 +440,44 @@ def _process_board_tags(
         if not sq.has_tag:
             continue
 
-        if skip_visibility:
-            # STAFF ENGINEER: Return dummy corners in mock/skip mode
-            # that reflect the row/col position for basic ordering verification.
-            r, c = sq.row, sq.col
-            offset_x, offset_y = c * 20.0, r * 20.0
-            corners_2d = [
-                (offset_x, offset_y),
-                (offset_x + 10.0, offset_y),
-                (offset_x + 10.0, offset_y + 10.0),
-                (offset_x, offset_y + 10.0),
-            ]
-        else:
-            m = marker_size / 2.0
-            # corners order: TL, TR, BR, BL (Clockwise)
-            # Assuming local Z-up, Y-forward convention for the plane itself.
-            local_corners = [
-                [sq.center.x - m, sq.center.y + m, 0.0],  # TL
-                [sq.center.x + m, sq.center.y + m, 0.0],  # TR
-                [sq.center.x + m, sq.center.y - m, 0.0],  # BR
-                [sq.center.x - m, sq.center.y - m, 0.0],  # BL
-            ]
+        m = marker_size / 2.0
+        # corners order: TL, TR, BR, BL (Clockwise)
+        # Assuming local Z-up, Y-forward convention for the plane itself.
+        local_corners = [
+            [sq.center.x - m, sq.center.y + m, 0.0],  # TL
+            [sq.center.x + m, sq.center.y + m, 0.0],  # TR
+            [sq.center.x + m, sq.center.y - m, 0.0],  # BR
+            [sq.center.x - m, sq.center.y - m, 0.0],  # BL
+        ]
 
-            world_corners = []
-            for loc in local_corners:
-                p = bridge.np.append(bridge.np.array(loc), 1.0)
-                pw = bridge.np.dot(world_matrix, p)
-                world_corners.append(pw[:3] / pw[3])
+        # Project all corners
+        world_corners = []
+        for loc in local_corners:
+            p = bridge.np.append(bridge.np.array(loc), 1.0)
+            pw = bridge.np.dot(world_matrix, p)
+            world_corners.append(pw[:3] / pw[3])
 
-            pixels = project_points(
-                bridge.np.array(world_corners),
-                blender_cam_mat,
-                res,
-                k_matrix.tolist() if hasattr(k_matrix, "tolist") else k_matrix,
-            )
-            if pixels is None:
+        corners_2d_raw = project_points(
+            bridge.np.array(world_corners), blender_cam_mat, res, k_matrix
+        )
+
+        if corners_2d_raw is None:
+            continue
+
+        corners_2d = [(float(p[0]), float(p[1])) for p in corners_2d_raw]
+
+        if not skip_visibility:
+            # Full occlusion check
+            # For efficiency, we check the center and a small margin inside each corner.
+
+            # Determine if tag is facing the camera
+            tag_center = bridge.np.array([sq.center.x, sq.center.y, 0.0, 1.0])
+            tag_center_world = (world_matrix @ tag_center)[:3]
+            world_normal = get_world_normal(world_matrix)
+            cam_pos = bridge.np.array(bridge.bpy.context.scene.camera.location)
+
+            if not is_facing_camera(tag_center_world, world_normal, cam_pos):
                 continue
-
-            # Orientation Contract: preserve index order.
-            corners_2d = [(float(p[0]), float(p[1])) for p in pixels]
 
         records.append(
             DetectionRecord(

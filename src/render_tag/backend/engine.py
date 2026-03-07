@@ -454,39 +454,16 @@ def _extract_and_save_ground_truth(
 ) -> None:
     """Project objects to image space and save detection records."""
     all_detections: list[DetectionRecord] = []
-    if ctx.skip_visibility:
-        for obj in tag_objects:
-            obj_type = obj.blender_obj.get("type", "TAG")
-            if obj_type == "BOARD":
-                # STAFF ENGINEER: Even in skip_visibility mode, we want
-                # high-granularity records for boards if possible.
-                from render_tag.backend.projection import generate_board_records
+    from render_tag.backend.projection import generate_board_records, generate_subject_records
 
-                all_detections.extend(
-                    generate_board_records(obj, image_name, skip_visibility=ctx.skip_visibility)
-                )
-            else:
-                all_detections.append(
-                    DetectionRecord(
-                        image_id=image_name,
-                        tag_id=int(obj.blender_obj.get("tag_id", 0)),
-                        tag_family=str(obj.blender_obj.get("tag_family", "unknown")),
-                        corners=[
-                            (0.0, 0.0),
-                            (float(res[0]), 0.0),
-                            (float(res[0]), float(res[1])),
-                            (0.0, float(res[1])),
-                        ],
-                        distance=0.0,
-                        angle_of_incidence=0.0,
-                    )
-                )
-    else:
-        from render_tag.backend.projection import generate_subject_records
-
-        for obj in tag_objects:
+    for obj in tag_objects:
+        obj_type = obj.blender_obj.get("type", "TAG")
+        if obj_type == "BOARD":
+            records = generate_board_records(obj, image_name, skip_visibility=ctx.skip_visibility)
+        else:
             records = generate_subject_records(obj, image_name, skip_visibility=ctx.skip_visibility)
-            all_detections.extend(records)
+        
+        all_detections.extend(records)
 
     # Save Ground Truth
     for det in all_detections:
