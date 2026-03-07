@@ -26,7 +26,7 @@
     - [ ] Write failing tests in `tests/unit/test_camera_pipeline.py` to detect duplicate pose injection.
     - [ ] Remove duplicate `add_camera_pose` call in `src/render_tag/backend/engine.py`.
     - [ ] Verify all tests pass and check coverage.
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Resolve Duplication & Spawning Conflicts' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 2: Resolve Duplication & Spawning Conflicts' (Protocol in workflow.md)
 
 ## Phase 3: Synchronize Ground Truth Extraction
 - [ ] Task: Remove SVD Scale-Stripping Hacks
