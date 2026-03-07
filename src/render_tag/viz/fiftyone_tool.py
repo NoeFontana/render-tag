@@ -81,8 +81,6 @@ def map_corners_to_keypoints(
 ) -> fo.Keypoints:
     """
     Map ordered corners to FiftyOne Keypoints with indexed labels.
-    
-    FiftyOne expects points normalized to [0, 1] relative to image size.
     """
     kps = []
     for i, pt in enumerate(corners):
@@ -101,11 +99,10 @@ def get_polyline_from_segmentation(
     normalized: bool = False
 ) -> fo.Polyline:
     """
-    Convert COCO segmentation (list of points) to FiftyOne Polyline.
+    Convert COCO segmentation to FiftyOne Polyline.
     """
     # COCO segmentation is [x1, y1, x2, y2, ...]
     pts = []
-    # If list of lists, take the first polygon
     raw_pts = segmentation[0] if isinstance(segmentation[0], list) else segmentation
     
     for i in range(0, len(raw_pts), 2):
@@ -116,3 +113,70 @@ def get_polyline_from_segmentation(
         pts.append([px, py])
         
     return fo.Polyline(points=[pts], closed=True, filled=True)
+
+def check_oob(detection: fo.Detection) -> bool:
+    """
+    Check if a bounding box is out of image bounds.
+    """
+    bbox = detection.bounding_box
+    if not bbox:
+        return False
+    
+    x, y, w, h = bbox
+    eps = 1e-6
+    if x < -eps or y < -eps or (x + w) > 1.0 + eps or (y + h) > 1.0 + eps:
+        return True
+    return False
+
+def check_scale_drift(detection: fo.Detection, threshold: float = 0.5) -> bool:
+    """
+    Check for scale drift by comparing PPM metadata with Bbox area.
+    """
+    try:
+        ppm = detection["ppm"]
+    except (KeyError, AttributeError):
+        ppm = None
+        
+    bbox = detection.bounding_box
+    if ppm is None or not bbox:
+        return False
+    
+    rel_area = bbox[2] * bbox[3]
+    if ppm > 50.0 and rel_area < 0.001:
+        return True
+    return False
+
+def check_overlap(detections: list[fo.Detection], iou_threshold: float = 0.5) -> bool:
+    """
+    Check if any two tags overlap significantly.
+    """
+    from fiftyone.utils.bbox import compute_iou
+    for i, det1 in enumerate(detections):
+        for j, det2 in enumerate(detections):
+            if i >= j:
+                continue
+            iou = compute_iou(det1.bounding_box, det2.bounding_box)
+            if iou > iou_threshold:
+                return True
+    return False
+
+def audit_dataset(dataset: fo.Dataset) -> None:
+    """
+    Run the watchdog auditor on the dataset and tag anomalies.
+    """
+    for sample in dataset:
+        tags = []
+        if not sample.ground_truth:
+            continue
+            
+        detections = sample.ground_truth.detections
+        if any(check_oob(d) for d in detections):
+            tags.append("ERR_OOB")
+        if any(check_scale_drift(d) for d in detections):
+            tags.append("ERR_SCALE_DRIFT")
+        if check_overlap(detections):
+            tags.append("ERR_OVERLAP")
+            
+        if tags:
+            sample.tags.extend(tags)
+            sample.save()
