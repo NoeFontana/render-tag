@@ -9,7 +9,7 @@
     - [ ] Write failing test in `tests/unit/test_ppm_zdepth.py` demonstrating Euclidean distance error at FOV edges.
     - [ ] Update `calculate_ppm` in `projection_math.py` to use orthogonal Z-depth.
     - [ ] Verify PPM consistency across FOV.
-- [ ] Task: Strict Bounding Box Filtering
+- [x] Task: Strict Bounding Box Filtering 513c767
     - [ ] Write failing test in `tests/unit/test_bbox_filtering.py` with points behind the camera.
     - [ ] Implement strict filtering in `compute_bbox` (mark invalid if any corner is behind camera).
     - [ ] Verify `-1e6` coordinates no longer corrupt bounding boxes.
