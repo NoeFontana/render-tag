@@ -182,57 +182,58 @@ def project_tag_axes(
     k_matrix: list[list[float]],
     resolution: list[int],
     axis_length: float = 0.05,
-) -> fo.Polylines | None:
+) -> dict[str, fo.Polyline] | None:
     """
-    Project 3D axes at the tag center using relative pose (camera space).
+    Project 3D axes at the tag Top-Left corner.
+    Uses true 2D corners for X/Y, and projects Z outwards.
     """
     pos = record.get("position")  # [x, y, z] in camera space
     quat = record.get("rotation_quaternion")  # [w, x, y, z] in camera space
+    corners_2d = record.get("corners")
 
-    if pos is None or quat is None:
+    if pos is None or quat is None or not corners_2d or len(corners_2d) < 4:
         return None
 
-    # Rotation matrix from tag to camera
-    r_mat = quaternion_to_matrix(quat)
-    t_vec = np.array(pos)
+    width, height = resolution
 
-    # 3D points for axes in tag local space (origin and ends of X, Y, Z)
-    # OpenCV: X right, Y down, Z forward
+    # Extract the true 2D corners in normalized space
+    normalized_corners = get_polyline_points(corners_2d, width, height, normalized=False)
+    tl = normalized_corners[0]
+    tr = normalized_corners[1]
+    bl = normalized_corners[3]
+
+    # Calculate Z axis in 3D
+    # Use standard 0.1 size for offset, m=0.05
+    m = 0.05
     pts_3d = np.array(
         [
-            [0, 0, 0],  # Origin
-            [axis_length, 0, 0],  # X-axis end
-            [0, axis_length, 0],  # Y-axis end
-            [0, 0, axis_length],  # Z-axis end
+            [-m, m, 0],  # Origin (estimated Top-Left in 3D)
+            [-m, m, -0.1],  # Z-axis end (Outward towards the camera is local -Z)
         ]
     )
 
-    # Transform to camera space: P_cam = R_mat @ P_tag + T_vec
-    pts_cam = (r_mat @ pts_3d.T).T + t_vec
+    r_mat = quaternion_to_matrix(quat)
+    t_vec = np.array(pos)
 
-    # Project to image space using K matrix
+    pts_cam = (r_mat @ pts_3d.T).T + t_vec
     k_np = np.array(k_matrix)
     pts_2d_hom = (k_np @ pts_cam.T).T
     pts_2d = pts_2d_hom[:, :2] / pts_2d_hom[:, 2:3]
 
-    # Normalize to [0, 1]
-    width, height = resolution
     pts_2d[:, 0] /= width
     pts_2d[:, 1] /= height
 
-    # Create polylines for X, Y, Z axes
-    origin = pts_2d[0].tolist()
-    x_end = pts_2d[1].tolist()
-    y_end = pts_2d[2].tolist()
-    z_end = pts_2d[3].tolist()
+    z_origin = pts_2d[0]
+    z_end = pts_2d[1]
+    z_vector = z_end - z_origin
 
-    return fo.Polylines(
-        polylines=[
-            fo.Polyline(label="X", points=[[origin, x_end]]),
-            fo.Polyline(label="Y", points=[[origin, y_end]]),
-            fo.Polyline(label="Z", points=[[origin, z_end]]),
-        ]
-    )
+    true_z_end = [tl[0] + float(z_vector[0]), tl[1] + float(z_vector[1])]
+
+    return {
+        "axis_x": fo.Polyline(label="X", points=[[tl, tr]]),
+        "axis_y": fo.Polyline(label="Y", points=[[tl, bl]]),
+        "axis_z": fo.Polyline(label="Z", points=[[tl, true_z_end]]),
+    }
 
 
 def check_oob(detection: fo.Detection) -> bool:
@@ -398,7 +399,9 @@ def visualize_fiftyone(
 
                 detections = sample.detections.detections
                 new_keypoints = []
-                new_axes = []
+                new_axis_x = []
+                new_axis_y = []
+                new_axis_z = []
 
                 for det in detections:
                     img_stem = Path(sample.filepath).stem
@@ -436,14 +439,18 @@ def visualize_fiftyone(
                                         resolution=cam["intrinsics"]["resolution"],
                                     )
                                     if axes:
-                                        new_axes.extend(axes.polylines)
+                                        new_axis_x.append(axes["axis_x"])
+                                        new_axis_y.append(axes["axis_y"])
+                                        new_axis_z.append(axes["axis_z"])
                                 except (KeyError, IndexError):
                                     pass
 
                 if new_keypoints:
                     sample["corners"] = fo.Keypoints(keypoints=new_keypoints)
-                if new_axes:
-                    sample["axes"] = fo.Polylines(polylines=new_axes)
+                if new_axis_x:
+                    sample["axis_x"] = fo.Polylines(polylines=new_axis_x)
+                    sample["axis_y"] = fo.Polylines(polylines=new_axis_y)
+                    sample["axis_z"] = fo.Polylines(polylines=new_axis_z)
 
                 sample.save()
                 progress.update(task_hydrate, advance=1)
@@ -455,6 +462,18 @@ def visualize_fiftyone(
         task_views = progress.add_task("Configuring saved views", total=1)
         create_error_view(dataset)
         progress.update(task_views, advance=1)
+
+    # Apply color scheme for axes visualization targeting separate fields
+    color_scheme = fo.ColorScheme(
+        color_pool=["#FF0000", "#00FF00", "#0000FF", "#000000"],
+        fields=[
+            {"path": "axis_x", "colorByAttribute": "path", "fieldColor": "#FF0000"},
+            {"path": "axis_y", "colorByAttribute": "path", "fieldColor": "#00FF00"},
+            {"path": "axis_z", "colorByAttribute": "path", "fieldColor": "#0000FF"},
+        ],
+    )
+    dataset.app_config.color_scheme = color_scheme
+    dataset.save()
 
     session = find_active_session()
     if session:

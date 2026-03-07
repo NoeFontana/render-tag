@@ -52,8 +52,12 @@ echo "Discovering benchmarks in ${BENCHMARK_DIR}..."
 
 # Recursive Dynamic Discovery Loop
 find "${BENCHMARK_DIR}" -name "*.yaml" -print0 | while IFS= read -r -d '' config_path; do
-    # Derive identifier from path relative to BENCHMARK_DIR
-    rel_path=$(realpath --relative-to="${BENCHMARK_DIR}" "$config_path")
+    # If BENCHMARK_DIR is a file, the rel_path is just the filename.
+    # To fix this, we should always compute relative to the configs/benchmarks base dir.
+    BASE_DIR="configs/benchmarks"
+    
+    # Derive identifier from path relative to BASE_DIR
+    rel_path=$(realpath --relative-to="${BASE_DIR}" "$config_path")
     identifier="${rel_path%.*}"
     identifier="${identifier//\//_}" # Replace slashes with underscores for folder naming
     
@@ -67,8 +71,8 @@ find "${BENCHMARK_DIR}" -name "*.yaml" -print0 | while IFS= read -r -d '' config
         # Extract width and height
         IFS='x' read -r width height <<< "$res"
         
-        # Taxonomy: output/benchmarks/<benchmark_identifier>/<resolution>/
-        output_dir="${OUTPUT_BASE}/${identifier}/${res}"
+        # Taxonomy: output/benchmarks/<benchmark_identifier>_<resolution>/
+        output_dir="${OUTPUT_BASE}/${identifier}_${res}"
         
         echo "----------------------------------------------------------------"
         echo "Resolution: ${res}"
