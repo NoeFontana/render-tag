@@ -245,13 +245,25 @@ def generate_subject_records(
     else:
         # Fallback for other subjects
         corners_2d = [(float(p[0]), float(p[1])) for p in pixels]
+        
+        # Defensive check: DetectionRecord validator expects 4 corners for CW check.
+        # If we have exactly 4, we assume they are corners.
+        # If we have more, we split them.
+        # If we have less, we put all in 'corners' (COCOWriter/CSVWriter handle this).
+        if len(corners_2d) > 4:
+            c_pts = corners_2d[:4]
+            k_pts = corners_2d[4:]
+        else:
+            c_pts = corners_2d
+            k_pts = None
+
         records.append(
             DetectionRecord(
                 image_id=image_id,
                 tag_id=tag_id,
                 tag_family=tag_family,
-                corners=corners_2d[:4],
-                keypoints=corners_2d[4:] if len(corners_2d) > 4 else None,
+                corners=c_pts,
+                keypoints=k_pts,
                 record_type="SUBJECT",
                 distance=distance,
                 angle_of_incidence=angle_deg,
