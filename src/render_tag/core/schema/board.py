@@ -25,6 +25,9 @@ class BoardConfig(BaseModel):
     # ChArUco specific
     square_size: PositiveFloat | None = None
 
+    # Optional explicit ID mapping
+    ids: list[int] | None = None
+
     model_config = ConfigDict(use_enum_values=True)
 
     @model_validator(mode="after")

@@ -20,9 +20,9 @@ def test_compute_bbox():
     # Expected: [x_min, y_min, w, h] = [10, 20, 20, 30]
     assert bbox == [10.0, 20.0, 20.0, 30.0]
 
-    # Single point
+    # Single point (now returns zero box per strict filtering requirement)
     pts = np.array([[10, 10]])
-    assert compute_bbox(pts) == [10.0, 10.0, 0.0, 0.0]
+    assert compute_bbox(pts) == [0.0, 0.0, 0.0, 0.0]
 
 
 def test_normalize_corner_order_default():
@@ -72,15 +72,17 @@ def test_normalize_corner_order_cw_tl():
 
 
 def test_verify_corner_order():
-    # CCW ordered corners
-    ccw = [(0, 0), (100, 0), (100, 100), (0, 100)]
-    assert verify_corner_order(ccw, "ccw") is True
-    assert verify_corner_order(ccw, "cw") is False
-
-    # CW ordered corners (reversed)
-    cw = [(0, 100), (100, 100), (100, 0), (0, 0)]
+    # In Y-down (OpenCV):
+    # (0,0) -> (100,0) -> (100,100) -> (0,100) is CW (Positive Area)
+    # Area = 0.5 * |(0*0 + 100*100 + 100*100 + 0*0) - (0*100 + 0*100 + 100*0 + 100*0)| = 10000
+    cw = [(0, 0), (100, 0), (100, 100), (0, 100)]
     assert verify_corner_order(cw, "cw") is True
     assert verify_corner_order(cw, "ccw") is False
+
+    # Reversed: CCW
+    ccw = [(0, 100), (100, 100), (100, 0), (0, 0)]
+    assert verify_corner_order(ccw, "ccw") is True
+    assert verify_corner_order(ccw, "cw") is False
 
     # Invalid
     assert verify_corner_order([(0, 0), (1, 1), (2, 2)], "ccw") is False

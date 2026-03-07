@@ -52,6 +52,7 @@ class BoardStrategy(SubjectStrategy):
             dictionary=config.dictionary,
             spacing_ratio=config.spacing_ratio,
             square_size=config.square_size,
+            ids=config.ids,
         )
 
     def prepare_assets(self, context: GenerationContext) -> None:
@@ -109,7 +110,7 @@ class BoardStrategy(SubjectStrategy):
                 marker_margin=(square_size - self.config.marker_size) / 2.0,
                 board_type=GenBoardType.APRILGRID,
             )
-            layout = compute_aprilgrid_layout(spec)
+            layout = compute_aprilgrid_layout(spec, tag_ids=self._board_config.ids)
         else:
             spec = BoardSpec(
                 rows=self.config.rows,
@@ -118,7 +119,7 @@ class BoardStrategy(SubjectStrategy):
                 marker_margin=(square_size - self.config.marker_size) / 2.0,
                 board_type=GenBoardType.CHARUCO,
             )
-            layout = compute_charuco_layout(spec)
+            layout = compute_charuco_layout(spec, tag_ids=self._board_config.ids)
 
         keypoints_3d = []
         # 1. Tag corners (standardized order)

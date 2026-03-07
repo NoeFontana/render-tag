@@ -93,7 +93,13 @@ def check_tag_visibility(tag_obj: Any, min_visible_corners: int = 3) -> bool:
 def check_tag_facing_camera(tag_obj: Any) -> bool:
     """Check if the tag's front face is facing the camera."""
     world_matrix = bridge.np.array(tag_obj.get_local2world_mat())
-    world_normal = get_world_normal(world_matrix)
+
+    # Respect custom forward axis for non-Z-up assets
+    local_normal = tag_obj.blender_obj.get("forward_axis")
+    if local_normal:
+        local_normal = bridge.np.array(local_normal)
+
+    world_normal = get_world_normal(world_matrix, local_normal=local_normal)
 
     tag_center = bridge.np.array(tag_obj.get_location())
     cam_pos = bridge.np.array(bridge.bpy.context.scene.camera.location)
@@ -139,8 +145,16 @@ def compute_geometric_metadata(tag_obj: Any) -> dict[str, Any]:
 
     black_border_size = tag_obj.blender_obj.get("corner_coords", [[0, 0], [0.05, 0]])[1][0] * 2.0
 
+    # Calculate orthogonal Z-depth (distance along camera's forward axis)
+    # Camera forward in Blender is -Z.
+    cam_world_matrix = bridge.np.array(bridge.bpy.context.scene.camera.matrix_world)
+    cam_forward_world = -cam_world_matrix[:3, 2]  # Third column is Z, negate for forward
+
+    vec_cam_tag = tag_location - cam_location
+    z_depth = bridge.np.dot(vec_cam_tag, cam_forward_world)
+
     ppm = calculate_ppm(
-        distance_m=distance,
+        z_depth_m=float(z_depth),
         tag_size_m=black_border_size,
         focal_length_px=f_px,
         tag_grid_size=grid_size,
@@ -177,19 +191,6 @@ def generate_subject_records(
     # Get Transformation
     world_matrix = bridge.np.array(obj.get_local2world_mat())
 
-    # Strip scale to create a pure rigid transformation matrix
-    # because keypoints_3d are already defined in absolute physical meters.
-    rigid_matrix = world_matrix.copy()
-    r_mat = rigid_matrix[0:3, 0:3]
-    U, _, Vh = bridge.np.linalg.svd(r_mat)
-    r_rigid = bridge.np.dot(U, Vh)
-
-    if bridge.np.linalg.det(r_rigid) < 0:
-        U[:, -1] *= -1
-        r_rigid = bridge.np.dot(U, Vh)
-
-    rigid_matrix[0:3, 0:3] = r_rigid
-
     blender_cam_mat = bridge.np.array(bridge.bpy.context.scene.camera.matrix_world)
     k_matrix = bridge.bproc.camera.get_intrinsics_as_K_matrix()
     res = [
@@ -209,7 +210,7 @@ def generate_subject_records(
     world_kps = []
     for loc in keypoints_3d:
         p = bridge.np.append(bridge.np.array(loc), 1.0)
-        pw = bridge.np.dot(rigid_matrix, p)
+        pw = bridge.np.dot(world_matrix, p)
         world_kps.append(pw[:3] / pw[3])
 
     pixels = project_points(
@@ -244,13 +245,25 @@ def generate_subject_records(
     else:
         # Fallback for other subjects
         corners_2d = [(float(p[0]), float(p[1])) for p in pixels]
+
+        # Defensive check: DetectionRecord validator expects 4 corners for CW check.
+        # If we have exactly 4, we assume they are corners.
+        # If we have more, we split them.
+        # If we have less, we put all in 'corners' (COCOWriter/CSVWriter handle this).
+        if len(corners_2d) > 4:
+            c_pts = corners_2d[:4]
+            k_pts = corners_2d[4:]
+        else:
+            c_pts = corners_2d
+            k_pts = None
+
         records.append(
             DetectionRecord(
                 image_id=image_id,
                 tag_id=tag_id,
                 tag_family=tag_family,
-                corners=corners_2d[:4],
-                keypoints=corners_2d[4:] if len(corners_2d) > 4 else None,
+                corners=c_pts,
+                keypoints=k_pts,
                 record_type="SUBJECT",
                 distance=distance,
                 angle_of_incidence=angle_deg,
@@ -379,24 +392,6 @@ def _get_scene_transformations(
     """Extract world matrices, intrinsics, and compute common metadata."""
     world_matrix = bridge.np.array(board_obj.get_local2world_mat())
 
-    # Strip scale to create a pure rigid transformation matrix.
-    # The board layouts are computed in physically accurate meters.
-    # If the Blender object is scaled, applying world_matrix directly
-    # would double-scale the coordinates.
-    # Use SVD to strictly extract the pure rotation matrix (closest orthogonal matrix).
-    # This guarantees exact GT data by removing all scale, skew, and shear.
-    rigid_matrix = world_matrix.copy()
-    r_mat = rigid_matrix[0:3, 0:3]
-    U, _, Vh = bridge.np.linalg.svd(r_mat)
-    r_rigid = bridge.np.dot(U, Vh)
-
-    # Ensure it's a valid rotation matrix (det == 1), not a reflection
-    if bridge.np.linalg.det(r_rigid) < 0:
-        U[:, -1] *= -1
-        r_rigid = bridge.np.dot(U, Vh)
-
-    rigid_matrix[0:3, 0:3] = r_rigid
-
     blender_cam_mat = bridge.np.array(bridge.bpy.context.scene.camera.matrix_world)
     k_matrix = bridge.bproc.camera.get_intrinsics_as_K_matrix()
     res = [
@@ -412,7 +407,7 @@ def _get_scene_transformations(
     pose = calculate_relative_pose(world_matrix, blender_cam_mat)
 
     return (
-        rigid_matrix,
+        world_matrix,
         blender_cam_mat,
         k_matrix,
         res,
@@ -440,45 +435,44 @@ def _process_board_tags(
         if not sq.has_tag:
             continue
 
-        if skip_visibility:
-            # STAFF ENGINEER: Return dummy corners in mock/skip mode
-            # that reflect the row/col position for basic ordering verification.
-            r, c = sq.row, sq.col
-            offset_x, offset_y = c * 20.0, r * 20.0
-            corners_2d = [
-                (offset_x, offset_y),
-                (offset_x + 10.0, offset_y),
-                (offset_x + 10.0, offset_y + 10.0),
-                (offset_x, offset_y + 10.0),
-            ]
-        else:
-            m = marker_size / 2.0
-            # corners order: TL, TR, BR, BL (Clockwise)
-            # Assuming local Z-up, Y-forward convention for the plane itself.
-            local_corners = [
-                [sq.center.x - m, sq.center.y + m, 0.0],  # TL
-                [sq.center.x + m, sq.center.y + m, 0.0],  # TR
-                [sq.center.x + m, sq.center.y - m, 0.0],  # BR
-                [sq.center.x - m, sq.center.y - m, 0.0],  # BL
-            ]
+        m = marker_size / 2.0
+        # corners order: TL, TR, BR, BL (Clockwise)
+        # Assuming local Z-up, Y-forward convention for the plane itself.
+        local_corners = [
+            [sq.center.x - m, sq.center.y + m, 0.0],  # TL
+            [sq.center.x + m, sq.center.y + m, 0.0],  # TR
+            [sq.center.x + m, sq.center.y - m, 0.0],  # BR
+            [sq.center.x - m, sq.center.y - m, 0.0],  # BL
+        ]
 
-            world_corners = []
-            for loc in local_corners:
-                p = bridge.np.append(bridge.np.array(loc), 1.0)
-                pw = bridge.np.dot(world_matrix, p)
-                world_corners.append(pw[:3] / pw[3])
+        # Project all corners
+        world_corners = []
+        for loc in local_corners:
+            p = bridge.np.append(bridge.np.array(loc), 1.0)
+            pw = bridge.np.dot(world_matrix, p)
+            world_corners.append(pw[:3] / pw[3])
 
-            pixels = project_points(
-                bridge.np.array(world_corners),
-                blender_cam_mat,
-                res,
-                k_matrix.tolist() if hasattr(k_matrix, "tolist") else k_matrix,
-            )
-            if pixels is None:
+        corners_2d_raw = project_points(
+            bridge.np.array(world_corners), blender_cam_mat, res, k_matrix
+        )
+
+        if corners_2d_raw is None:
+            continue
+
+        corners_2d = [(float(p[0]), float(p[1])) for p in corners_2d_raw]
+
+        if not skip_visibility:
+            # Full occlusion check
+            # For efficiency, we check the center and a small margin inside each corner.
+
+            # Determine if tag is facing the camera
+            tag_center = bridge.np.array([sq.center.x, sq.center.y, 0.0, 1.0])
+            tag_center_world = (world_matrix @ tag_center)[:3]
+            world_normal = get_world_normal(world_matrix)
+            cam_pos = bridge.np.array(bridge.bpy.context.scene.camera.location)
+
+            if not is_facing_camera(tag_center_world, world_normal, cam_pos):
                 continue
-
-            # Orientation Contract: preserve index order.
-            corners_2d = [(float(p[0]), float(p[1])) for p in pixels]
 
         records.append(
             DetectionRecord(

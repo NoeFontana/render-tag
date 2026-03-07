@@ -16,13 +16,22 @@ def compute_bbox(points: np.ndarray) -> list[float]:
         points: (N, 2) array of coordinates.
 
     Returns:
-        [x_min, y_min, width, height]
+        [x_min, y_min, width, height].
+        Returns [0,0,0,0] if insufficient valid points remain.
+        Points with coordinates <= -999999 are considered invalid.
     """
     if len(points) == 0:
         return [0.0, 0.0, 0.0, 0.0]
 
-    x_min, y_min = np.min(points, axis=0)
-    x_max, y_max = np.max(points, axis=0)
+    # Filter out invalid points (behind camera marker is -1e6)
+    mask = np.all(points > -999999.0, axis=1)
+    valid_points = points[mask]
+
+    if len(valid_points) < 2:
+        return [0.0, 0.0, 0.0, 0.0]
+
+    x_min, y_min = np.min(valid_points, axis=0)
+    x_max, y_max = np.max(valid_points, axis=0)
 
     return [float(x_min), float(y_min), float(x_max - x_min), float(y_max - y_min)]
 
@@ -91,9 +100,9 @@ def verify_corner_order(
     signed_area = 0.5 * (np.dot(x, np.roll(y, -1)) - np.dot(y, np.roll(x, -1)))
 
     if expected_order == "ccw":
-        return bool(signed_area > 0)
-    else:  # cw
         return bool(signed_area < 0)
+    else:  # cw
+        return bool(signed_area > 0)
 
 
 def format_coco_keypoints(

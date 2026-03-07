@@ -125,6 +125,7 @@ class BoardLayout:
 
 def compute_charuco_layout(
     spec: BoardSpec,
+    tag_ids: list[int] | None = None,
     center: tuple[float, float, float] = (0, 0, 0),
 ) -> BoardLayout:
     """Compute complete ChArUco board layout.
@@ -136,6 +137,8 @@ def compute_charuco_layout(
 
     Args:
         spec: Board specification
+        tag_ids: Optional list of ArUco marker IDs to assign to white squares.
+                 Must match spec.white_square_count.
         center: Center point of the board
 
     Returns:
@@ -146,12 +149,15 @@ def compute_charuco_layout(
         center=BoardPosition(*center),
     )
 
+    if tag_ids is not None and len(tag_ids) != spec.white_square_count:
+        raise ValueError(f"Expected {spec.white_square_count} tag IDs, got {len(tag_ids)}")
+
     # Calculate starting position (center of top-left cell)
     # CV-Standard: Row 0 is at the top (+Y in Blender local)
     start_x = center[0] - spec.board_width / 2 + spec.square_size / 2
     start_y = center[1] + spec.board_height / 2 - spec.square_size / 2
 
-    tag_id = 0
+    tag_counter = 0
 
     for row in range(spec.rows):
         for col in range(spec.cols):
@@ -162,25 +168,30 @@ def compute_charuco_layout(
             # In standard ChArUco: (row+col) % 2 == 0 are white squares
             is_white = (row + col) % 2 == 0
 
+            current_id = None
+            if is_white:
+                current_id = tag_ids[tag_counter] if tag_ids is not None else tag_counter
+                tag_counter += 1
+
             square = SquareInfo(
                 row=row,
                 col=col,
                 center=BoardPosition(x, y, z),
                 is_white=is_white,
                 has_tag=is_white,  # Tags in white squares
-                tag_id=tag_id if is_white else None,
+                tag_id=current_id,
             )
             layout.squares.append(square)
 
             if is_white:
                 layout.tag_positions.append(BoardPosition(x, y, z))
-                tag_id += 1
 
     return layout
 
 
 def compute_aprilgrid_layout(
     spec: BoardSpec,
+    tag_ids: list[int] | None = None,
     corner_size: float = 0.02,
     center: tuple[float, float, float] = (0, 0, 0),
 ) -> BoardLayout:
@@ -193,6 +204,7 @@ def compute_aprilgrid_layout(
 
     Args:
         spec: Board specification
+        tag_ids: Optional list of tag IDs to assign.
         corner_size: Size of corner squares
         center: Center point of the board
 
@@ -204,18 +216,24 @@ def compute_aprilgrid_layout(
         center=BoardPosition(*center),
     )
 
+    if tag_ids is not None and len(tag_ids) != spec.rows * spec.cols:
+        raise ValueError(f"Expected {spec.rows * spec.cols} tag IDs, got {len(tag_ids)}")
+
     # Calculate starting position (center of top-left cell)
     # CV-Standard: Row 0 is at the top (+Y in Blender local)
     start_x = center[0] - spec.board_width / 2 + spec.square_size / 2
     start_y = center[1] + spec.board_height / 2 - spec.square_size / 2
 
     # All cells have tags in AprilGrid
-    tag_id = 0
+    tag_counter = 0
     for row in range(spec.rows):
         for col in range(spec.cols):
             x = start_x + col * spec.square_size
             y = start_y - row * spec.square_size
             z = center[2]
+
+            current_id = tag_ids[tag_counter] if tag_ids is not None else tag_counter
+            tag_counter += 1
 
             square = SquareInfo(
                 row=row,
@@ -223,11 +241,10 @@ def compute_aprilgrid_layout(
                 center=BoardPosition(x, y, z),
                 is_white=True,  # All cells are "white" in AprilGrid
                 has_tag=True,
-                tag_id=tag_id,
+                tag_id=current_id,
             )
             layout.squares.append(square)
             layout.tag_positions.append(BoardPosition(x, y, z))
-            tag_id += 1
 
     # Compute corner positions (at grid intersections)
     corner_start_x = center[0] - spec.board_width / 2
@@ -332,7 +349,7 @@ def validate_no_overlaps(layout: BoardLayout) -> tuple[bool, str]:
         Tuple of (is_valid, error_message)
     """
     marker_size = layout.spec.marker_size
-    min_distance = marker_size * 0.5  # Half-size = touching edge
+    min_distance = marker_size  # Centers must be at least marker_size apart
 
     positions = layout.tag_positions
 

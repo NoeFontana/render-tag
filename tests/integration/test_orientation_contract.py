@@ -38,13 +38,13 @@ class TestOrientationContract:
             "dataset": {"seed": 100, "num_scenes": 1},
             "camera": {
                 "resolution": [640, 480],
-                "fov": 60.0,
+                "fov": 120.0,
                 "samples_per_scene": 1,
-                # Fixed camera looking directly at origin
-                "min_distance": 1.0,
-                "max_distance": 1.0,
-                "min_elevation": 0.99,  # Directly above
-                "max_elevation": 1.0,
+                # Use an angled view to ensure visibility and robust projection
+                "min_distance": 3.0,
+                "max_distance": 3.0,
+                "min_elevation": 0.5,
+                "max_elevation": 0.7,
             },
             "scenario": {
                 "subject": {
@@ -58,7 +58,7 @@ class TestOrientationContract:
             },
             "scene": {"background_hdri": None, "texture_dir": None},
             "physics": {
-                "scatter_radius": 0.001  # Must be > 0
+                "scatter_radius": 0.001  # Small scatter to keep it near origin
             },
         }
         config_path = output_dir / "asymmetric_board.yaml"

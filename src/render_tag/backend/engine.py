@@ -181,15 +181,32 @@ class RenderFacade:
         setup_lighting(world_recipe.get("lights", []))
 
     def spawn_objects(self, object_recipes: list[dict[str, Any]]):
-        """Creates subjects (tags, boards, etc.) using generic primitives."""
+        """Creates subjects (tags, boards, etc.) using generic primitives.
+
+        This method implements Scene Graph Deduplication: if a BOARD with a
+        composite texture is present, it suppresses the generation of individual
+        TAG objects that would otherwise cause Z-fighting.
+        """
         tag_objects = []
+
+        # Check if any BOARD with a texture exists in the recipe
+        has_composite_board = any(
+            obj.get("type") == "BOARD" and obj.get("texture_path") for obj in object_recipes
+        )
+
         for obj_recipe in object_recipes:
             obj_type = obj_recipe["type"]
+
+            # Suppress individual TAGs if a composite BOARD is handling the rendering
+            if obj_type == "TAG" and has_composite_board:
+                continue
+
             location = obj_recipe.get("location", [0, 0, 0])
             rotation = obj_recipe.get("rotation_euler", [0, 0, 0])
             scale = obj_recipe.get("scale", [1, 1, 1])
             texture_path = obj_recipe.get("texture_path")
             keypoints_3d = obj_recipe.get("keypoints_3d")
+            forward_axis = obj_recipe.get("forward_axis")
 
             if obj_type == "TAG":
                 props = obj_recipe["properties"]
@@ -208,6 +225,8 @@ class RenderFacade:
                 # Attach metadata
                 if keypoints_3d:
                     tag_obj.blender_obj["keypoints_3d"] = keypoints_3d
+                if forward_axis:
+                    tag_obj.blender_obj["forward_axis"] = forward_axis
                 tag_obj.blender_obj["tag_id"] = props["tag_id"]
                 tag_obj.blender_obj["tag_family"] = props["tag_family"]
                 tag_obj.blender_obj["type"] = "TAG"
@@ -262,6 +281,8 @@ class RenderFacade:
 
                 if keypoints_3d:
                     board_obj.blender_obj["keypoints_3d"] = keypoints_3d
+                if forward_axis:
+                    board_obj.blender_obj["forward_axis"] = forward_axis
 
                 tag_objects.append(board_obj)
         return tag_objects
@@ -269,7 +290,6 @@ class RenderFacade:
     def render_camera(self, camera_recipe: dict[str, Any]) -> dict[str, Any]:
         """Configures a camera and renders the image."""
         pose_matrix = bridge.np.array(camera_recipe["transform_matrix"])
-        bridge.bproc.camera.add_camera_pose(pose_matrix, frame=0)
         bridge.bproc.camera.add_camera_pose(pose_matrix, frame=0)
         setup_sensor_dynamics(pose_matrix, camera_recipe.get("sensor_dynamics"))
 
@@ -394,6 +414,20 @@ def _setup_scene(
         if family:
             ctx.coco_writer.add_category(family)
 
+        # If it's a BOARD, also register its specific marker dictionary
+        if tag.blender_obj.get("type") == "BOARD":
+            board_data = tag.blender_obj.get("board")
+            if board_data:
+                import json
+
+                try:
+                    config = json.loads(board_data) if isinstance(board_data, str) else board_data
+                    dictionary = config.get("dictionary")
+                    if dictionary:
+                        ctx.coco_writer.add_category(dictionary)
+                except (json.JSONDecodeError, AttributeError):
+                    pass
+
     return renderer, tag_objects
 
 
@@ -409,6 +443,11 @@ def _render_camera_and_save(
 ) -> tuple[int, str]:
     """Render a single camera view and save artifacts (image, sidecar)."""
     scene_idx = int(recipe["scene_id"])
+
+    # Force subframe update for motion blur / consistency BEFORE render
+    bridge.bpy.context.scene.frame_set(0, subframe=0.5)
+    bridge.bpy.context.view_layer.update()
+
     start_time = time.time()
     render_out = renderer.render_camera(cam_recipe)
     render_time = time.time() - start_time
@@ -437,10 +476,6 @@ def _render_camera_and_save(
     ctx.sidecar_writer.write_sidecar(image_name, provenance)
     coco_img_id = ctx.coco_writer.add_image(f"images/{image_path.name}", res[0], res[1])
 
-    # Force subframe update for motion blur / consistency if needed
-    bridge.bpy.context.scene.frame_set(0, subframe=0.5)
-    bridge.bpy.context.view_layer.update()
-
     return coco_img_id, image_name
 
 
@@ -454,39 +489,16 @@ def _extract_and_save_ground_truth(
 ) -> None:
     """Project objects to image space and save detection records."""
     all_detections: list[DetectionRecord] = []
-    if ctx.skip_visibility:
-        for obj in tag_objects:
-            obj_type = obj.blender_obj.get("type", "TAG")
-            if obj_type == "BOARD":
-                # STAFF ENGINEER: Even in skip_visibility mode, we want
-                # high-granularity records for boards if possible.
-                from render_tag.backend.projection import generate_board_records
+    from render_tag.backend.projection import generate_board_records, generate_subject_records
 
-                all_detections.extend(
-                    generate_board_records(obj, image_name, skip_visibility=ctx.skip_visibility)
-                )
-            else:
-                all_detections.append(
-                    DetectionRecord(
-                        image_id=image_name,
-                        tag_id=int(obj.blender_obj.get("tag_id", 0)),
-                        tag_family=str(obj.blender_obj.get("tag_family", "unknown")),
-                        corners=[
-                            (0.0, 0.0),
-                            (float(res[0]), 0.0),
-                            (float(res[0]), float(res[1])),
-                            (0.0, float(res[1])),
-                        ],
-                        distance=0.0,
-                        angle_of_incidence=0.0,
-                    )
-                )
-    else:
-        from render_tag.backend.projection import generate_subject_records
-
-        for obj in tag_objects:
+    for obj in tag_objects:
+        obj_type = obj.blender_obj.get("type", "TAG")
+        if obj_type == "BOARD":
+            records = generate_board_records(obj, image_name, skip_visibility=ctx.skip_visibility)
+        else:
             records = generate_subject_records(obj, image_name, skip_visibility=ctx.skip_visibility)
-            all_detections.extend(records)
+
+        all_detections.extend(records)
 
     # Save Ground Truth
     for det in all_detections:

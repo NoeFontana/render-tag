@@ -51,9 +51,16 @@ def get_opencv_camera_matrix(blender_matrix: Matrix4x4) -> Matrix4x4:
 
     Blender: right=X, up=Y, forward=-Z
     OpenCV: right=X, down=Y, forward=Z
+
+    This implementation uses a column-swizzle to ensure the determinant
+    remains positive (+1) for rigid transformations.
     """
-    flip_mat = np.array([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]])
-    return blender_matrix @ flip_mat
+    # Blender Columns: [X, Y, Z, T]
+    # OpenCV Columns:  [X, -Y, -Z, T]
+    opencv_matrix = np.copy(blender_matrix)
+    opencv_matrix[:, 1] = -blender_matrix[:, 1]
+    opencv_matrix[:, 2] = -blender_matrix[:, 2]
+    return opencv_matrix
 
 
 def get_world_normal(world_matrix: Matrix4x4, local_normal: Vector3 | None = None) -> Vector3:
@@ -239,22 +246,22 @@ def calculate_pixel_area(pixels: np.ndarray) -> float:
 
 
 def calculate_ppm(
-    distance_m: float, tag_size_m: float, focal_length_px: float, tag_grid_size: int
+    z_depth_m: float, tag_size_m: float, focal_length_px: float, tag_grid_size: int
 ) -> float:
     """
     Calculates the visual resolution in Pixels Per Module (PPM).
 
-    Formula: PPM = (f_px * tag_size_m) / (distance_m * tag_grid_size)
+    Formula: PPM = (f_px * tag_size_m) / (z_depth_m * tag_grid_size)
 
     Args:
-        distance_m: Distance from camera to tag in meters.
+        z_depth_m: Orthogonal distance (Z-depth) from camera to tag in meters.
         tag_size_m: Physical size of the tag in meters.
         focal_length_px: Effective focal length of the camera in pixels.
         tag_grid_size: Number of modules (bits) across the tag.
     """
-    if distance_m < 1e-6 or tag_grid_size == 0:
+    if z_depth_m < 1e-6 or tag_grid_size == 0:
         return 0.0
-    return (focal_length_px * tag_size_m) / (distance_m * tag_grid_size)
+    return (focal_length_px * tag_size_m) / (z_depth_m * tag_grid_size)
 
 
 def solve_distance_for_ppm(
