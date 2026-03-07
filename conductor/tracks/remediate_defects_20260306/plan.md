@@ -34,7 +34,7 @@
     - [ ] Verify detection parity with real-world OpenCV routines.
 - [x] Task: Conductor - User Manual Verification 'Phase 2: Stability and Resource Management' (Protocol in workflow.md)
 
-## Phase 3: Pipeline and Execution Sync
+## Phase 3: Pipeline and Execution Sync [checkpoint: 72709f5]
 - [x] Task: Synchronize Subframe Rendering efd0089
     - [ ] Write failing test in `tests/unit/test_motion_blur_sync.py` verifying timeline state at point of render call.
     - [ ] Reorder `engine.py` render loop: call `frame_set(subframe=0.5)` *before* rendering.
