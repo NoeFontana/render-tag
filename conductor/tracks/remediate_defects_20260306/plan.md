@@ -47,4 +47,4 @@
     - [ ] Write failing test in `tests/unit/test_subject_keypoint_safety.py` using subjects with < 4 keypoints.
     - [ ] Implement range checks in `generate_subject_records` and `format_coco_keypoints`.
     - [ ] Verify system handles sparse keypoints without crashing.
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: Pipeline and Execution Sync' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 3: Pipeline and Execution Sync' (Protocol in workflow.md)
