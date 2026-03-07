@@ -169,13 +169,25 @@ uv run render-tag validate-config --config configs/default.yaml
 
 To verify your generated data, use the `viz` command:
 
-```bash
-# Visualize a rendered dataset
-uv run render-tag viz dataset --output output/dataset_01
+### 2.D Overlays (Standard)
+Generates static PNGs with bounding box and keypoint overlays.
 
-# Visualize a scene recipe (2D preview)
-uv run render-tag viz recipe --recipe output/dataset_01/recipes_shard_0.json
+```bash
+uv run render-tag viz dataset --output output/dataset_01
 ```
+
+### Interactive Visualization (FiftyOne)
+Launches a Voxel51 FiftyOne dashboard for deep dataset inspection.
+
+```bash
+uv run render-tag viz fiftyone --dataset output/dataset_01
+```
+
+**Key Debugging Capabilities:**
+- **Saved Views:** Use the **"Anomalies"** view to instantly filter for samples with `ERR_OOB`, `ERR_OVERLAP`, or `ERR_SCALE_DRIFT` tags.
+- **Labeled Corners:** Keypoints are labeled `0`, `1`, `2`, `3` to allow instant verification of the OpenCV CW winding order contract.
+- **3D Axes:** Visualizes X (Red), Y (Green), and Z (Blue) coordinate axes at the tag center using relative pose metadata.
+- **Metadata Filtering:** Use the sidebar sliders to filter samples by `ppm`, `distance`, or `angle_of_incidence`.
 
 ---
 

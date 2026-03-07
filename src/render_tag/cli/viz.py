@@ -10,9 +10,14 @@ import typer
 from render_tag.core.config import TagFamily
 
 try:
-    from render_tag.data_io.visualization import visualize_dataset, visualize_recipe
+    from render_tag.data_io.visualization import (
+        visualize_dataset,
+        visualize_fiftyone,
+        visualize_recipe,
+    )
 except ImportError:
     visualize_dataset = None
+    visualize_fiftyone = None
     visualize_recipe = None
 
 from .tools import check_blenderproc_installed, check_viz_installed, console
@@ -96,6 +101,56 @@ def viz_dataset(
         specific_image=image,
         save_viz=not no_save,
     )
+
+
+@app.command(name="fiftyone")
+def viz_fiftyone(
+    dataset: Path = typer.Option(
+        ...,
+        "--dataset",
+        "-d",
+        help="Path to the dataset directory",
+        exists=True,
+        dir_okay=True,
+        file_okay=False,
+        resolve_path=True,
+    ),
+    address: str = typer.Option(
+        "0.0.0.0",
+        "--address",
+        "-a",
+        help="Address to host FiftyOne App on",
+    ),
+    port: int = typer.Option(
+        5151,
+        "--port",
+        "-p",
+        help="Port to host FiftyOne App on",
+    ),
+    remote: bool = typer.Option(
+        False,
+        "--remote",
+        help="Run in headless mode for remote cluster access",
+    ),
+) -> None:
+    """
+    Visualize a dataset with Voxel51 FiftyOne.
+
+    Joins COCO annotations with rich truth metadata and launches the FiftyOne App.
+    """
+    _ensure_viz()
+
+    if visualize_fiftyone is None:
+        console.print("[bold red]Error:[/bold red] FiftyOne visualization logic not found.")
+        raise typer.Exit(code=1)
+
+    console.print(f"[dim]Launching FiftyOne for dataset:[/dim] {dataset}")
+
+    try:
+        visualize_fiftyone(dataset, address=address, port=port, remote=remote)
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] FiftyOne failed: {e}")
+        raise typer.Exit(code=1) from None
 
 
 @app.command()

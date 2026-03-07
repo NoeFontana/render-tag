@@ -24,6 +24,8 @@ Procedural 3D data generation for AprilTag training (Offline).
 - **High-Fidelity Calibration Targets:** Mathematically perfect targets (ChArUco, AprilGrid) using Bit-Perfect Texture Synthesis and a Single-Plane Architecture to eliminate geometric drift and Z-fighting. Synchronizes 3D board geometry with CV-standard 2D pixel coordinates (Top-Left origin, Y-Down), ensuring sub-pixel accurate keypoint export with strict row-major, zero-indexed topology for seamless OpenCV and Kalibr integration.
 - **Pose Estimation Baseline:** Systematic sweeps (distance, angle) with high-precision quaternion ground truth for absolute pose verification. Anchors 2D corner ordering to 3D local-space keypoints to guarantee orientation integrity across all poses.
 - **PPM-Driven Generation:** Goal-oriented visual resolution targets (Pixels Per Module) that linearize dataset difficulty and ensure uniform coverage across detection scenarios.
+- **FiftyOne Dataset Visualization:** Deep interactive inspection of synthetic datasets, joining standard COCO annotations with custom "rich truth" physics metadata. Enables complex queries and visual verification of geometric contracts.
+- **Automated Auditor ("Watchdog"):** Programmatic tagging of anomalous samples (e.g., out-of-bounds, overlapping tags, scale drift) to ensure dataset integrity before model training.
 - **Managed Assets:** Single Source of Truth (SSoT) for HDRIs, textures, and models via Hugging Face, ensuring zero-config onboarding and deterministic results across environments.
 
 ## Supported Environments

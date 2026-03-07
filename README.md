@@ -105,14 +105,18 @@ uv run render-tag info
 Visualize detection annotations overlaid on rendered images.
 
 ```bash
+# Standard 2D visualization (saves PNGs)
 uv run render-tag viz dataset --output output/dataset_01
 
-# Visualize a specific image
-uv run render-tag viz dataset --output output/dataset_01 --image scene_0001_cam_0001
-
-# Don't save visualization files
-uv run render-tag viz dataset --output output/dataset_01 --no-save
+# Interactive 3D visualization with Voxel51 FiftyOne
+uv run render-tag viz fiftyone --dataset output/dataset_01
 ```
+
+**FiftyOne Features:**
+- **Interactive Dashboard:** Filter by PPM, distance, and angle of incidence.
+- **Automated Auditing:** Instantly find OOB, Overlap, or Scale-Drift errors via the "Anomalies" saved view.
+- **Contract Verification:** Visually check winding order with labeled and color-coded corner keypoints.
+- **Remote Access:** Use `--remote` to host the dashboard on a compute cluster.
 
 ### `render-tag hub`
 
