@@ -37,6 +37,7 @@ backend = [
 # Required for 2D visualization and Shadow Render
 viz = [
     "matplotlib>=3.7",
+    "fiftyone>=0.24",
 ]
 # Required for dataset auditing and analytics
 audit = [
