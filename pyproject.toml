@@ -38,6 +38,7 @@ backend = [
 viz = [
     "matplotlib>=3.7",
     "fiftyone>=0.24",
+    "pycocotools>=2.0",
 ]
 # Required for dataset auditing and analytics
 audit = [
