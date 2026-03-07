@@ -9,6 +9,7 @@
 - **BlenderProc (v2.8.0+):** A modular pipeline for generating photorealistic datasets, used as the primary interface for Blender.
 - **Texture Synthesis:** On-the-fly generation of high-resolution calibration patterns (10px/mm+) using OpenCV for bit-perfect geometric accuracy.
 - **Guided Denoising (OIDN):** Intel OpenImageDenoise with Albedo and Normal guidance for high-efficiency, edge-preserving renders.
+- **Voxel51 (FiftyOne):** The primary platform for dataset visualization, auditing, and high-fidelity ground-truth verification.
 - **Asset Management:** Object pooling and material recycling strategies within Blender to optimize VRAM usage and rendering speed.
 - **OpenCV (opencv-contrib-python):** Used for computer vision tasks, including tag detection validation and image processing.
 - **Hugging Face Hub:** Used as the remote Object Store for binary asset management and synchronization.
@@ -25,6 +26,7 @@
 - **Bootstrap Pattern:** Environment-aware initialization module (`bootstrap.py`) that synchronizes Blender's Python runtime with the project's virtual environment, ensuring dependency parity and strict isolation.
 - **Structured Observability (NDJSON)**: High-performance IPC protocol using Newline Delimited JSON and `orjson` for real-time telemetry, progress tracking, and log routing between Backend and Host.
 - **Polars:** High-performance, multi-threaded DataFrame library used for vectorized dataset auditing and KPI calculation.
+- **FiftyOne App:** Interactive web-based dashboard for visual QA and metadata-driven filtering of generated datasets.
 - **Goal-Oriented Sampling:** Mathematical solvers for goal-oriented pose generation (e.g., target PPM) ensuring statistical balance in generated datasets.
 - **Plotly:** Used for generating interactive HTML dashboards for dataset visualization and manual quality review.
 - **Docker:** Supported as a pluggable execution engine for hermetic and reproducible rendering environments.
