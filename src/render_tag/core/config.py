@@ -492,27 +492,27 @@ class CameraConfig(BaseModel):
 
     def scale_resolution(self, new_width: int, new_height: int) -> None:
         """Scale camera resolution and adjust intrinsics proportionally.
-        
+
         Maintains the same Field of View (FOV) by scaling the focal length
         and optical center relative to the resolution change.
         """
         old_w, old_h = self.resolution
         scale_x = new_width / old_w
         scale_y = new_height / old_h
-        
+
         self.resolution = (new_width, new_height)
-        
+
         # Scale K matrix if present
         if self.intrinsics.k_matrix is not None:
             k = self.intrinsics.k_matrix
             # Ensure it's a list of lists before modification
-            new_k = [[v for v in row] for row in k]
+            new_k = [list(row) for row in k]
             new_k[0][0] *= scale_x  # fx
             new_k[1][1] *= scale_y  # fy
             new_k[0][2] *= scale_x  # cx
             new_k[1][2] *= scale_y  # cy
             self.intrinsics.k_matrix = new_k
-        
+
         # Scale individual intrinsic parameters if present
         if self.intrinsics.focal_length_x is not None:
             self.intrinsics.focal_length_x *= scale_x
@@ -522,7 +522,7 @@ class CameraConfig(BaseModel):
             # If using a single focal length but aspect ratio changes, it becomes ambiguous.
             # We scale it by the X scale for consistency, though fx/fy is preferred.
             self.intrinsics.focal_length *= scale_x
-            
+
         if self.intrinsics.principal_point_x is not None:
             self.intrinsics.principal_point_x *= scale_x
         if self.intrinsics.principal_point_y is not None:

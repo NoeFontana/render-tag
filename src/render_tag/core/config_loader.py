@@ -60,7 +60,8 @@ class ConfigResolver:
         # This is a placeholder for future generic override logic
         if overrides:
             self._apply_overrides(gen_config, overrides)
-            # Re-validate to ensure type coercion and validation (e.g. string to float, list to tuple)
+            # Re-validate to ensure type coercion and validation
+            # (e.g. string to float, list to tuple)
             gen_config = GenConfig.model_validate(gen_config.model_dump())
 
         # 3. Path Resolution (Absolute Paths)
@@ -175,13 +176,14 @@ class ConfigResolver:
         for path, value in overrides.items():
             if path == "renderer_mode":
                 continue
-                
+
             # Intercept resolution override to scale intrinsics correctly
             if path == "camera.resolution":
                 # Value should be like [1920, 1080] or (1920, 1080)
                 # It might come as a string like "[1920, 1080]" from CLI
                 if isinstance(value, str):
                     import ast
+
                     try:
                         res = ast.literal_eval(value)
                         if isinstance(res, (list, tuple)) and len(res) == 2:
@@ -195,9 +197,9 @@ class ConfigResolver:
 
             parts = path.split(".")
             target: Any = config
-            for i, part in enumerate(parts[:-1]):
+            for _i, part in enumerate(parts[:-1]):
                 if part.isdigit():
-                    target = target[int(part)]
+                    target = target[int(part)]  # type: ignore[index]
                 elif hasattr(target, part):
                     target = getattr(target, part)
                 elif isinstance(target, dict) and part in target:
@@ -208,7 +210,7 @@ class ConfigResolver:
             last_part = parts[-1]
             if last_part.isdigit():
                 idx = int(last_part)
-                target[idx] = value
+                target[idx] = value  # type: ignore[index]
             elif hasattr(target, last_part):
                 setattr(target, last_part, value)
             elif isinstance(target, dict):
