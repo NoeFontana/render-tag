@@ -41,9 +41,10 @@ Do not wait for 3D renders. Use the **Shadow Render** loop.
 
 ## 3. Workflows
 Use these slash commands for standard operations:
-- `/lint_code`: Lint and format using `ruff`.
-- `/type_check`: Type check using `ty`.
-- `/generate_data`: Full generation and validation sequence.
+- `/lint_code` (see [.agent/workflows/lint_code.md](file:///.agent/workflows/lint_code.md)): Lint and format using `ruff`.
+- `/type_check` (see [.agent/workflows/type_check.md](file:///.agent/workflows/type_check.md)): Type check using `ty`.
+- `/run_tests` (see [.agent/workflows/run_tests.md](file:///.agent/workflows/run_tests.md)): Run the test suite.
+- `/generate_data` (see [.agent/workflows/generate_data.md](file:///.agent/workflows/generate_data.md)): Full generation and validation sequence.
 
 ---
 

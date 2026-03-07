@@ -23,10 +23,15 @@ def test_orchestrator_port_collision_avoidance():
         patch("hashlib.md5") as mock_md5,
         patch("random.randint") as mock_randint,
         patch("random.random") as mock_random,
+        patch("render_tag.orchestration.orchestrator.is_port_in_use") as mock_is_port_in_use,
     ):
         mock_md5.return_value.hexdigest.return_value = "0"
         mock_randint.return_value = 0
         mock_random.return_value = 0
+
+        # Deterministically mock port availability to avoid CI flakiness
+        # Return True if port is 26000 (simulating collision), False otherwise
+        mock_is_port_in_use.side_effect = lambda port: port == 26000
 
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s1:
             s1.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)

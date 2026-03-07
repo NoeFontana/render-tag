@@ -114,6 +114,10 @@ class ConfigLoadingStage(PipelineStage):
             if ctx.renderer_mode:
                 overrides["renderer_mode"] = ctx.renderer_mode
 
+            # Merge CLI overrides (dot-notation)
+            if ctx.overrides:
+                overrides.update(ctx.overrides)
+
             seed_arg = "auto"
             if ctx.seed != -1:
                 seed_arg = ctx.seed

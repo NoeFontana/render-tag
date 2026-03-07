@@ -43,10 +43,26 @@ def run(
         None, "--resume-from", help="Resume an existing job from its spec", resolve_path=True
     ),
     batch_size: int = typer.Option(5, "--batch-size"),
+    overrides: list[str] | None = typer.Option(
+        None,
+        "--override",
+        "-D",
+        help="Override config value (dot-notation, e.g. camera.fov=90)",
+    ),
 ) -> None:
     """
     Generate synthetic fiducial marker training data.
     """
+    # Parse overrides into a dict
+    parsed_overrides = {}
+    if overrides:
+        for o in overrides:
+            if "=" not in o:
+                console.print(f"[bold red]Error:[/bold red] Invalid override format: {o}")
+                raise typer.Exit(code=1)
+            key, value = o.split("=", 1)
+            parsed_overrides[key] = value
+
     # Initialize Context
     ctx = GenerationContext(
         config_path=config,
@@ -64,6 +80,7 @@ def run(
         resume=resume,
         resume_from=resume_from,
         batch_size=batch_size,
+        overrides=parsed_overrides,
     )
 
     # Build and Run Pipeline (Consolidated Stages)

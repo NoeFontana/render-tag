@@ -6,6 +6,29 @@ on:
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
+    inputs:
+      benchmark:
+        description: 'Run Benchmarks?'
+        type: boolean
+        default: true
+      benchmark_dir:
+        description: 'Directory or specific config to run'
+        type: string
+        default: 'configs/benchmarks'
+      resolution:
+        description: 'Resolution (e.g., 1920x1080 or "all")'
+        type: choice
+        options:
+          - 'all'
+          - '640x480'
+          - '1280x720'
+          - '1920x1080'
+          - '3840x2160'
+        default: 'all'
+      push_to_hub:
+        description: 'Push results to Hugging Face Hub'
+        type: boolean
+        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -82,3 +105,43 @@ jobs:
 
       - name: Execute Check
         run: ${{ matrix.task.run }}
+
+  # 3. Optional Benchmark Stage (Workflow Dispatch)
+  benchmark:
+    name: Generate Benchmarks
+    needs: setup
+    if: github.event_name == 'workflow_dispatch' && inputs.benchmark == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+          
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: "pyproject.toml"
+          
+      - name: Install Dependencies (Cached)
+        run: uv sync --all-extras --all-groups
+
+      - name: Run Benchmarks
+        env:
+          RES: ${{ inputs.resolution }}
+          DIR: ${{ inputs.benchmark_dir }}
+        run: |
+          ./scripts/generate_benchmarks.sh "$DIR" --resolution "$RES"
+
+      - name: Push to Hugging Face
+        if: inputs.push_to_hub == true
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          echo "Pushing benchmarks to Hugging Face Hub"
+          uv run huggingface-cli upload NoeFontana/render-tag-benchmarks output/benchmarks . --repo-type dataset
+

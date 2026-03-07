@@ -1,5 +1,5 @@
 dataset:
-  num_scenes: 100
+  num_scenes: 50
   seeds:
     global_seed: 42
   evaluation_scopes:

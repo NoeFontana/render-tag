@@ -39,6 +39,7 @@ class GenerationContext:
     resume_from: Path | None = None
     batch_size: int = 10
     skip_execution: bool = False
+    overrides: dict[str, str] = field(default_factory=dict)
 
     # Intermediate State
     gen_config: GenConfig | None = None
