@@ -76,7 +76,7 @@ def load_dataset_from_coco(dataset_dir: Path, name: str) -> fo.Dataset:
 
 
 def index_rich_truth(
-    rich_truth_data: list[dict[str, Any]]
+    rich_truth_data: list[dict[str, Any]],
 ) -> dict[tuple[str, int], dict[str, Any]]:
     """
     Index rich truth data by (image_id, tag_id) for rapid lookup.
@@ -343,7 +343,7 @@ def find_active_session() -> fo.Session | None:
         from fiftyone.core.session import Session
 
         if hasattr(Session, "_instances") and Session._instances:
-            return list(Session._instances.values())[0]
+            return next(iter(Session._instances.values()))
     except (ImportError, AttributeError):
         pass
     return None
@@ -402,7 +402,9 @@ def visualize_fiftyone(
 
                 for det in detections:
                     img_stem = Path(sample.filepath).stem
-                    tag_id = det.get_field("tag_id") if hasattr(det, "get_field") else det.get("tag_id")
+                    tag_id = (
+                        det.get_field("tag_id") if hasattr(det, "get_field") else det.get("tag_id")
+                    )
 
                     if tag_id is None and "tag_id" in det.attributes:
                         tag_id = det.attributes["tag_id"]
