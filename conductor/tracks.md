@@ -9,5 +9,5 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-- [ ] **Track: As a principal engineer, improve the fiftyone integration for usability**
+- [x] **Track: As a principal engineer, improve the fiftyone integration for usability**
 *Link: [./tracks/fiftyone-usability_20260307/](./tracks/fiftyone-usability_20260307/)*
