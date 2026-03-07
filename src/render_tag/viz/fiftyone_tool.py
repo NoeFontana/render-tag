@@ -457,6 +457,16 @@ def visualize_fiftyone(
             {"path": "axis_x", "colorByAttribute": "path", "fieldColor": "#FF0000"},
             {"path": "axis_y", "colorByAttribute": "path", "fieldColor": "#00FF00"},
             {"path": "axis_z", "colorByAttribute": "path", "fieldColor": "#0000FF"},
+            {
+                "path": "corners",
+                "colorByAttribute": "label",
+                "valueColors": [
+                    {"value": "0", "color": "#FF00FF"},
+                    {"value": "1", "color": "#00FFFF"},
+                    {"value": "2", "color": "#FFFF00"},
+                    {"value": "3", "color": "#FFFFFF"},
+                ],
+            },
         ],
     )
     dataset.app_config.color_scheme = color_scheme
