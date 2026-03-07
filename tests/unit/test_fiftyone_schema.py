@@ -2,8 +2,10 @@ from unittest.mock import patch
 
 
 # We mock fiftyone to avoid database dependency in unit tests
+@patch("fiftyone.dataset_exists", return_value=False)
+@patch("fiftyone.delete_dataset")
 @patch("fiftyone.Dataset")
-def test_fiftyone_schema_definition(mock_dataset_cls):
+def test_fiftyone_schema_definition(mock_dataset_cls, mock_delete, mock_exists):
     from render_tag.viz.fiftyone_tool import create_dataset
 
     mock_dataset = mock_dataset_cls.return_value

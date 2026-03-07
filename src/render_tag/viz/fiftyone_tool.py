@@ -16,8 +16,6 @@ from rich.progress import (
     TextColumn,
 )
 
-from render_tag.generation.projection_math import project_points
-
 
 def create_dataset(name: str) -> fo.Dataset:
     """

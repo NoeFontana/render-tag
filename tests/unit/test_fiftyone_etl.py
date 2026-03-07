@@ -23,8 +23,10 @@ def test_rich_truth_indexing():
     assert len(index) == 3
 
 
+@patch("fiftyone.dataset_exists", return_value=False)
+@patch("fiftyone.delete_dataset")
 @patch("fiftyone.Dataset.from_dir")
-def test_coco_ingestion(mock_from_dir):
+def test_coco_ingestion(mock_from_dir, mock_delete, mock_exists):
     """Test that FiftyOne COCO importer is called with correct paths."""
     from render_tag.viz.fiftyone_tool import load_dataset_from_coco
 
