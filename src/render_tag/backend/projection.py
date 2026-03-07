@@ -379,24 +379,6 @@ def _get_scene_transformations(
     """Extract world matrices, intrinsics, and compute common metadata."""
     world_matrix = bridge.np.array(board_obj.get_local2world_mat())
 
-    # Strip scale to create a pure rigid transformation matrix.
-    # The board layouts are computed in physically accurate meters.
-    # If the Blender object is scaled, applying world_matrix directly
-    # would double-scale the coordinates.
-    # Use SVD to strictly extract the pure rotation matrix (closest orthogonal matrix).
-    # This guarantees exact GT data by removing all scale, skew, and shear.
-    rigid_matrix = world_matrix.copy()
-    r_mat = rigid_matrix[0:3, 0:3]
-    U, _, Vh = bridge.np.linalg.svd(r_mat)
-    r_rigid = bridge.np.dot(U, Vh)
-
-    # Ensure it's a valid rotation matrix (det == 1), not a reflection
-    if bridge.np.linalg.det(r_rigid) < 0:
-        U[:, -1] *= -1
-        r_rigid = bridge.np.dot(U, Vh)
-
-    rigid_matrix[0:3, 0:3] = r_rigid
-
     blender_cam_mat = bridge.np.array(bridge.bpy.context.scene.camera.matrix_world)
     k_matrix = bridge.bproc.camera.get_intrinsics_as_K_matrix()
     res = [
@@ -412,7 +394,7 @@ def _get_scene_transformations(
     pose = calculate_relative_pose(world_matrix, blender_cam_mat)
 
     return (
-        rigid_matrix,
+        world_matrix,
         blender_cam_mat,
         k_matrix,
         res,
