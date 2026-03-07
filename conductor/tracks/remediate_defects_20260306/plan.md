@@ -28,7 +28,7 @@
     - [ ] Write failing test in `tests/unit/test_subject_normals.py` using a non-Z-up asset that incorrectly fails occlusion checks.
     - [ ] Extend `get_world_normal` and `check_tag_facing_camera` to respect `forward_axis` property.
     - [ ] Update `SceneRecipe` schema to include optional `forward_axis`.
-- [ ] Task: ChArUco Standard ID Assignment (OpenCV Parity)
+- [x] Task: ChArUco Standard ID Assignment (OpenCV Parity) a53f6b2
     - [ ] Write failing test in `tests/unit/test_charuco_ids.py` comparing output against OpenCV standard dictionary layout.
     - [ ] Refactor `compute_charuco_layout` to implement OpenCV-compatible assignment patterns.
     - [ ] Verify detection parity with real-world OpenCV routines.
