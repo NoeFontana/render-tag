@@ -332,7 +332,7 @@ def validate_no_overlaps(layout: BoardLayout) -> tuple[bool, str]:
         Tuple of (is_valid, error_message)
     """
     marker_size = layout.spec.marker_size
-    min_distance = marker_size * 0.5  # Half-size = touching edge
+    min_distance = marker_size  # Centers must be at least marker_size apart
 
     positions = layout.tag_positions
 
