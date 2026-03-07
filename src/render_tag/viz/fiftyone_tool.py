@@ -452,6 +452,7 @@ def visualize_fiftyone(
 
     # Apply color scheme for axes visualization targeting separate fields
     color_scheme = fo.ColorScheme(
+        multicolor_keypoints=True,
         color_pool=["#FF0000", "#00FF00", "#0000FF", "#000000"],
         fields=[
             {"path": "axis_x", "colorByAttribute": "path", "fieldColor": "#FF0000"},
