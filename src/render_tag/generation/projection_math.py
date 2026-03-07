@@ -246,22 +246,22 @@ def calculate_pixel_area(pixels: np.ndarray) -> float:
 
 
 def calculate_ppm(
-    distance_m: float, tag_size_m: float, focal_length_px: float, tag_grid_size: int
+    z_depth_m: float, tag_size_m: float, focal_length_px: float, tag_grid_size: int
 ) -> float:
     """
     Calculates the visual resolution in Pixels Per Module (PPM).
 
-    Formula: PPM = (f_px * tag_size_m) / (distance_m * tag_grid_size)
+    Formula: PPM = (f_px * tag_size_m) / (z_depth_m * tag_grid_size)
 
     Args:
-        distance_m: Distance from camera to tag in meters.
+        z_depth_m: Orthogonal distance (Z-depth) from camera to tag in meters.
         tag_size_m: Physical size of the tag in meters.
         focal_length_px: Effective focal length of the camera in pixels.
         tag_grid_size: Number of modules (bits) across the tag.
     """
-    if distance_m < 1e-6 or tag_grid_size == 0:
+    if z_depth_m < 1e-6 or tag_grid_size == 0:
         return 0.0
-    return (focal_length_px * tag_size_m) / (distance_m * tag_grid_size)
+    return (focal_length_px * tag_size_m) / (z_depth_m * tag_grid_size)
 
 
 def solve_distance_for_ppm(

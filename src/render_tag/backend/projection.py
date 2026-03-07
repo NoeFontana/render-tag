@@ -139,8 +139,16 @@ def compute_geometric_metadata(tag_obj: Any) -> dict[str, Any]:
 
     black_border_size = tag_obj.blender_obj.get("corner_coords", [[0, 0], [0.05, 0]])[1][0] * 2.0
 
+    # Calculate orthogonal Z-depth (distance along camera's forward axis)
+    # Camera forward in Blender is -Z.
+    cam_world_matrix = bridge.np.array(bridge.bpy.context.scene.camera.matrix_world)
+    cam_forward_world = -cam_world_matrix[:3, 2] # Third column is Z, negate for forward
+    
+    vec_cam_tag = tag_location - cam_location
+    z_depth = bridge.np.dot(vec_cam_tag, cam_forward_world)
+
     ppm = calculate_ppm(
-        distance_m=distance,
+        z_depth_m=float(z_depth),
         tag_size_m=black_border_size,
         focal_length_px=f_px,
         tag_grid_size=grid_size,
