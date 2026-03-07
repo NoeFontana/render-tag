@@ -23,13 +23,13 @@ Translate raw annotations into visual layers for deep debugging.
 - [x] Task: **Implement Metadata Hydration** to populate FiftyOne `Detection` objects with physics/rendering metrics. (d3b0928)
 - [x] Task: **Conductor - User Manual Verification 'Phase 3: Geometric Representation' (Protocol in workflow.md)** (35b0348)
 
-## Phase 4: Automated Auditing & Tagging ("Watchdog")
+## Phase 4: Automated Auditing & Tagging ("Watchdog") [checkpoint: 2ade5f5]
 Leverage the FiftyOne API to programmatically flag data quality issues.
-- [ ] Task: **Write Tests: Auditing Logic** (OOB, Overlap, Scale drift).
-- [ ] Task: **Implement Out-of-Bounds Detector** to flag `ERR_OOB` anomalies.
-- [ ] Task: **Implement IoU-based Overlap Detector** for tags to flag `ERR_OVERLAP`.
-- [ ] Task: **Implement Scale-Drift Validator** (PPM vs. Bbox area) to flag `ERR_SCALE_DRIFT`.
-- [ ] Task: **Conductor - User Manual Verification 'Phase 4: Automated Auditing' (Protocol in workflow.md)**
+- [x] Task: **Write Tests: Auditing Logic** (OOB, Overlap, Scale drift). (5e630b2)
+- [x] Task: **Implement Out-of-Bounds Detector** to flag `ERR_OOB` anomalies. (5e630b2)
+- [x] Task: **Implement IoU-based Overlap Detector** for tags to flag `ERR_OVERLAP`. (5e630b2)
+- [x] Task: **Implement Scale-Drift Validator** (PPM vs. Bbox area) to flag `ERR_SCALE_DRIFT`. (5e630b2)
+- [x] Task: **Conductor - User Manual Verification 'Phase 4: Automated Auditing' (Protocol in workflow.md)** (2ade5f5)
 
 ## Phase 5: Dashboard Configuration & Final Verification
 Polish the UI experience and ensure cluster-readiness.
