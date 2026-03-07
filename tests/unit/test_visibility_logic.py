@@ -2,7 +2,7 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 
-from render_tag.backend.scene import generate_subject_records
+from render_tag.backend.projection import generate_subject_records
 
 
 @patch("render_tag.backend.scene.bridge")

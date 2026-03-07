@@ -1,4 +1,4 @@
-from render_tag.core.schema.annotations import verify_corner_order
+from render_tag.data_io.annotations import verify_corner_order
 from render_tag.generation.projection_math import validate_winding_order
 
 
