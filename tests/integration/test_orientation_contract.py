@@ -60,7 +60,6 @@ class TestOrientationContract:
             "physics": {
                 "scatter_radius": 0.001  # Small scatter to keep it near origin
             },
-
         }
         config_path = output_dir / "asymmetric_board.yaml"
         with open(config_path, "w") as f:

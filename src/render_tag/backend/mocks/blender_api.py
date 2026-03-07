@@ -38,13 +38,18 @@ class MockObject:
         if self._matrix_world is not None:
             return self._matrix_world
         # Basic translation and scale support for mocks
-        res = [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
-        
+        res = [
+            [1.0, 0.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0, 0.0],
+            [0.0, 0.0, 0.0, 1.0],
+        ]
+
         # Apply scale to diagonal
         res[0][0] = float(self.scale[0])
         res[1][1] = float(self.scale[1])
         res[2][2] = float(self.scale[2])
-        
+
         # Apply translation to last column
         res[0][3] = float(self.location[0])
         res[1][3] = float(self.location[1])

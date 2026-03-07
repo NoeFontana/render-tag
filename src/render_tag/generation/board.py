@@ -150,9 +150,7 @@ def compute_charuco_layout(
     )
 
     if tag_ids is not None and len(tag_ids) != spec.white_square_count:
-        raise ValueError(
-            f"Expected {spec.white_square_count} tag IDs, got {len(tag_ids)}"
-        )
+        raise ValueError(f"Expected {spec.white_square_count} tag IDs, got {len(tag_ids)}")
 
     # Calculate starting position (center of top-left cell)
     # CV-Standard: Row 0 is at the top (+Y in Blender local)
@@ -172,10 +170,7 @@ def compute_charuco_layout(
 
             current_id = None
             if is_white:
-                if tag_ids is not None:
-                    current_id = tag_ids[tag_counter]
-                else:
-                    current_id = tag_counter
+                current_id = tag_ids[tag_counter] if tag_ids is not None else tag_counter
                 tag_counter += 1
 
             square = SquareInfo(
@@ -222,9 +217,7 @@ def compute_aprilgrid_layout(
     )
 
     if tag_ids is not None and len(tag_ids) != spec.rows * spec.cols:
-        raise ValueError(
-            f"Expected {spec.rows * spec.cols} tag IDs, got {len(tag_ids)}"
-        )
+        raise ValueError(f"Expected {spec.rows * spec.cols} tag IDs, got {len(tag_ids)}")
 
     # Calculate starting position (center of top-left cell)
     # CV-Standard: Row 0 is at the top (+Y in Blender local)
@@ -239,11 +232,7 @@ def compute_aprilgrid_layout(
             y = start_y - row * spec.square_size
             z = center[2]
 
-            current_id = None
-            if tag_ids is not None:
-                current_id = tag_ids[tag_counter]
-            else:
-                current_id = tag_counter
+            current_id = tag_ids[tag_counter] if tag_ids is not None else tag_counter
             tag_counter += 1
 
             square = SquareInfo(

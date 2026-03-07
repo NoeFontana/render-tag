@@ -39,6 +39,8 @@ def test_ppm_roundtrip():
         grid_size = int(rng.integers(6, 12))
 
         dist = solve_distance_for_ppm(target_ppm, tag_size, f_px, grid_size)
-        actual_ppm = calculate_ppm(z_depth_m=dist, tag_size_m=tag_size, focal_length_px=f_px, tag_grid_size=grid_size)
+        actual_ppm = calculate_ppm(
+            z_depth_m=dist, tag_size_m=tag_size, focal_length_px=f_px, tag_grid_size=grid_size
+        )
 
         assert actual_ppm == pytest.approx(target_ppm)

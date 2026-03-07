@@ -248,7 +248,8 @@ def test_board_scale_independence(mock_bridge):
     # The first 4 points should be the corners of the single tag
     tl, tr, _, _ = projected_pts[:4]
 
-    # Since world_matrix now PRESERVES scale, width in 3D should be marker_size * scale (0.1 * 0.1 = 0.01)
+    # Since world_matrix now PRESERVES scale, width in 3D should be
+    # marker_size * scale (0.1 * 0.1 = 0.01)
     diff = np.array(tr) - np.array(tl)
     width_3d = np.linalg.norm(diff)
 

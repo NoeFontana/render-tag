@@ -93,12 +93,12 @@ def check_tag_visibility(tag_obj: Any, min_visible_corners: int = 3) -> bool:
 def check_tag_facing_camera(tag_obj: Any) -> bool:
     """Check if the tag's front face is facing the camera."""
     world_matrix = bridge.np.array(tag_obj.get_local2world_mat())
-    
+
     # Respect custom forward axis for non-Z-up assets
     local_normal = tag_obj.blender_obj.get("forward_axis")
     if local_normal:
         local_normal = bridge.np.array(local_normal)
-        
+
     world_normal = get_world_normal(world_matrix, local_normal=local_normal)
 
     tag_center = bridge.np.array(tag_obj.get_location())
@@ -148,8 +148,8 @@ def compute_geometric_metadata(tag_obj: Any) -> dict[str, Any]:
     # Calculate orthogonal Z-depth (distance along camera's forward axis)
     # Camera forward in Blender is -Z.
     cam_world_matrix = bridge.np.array(bridge.bpy.context.scene.camera.matrix_world)
-    cam_forward_world = -cam_world_matrix[:3, 2] # Third column is Z, negate for forward
-    
+    cam_forward_world = -cam_world_matrix[:3, 2]  # Third column is Z, negate for forward
+
     vec_cam_tag = tag_location - cam_location
     z_depth = bridge.np.dot(vec_cam_tag, cam_forward_world)
 
@@ -245,7 +245,7 @@ def generate_subject_records(
     else:
         # Fallback for other subjects
         corners_2d = [(float(p[0]), float(p[1])) for p in pixels]
-        
+
         # Defensive check: DetectionRecord validator expects 4 corners for CW check.
         # If we have exactly 4, we assume they are corners.
         # If we have more, we split them.

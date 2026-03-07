@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import numpy as np
 
+
 def compute_bbox(points: np.ndarray) -> list[float]:
     """Compute [x, y, width, height] bounding box for a set of points.
 
@@ -15,7 +16,7 @@ def compute_bbox(points: np.ndarray) -> list[float]:
         points: (N, 2) array of coordinates.
 
     Returns:
-        [x_min, y_min, width, height]. 
+        [x_min, y_min, width, height].
         Returns [0,0,0,0] if insufficient valid points remain.
         Points with coordinates <= -999999 are considered invalid.
     """
@@ -33,7 +34,6 @@ def compute_bbox(points: np.ndarray) -> list[float]:
     x_max, y_max = np.max(valid_points, axis=0)
 
     return [float(x_min), float(y_min), float(x_max - x_min), float(y_max - y_min)]
-
 
 
 def normalize_corner_order(

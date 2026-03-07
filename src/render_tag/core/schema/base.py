@@ -106,6 +106,7 @@ class DetectionRecord(BaseModel):
 
         # Skip validation if any corner is invalid (behind camera)
         import numpy as np
+
         if np.any(np.array(v) <= -999999.0):
             return v
 

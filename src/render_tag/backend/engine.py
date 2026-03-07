@@ -182,22 +182,21 @@ class RenderFacade:
 
     def spawn_objects(self, object_recipes: list[dict[str, Any]]):
         """Creates subjects (tags, boards, etc.) using generic primitives.
-        
-        This method implements Scene Graph Deduplication: if a BOARD with a 
+
+        This method implements Scene Graph Deduplication: if a BOARD with a
         composite texture is present, it suppresses the generation of individual
         TAG objects that would otherwise cause Z-fighting.
         """
         tag_objects = []
-        
+
         # Check if any BOARD with a texture exists in the recipe
         has_composite_board = any(
-            obj.get("type") == "BOARD" and obj.get("texture_path") 
-            for obj in object_recipes
+            obj.get("type") == "BOARD" and obj.get("texture_path") for obj in object_recipes
         )
 
         for obj_recipe in object_recipes:
             obj_type = obj_recipe["type"]
-            
+
             # Suppress individual TAGs if a composite BOARD is handling the rendering
             if obj_type == "TAG" and has_composite_board:
                 continue
@@ -414,12 +413,13 @@ def _setup_scene(
         family = tag.blender_obj.get("tag_family")
         if family:
             ctx.coco_writer.add_category(family)
-        
+
         # If it's a BOARD, also register its specific marker dictionary
         if tag.blender_obj.get("type") == "BOARD":
             board_data = tag.blender_obj.get("board")
             if board_data:
                 import json
+
                 try:
                     config = json.loads(board_data) if isinstance(board_data, str) else board_data
                     dictionary = config.get("dictionary")
@@ -497,7 +497,7 @@ def _extract_and_save_ground_truth(
             records = generate_board_records(obj, image_name, skip_visibility=ctx.skip_visibility)
         else:
             records = generate_subject_records(obj, image_name, skip_visibility=ctx.skip_visibility)
-        
+
         all_detections.extend(records)
 
     # Save Ground Truth
