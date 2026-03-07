@@ -43,7 +43,7 @@
     - [ ] Write failing test in `tests/unit/test_reflected_board.py` showing SVD corruption of intentionally flipped boards.
     - [ ] Revert SVD reconstruction in `_get_scene_transformations`.
     - [ ] Verify reflected ground truth matches reflected visual render.
-- [ ] Task: Defensive Subject Keypoint Handling
+- [x] Task: Defensive Subject Keypoint Handling 3f89e04
     - [ ] Write failing test in `tests/unit/test_subject_keypoint_safety.py` using subjects with < 4 keypoints.
     - [ ] Implement range checks in `generate_subject_records` and `format_coco_keypoints`.
     - [ ] Verify system handles sparse keypoints without crashing.
