@@ -182,7 +182,7 @@ def project_tag_axes(
     k_matrix: list[list[float]],
     resolution: list[int],
     axis_length: float = 0.05,
-) -> fo.Polylines:
+) -> fo.Polylines | None:
     """
     Project 3D axes at the tag center using relative pose (camera space).
     """
