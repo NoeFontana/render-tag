@@ -22,7 +22,7 @@
     - [ ] Write failing tests in `tests/integration/test_spawn_deduplication.py` for overlapping BOARD/TAG spawning.
     - [ ] Update `spawn_objects` in `src/render_tag/backend/engine.py` to suppress individual tags when a board is present.
     - [ ] Verify all tests pass and check coverage.
-- [ ] Task: Clean up Camera Pipeline
+- [x] Task: Clean up Camera Pipeline (3c2b20b)
     - [ ] Write failing tests in `tests/unit/test_camera_pipeline.py` to detect duplicate pose injection.
     - [ ] Remove duplicate `add_camera_pose` call in `src/render_tag/backend/engine.py`.
     - [ ] Verify all tests pass and check coverage.
