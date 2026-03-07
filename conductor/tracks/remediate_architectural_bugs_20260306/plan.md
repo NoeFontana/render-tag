@@ -37,7 +37,7 @@
     - [ ] Write failing tests in `tests/integration/test_coco_registration.py` for board marker dictionaries.
     - [ ] Modify `_setup_scene` in `src/render_tag/backend/engine.py` to register specific board marker families.
     - [ ] Verify all tests pass and check coverage.
-- [ ] Task: Normalize Local Origins
+- [x] Task: Normalize Local Origins (751189f)
     - [ ] Write failing tests in `tests/unit/test_board_layout_origins.py` for saddle point double-translation.
     - [ ] Update layout generation in `src/render_tag/generation/board.py` to center at `(0,0,0)`.
     - [ ] Verify all tests pass and check coverage.
