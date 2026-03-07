@@ -20,7 +20,7 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Mathematical and Geometric Integrity' (Protocol in workflow.md)
 
 ## Phase 2: Stability and Resource Management
-- [ ] Task: Implement Smart Texture Pooling
+- [x] Task: Implement Smart Texture Pooling 894fce7
     - [ ] Write failing test in `tests/unit/test_texture_leak.py` counting Blender image datablocks during repeated floor generation.
     - [ ] Implement image registry check in `setup_floor_material` (`scene.py`).
     - [ ] Verify memory usage/datablock count remains constant for identical textures.
