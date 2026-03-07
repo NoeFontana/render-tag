@@ -177,19 +177,6 @@ def generate_subject_records(
     # Get Transformation
     world_matrix = bridge.np.array(obj.get_local2world_mat())
 
-    # Strip scale to create a pure rigid transformation matrix
-    # because keypoints_3d are already defined in absolute physical meters.
-    rigid_matrix = world_matrix.copy()
-    r_mat = rigid_matrix[0:3, 0:3]
-    U, _, Vh = bridge.np.linalg.svd(r_mat)
-    r_rigid = bridge.np.dot(U, Vh)
-
-    if bridge.np.linalg.det(r_rigid) < 0:
-        U[:, -1] *= -1
-        r_rigid = bridge.np.dot(U, Vh)
-
-    rigid_matrix[0:3, 0:3] = r_rigid
-
     blender_cam_mat = bridge.np.array(bridge.bpy.context.scene.camera.matrix_world)
     k_matrix = bridge.bproc.camera.get_intrinsics_as_K_matrix()
     res = [
@@ -209,7 +196,7 @@ def generate_subject_records(
     world_kps = []
     for loc in keypoints_3d:
         p = bridge.np.append(bridge.np.array(loc), 1.0)
-        pw = bridge.np.dot(rigid_matrix, p)
+        pw = bridge.np.dot(world_matrix, p)
         world_kps.append(pw[:3] / pw[3])
 
     pixels = project_points(
