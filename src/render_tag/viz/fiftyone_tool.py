@@ -63,3 +63,56 @@ def index_rich_truth(rich_truth_data: list[dict[str, Any]]) -> dict[tuple[str, i
         if image_id is not None and tag_id is not None:
             index[(str(image_id), int(tag_id))] = record
     return index
+
+def hydrate_detection(detection: fo.Detection, record: dict[str, Any]) -> None:
+    """
+    Populate a FiftyOne Detection object with custom metadata.
+    """
+    fields = ["distance", "angle_of_incidence", "ppm", "position", "rotation_quaternion"]
+    for field in fields:
+        if field in record:
+            detection[field] = record[field]
+
+def map_corners_to_keypoints(
+    corners: list[list[float]], 
+    width: float = 1.0, 
+    height: float = 1.0,
+    normalized: bool = False
+) -> fo.Keypoints:
+    """
+    Map ordered corners to FiftyOne Keypoints with indexed labels.
+    
+    FiftyOne expects points normalized to [0, 1] relative to image size.
+    """
+    kps = []
+    for i, pt in enumerate(corners):
+        px, py = pt[0], pt[1]
+        if not normalized:
+            px /= width
+            py /= height
+        kps.append(fo.Keypoint(label=str(i), points=[[px, py]]))
+    
+    return fo.Keypoints(keypoints=kps)
+
+def get_polyline_from_segmentation(
+    segmentation: list[list[float]],
+    width: float = 1.0,
+    height: float = 1.0,
+    normalized: bool = False
+) -> fo.Polyline:
+    """
+    Convert COCO segmentation (list of points) to FiftyOne Polyline.
+    """
+    # COCO segmentation is [x1, y1, x2, y2, ...]
+    pts = []
+    # If list of lists, take the first polygon
+    raw_pts = segmentation[0] if isinstance(segmentation[0], list) else segmentation
+    
+    for i in range(0, len(raw_pts), 2):
+        px, py = raw_pts[i], raw_pts[i+1]
+        if not normalized:
+            px /= width
+            py /= height
+        pts.append([px, py])
+        
+    return fo.Polyline(points=[pts], closed=True, filled=True)
