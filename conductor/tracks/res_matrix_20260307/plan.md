@@ -15,10 +15,10 @@
 - [x] Task: Conductor - User Manual Verification 'Intrinsics Scaling' (Protocol in workflow.md)
 
 ## Phase 3: Benchmarking Pipeline Refactoring
-- [ ] Task: Update `scripts/generate_benchmarks.sh` to support the resolution matrix.
-    - [ ] Define the standard resolution array (VGA, 720p, 1080p, 4K).
-    - [ ] Refactor existing benchmarking calls to iterate over the matrix.
-    - [ ] Standardize output directory taxonomy.
+- [x] Task: Update `scripts/generate_benchmarks.sh` to support the resolution matrix. 7a97b61
+    - [x] Define the standard resolution array (VGA, 720p, 1080p, 4K).
+    - [x] Refactor existing benchmarking calls to iterate over the matrix.
+    - [x] Standardize output directory taxonomy.
 - [ ] Task: Conductor - User Manual Verification 'Benchmarking Matrix' (Protocol in workflow.md)
 
 ## Phase 4: CI/CD Tiered Execution & Storage
