@@ -26,10 +26,10 @@ class MockBProcObject:
         self.name = self.blender_obj.name
 
     def get_location(self):
-        return [0, 0, 0]
+        return self.blender_obj.location
 
     def set_location(self, loc):
-        pass
+        self.blender_obj.location = list(loc)
 
     def set_rotation_euler(self, rot):
         self.blender_obj.rotation_euler = list(rot)
@@ -48,7 +48,7 @@ class MockBProcObject:
         pass
 
     def get_local2world_mat(self):
-        return np.eye(4)
+        return np.array(self.blender_obj.matrix_world)
 
 
 class MockLoader:
@@ -67,17 +67,31 @@ class MockObjectModule:
 
 
 class MockCamera:
+    def __init__(self):
+        self._intrinsics = np.eye(3)
+
     def get_intrinsics_as_K_matrix(self):  # noqa: N802
-        return np.eye(3)
+        return self._intrinsics
 
     def add_camera_pose(self, transform, frame=0):
-        pass
+        from render_tag.backend.mocks.blender_api import context
+
+        # Update the blender camera mock state
+        cam = context.scene.camera
+        # transform might be list, np.array or mathutils.Matrix
+        if hasattr(transform, "tolist"):
+            mat_list = transform.tolist()
+        else:
+            mat_list = [list(row) for row in transform]
+
+        cam._matrix_world = mat_list
+        cam.location = [mat_list[0][3], mat_list[1][3], mat_list[2][3]]
 
     def set_resolution(self, width, height):
         pass
 
     def set_intrinsics_from_K_matrix(self, K, image_width, image_height):  # noqa: N802
-        pass
+        self._intrinsics = np.array(K)
 
 
 class MockRenderer:

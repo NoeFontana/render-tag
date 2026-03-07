@@ -56,6 +56,7 @@ def test_ppm_sampling_enforcement(tmp_path):
         # Calculate actual PPM using black border size
         # tag36h11 has 8x8 grid. Default margin is 1 bit. Total bits = 10.
         # Black border size = 0.16 * (8 / 10) = 0.128
+        black_border_size = 0.16 * (8 / 10)
         actual_ppm = calculate_ppm(
             z_depth_m=dist,
             tag_size_m=black_border_size,

@@ -21,7 +21,20 @@ class Matrix:
 
     @translation.setter
     def translation(self, val):
-        pass
+        # Handle both list/tuple and Vector mock
+        data = getattr(val, "data", val)
+        self.data[0][3] = float(data[0])
+        self.data[1][3] = float(data[1])
+        self.data[2][3] = float(data[2])
+
+    def __getitem__(self, idx):
+        return self.data[idx]
+
+    def __iter__(self):
+        return iter(self.data)
+
+    def __len__(self):
+        return len(self.data)
 
 
 class Vector:
@@ -30,6 +43,12 @@ class Vector:
 
     def __add__(self, other):
         return Vector(tuple(a + b for a, b in zip(self.data, other.data, strict=False)))
+
+    def __getitem__(self, idx):
+        return self.data[idx]
+
+    def __len__(self):
+        return len(self.data)
 
     def __repr__(self):
         return f"Vector({self.data})"

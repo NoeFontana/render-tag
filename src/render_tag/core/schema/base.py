@@ -104,6 +104,11 @@ class DetectionRecord(BaseModel):
         if len(v) != 4:
             return v  # Other logic (like saddles) might have different counts
 
+        # Skip validation if any corner is invalid (behind camera)
+        import numpy as np
+        if np.any(np.array(v) <= -999999.0):
+            return v
+
         from render_tag.generation.projection_math import validate_winding_order
 
         if not validate_winding_order(v):
@@ -163,9 +168,9 @@ class DetectionRecord(BaseModel):
             ordered_corners = self.corners
 
         for x, y in ordered_corners:
-            if width is not None:
+            if width is not None and x > -999999.0:
                 x = max(0.0, min(float(width), x))
-            if height is not None:
+            if height is not None and y > -999999.0:
                 y = max(0.0, min(float(height), y))
             # Format to 4 decimal places for consistency
             row.extend([float(f"{x:.4f}"), float(f"{y:.4f}")])
@@ -173,9 +178,9 @@ class DetectionRecord(BaseModel):
         # Append extra keypoints if present
         if self.keypoints:
             for x, y in self.keypoints:
-                if width is not None:
+                if width is not None and x > -999999.0:
                     x = max(0.0, min(float(width), x))
-                if height is not None:
+                if height is not None and y > -999999.0:
                     y = max(0.0, min(float(height), y))
                 row.extend([float(f"{x:.4f}"), float(f"{y:.4f}")])
         return row

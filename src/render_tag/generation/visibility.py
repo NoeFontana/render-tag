@@ -29,6 +29,9 @@ def is_facing_camera(
     Returns:
         True if the tag faces the camera.
     """
+    if camera_location is None or len(camera_location) == 0:
+        return False
+
     to_camera = camera_location - tag_location
     dist = np.linalg.norm(to_camera)
     if dist < 1e-6:

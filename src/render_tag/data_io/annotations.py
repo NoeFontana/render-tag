@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import numpy as np
 
-
 def compute_bbox(points: np.ndarray) -> list[float]:
     """Compute [x, y, width, height] bounding box for a set of points.
 
@@ -17,19 +16,24 @@ def compute_bbox(points: np.ndarray) -> list[float]:
 
     Returns:
         [x_min, y_min, width, height]. 
-        Returns [0,0,0,0] if any point is invalid (behind camera, coord <= -999999).
+        Returns [0,0,0,0] if insufficient valid points remain.
+        Points with coordinates <= -999999 are considered invalid.
     """
     if len(points) == 0:
         return [0.0, 0.0, 0.0, 0.0]
 
-    # Check for invalid points (behind camera marker is -1e6)
-    if np.any(points <= -999999.0):
+    # Filter out invalid points (behind camera marker is -1e6)
+    mask = np.all(points > -999999.0, axis=1)
+    valid_points = points[mask]
+
+    if len(valid_points) < 2:
         return [0.0, 0.0, 0.0, 0.0]
 
-    x_min, y_min = np.min(points, axis=0)
-    x_max, y_max = np.max(points, axis=0)
+    x_min, y_min = np.min(valid_points, axis=0)
+    x_max, y_max = np.max(valid_points, axis=0)
 
     return [float(x_min), float(y_min), float(x_max - x_min), float(y_max - y_min)]
+
 
 
 def normalize_corner_order(

@@ -2,10 +2,10 @@ import numpy as np
 import pytest
 from render_tag.data_io.annotations import compute_bbox
 
-def test_compute_bbox_with_invalid_points():
+def test_compute_bbox_strips_invalid_points():
     """
-    Test that compute_bbox incorrectly includes -1e6 points, 
-    resulting in a massive bounding box.
+    Test that compute_bbox strips out invalid points (-1e6) 
+    and computes the bbox from the remaining valid points.
     """
     # 2 valid points and 2 invalid (behind camera) points
     points = np.array([
@@ -17,12 +17,17 @@ def test_compute_bbox_with_invalid_points():
     
     bbox = compute_bbox(points)
     
-    # NEW implementation should return [0,0,0,0]
-    assert bbox == [0.0, 0.0, 0.0, 0.0]
+    # Should be computed from [100, 100] and [200, 200]
+    # [x_min, y_min, width, height] = [100, 100, 100, 100]
+    assert bbox == [100.0, 100.0, 100.0, 100.0]
 
-def test_compute_bbox_strict_filtering():
+def test_compute_bbox_zero_on_insufficient_points():
     """
-    Placeholder for the NEW compute_bbox behavior.
-    If ANY corner is -1e6, it should return [0,0,0,0].
+    Test that compute_bbox returns zero box if < 2 points remain.
     """
-    pass
+    points = np.array([
+        [100.0, 100.0],
+        [-1e6, -1e6],
+        [-1e6, -1e6]
+    ])
+    assert compute_bbox(points) == [0.0, 0.0, 0.0, 0.0]

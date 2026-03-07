@@ -67,6 +67,7 @@ def test_charuco_indexing_continuity(mock_bridge):
     mock_obj.get_local2world_mat.return_value = np.eye(4)
     mock_obj.get_location.return_value = [0, 0, 0]
     mock_bridge.np = np
+    mock_bridge.bpy.context.scene.camera.location = [0, 0, 10]
     mock_bridge.bpy.context.scene.camera.matrix_world = np.eye(4)
     mock_bridge.bpy.context.scene.camera.location = [0, 0, 1]
     mock_bridge.bpy.context.scene.render.resolution_x = 1000
@@ -107,6 +108,7 @@ def test_charuco_indexing_layout(mock_bridge):
     mock_obj.get_local2world_mat.return_value = np.eye(4)
     mock_obj.get_location.return_value = [0, 0, 0]
     mock_bridge.np = np
+    mock_bridge.bpy.context.scene.camera.location = [0, 0, 10]
 
     # To test Top-Left in OpenCV space, we need ID 0 to have
     # the minimum X and minimum Y coordinates among all intersections.
@@ -150,6 +152,7 @@ def test_aprilgrid_intersection_deprecation(mock_bridge):
     mock_obj.get_local2world_mat.return_value = np.eye(4)
     mock_obj.get_location.return_value = [0, 0, 0]
     mock_bridge.np = np
+    mock_bridge.bpy.context.scene.camera.location = [0, 0, 10]
 
     records = generate_board_records(mock_obj, "test_img")
 
@@ -245,8 +248,8 @@ def test_board_scale_independence(mock_bridge):
     # The first 4 points should be the corners of the single tag
     tl, tr, _, _ = projected_pts[:4]
 
-    # Since rigid_matrix strips scale, distance in 3D should be exactly marker_size
+    # Since world_matrix now PRESERVES scale, width in 3D should be marker_size * scale (0.1 * 0.1 = 0.01)
     diff = np.array(tr) - np.array(tl)
     width_3d = np.linalg.norm(diff)
 
-    assert np.isclose(width_3d, 0.1), f"Expected marker 3D width 0.1, got {width_3d}"
+    assert np.isclose(width_3d, 0.01), f"Expected marker 3D width 0.01, got {width_3d}"

@@ -193,8 +193,8 @@ class COCOWriter(AtomicWriter):
         if width is not None or height is not None:
             corners = [
                 (
-                    max(0.0, min(float(width or 1e9), c[0])),
-                    max(0.0, min(float(height or 1e9), c[1])),
+                    max(0.0, min(float(width or 1e9), c[0])) if c[0] > -999999.0 else c[0],
+                    max(0.0, min(float(height or 1e9), c[1])) if c[1] > -999999.0 else c[1],
                 )
                 for c in corners
             ]

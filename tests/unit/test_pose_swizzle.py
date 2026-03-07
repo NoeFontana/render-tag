@@ -15,25 +15,35 @@ def test_opencv_camera_matrix_determinant():
     
     det = np.linalg.det(opencv_cam_matrix[:3, :3])
     
-    # THIS SHOULD FAIL (we want it to be +1, but current implementation makes it -1)
-    # The current code uses a reflection matrix [1, -1, -1] which has det = -1
-    assert det > 0, f"Determinant is {det}, expected > 0"
+    # Restored logic uses 180 deg rotation, so det must be +1
+    assert np.isclose(det, 1.0), f"Determinant is {det}, expected 1.0"
 
-def test_relative_pose_quaternion_validity():
+def test_project_point_at_origin():
     """
-    Test that the current implementation yields invalid/unnormalized quaternions 
-    due to the reflection matrix.
+    Test that a point at the world origin is correctly projected 
+    when the camera is at (0, 0, 10) looking at it.
+    In OpenCV space, it should have Z = 10.
     """
-    tag_world_matrix = np.eye(4)
-    blender_cam_world_matrix = np.eye(4)
-    blender_cam_world_matrix[:3, 3] = [0, 0, 1] # Camera at (0,0,1)
+    # Camera at (0, 0, 10), Identity rotation (looking at -Z in Blender)
+    blender_cam_matrix = np.eye(4)
+    blender_cam_matrix[:3, 3] = [0, 0, 10]
     
-    pose = calculate_relative_pose(tag_world_matrix, blender_cam_world_matrix)
-    quat = pose["rotation_quaternion"]
+    # K matrix: fx=fy=500, cx=320, cy=240
+    k_matrix = np.array([[500, 0, 320], [0, 500, 240], [0, 0, 1]])
     
-    # Check if quaternion is normalized (w^2 + x^2 + y^2 + z^2 = 1)
-    norm_sq = sum(c*c for c in quat)
+    # Point at origin
+    points_world = np.array([[0.0, 0.0, 0.0]])
     
-    # THIS SHOULD FAIL if the matrix has det = -1, as matrix_to_quaternion_wxyz 
-    # expects a pure rotation matrix.
-    assert np.isclose(norm_sq, 1.0, atol=1e-5), f"Quaternion is not normalized: norm_sq={norm_sq}"
+    # Manual projection steps (matching project_points)
+    from render_tag.generation.projection_math import project_points
+    pixels = project_points(points_world, blender_cam_matrix, [640, 480], k_matrix)
+    
+    # Expected: 
+    # world_to_cam = inv(diag(1, -1, -1) with t=[0,0,10])
+    # world_to_cam = diag(1, -1, -1) with t=[0,0,10]
+    # p_cam = world_to_cam @ [0,0,0,1] = [0, 0, 10, 1]
+    # x_px = 0 * 500 / 10 + 320 = 320
+    # y_px = 0 * 500 / 10 + 240 = 240
+    
+    assert pixels[0, 0] == pytest.approx(320.0)
+    assert pixels[0, 1] == pytest.approx(240.0)
