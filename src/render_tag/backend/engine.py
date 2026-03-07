@@ -409,6 +409,19 @@ def _setup_scene(
         family = tag.blender_obj.get("tag_family")
         if family:
             ctx.coco_writer.add_category(family)
+        
+        # If it's a BOARD, also register its specific marker dictionary
+        if tag.blender_obj.get("type") == "BOARD":
+            board_data = tag.blender_obj.get("board")
+            if board_data:
+                import json
+                try:
+                    config = json.loads(board_data) if isinstance(board_data, str) else board_data
+                    dictionary = config.get("dictionary")
+                    if dictionary:
+                        ctx.coco_writer.add_category(dictionary)
+                except (json.JSONDecodeError, AttributeError):
+                    pass
 
     return renderer, tag_objects
 
