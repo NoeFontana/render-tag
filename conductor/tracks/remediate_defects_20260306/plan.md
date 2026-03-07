@@ -32,7 +32,7 @@
     - [ ] Write failing test in `tests/unit/test_charuco_ids.py` comparing output against OpenCV standard dictionary layout.
     - [ ] Refactor `compute_charuco_layout` to implement OpenCV-compatible assignment patterns.
     - [ ] Verify detection parity with real-world OpenCV routines.
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Stability and Resource Management' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 2: Stability and Resource Management' (Protocol in workflow.md)
 
 ## Phase 3: Pipeline and Execution Sync
 - [ ] Task: Synchronize Subframe Rendering
