@@ -22,8 +22,8 @@
 - [x] Task: Conductor - User Manual Verification 'Benchmarking Matrix' (Protocol in workflow.md)
 
 ## Phase 4: CI/CD Tiered Execution & Storage
-- [ ] Task: Modify `.github/workflows/ci.yml` for tiered benchmarking.
-    - [ ] Implement conditional logic to run only VGA benchmarks on PR.
-    - [ ] Configure manual/nightly workflow for full-matrix generation.
-    - [ ] Integrate Hugging Face Hub push logic for full-matrix artifacts.
+- [x] Task: Modify `.github/workflows/ci.yml` for tiered benchmarking. 75d9ad6
+    - [x] Implement conditional logic to run only VGA benchmarks on PR.
+    - [x] Configure manual/nightly workflow for full-matrix generation.
+    - [x] Integrate Hugging Face Hub push logic for full-matrix artifacts.
 - [ ] Task: Conductor - User Manual Verification 'CI/CD Tiering' (Protocol in workflow.md)
