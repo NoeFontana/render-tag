@@ -1,11 +1,11 @@
 # Implementation Plan: Voxel51 Visualization & Debugging Tool
 
-## Phase 1: Environment & CLI Scaffolding
+## Phase 1: Environment & CLI Scaffolding [checkpoint: 2c25d13]
 Establish the foundational infrastructure for FiftyOne integration.
-- [ ] Task: **Add FiftyOne dependencies** to `pyproject.toml` and synchronize environment (`uv sync`).
-- [ ] Task: **Create CLI scaffold** for `render-tag viz fiftyone --dataset <path>`.
-- [ ] Task: **Define FiftyOne Schema** for custom metadata fields (`distance`, `ppm`, `angle`, `position`, `rotation`).
-- [ ] Task: **Conductor - User Manual Verification 'Phase 1: Environment & CLI Scaffolding' (Protocol in workflow.md)**
+- [x] Task: **Add FiftyOne dependencies** to `pyproject.toml` and synchronize environment (`uv sync`). (5cda79c)
+- [x] Task: **Create CLI scaffold** for `render-tag viz fiftyone --dataset <path>`. (1d28c55)
+- [x] Task: **Define FiftyOne Schema** for custom metadata fields (`distance`, `ppm`, `angle`, `position`, `rotation`). (1fefd09)
+- [x] Task: **Conductor - User Manual Verification 'Phase 1: Environment & CLI Scaffolding' (Protocol in workflow.md)** (2c25d13)
 
 ## Phase 2: ETL Layer (Data Ingestion & Schema Definition)
 Develop the core logic for loading and indexing dataset artifacts.
