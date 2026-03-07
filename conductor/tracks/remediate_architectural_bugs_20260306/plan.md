@@ -42,3 +42,6 @@
     - [ ] Update layout generation in `src/render_tag/generation/board.py` to center at `(0,0,0)`.
     - [ ] Verify all tests pass and check coverage.
 - [x] Task: Conductor - User Manual Verification 'Phase 3: Synchronize Ground Truth Extraction' (Protocol in workflow.md)
+
+## Phase: Review Fixes
+- [x] Task: Apply review suggestions be3b5cd
