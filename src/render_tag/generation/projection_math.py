@@ -51,9 +51,16 @@ def get_opencv_camera_matrix(blender_matrix: Matrix4x4) -> Matrix4x4:
 
     Blender: right=X, up=Y, forward=-Z
     OpenCV: right=X, down=Y, forward=Z
+
+    This implementation uses a column-swizzle to ensure the determinant
+    remains positive (+1) for rigid transformations.
     """
-    flip_mat = np.array([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]])
-    return blender_matrix @ flip_mat
+    # Blender Columns: [X, Y, Z, T]
+    # OpenCV Columns:  [X, -Y, -Z, T]
+    opencv_matrix = np.copy(blender_matrix)
+    opencv_matrix[:, 1] = -blender_matrix[:, 1]
+    opencv_matrix[:, 2] = -blender_matrix[:, 2]
+    return opencv_matrix
 
 
 def get_world_normal(world_matrix: Matrix4x4, local_normal: Vector3 | None = None) -> Vector3:
