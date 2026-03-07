@@ -181,10 +181,27 @@ class RenderFacade:
         setup_lighting(world_recipe.get("lights", []))
 
     def spawn_objects(self, object_recipes: list[dict[str, Any]]):
-        """Creates subjects (tags, boards, etc.) using generic primitives."""
+        """Creates subjects (tags, boards, etc.) using generic primitives.
+        
+        This method implements Scene Graph Deduplication: if a BOARD with a 
+        composite texture is present, it suppresses the generation of individual
+        TAG objects that would otherwise cause Z-fighting.
+        """
         tag_objects = []
+        
+        # Check if any BOARD with a texture exists in the recipe
+        has_composite_board = any(
+            obj.get("type") == "BOARD" and obj.get("texture_path") 
+            for obj in object_recipes
+        )
+
         for obj_recipe in object_recipes:
             obj_type = obj_recipe["type"]
+            
+            # Suppress individual TAGs if a composite BOARD is handling the rendering
+            if obj_type == "TAG" and has_composite_board:
+                continue
+
             location = obj_recipe.get("location", [0, 0, 0])
             rotation = obj_recipe.get("rotation_euler", [0, 0, 0])
             scale = obj_recipe.get("scale", [1, 1, 1])
