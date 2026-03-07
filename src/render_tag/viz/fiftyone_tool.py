@@ -7,7 +7,16 @@ from pathlib import Path
 from typing import Any
 
 import fiftyone as fo
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, MofNCompleteColumn
+import numpy as np
+from rich.progress import (
+    BarColumn,
+    MofNCompleteColumn,
+    Progress,
+    SpinnerColumn,
+    TextColumn,
+)
+
+from render_tag.generation.projection_math import project_points
 
 
 def create_dataset(name: str) -> fo.Dataset:
@@ -149,6 +158,85 @@ def get_polyline_points(
     return pts
 
 
+def create_id_label(center: list[float], tag_id: int) -> fo.Keypoint:
+    """
+    Create a labeled keypoint for the tag ID.
+    """
+    return fo.Keypoint(label=f"ID: {tag_id}", points=[center])
+
+
+def quaternion_to_matrix(q: list[float]) -> np.ndarray:
+    """
+    Convert a wxyz quaternion to a 3x3 rotation matrix.
+    """
+    w, x, y, z = q
+    return np.array(
+        [
+            [1 - 2 * y**2 - 2 * z**2, 2 * x * y - 2 * w * z, 2 * x * z + 2 * w * y],
+            [2 * x * y + 2 * w * z, 1 - 2 * x**2 - 2 * z**2, 2 * y * z - 2 * w * x],
+            [2 * x * z - 2 * w * y, 2 * y * z + 2 * w * x, 1 - 2 * x**2 - 2 * y**2],
+        ]
+    )
+
+
+def project_tag_axes(
+    record: dict[str, Any],
+    k_matrix: list[list[float]],
+    resolution: list[int],
+    axis_length: float = 0.05,
+) -> fo.Polylines:
+    """
+    Project 3D axes at the tag center using relative pose (camera space).
+    """
+    pos = record.get("position")  # [x, y, z] in camera space
+    quat = record.get("rotation_quaternion")  # [w, x, y, z] in camera space
+
+    if pos is None or quat is None:
+        return None
+
+    # Rotation matrix from tag to camera
+    r_mat = quaternion_to_matrix(quat)
+    t_vec = np.array(pos)
+
+    # 3D points for axes in tag local space (origin and ends of X, Y, Z)
+    # OpenCV: X right, Y down, Z forward
+    pts_3d = np.array(
+        [
+            [0, 0, 0],  # Origin
+            [axis_length, 0, 0],  # X-axis end
+            [0, axis_length, 0],  # Y-axis end
+            [0, 0, axis_length],  # Z-axis end
+        ]
+    )
+
+    # Transform to camera space: P_cam = R_mat @ P_tag + T_vec
+    pts_cam = (r_mat @ pts_3d.T).T + t_vec
+
+    # Project to image space using K matrix
+    k_np = np.array(k_matrix)
+    pts_2d_hom = (k_np @ pts_cam.T).T
+    pts_2d = pts_2d_hom[:, :2] / pts_2d_hom[:, 2:3]
+
+    # Normalize to [0, 1]
+    width, height = resolution
+    pts_2d[:, 0] /= width
+    pts_2d[:, 1] /= height
+
+    # Create polylines for X, Y, Z axes
+    origin = pts_2d[0].tolist()
+    x_end = pts_2d[1].tolist()
+    y_end = pts_2d[2].tolist()
+    z_end = pts_2d[3].tolist()
+
+    return fo.Polylines(
+        polylines=[
+            fo.Polyline(label="X", points=[[origin, x_end]]),
+            fo.Polyline(label="Y", points=[[origin, y_end]]),
+            fo.Polyline(label="Z", points=[[origin, z_end]]),
+        ]
+    )
+
+
 def check_oob(detection: fo.Detection) -> bool:
     """
     Check if a bounding box is out of image bounds.
@@ -183,11 +271,9 @@ def compute_iou(box1: list[float], box2: list[float]) -> float:
     """
     Compute IoU between two bboxes [x, y, w, h].
     """
-    # Convert to [x1, y1, x2, y2]
     b1_x1, b1_y1, b1_x2, b1_y2 = box1[0], box1[1], box1[0] + box1[2], box1[1] + box1[3]
     b2_x1, b2_y1, b2_x2, b2_y2 = box2[0], box2[1], box2[0] + box2[2], box2[1] + box2[3]
 
-    # Intersection
     inter_x1 = max(b1_x1, b2_x1)
     inter_y1 = max(b1_y1, b2_y1)
     inter_x2 = min(b1_x2, b2_x2)
@@ -197,7 +283,6 @@ def compute_iou(box1: list[float], box2: list[float]) -> float:
     inter_h = max(0, inter_y2 - inter_y1)
     inter_area = inter_w * inter_h
 
-    # Union
     area1 = box1[2] * box1[3]
     area2 = box2[2] * box2[3]
     union_area = area1 + area2 - inter_area
@@ -227,7 +312,6 @@ def audit_dataset(dataset: fo.Dataset) -> None:
     """
     for sample in dataset:
         tags = []
-        # COCO importer uses 'detections'
         if not hasattr(sample, "detections") or not sample.detections:
             continue
 
@@ -261,7 +345,6 @@ def find_active_session() -> fo.Session | None:
         from fiftyone.core.session import Session
 
         if hasattr(Session, "_instances") and Session._instances:
-            # Return the first active instance
             return list(Session._instances.values())[0]
     except (ImportError, AttributeError):
         pass
@@ -283,17 +366,14 @@ def visualize_fiftyone(
         MofNCompleteColumn(),
         expand=True,
     ) as progress:
-        # 1. Load Base COCO
         task_load = progress.add_task("Loading COCO dataset", total=1)
         dataset = load_dataset_from_coco(dataset_path, dataset_name)
         progress.update(task_load, advance=1)
 
-        # 2. Compute Metadata
         task_meta = progress.add_task("Computing image metadata", total=1)
         dataset.compute_metadata()
         progress.update(task_meta, advance=1)
 
-        # 3. Load and Index Rich Truth
         rich_truth_file = dataset_path / "rich_truth.json"
         if rich_truth_file.exists():
             with open(rich_truth_file) as f:
@@ -301,7 +381,6 @@ def visualize_fiftyone(
 
             rich_index = index_rich_truth(rich_truth_data)
 
-            # Hydrate Dataset
             task_hydrate = progress.add_task("Hydrating with rich truth", total=len(dataset))
             for sample in dataset:
                 width = sample.metadata.width if sample.metadata else 1.0
@@ -311,53 +390,72 @@ def visualize_fiftyone(
                     progress.update(task_hydrate, advance=1)
                     continue
 
+                # Try to load camera metadata for projection
+                img_path = Path(sample.filepath)
+                meta_path = img_path.parent / f"{img_path.stem}_meta.json"
+                cam_meta = None
+                if meta_path.exists():
+                    with open(meta_path) as f:
+                        cam_meta = json.load(f)
+
                 detections = sample.detections.detections
                 new_keypoints = []
+                new_axes = []
 
                 for det in detections:
                     img_stem = Path(sample.filepath).stem
-                    # FiftyOne maps COCO attributes to 'attributes' dict or direct fields
-                    tag_id = (
-                        det.get_field("tag_id")
-                        if hasattr(det, "get_field")
-                        else det.get("tag_id")
-                    )
+                    tag_id = det.get_field("tag_id") if hasattr(det, "get_field") else det.get("tag_id")
 
                     if tag_id is None and "tag_id" in det.attributes:
                         tag_id = det.attributes["tag_id"]
 
-                    # Try to find record
                     record = rich_index.get((img_stem, tag_id))
                     if record:
                         hydrate_detection(det, record)
 
-                        # Add layers
                         if "corners" in record:
-                            # 1. Consolidate Polygon truth into the detection's segmentation
                             pts = get_polyline_points(record["corners"], width, height)
                             det.segmentation = [pts]
 
-                            # 2. Add labeled corners for contract/winding-order verification
                             kps = map_corners_to_keypoints(record["corners"], width, height)
                             new_keypoints.extend(kps.keypoints)
 
+                            # ID Label Overlay
+                            center_px = np.mean(record["corners"], axis=0)
+                            center_norm = [center_px[0] / width, center_px[1] / height]
+                            id_kp = create_id_label(center_norm, tag_id)
+                            new_keypoints.append(id_kp)
+
+                            # 3D Axes Overlay
+                            if cam_meta:
+                                try:
+                                    cam = cam_meta["recipe_snapshot"]["cameras"][0]
+                                    axes = project_tag_axes(
+                                        record,
+                                        k_matrix=cam["intrinsics"]["k_matrix"],
+                                        resolution=cam["intrinsics"]["resolution"],
+                                    )
+                                    if axes:
+                                        new_axes.extend(axes.polylines)
+                                except (KeyError, IndexError):
+                                    pass
+
                 if new_keypoints:
                     sample["corners"] = fo.Keypoints(keypoints=new_keypoints)
+                if new_axes:
+                    sample["axes"] = fo.Polylines(polylines=new_axes)
 
                 sample.save()
                 progress.update(task_hydrate, advance=1)
 
-        # 4. Run Auditor
         task_audit = progress.add_task("Running automated auditor", total=1)
         audit_dataset(dataset)
         progress.update(task_audit, advance=1)
 
-        # 5. Create Saved Views
         task_views = progress.add_task("Configuring saved views", total=1)
         create_error_view(dataset)
         progress.update(task_views, advance=1)
 
-    # 6. Launch App or Reuse Session
     session = find_active_session()
     if session:
         print(f"Reusing active FiftyOne session on {session.url}...")
@@ -366,5 +464,4 @@ def visualize_fiftyone(
         print(f"Launching FiftyOne App on {address}:{port}...")
         session = fo.launch_app(dataset, address=address, port=port, remote=remote)
 
-    # Block so the server stays alive until the user closes it (or Ctrl+C)
     session.wait()
