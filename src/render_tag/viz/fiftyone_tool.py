@@ -2,6 +2,9 @@
 FiftyOne tool for visualizing render-tag datasets.
 """
 
+from pathlib import Path
+from typing import Any
+
 import fiftyone as fo
 
 def create_dataset(name: str) -> fo.Dataset:
@@ -11,7 +14,6 @@ def create_dataset(name: str) -> fo.Dataset:
     dataset = fo.Dataset(name)
     
     # Register custom metadata fields on detections
-    # These will be hydrated from rich_truth.json later
     dataset.add_sample_field(
         "ground_truth.detections.distance",
         fo.FloatField,
@@ -39,3 +41,25 @@ def create_dataset(name: str) -> fo.Dataset:
     )
     
     return dataset
+
+def load_dataset_from_coco(dataset_dir: Path, name: str) -> fo.Dataset:
+    """
+    Load a COCO dataset into FiftyOne.
+    """
+    return fo.Dataset.from_dir(
+        dataset_dir=str(dataset_dir),
+        dataset_type=fo.types.COCODetectionDataset,
+        name=name,
+    )
+
+def index_rich_truth(rich_truth_data: list[dict[str, Any]]) -> dict[tuple[str, int], dict[str, Any]]:
+    """
+    Index rich truth data by (image_id, tag_id) for rapid lookup.
+    """
+    index = {}
+    for record in rich_truth_data:
+        image_id = record.get("image_id")
+        tag_id = record.get("tag_id")
+        if image_id is not None and tag_id is not None:
+            index[(str(image_id), int(tag_id))] = record
+    return index
