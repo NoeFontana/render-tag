@@ -10,7 +10,7 @@
     - [ ] Delete hardcoded screen-size bounds and dummy `20.0` offsets in `engine.py` and `projection.py`.
     - [ ] Ensure `project_points` executes normally even when occlusion raycasting is skipped.
     - [ ] Verify all tests pass and check coverage.
-- [ ] Task: Persist Mesh Transformations
+- [x] Task: Persist Mesh Transformations (cdb4e5d)
     - [ ] Write failing tests in `tests/unit/test_scene_persistence.py` to check for non-unit scale on board planes.
     - [ ] Add `persist_transformation_into_mesh()` to `create_board_plane` in `src/render_tag/backend/scene.py`.
     - [ ] Verify board objects remain at `[1,1,1]` scale.
