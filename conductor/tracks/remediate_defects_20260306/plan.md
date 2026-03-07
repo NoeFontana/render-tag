@@ -13,7 +13,7 @@
     - [ ] Write failing test in `tests/unit/test_bbox_filtering.py` with points behind the camera.
     - [ ] Implement strict filtering in `compute_bbox` (mark invalid if any corner is behind camera).
     - [ ] Verify `-1e6` coordinates no longer corrupt bounding boxes.
-- [ ] Task: Fix Overlap Validation Logic
+- [x] Task: Fix Overlap Validation Logic b38e7b9
     - [ ] Write failing test in `tests/unit/test_board_overlap.py` with 50% overlapping tags that currently pass.
     - [ ] Correct `min_distance` check in `board.py` to use full `marker_size`.
     - [ ] Verify overlapping tags are correctly rejected.
