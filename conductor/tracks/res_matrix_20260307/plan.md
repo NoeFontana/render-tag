@@ -7,12 +7,12 @@
     - [x] Verify overrides correctly modify the base config without mutating the source YAML.
 - [x] Task: Conductor - User Manual Verification 'CLI Overrides' (Protocol in workflow.md)
 
-## Phase 2: Dynamic Camera Intrinsics Scaling
+## Phase 2: Dynamic Camera Intrinsics Scaling [checkpoint: 6e298e5]
 - [x] Task: Implement resolution-aware scaling of focal length and optical center in `src/render_tag/core/camera.py`. 5d41f35
     - [x] Write unit tests for constant-FOV scaling across multiple resolutions (VGA -> 4K).
     - [x] Add pre-flight validation to ensure scaled intrinsics are physically consistent.
     - [x] Integrate scaling logic into the `SceneRecipe` generation pipeline.
-- [ ] Task: Conductor - User Manual Verification 'Intrinsics Scaling' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Intrinsics Scaling' (Protocol in workflow.md)
 
 ## Phase 3: Benchmarking Pipeline Refactoring
 - [ ] Task: Update `scripts/generate_benchmarks.sh` to support the resolution matrix.
