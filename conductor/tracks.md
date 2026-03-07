@@ -4,5 +4,5 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-- [~] **Track: Introduce a parametric resolution matrix to the benchmarking pipeline.**
+- [x] **Track: Introduce a parametric resolution matrix to the benchmarking pipeline.**
 *Link: [./tracks/res_matrix_20260307/](./tracks/res_matrix_20260307/)*
