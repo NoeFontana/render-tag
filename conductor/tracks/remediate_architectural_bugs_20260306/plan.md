@@ -1,6 +1,6 @@
 # Implementation Plan: Full Remediation of 10 Critical Architectural Bugs
 
-## Phase 1: Core Geometric Contracts (Highest Priority)
+## Phase 1: Core Geometric Contracts (Highest Priority) [checkpoint: 58593a1]
 - [x] Task: Unify Winding Order Convention (865c21a)
     - [ ] Write failing tests in `tests/unit/test_annotations_winding.py` to confirm contradiction between `annotations.py` and `projection_math.py`.
     - [ ] Update `src/render_tag/core/annotations.py` to match the mathematical truth (Positive Area = CW).
