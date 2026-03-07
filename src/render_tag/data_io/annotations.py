@@ -91,9 +91,9 @@ def verify_corner_order(
     signed_area = 0.5 * (np.dot(x, np.roll(y, -1)) - np.dot(y, np.roll(x, -1)))
 
     if expected_order == "ccw":
-        return bool(signed_area > 0)
-    else:  # cw
         return bool(signed_area < 0)
+    else:  # cw
+        return bool(signed_area > 0)
 
 
 def format_coco_keypoints(
