@@ -93,7 +93,13 @@ def check_tag_visibility(tag_obj: Any, min_visible_corners: int = 3) -> bool:
 def check_tag_facing_camera(tag_obj: Any) -> bool:
     """Check if the tag's front face is facing the camera."""
     world_matrix = bridge.np.array(tag_obj.get_local2world_mat())
-    world_normal = get_world_normal(world_matrix)
+    
+    # Respect custom forward axis for non-Z-up assets
+    local_normal = tag_obj.blender_obj.get("forward_axis")
+    if local_normal:
+        local_normal = bridge.np.array(local_normal)
+        
+    world_normal = get_world_normal(world_matrix, local_normal=local_normal)
 
     tag_center = bridge.np.array(tag_obj.get_location())
     cam_pos = bridge.np.array(bridge.bpy.context.scene.camera.location)

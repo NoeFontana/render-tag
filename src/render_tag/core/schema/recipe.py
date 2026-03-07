@@ -81,6 +81,9 @@ class ObjectRecipe(BaseModel):
     material: dict[str, Any] | None = None
     texture_path: str | None = None
     board: BoardConfig | None = None
+    forward_axis: list[float] | None = Field(
+        default=None, min_length=4, max_length=4, description="Local forward vector [x, y, z, 0]"
+    )
     keypoints_3d: list[list[float]] | None = Field(
         default=None, description="Standardized 3D keypoints [x, y, z] in local object space"
     )

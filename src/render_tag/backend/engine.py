@@ -207,6 +207,7 @@ class RenderFacade:
             scale = obj_recipe.get("scale", [1, 1, 1])
             texture_path = obj_recipe.get("texture_path")
             keypoints_3d = obj_recipe.get("keypoints_3d")
+            forward_axis = obj_recipe.get("forward_axis")
 
             if obj_type == "TAG":
                 props = obj_recipe["properties"]
@@ -225,6 +226,8 @@ class RenderFacade:
                 # Attach metadata
                 if keypoints_3d:
                     tag_obj.blender_obj["keypoints_3d"] = keypoints_3d
+                if forward_axis:
+                    tag_obj.blender_obj["forward_axis"] = forward_axis
                 tag_obj.blender_obj["tag_id"] = props["tag_id"]
                 tag_obj.blender_obj["tag_family"] = props["tag_family"]
                 tag_obj.blender_obj["type"] = "TAG"
@@ -279,6 +282,8 @@ class RenderFacade:
 
                 if keypoints_3d:
                     board_obj.blender_obj["keypoints_3d"] = keypoints_3d
+                if forward_axis:
+                    board_obj.blender_obj["forward_axis"] = forward_axis
 
                 tag_objects.append(board_obj)
         return tag_objects
