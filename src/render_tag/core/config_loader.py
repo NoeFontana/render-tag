@@ -175,6 +175,23 @@ class ConfigResolver:
         for path, value in overrides.items():
             if path == "renderer_mode":
                 continue
+                
+            # Intercept resolution override to scale intrinsics correctly
+            if path == "camera.resolution":
+                # Value should be like [1920, 1080] or (1920, 1080)
+                # It might come as a string like "[1920, 1080]" from CLI
+                if isinstance(value, str):
+                    import ast
+                    try:
+                        res = ast.literal_eval(value)
+                        if isinstance(res, (list, tuple)) and len(res) == 2:
+                            config.camera.scale_resolution(res[0], res[1])
+                            continue
+                    except Exception:
+                        pass
+                elif isinstance(value, (list, tuple)) and len(value) == 2:
+                    config.camera.scale_resolution(value[0], value[1])
+                    continue
 
             parts = path.split(".")
             target: Any = config
