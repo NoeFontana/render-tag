@@ -39,7 +39,7 @@
     - [ ] Write failing test in `tests/unit/test_motion_blur_sync.py` verifying timeline state at point of render call.
     - [ ] Reorder `engine.py` render loop: call `frame_set(subframe=0.5)` *before* rendering.
     - [ ] Verify motion blur and physics are correctly captured in output.
-- [ ] Task: Restore Raw Matrix Support (Reflection Preserving)
+- [x] Task: Restore Raw Matrix Support (Reflection Preserving) 082e6b9
     - [ ] Write failing test in `tests/unit/test_reflected_board.py` showing SVD corruption of intentionally flipped boards.
     - [ ] Revert SVD reconstruction in `_get_scene_transformations`.
     - [ ] Verify reflected ground truth matches reflected visual render.
