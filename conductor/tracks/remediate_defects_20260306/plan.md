@@ -24,7 +24,7 @@
     - [ ] Write failing test in `tests/unit/test_texture_leak.py` counting Blender image datablocks during repeated floor generation.
     - [ ] Implement image registry check in `setup_floor_material` (`scene.py`).
     - [ ] Verify memory usage/datablock count remains constant for identical textures.
-- [ ] Task: Support Subject-Specific Normals
+- [x] Task: Support Subject-Specific Normals 1ac06d0
     - [ ] Write failing test in `tests/unit/test_subject_normals.py` using a non-Z-up asset that incorrectly fails occlusion checks.
     - [ ] Extend `get_world_normal` and `check_tag_facing_camera` to respect `forward_axis` property.
     - [ ] Update `SceneRecipe` schema to include optional `forward_axis`.
