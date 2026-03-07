@@ -33,7 +33,7 @@
     - [ ] Write failing tests in `tests/unit/test_projection_matrices.py` to ensure raw `world_matrix` parity.
     - [ ] Revert SVD hack in `_get_scene_transformations` within `src/render_tag/backend/projection.py`.
     - [ ] Verify all tests pass and check coverage.
-- [ ] Task: Fix COCO Category Registration
+- [x] Task: Fix COCO Category Registration (4b1449f)
     - [ ] Write failing tests in `tests/integration/test_coco_registration.py` for board marker dictionaries.
     - [ ] Modify `_setup_scene` in `src/render_tag/backend/engine.py` to register specific board marker families.
     - [ ] Verify all tests pass and check coverage.
