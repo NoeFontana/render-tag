@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 import fiftyone as fo
+from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, MofNCompleteColumn
 
 
 def create_dataset(name: str) -> fo.Dataset:
@@ -243,6 +244,15 @@ def audit_dataset(dataset: fo.Dataset) -> None:
             sample.save()
 
 
+def create_error_view(dataset: fo.Dataset) -> None:
+    """
+    Create a saved view for samples with errors.
+    """
+    error_tags = ["ERR_OOB", "ERR_OVERLAP", "ERR_SCALE_DRIFT"]
+    view = dataset.match_tags(error_tags)
+    dataset.save_view("Anomalies", view)
+
+
 def find_active_session() -> fo.Session | None:
     """
     Find an active FiftyOne session if one exists.
@@ -266,71 +276,88 @@ def visualize_fiftyone(
     """
     dataset_name = f"render-tag-{dataset_path.name}"
 
-    # 1. Load Base COCO
-    print(f"Loading COCO dataset from {dataset_path}...")
-    dataset = load_dataset_from_coco(dataset_path, dataset_name)
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        MofNCompleteColumn(),
+        expand=True,
+    ) as progress:
+        # 1. Load Base COCO
+        task_load = progress.add_task("Loading COCO dataset", total=1)
+        dataset = load_dataset_from_coco(dataset_path, dataset_name)
+        progress.update(task_load, advance=1)
 
-    # 2. Compute Metadata (needed for normalization)
-    print("Computing image metadata...")
-    dataset.compute_metadata()
+        # 2. Compute Metadata
+        task_meta = progress.add_task("Computing image metadata", total=1)
+        dataset.compute_metadata()
+        progress.update(task_meta, advance=1)
 
-    # 3. Load and Index Rich Truth
-    rich_truth_file = dataset_path / "rich_truth.json"
-    if rich_truth_file.exists():
-        print(f"Hydrating with rich truth from {rich_truth_file}...")
-        with open(rich_truth_file) as f:
-            rich_truth_data = json.load(f)
+        # 3. Load and Index Rich Truth
+        rich_truth_file = dataset_path / "rich_truth.json"
+        if rich_truth_file.exists():
+            with open(rich_truth_file) as f:
+                rich_truth_data = json.load(f)
 
-        rich_index = index_rich_truth(rich_truth_data)
+            rich_index = index_rich_truth(rich_truth_data)
 
-        # Hydrate Dataset
-        for sample in dataset:
-            width = sample.metadata.width if sample.metadata else 1.0
-            height = sample.metadata.height if sample.metadata else 1.0
+            # Hydrate Dataset
+            task_hydrate = progress.add_task("Hydrating with rich truth", total=len(dataset))
+            for sample in dataset:
+                width = sample.metadata.width if sample.metadata else 1.0
+                height = sample.metadata.height if sample.metadata else 1.0
 
-            if not hasattr(sample, "detections") or not sample.detections:
-                continue
+                if not hasattr(sample, "detections") or not sample.detections:
+                    progress.update(task_hydrate, advance=1)
+                    continue
 
-            detections = sample.detections.detections
-            new_keypoints = []
+                detections = sample.detections.detections
+                new_keypoints = []
 
-            for det in detections:
-                img_stem = Path(sample.filepath).stem
-                # FiftyOne maps COCO attributes to 'attributes' dict or direct fields
-                tag_id = (
-                    det.get_field("tag_id")
-                    if hasattr(det, "get_field")
-                    else det.get("tag_id")
-                )
+                for det in detections:
+                    img_stem = Path(sample.filepath).stem
+                    # FiftyOne maps COCO attributes to 'attributes' dict or direct fields
+                    tag_id = (
+                        det.get_field("tag_id")
+                        if hasattr(det, "get_field")
+                        else det.get("tag_id")
+                    )
 
-                if tag_id is None and "tag_id" in det.attributes:
-                    tag_id = det.attributes["tag_id"]
+                    if tag_id is None and "tag_id" in det.attributes:
+                        tag_id = det.attributes["tag_id"]
 
-                # Try to find record
-                record = rich_index.get((img_stem, tag_id))
-                if record:
-                    hydrate_detection(det, record)
+                    # Try to find record
+                    record = rich_index.get((img_stem, tag_id))
+                    if record:
+                        hydrate_detection(det, record)
 
-                    # Add layers
-                    if "corners" in record:
-                        # 1. Consolidate Polygon truth into the detection's segmentation
-                        pts = get_polyline_points(record["corners"], width, height)
-                        det.segmentation = [pts]
+                        # Add layers
+                        if "corners" in record:
+                            # 1. Consolidate Polygon truth into the detection's segmentation
+                            pts = get_polyline_points(record["corners"], width, height)
+                            det.segmentation = [pts]
 
-                        # 2. Add labeled corners for contract/winding-order verification
-                        kps = map_corners_to_keypoints(record["corners"], width, height)
-                        new_keypoints.extend(kps.keypoints)
+                            # 2. Add labeled corners for contract/winding-order verification
+                            kps = map_corners_to_keypoints(record["corners"], width, height)
+                            new_keypoints.extend(kps.keypoints)
 
-            if new_keypoints:
-                sample["corners"] = fo.Keypoints(keypoints=new_keypoints)
+                if new_keypoints:
+                    sample["corners"] = fo.Keypoints(keypoints=new_keypoints)
 
-            sample.save()
+                sample.save()
+                progress.update(task_hydrate, advance=1)
 
-    # 4. Run Auditor
-    print("Running automated auditor...")
-    audit_dataset(dataset)
+        # 4. Run Auditor
+        task_audit = progress.add_task("Running automated auditor", total=1)
+        audit_dataset(dataset)
+        progress.update(task_audit, advance=1)
 
-    # 5. Launch App or Reuse Session
+        # 5. Create Saved Views
+        task_views = progress.add_task("Configuring saved views", total=1)
+        create_error_view(dataset)
+        progress.update(task_views, advance=1)
+
+    # 6. Launch App or Reuse Session
     session = find_active_session()
     if session:
         print(f"Reusing active FiftyOne session on {session.url}...")
