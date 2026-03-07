@@ -68,7 +68,7 @@ def load_dataset_from_coco(dataset_dir: Path, name: str) -> fo.Dataset:
 
 
 def index_rich_truth(
-    rich_truth_data: list[dict[str, Any]],
+    rich_truth_data: list[dict[str, Any]]
 ) -> dict[tuple[str, int], dict[str, Any]]:
     """
     Index rich truth data by (image_id, tag_id) for rapid lookup.
@@ -93,7 +93,10 @@ def hydrate_detection(detection: fo.Detection, record: dict[str, Any]) -> None:
 
 
 def map_corners_to_keypoints(
-    corners: list[list[float]], width: float = 1.0, height: float = 1.0, normalized: bool = False
+    corners: list[list[float]],
+    width: float = 1.0,
+    height: float = 1.0,
+    normalized: bool = False,
 ) -> fo.Keypoints:
     """
     Map ordered corners to FiftyOne Keypoints with indexed labels.
@@ -109,26 +112,40 @@ def map_corners_to_keypoints(
     return fo.Keypoints(keypoints=kps)
 
 
-def get_polyline_from_segmentation(
-    segmentation: list[list[float]],
+def get_polyline_points(
+    segmentation: list[Any],
     width: float = 1.0,
     height: float = 1.0,
     normalized: bool = False,
-) -> fo.Polyline:
+) -> list[list[float]]:
     """
-    Convert COCO segmentation to FiftyOne Polyline.
+    Extract normalized points for FiftyOne Polylines/Detections.
     """
     pts = []
-    raw_pts = segmentation[0] if isinstance(segmentation[0], list) else segmentation
 
-    for i in range(0, len(raw_pts), 2):
-        px, py = raw_pts[i], raw_pts[i + 1]
-        if not normalized:
-            px /= width
-            py /= height
-        pts.append([px, py])
+    # Handle case: [[x1, y1], [x2, y2], ...] (Rich Truth style)
+    if (
+        len(segmentation) > 0
+        and isinstance(segmentation[0], (list, tuple))
+        and len(segmentation[0]) == 2
+    ):
+        for pt in segmentation:
+            px, py = pt[0], pt[1]
+            if not normalized:
+                px /= width
+                py /= height
+            pts.append([px, py])
+    else:
+        # Handle case: [x1, y1, x2, y2, ...] (Standard COCO)
+        raw_pts = segmentation[0] if isinstance(segmentation[0], list) else segmentation
+        for i in range(0, len(raw_pts), 2):
+            px, py = raw_pts[i], raw_pts[i + 1]
+            if not normalized:
+                px /= width
+                py /= height
+            pts.append([px, py])
 
-    return fo.Polyline(points=[pts], closed=True, filled=True)
+    return pts
 
 
 def check_oob(detection: fo.Detection) -> bool:
@@ -226,6 +243,21 @@ def audit_dataset(dataset: fo.Dataset) -> None:
             sample.save()
 
 
+def find_active_session() -> fo.Session | None:
+    """
+    Find an active FiftyOne session if one exists.
+    """
+    try:
+        from fiftyone.core.session import Session
+
+        if hasattr(Session, "_instances") and Session._instances:
+            # Return the first active instance
+            return list(Session._instances.values())[0]
+    except (ImportError, AttributeError):
+        pass
+    return None
+
+
 def visualize_fiftyone(
     dataset_path: Path, address: str = "0.0.0.0", port: int = 5151, remote: bool = False
 ) -> None:
@@ -238,7 +270,11 @@ def visualize_fiftyone(
     print(f"Loading COCO dataset from {dataset_path}...")
     dataset = load_dataset_from_coco(dataset_path, dataset_name)
 
-    # 2. Load and Index Rich Truth
+    # 2. Compute Metadata (needed for normalization)
+    print("Computing image metadata...")
+    dataset.compute_metadata()
+
+    # 3. Load and Index Rich Truth
     rich_truth_file = dataset_path / "rich_truth.json"
     if rich_truth_file.exists():
         print(f"Hydrating with rich truth from {rich_truth_file}...")
@@ -257,16 +293,16 @@ def visualize_fiftyone(
 
             detections = sample.detections.detections
             new_keypoints = []
-            new_polylines = []
 
             for det in detections:
                 img_stem = Path(sample.filepath).stem
                 # FiftyOne maps COCO attributes to 'attributes' dict or direct fields
-                # In latest FiftyOne, 'tag_id' from COCO is often a direct field
-                # if it was in 'attributes'
-                tag_id = det.get_field("tag_id") if hasattr(det, "get_field") else det.get("tag_id")
+                tag_id = (
+                    det.get_field("tag_id")
+                    if hasattr(det, "get_field")
+                    else det.get("tag_id")
+                )
 
-                # If not found, check attributes
                 if tag_id is None and "tag_id" in det.attributes:
                     tag_id = det.attributes["tag_id"]
 
@@ -277,26 +313,31 @@ def visualize_fiftyone(
 
                     # Add layers
                     if "corners" in record:
+                        # 1. Consolidate Polygon truth into the detection's segmentation
+                        pts = get_polyline_points(record["corners"], width, height)
+                        det.segmentation = [pts]
+
+                        # 2. Add labeled corners for contract/winding-order verification
                         kps = map_corners_to_keypoints(record["corners"], width, height)
                         new_keypoints.extend(kps.keypoints)
 
-                        poly = get_polyline_from_segmentation(record["corners"], width, height)
-                        new_polylines.extend([poly])
-
             if new_keypoints:
                 sample["corners"] = fo.Keypoints(keypoints=new_keypoints)
-            if new_polylines:
-                sample["polygons"] = fo.Polylines(polylines=new_polylines)
 
             sample.save()
 
-    # 3. Run Auditor
+    # 4. Run Auditor
     print("Running automated auditor...")
     audit_dataset(dataset)
 
-    # 5. Launch App
-    print(f"Launching FiftyOne App on {address}:{port}...")
-    session = fo.launch_app(dataset, address=address, port=port, remote=remote)
+    # 5. Launch App or Reuse Session
+    session = find_active_session()
+    if session:
+        print(f"Reusing active FiftyOne session on {session.url}...")
+        session.dataset = dataset
+    else:
+        print(f"Launching FiftyOne App on {address}:{port}...")
+        session = fo.launch_app(dataset, address=address, port=port, remote=remote)
 
     # Block so the server stays alive until the user closes it (or Ctrl+C)
     session.wait()
