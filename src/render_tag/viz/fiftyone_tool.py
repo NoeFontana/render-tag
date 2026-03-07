@@ -290,9 +290,9 @@ def visualize_fiftyone(
     print("Running automated auditor...")
     audit_dataset(dataset)
     
-    # 4. Launch App
+    # 5. Launch App
     print(f"Launching FiftyOne App on {address}:{port}...")
     session = fo.launch_app(dataset, address=address, port=port, remote=remote)
-    
-    if not remote:
-        session.wait()
+
+    # Block so the server stays alive until the user closes it (or Ctrl+C)
+    session.wait()
