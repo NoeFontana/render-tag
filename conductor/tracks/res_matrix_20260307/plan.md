@@ -1,7 +1,7 @@
 # Implementation Plan - Resolution Matrix Benchmarking (res_matrix_20260307)
 
 ## Phase 1: CLI Configuration Overrides
-- [ ] Task: Implement dot-notation override logic in `src/render_tag/cli/generate.py`.
+- [x] Task: Implement dot-notation override logic in `src/render_tag/cli/generate.py`. 2c022c9
     - [ ] Write unit tests for nested Pydantic attribute updates via dot-notation.
     - [ ] Implement the override parser and integration with Typer.
     - [ ] Verify overrides correctly modify the base config without mutating the source YAML.
