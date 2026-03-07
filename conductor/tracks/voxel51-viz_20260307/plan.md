@@ -31,9 +31,9 @@ Leverage the FiftyOne API to programmatically flag data quality issues.
 - [x] Task: **Implement Scale-Drift Validator** (PPM vs. Bbox area) to flag `ERR_SCALE_DRIFT`. (5e630b2)
 - [x] Task: **Conductor - User Manual Verification 'Phase 4: Automated Auditing' (Protocol in workflow.md)** (2ade5f5)
 
-## Phase 5: Dashboard Configuration & Final Verification
+## Phase 5: Dashboard Configuration & Final Verification [checkpoint: e4cc425]
 Polish the UI experience and ensure cluster-readiness.
-- [ ] Task: **Configure App UI** (Sidebar sliders, custom color-coding for keypoints).
-- [ ] Task: **Implement Headless Support** for remote server deployment.
-- [ ] Task: **Final Integration Test** on a full-scale generated dataset.
-- [ ] Task: **Conductor - User Manual Verification 'Phase 5: Dashboard Configuration' (Protocol in workflow.md)**
+- [x] Task: **Configure App UI** (Sidebar sliders, custom color-coding for keypoints). (29fbd34)
+- [x] Task: **Implement Headless Support** for remote server deployment. (29fbd34)
+- [x] Task: **Final Integration Test** on a full-scale generated dataset. (29fbd34)
+- [x] Task: **Conductor - User Manual Verification 'Phase 5: Dashboard Configuration' (Protocol in workflow.md)** (e4cc425)
