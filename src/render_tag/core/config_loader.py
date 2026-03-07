@@ -60,6 +60,8 @@ class ConfigResolver:
         # This is a placeholder for future generic override logic
         if overrides:
             self._apply_overrides(gen_config, overrides)
+            # Re-validate to ensure type coercion and validation (e.g. string to float, list to tuple)
+            gen_config = GenConfig.model_validate(gen_config.model_dump())
 
         # 3. Path Resolution (Absolute Paths)
         # We need to resolve all Path fields to absolute paths based on CWD
@@ -168,8 +170,34 @@ class ConfigResolver:
         if "renderer_mode" in overrides:
             config.renderer.mode = overrides["renderer_mode"]
 
-        # TODO: Implement generic dot-notation overrides if needed
-        # e.g. overrides={"scene.lighting.intensity": 50}
+        # Implement generic dot-notation overrides
+        # e.g. overrides={"camera.fov": 90.0, "scenario.tag_families.0": "tag16h5"}
+        for path, value in overrides.items():
+            if path == "renderer_mode":
+                continue
+
+            parts = path.split(".")
+            target: Any = config
+            for i, part in enumerate(parts[:-1]):
+                if part.isdigit():
+                    target = target[int(part)]
+                elif hasattr(target, part):
+                    target = getattr(target, part)
+                elif isinstance(target, dict) and part in target:
+                    target = target[part]
+                else:
+                    raise AttributeError(f"Invalid config path: {path} (at {part})")
+
+            last_part = parts[-1]
+            if last_part.isdigit():
+                idx = int(last_part)
+                target[idx] = value
+            elif hasattr(target, last_part):
+                setattr(target, last_part, value)
+            elif isinstance(target, dict):
+                target[last_part] = value
+            else:
+                raise AttributeError(f"Invalid config path: {path} (at {last_part})")
 
     def _resolve_paths(self, config: GenConfig) -> None:
         """recursively find Path objects and make them absolute."""
