@@ -5,7 +5,7 @@
     - [ ] Write failing test in `tests/unit/test_pose_swizzle.py` proving determinant flips and invalid quaternions.
     - [ ] Implement coordinate-axis swizzle in `calculate_relative_pose` and `get_opencv_camera_matrix`.
     - [ ] Verify determinant remains +1 and quaternions are valid.
-- [ ] Task: Correct Z-Depth PPM Calculation
+- [x] Task: Correct Z-Depth PPM Calculation ea92ee2
     - [ ] Write failing test in `tests/unit/test_ppm_zdepth.py` demonstrating Euclidean distance error at FOV edges.
     - [ ] Update `calculate_ppm` in `projection_math.py` to use orthogonal Z-depth.
     - [ ] Verify PPM consistency across FOV.
