@@ -1,0 +1,73 @@
+name: Benchmarks
+
+on:
+  schedule:
+    - cron: '0 2 * * *' # Run nightly at 2 AM
+  workflow_dispatch:
+    inputs:
+      resolution:
+        description: 'Resolution to run (or "all" for full matrix)'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - 'all'
+          - '640x480'
+          - '1280x720'
+          - '1920x1080'
+          - '3840x2160'
+
+permissions:
+  contents: read
+
+env:
+  UV_SYSTEM_PYTHON: 1
+
+jobs:
+  benchmark:
+    name: Generate Benchmarks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: "pyproject.toml"
+          
+      - name: Install Dependencies
+        run: uv sync --all-extras --all-groups
+        
+      - name: Configure Resolution
+        id: config
+        run: |
+          if [[ "${{ github.event.inputs.resolution }}" == "all" ]] || [[ "${{ github.event_name }}" == "schedule" ]]; then
+            echo "Running full matrix"
+          else
+            echo "Running specific resolution: ${{ github.event.inputs.resolution }}"
+          fi
+          
+      - name: Run Benchmarks
+        run: |
+          if [[ "${{ github.event.inputs.resolution }}" == "all" ]] || [[ "${{ github.event_name }}" == "schedule" ]]; then
+            ./scripts/generate_benchmarks.sh configs/benchmarks
+          else
+            # Modifying script execution inline for specific resolution for now
+            # In practice we could just override the RESOLUTIONS array
+            sed -i "s/RESOLUTIONS=(.*/RESOLUTIONS=(\"${{ github.event.inputs.resolution }}\")/" scripts/generate_benchmarks.sh
+            ./scripts/generate_benchmarks.sh configs/benchmarks
+          fi
+
+      - name: Push to Hugging Face
+        if: ${{ github.event_name == 'schedule' || github.event.inputs.resolution == 'all' }}
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          echo "Pushing full-matrix to Hugging Face Hub"
+          uv run huggingface-cli upload NoeFontana/render-tag-benchmarks output/benchmarks . --repo-type dataset

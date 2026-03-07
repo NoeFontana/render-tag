@@ -61,6 +61,8 @@ jobs:
             run: uv run render-tag validate-config
           - name: "Automated Tests (Pytest)"
             run: uv run pytest
+          - name: "VGA Benchmarks (Sanity)"
+            run: ./scripts/generate_benchmarks.sh configs/test_benchmarks --dry-run
             
     steps:
       - name: Checkout Code
