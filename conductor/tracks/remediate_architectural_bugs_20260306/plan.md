@@ -17,7 +17,7 @@
     - [ ] Verify all tests pass and check coverage.
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Core Geometric Contracts' (Protocol in workflow.md)
 
-## Phase 2: Resolve Duplication & Spawning Conflicts
+## Phase 2: Resolve Duplication & Spawning Conflicts [checkpoint: 5d86761]
 - [x] Task: Implement Scene Graph Deduplication (2dbde44)
     - [ ] Write failing tests in `tests/integration/test_spawn_deduplication.py` for overlapping BOARD/TAG spawning.
     - [ ] Update `spawn_objects` in `src/render_tag/backend/engine.py` to suppress individual tags when a board is present.
