@@ -52,6 +52,9 @@ def load_dataset_from_coco(dataset_dir: Path, name: str) -> fo.Dataset:
     """
     Load a COCO dataset into FiftyOne.
     """
+    if fo.dataset_exists(name):
+        fo.delete_dataset(name)
+
     labels_path = dataset_dir / "coco_labels.json"
     
     return fo.Dataset.from_dir(
