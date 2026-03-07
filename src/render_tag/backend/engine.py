@@ -443,6 +443,11 @@ def _render_camera_and_save(
 ) -> tuple[int, str]:
     """Render a single camera view and save artifacts (image, sidecar)."""
     scene_idx = int(recipe["scene_id"])
+
+    # Force subframe update for motion blur / consistency BEFORE render
+    bridge.bpy.context.scene.frame_set(0, subframe=0.5)
+    bridge.bpy.context.view_layer.update()
+
     start_time = time.time()
     render_out = renderer.render_camera(cam_recipe)
     render_time = time.time() - start_time
@@ -470,10 +475,6 @@ def _render_camera_and_save(
 
     ctx.sidecar_writer.write_sidecar(image_name, provenance)
     coco_img_id = ctx.coco_writer.add_image(f"images/{image_path.name}", res[0], res[1])
-
-    # Force subframe update for motion blur / consistency if needed
-    bridge.bpy.context.scene.frame_set(0, subframe=0.5)
-    bridge.bpy.context.view_layer.update()
 
     return coco_img_id, image_name
 
