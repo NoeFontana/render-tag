@@ -14,12 +14,12 @@
     - [x] Integrate scaling logic into the `SceneRecipe` generation pipeline.
 - [x] Task: Conductor - User Manual Verification 'Intrinsics Scaling' (Protocol in workflow.md)
 
-## Phase 3: Benchmarking Pipeline Refactoring
+## Phase 3: Benchmarking Pipeline Refactoring [checkpoint: 02356b6]
 - [x] Task: Update `scripts/generate_benchmarks.sh` to support the resolution matrix. 7a97b61
     - [x] Define the standard resolution array (VGA, 720p, 1080p, 4K).
     - [x] Refactor existing benchmarking calls to iterate over the matrix.
     - [x] Standardize output directory taxonomy.
-- [ ] Task: Conductor - User Manual Verification 'Benchmarking Matrix' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Benchmarking Matrix' (Protocol in workflow.md)
 
 ## Phase 4: CI/CD Tiered Execution & Storage
 - [ ] Task: Modify `.github/workflows/ci.yml` for tiered benchmarking.
