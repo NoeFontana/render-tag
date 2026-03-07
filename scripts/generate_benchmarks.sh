@@ -26,9 +26,15 @@ fi
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         --dry-run) DRY_RUN=true; shift ;;
+        --resolution) 
+            if [ "$2" != "all" ]; then
+                RESOLUTIONS=("$2")
+            fi
+            shift 2 
+            ;;
         -w|--workers) WORKERS="$2"; shift 2 ;;
         -h|--help)
-            echo "Usage: $0 [BENCHMARK_DIR] [--dry-run] [--workers N] [EXTRA_ARGS]"
+            echo "Usage: $0 [BENCHMARK_DIR] [--dry-run] [--resolution WxH|all] [--workers N] [EXTRA_ARGS]"
             exit 0
             ;;
         *) EXTRA_ARGS+=("$1"); shift ;;
