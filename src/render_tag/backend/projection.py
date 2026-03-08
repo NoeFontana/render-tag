@@ -174,7 +174,10 @@ def compute_geometric_metadata(tag_obj: Any) -> dict[str, Any]:
 
 
 def generate_subject_records(
-    obj: Any, image_id: str, skip_visibility: bool = False
+    obj: Any,
+    image_id: str,
+    cam_recipe: dict[str, Any] | None = None,
+    skip_visibility: bool = False,
 ) -> list[DetectionRecord]:
     """Generate detection records for any subject using its 3D keypoints."""
     blender_obj = obj.blender_obj
@@ -182,7 +185,9 @@ def generate_subject_records(
 
     # Delegate BOARD ground truth generation to specialized generator if metadata is present
     if obj_type == "BOARD" and blender_obj.get("board"):
-        return generate_board_records(obj, image_id, skip_visibility=skip_visibility)
+        return generate_board_records(
+            obj, image_id, cam_recipe=cam_recipe, skip_visibility=skip_visibility
+        )
 
     keypoints_3d = blender_obj.get("keypoints_3d")
     if not keypoints_3d:
@@ -205,6 +210,20 @@ def generate_subject_records(
     world_normal = get_world_normal(world_matrix)
     angle_deg = calculate_angle_of_incidence(obj_location, world_normal, cam_location)
     pose = calculate_relative_pose(world_matrix, blender_cam_mat)
+
+    # Physics Metadata
+    velocity = None
+    shutter_time = 0.0
+    rolling_shutter = 0.0
+    fstop = None
+
+    if cam_recipe:
+        dynamics = cam_recipe.get("sensor_dynamics")
+        if dynamics:
+            velocity = dynamics.get("velocity")
+            shutter_time = dynamics.get("shutter_time_ms", 0.0)
+            rolling_shutter = dynamics.get("rolling_shutter_duration_ms", 0.0)
+        fstop = cam_recipe.get("fstop")
 
     # Project all keypoints
     world_kps = []
@@ -257,6 +276,10 @@ def generate_subject_records(
                 tag_size_mm=float(active_size_mm),
                 k_matrix=k_list,
                 resolution=res,
+                velocity=velocity,
+                shutter_time_ms=shutter_time,
+                rolling_shutter_ms=rolling_shutter,
+                fstop=fstop,
             )
         )
     else:
@@ -289,6 +312,10 @@ def generate_subject_records(
                 tag_size_mm=float(active_size_mm),
                 k_matrix=k_list,
                 resolution=res,
+                velocity=velocity,
+                shutter_time_ms=shutter_time,
+                rolling_shutter_ms=rolling_shutter,
+                fstop=fstop,
             )
         )
 
@@ -296,7 +323,10 @@ def generate_subject_records(
 
 
 def generate_board_records(
-    board_obj: Any, image_id: str, skip_visibility: bool = False
+    board_obj: Any,
+    image_id: str,
+    cam_recipe: dict[str, Any] | None = None,
+    skip_visibility: bool = False,
 ) -> list[DetectionRecord]:
     """Generate detection records for all tags on a calibration board."""
     import json
@@ -318,7 +348,7 @@ def generate_board_records(
     b_type, rows, cols, marker_size, dictionary = board_info
 
     # 2. Get Transformation
-    transform_data = _get_scene_transformations(board_obj)
+    transform_data = _get_scene_transformations(board_obj, cam_recipe=cam_recipe)
     world_matrix, blender_cam_mat, k_matrix, res, meta = transform_data
     _, _, _ = meta
 
@@ -402,12 +432,13 @@ def _parse_board_config_and_layout(
 
 def _get_scene_transformations(
     board_obj: Any,
+    cam_recipe: dict[str, Any] | None = None,
 ) -> tuple[
     bridge.np.ndarray,
     bridge.np.ndarray,
     bridge.np.ndarray,
     list[int],
-    tuple[float, float, dict[str, Any]],
+    tuple[float, float, dict[str, Any], dict[str, Any]],
 ]:
     """Extract world matrices, intrinsics, and compute common metadata."""
     world_matrix = bridge.np.array(board_obj.get_local2world_mat())
@@ -427,12 +458,28 @@ def _get_scene_transformations(
     pose = calculate_relative_pose(world_matrix, blender_cam_mat)
     k_list = k_matrix.tolist() if hasattr(k_matrix, "tolist") else k_matrix
 
+    # Physics Metadata
+    physics = {
+        "velocity": None,
+        "shutter_time_ms": 0.0,
+        "rolling_shutter_ms": 0.0,
+        "fstop": None,
+    }
+
+    if cam_recipe:
+        dynamics = cam_recipe.get("sensor_dynamics")
+        if dynamics:
+            physics["velocity"] = dynamics.get("velocity")
+            physics["shutter_time_ms"] = dynamics.get("shutter_time_ms", 0.0)
+            physics["rolling_shutter_ms"] = dynamics.get("rolling_shutter_duration_ms", 0.0)
+        physics["fstop"] = cam_recipe.get("fstop")
+
     return (
         world_matrix,
         blender_cam_mat,
         k_list,
         res,
-        (distance, angle_deg, pose),
+        (distance, angle_deg, pose, physics),
     )
 
 
@@ -445,11 +492,11 @@ def _process_board_tags(
     k_matrix: bridge.np.ndarray,
     image_id: str,
     dictionary: str,
-    meta: tuple[float, float, dict[str, Any]],
+    meta: tuple[float, float, dict[str, Any], dict[str, Any]],
     skip_visibility: bool = False,
 ) -> list[DetectionRecord]:
     """Project and create records for all tags in the layout."""
-    distance, angle_deg, pose = meta
+    distance, angle_deg, pose, physics = meta
     records = []
 
     for sq in layout.squares:
@@ -509,6 +556,10 @@ def _process_board_tags(
                 tag_size_mm=float(marker_size * 1000.0),
                 k_matrix=k_matrix,
                 resolution=res,
+                velocity=physics["velocity"],
+                shutter_time_ms=physics["shutter_time_ms"],
+                rolling_shutter_ms=physics["rolling_shutter_ms"],
+                fstop=physics["fstop"],
             )
         )
     return records
@@ -524,10 +575,10 @@ def _process_board_keypoints(
     res: list[int],
     k_matrix: bridge.np.ndarray,
     image_id: str,
-    meta: tuple[float, float, dict[str, Any]],
+    meta: tuple[float, float, dict[str, Any], dict[str, Any]],
 ) -> list[DetectionRecord]:
     """Process extra keypoints (saddle points or corners) for specific board types."""
-    distance, angle_deg, pose = meta
+    distance, angle_deg, pose, physics = meta
     records = []
 
     if b_type == "charuco":
@@ -569,6 +620,10 @@ def _process_board_keypoints(
                         tag_size_mm=0.0,  # Saddle points are 0D
                         k_matrix=k_matrix,
                         resolution=res,
+                        velocity=physics["velocity"],
+                        shutter_time_ms=physics["shutter_time_ms"],
+                        rolling_shutter_ms=physics["rolling_shutter_ms"],
+                        fstop=physics["fstop"],
                     )
                 )
     return records

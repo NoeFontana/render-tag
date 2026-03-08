@@ -265,6 +265,10 @@ class COCOWriter(AtomicWriter):
             "rotation_quaternion": None,
             "k_matrix": detection.k_matrix if detection else None,
             "resolution": detection.resolution if detection else None,
+            "velocity": detection.velocity if detection else None,
+            "shutter_time_ms": detection.shutter_time_ms if detection else 0.0,
+            "rolling_shutter_ms": detection.rolling_shutter_ms if detection else 0.0,
+            "fstop": detection.fstop if detection else None,
         }
 
         # IO BOUNDARY: Flip WXYZ -> XYZW for attributes
@@ -349,6 +353,10 @@ class RichTruthWriter(AtomicWriter):
             "rotation_quaternion": detection.rotation_quaternion,
             "k_matrix": detection.k_matrix,
             "resolution": detection.resolution,
+            "velocity": detection.velocity,
+            "shutter_time_ms": detection.shutter_time_ms,
+            "rolling_shutter_ms": detection.rolling_shutter_ms,
+            "fstop": detection.fstop,
             "global_seed": detection.global_seed,
             "scene_seed": detection.scene_seed,
             "metadata": detection.metadata,
@@ -417,6 +425,26 @@ class SidecarWriter(AtomicWriter):
         self._write_atomic(path, data)
 
         return path
+
+
+class ProvenanceWriter(AtomicWriter):
+    """Writer for a unified dataset provenance mapping (image_id -> SceneRecipe)."""
+
+    def __init__(self, output_path: Path) -> None:
+        self.output_path = output_path
+        self._provenance: dict[str, Any] = {}
+
+    def add_provenance(self, image_id: str, provenance: dict[str, Any] | SceneProvenance) -> None:
+        """Add provenance for a single image."""
+        model_dump = getattr(provenance, "model_dump", None)
+        data = model_dump(mode="json") if callable(model_dump) else provenance
+        self._provenance[image_id] = data
+
+    def save(self) -> Path:
+        """Save the unified provenance mapping to a JSON file."""
+        self.output_path.parent.mkdir(parents=True, exist_ok=True)
+        self._write_atomic(self.output_path, self._provenance)
+        return self.output_path
 
 
 class BoardConfigWriter:
@@ -561,3 +589,28 @@ def merge_rich_truth_shards(
         for shard_path in shard_files:
             shard_path.unlink()
         logger.info("Cleaned up RichTruth shard files.")
+
+
+def merge_provenance_shards(
+    output_dir: Path, final_filename: str = "provenance.json", cleanup: bool = False
+):
+    """Merge multiple provenance JSON shards into a single canonical file."""
+    shard_files = sorted(output_dir.glob("provenance_shard_*.json"))
+    if not shard_files:
+        return
+
+    master_data = {}
+    for shard_path in shard_files:
+        with open(shard_path) as f:
+            shard_data = json.load(f)
+            master_data.update(shard_data)
+
+    final_path = output_dir / final_filename
+    with open(final_path, "w") as f:
+        json.dump(master_data, f, indent=2)
+    logger.info(f"Merged {len(shard_files)} shards into {final_path}")
+
+    if cleanup:
+        for shard_path in shard_files:
+            shard_path.unlink()
+        logger.info("Cleaned up provenance shard files.")

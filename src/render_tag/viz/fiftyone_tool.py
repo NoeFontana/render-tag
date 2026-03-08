@@ -94,7 +94,19 @@ def hydrate_detection(detection: fo.Detection, record: dict[str, Any]) -> None:
     """
     Populate a FiftyOne Detection object with custom metadata.
     """
-    fields = ["distance", "angle_of_incidence", "ppm", "position", "rotation_quaternion"]
+    fields = [
+        "distance",
+        "angle_of_incidence",
+        "ppm",
+        "position",
+        "rotation_quaternion",
+        "k_matrix",
+        "resolution",
+        "velocity",
+        "shutter_time_ms",
+        "rolling_shutter_ms",
+        "fstop",
+    ]
     for field in fields:
         if field in record:
             detection[field] = record[field]
@@ -382,14 +394,6 @@ def visualize_fiftyone(
                     progress.update(task_hydrate, advance=1)
                     continue
 
-                # Try to load camera metadata for projection
-                img_path = Path(sample.filepath)
-                meta_path = img_path.parent / f"{img_path.stem}_meta.json"
-                cam_meta = None
-                if meta_path.exists():
-                    with open(meta_path) as f:
-                        cam_meta = json.load(f)
-
                 detections = sample.detections.detections
                 new_keypoints = []
                 new_axis_x = []
@@ -417,20 +421,16 @@ def visualize_fiftyone(
                             new_keypoints.extend(kps.keypoints)
 
                             # 3D Axes Overlay
-                            if cam_meta:
-                                try:
-                                    cam = cam_meta["recipe_snapshot"]["cameras"][0]
-                                    axes = project_tag_axes(
-                                        record,
-                                        k_matrix=cam["intrinsics"]["k_matrix"],
-                                        resolution=cam["intrinsics"]["resolution"],
-                                    )
-                                    if axes:
-                                        new_axis_x.append(axes["axis_x"])
-                                        new_axis_y.append(axes["axis_y"])
-                                        new_axis_z.append(axes["axis_z"])
-                                except (KeyError, IndexError):
-                                    pass
+                            if "k_matrix" in record and "resolution" in record:
+                                axes = project_tag_axes(
+                                    record,
+                                    k_matrix=record["k_matrix"],
+                                    resolution=record["resolution"],
+                                )
+                                if axes:
+                                    new_axis_x.append(axes["axis_x"])
+                                    new_axis_y.append(axes["axis_y"])
+                                    new_axis_z.append(axes["axis_z"])
 
                 if new_keypoints:
                     sample["corners"] = fo.Keypoints(keypoints=new_keypoints)

@@ -147,6 +147,12 @@ class DetectionRecord(BaseModel):
     )
     resolution: list[int] | None = Field(default=None, description="[width, height] in pixels")
 
+    # Physics & Sensor Conditions (For Benchmark Analysis)
+    velocity: list[float] | None = Field(default=None, description="[vx, vy, vz] in m/s")
+    shutter_time_ms: float = 0.0
+    rolling_shutter_ms: float = 0.0
+    fstop: float | None = None
+
     # Provenance
     global_seed: int | None = Field(default=None, description="Master random seed used")
     scene_seed: int | None = Field(default=None, description="Scene-specific derived seed")
