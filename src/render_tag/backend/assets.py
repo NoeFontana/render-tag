@@ -147,6 +147,7 @@ def create_tag_plane(
     plane.blender_obj["tag_id"] = tag_id
     plane.blender_obj["tag_family"] = tag_family
     plane.blender_obj["margin_bits"] = margin_bits
+    plane.blender_obj["raw_size_m"] = float(size_meters)
 
     # Apply texture if provided
     if texture_path:

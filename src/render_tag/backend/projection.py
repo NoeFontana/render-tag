@@ -256,16 +256,16 @@ def generate_subject_records(
     tag_id = blender_obj.get("tag_id", 0)
     tag_family = blender_obj.get("tag_family", "unknown")
 
-    # Calculate tag_size_m (active black-to-black size)
+    # Calculate tag_size_mm (active black-to-black size)
+    # Using raw_size_m property instead of matrix norm to avoid float drift
     from render_tag.core import TAG_GRID_SIZES
 
     grid_size = TAG_GRID_SIZES.get(tag_family, 8)
     margin_bits = blender_obj.get("margin_bits", 0)
     total_bits = grid_size + 2 * margin_bits
 
-    # Derivation: Scale[0] is half of the total physical size (size_meters/2)
-    total_size_m = bridge.np.linalg.norm(world_matrix[:3, 0]) * 2.0
-    active_size_mm = total_size_m * (grid_size / total_bits) * 1000.0
+    total_size_m = float(blender_obj.get("raw_size_m", 0.1))
+    active_size_mm = (total_size_m * 1000.0 * grid_size) / total_bits
 
     records = []
     if obj_type == "TAG":
