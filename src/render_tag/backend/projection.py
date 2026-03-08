@@ -219,11 +219,7 @@ def generate_subject_records(
     raw_world_matrix = bridge.np.array(raw_world_mat) if raw_world_mat is not None else None
 
     # Defensive check for unit-testing mocks
-    if (
-        raw_world_matrix is None
-        or raw_world_matrix.ndim != 2
-        or raw_world_matrix.shape != (4, 4)
-    ):
+    if raw_world_matrix is None or raw_world_matrix.ndim != 2 or raw_world_matrix.shape != (4, 4):
         raw_world_matrix = bridge.np.eye(4)
 
     world_matrix = sanitize_to_rigid_transform(raw_world_matrix)
@@ -485,9 +481,7 @@ def _get_scene_transformations(
     bridge.np.ndarray,
     bridge.np.ndarray,
     list[int],
-    tuple[
-        float, float, dict[str, Any], dict[str, Any], bridge.np.ndarray, bridge.np.ndarray
-    ],
+    tuple[float, float, dict[str, Any], dict[str, Any], bridge.np.ndarray, bridge.np.ndarray],
 ]:
     """Extract world matrices, intrinsics, and compute common metadata."""
     raw_world_matrix = bridge.np.array(board_obj.get_local2world_mat())
@@ -569,9 +563,7 @@ def _process_board_tags(
 
         corners_2d = [(float(p[0]), float(p[1])) for p in corners_2d_raw]
 
-        if not skip_visibility and not is_facing_camera(
-            tag_location, world_normal, cam_location
-        ):
+        if not skip_visibility and not is_facing_camera(tag_location, world_normal, cam_location):
             continue
 
         # 3. Calculate Independent Metadata
