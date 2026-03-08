@@ -256,6 +256,7 @@ class COCOWriter(AtomicWriter):
         attributes = {
             "tag_id": detection.tag_id if detection else 0,
             "record_type": detection.record_type if detection else "TAG",
+            "tag_size_mm": detection.tag_size_mm if detection else 0.0,
             "distance": detection.distance if detection else 0.0,
             "angle_of_incidence": detection.angle_of_incidence if detection else 0.0,
             "pixel_area": detection.pixel_area if detection else area,
@@ -333,6 +334,7 @@ class RichTruthWriter(AtomicWriter):
             "image_id": detection.image_id,
             "tag_id": detection.tag_id,
             "tag_family": detection.tag_family,
+            "tag_size_mm": detection.tag_size_mm,
             "record_type": detection.record_type,
             "corners": detection.corners,
             "keypoints": detection.keypoints,

@@ -137,6 +137,9 @@ class DetectionRecord(BaseModel):
     rotation_quaternion: list[float] | None = Field(
         default=None, description="[w, x, y, z] quaternion (Scalar First)"
     )
+    tag_size_mm: float = Field(
+        default=0.0, description="Active physical size of the tag (black-to-black) in millimeters"
+    )
 
     # Provenance
     global_seed: int | None = Field(default=None, description="Master random seed used")
@@ -159,6 +162,7 @@ class DetectionRecord(BaseModel):
             self.tag_id,
             self.tag_family,
             self.record_type,
+            float(f"{self.tag_size_mm:.4f}"),
             float(f"{self.ppm:.4f}"),
         ]
 
@@ -194,6 +198,7 @@ class DetectionRecord(BaseModel):
             "tag_id",
             "tag_family",
             "record_type",
+            "tag_size_mm",
             "ppm",
         ]
         for i in range(1, num_corners + 1):

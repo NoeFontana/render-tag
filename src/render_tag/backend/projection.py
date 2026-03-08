@@ -225,6 +225,17 @@ def generate_subject_records(
     tag_id = blender_obj.get("tag_id", 0)
     tag_family = blender_obj.get("tag_family", "unknown")
 
+    # Calculate tag_size_m (active black-to-black size)
+    from render_tag.core import TAG_GRID_SIZES
+
+    grid_size = TAG_GRID_SIZES.get(tag_family, 8)
+    margin_bits = blender_obj.get("margin_bits", 0)
+    total_bits = grid_size + 2 * margin_bits
+
+    # Derivation: Scale[0] is half of the total physical size (size_meters/2)
+    total_size_m = bridge.np.linalg.norm(world_matrix[:3, 0]) * 2.0
+    active_size_mm = total_size_m * (grid_size / total_bits) * 1000.0
+
     records = []
     if obj_type == "TAG":
         # Orientation Contract: project keypoints_3d strictly by index.
@@ -240,6 +251,7 @@ def generate_subject_records(
                 angle_of_incidence=angle_deg,
                 position=pose["position"],
                 rotation_quaternion=pose["rotation_quaternion"],
+                tag_size_mm=float(active_size_mm),
             )
         )
     else:
@@ -269,6 +281,7 @@ def generate_subject_records(
                 angle_of_incidence=angle_deg,
                 position=pose["position"],
                 rotation_quaternion=pose["rotation_quaternion"],
+                tag_size_mm=float(active_size_mm),
             )
         )
 
@@ -485,6 +498,7 @@ def _process_board_tags(
                 angle_of_incidence=angle_deg,
                 position=pose["position"],
                 rotation_quaternion=pose["rotation_quaternion"],
+                tag_size_mm=float(marker_size * 1000.0),
             )
         )
     return records
@@ -542,6 +556,7 @@ def _process_board_keypoints(
                         angle_of_incidence=angle_deg,
                         position=pose["position"],
                         rotation_quaternion=pose["rotation_quaternion"],
+                        tag_size_mm=0.0,  # Saddle points are 0D
                     )
                 )
     return records
