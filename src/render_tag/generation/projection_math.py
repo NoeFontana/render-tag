@@ -379,8 +379,10 @@ def calculate_incidence_angle(cam_world_matrix: Matrix4x4, tag_world_matrix: Mat
         Angle in degrees (0 = facing, 90 = side-on).
     """
     # 1. Tag Normal in World Space (Z-up)
-    tag_normal_world = tag_world_matrix[:3, 2]
-    tag_normal_world /= np.linalg.norm(tag_normal_world)
+    # Surface normals are covariant; we must use the inverse-transpose contract
+    # to avoid skewed normals when the tag has non-uniform scaling.
+    tag_normal_world = get_world_normal(tag_world_matrix, np.array([0.0, 0.0, 1.0]))
+    assert np.isclose(np.linalg.norm(tag_normal_world), 1.0), "World normal must be a unit vector"
 
     # 2. Camera Location
     cam_loc = cam_world_matrix[:3, 3]
