@@ -99,7 +99,9 @@ def get_world_normal(world_matrix: Matrix4x4, local_normal: Vector3 | None = Non
     return world_normal / norm_world
 
 
-def sanitize_to_rigid_transform(matrix: Matrix4x4) -> Matrix4x4:
+def sanitize_to_rigid_transform(
+    matrix: Matrix4x4, return_is_mirrored: bool = False
+) -> Matrix4x4 | tuple[Matrix4x4, bool]:
     """
     Extracts a pure SE(3) rigid-body transformation from a scaled affine matrix.
 
@@ -138,7 +140,15 @@ def sanitize_to_rigid_transform(matrix: Matrix4x4) -> Matrix4x4:
         else:
             rot_block[:, 2] = np.cross(rot_block[:, 0], rot_block[:, 1])
 
+    is_mirrored = False
+    if np.linalg.det(rot_block) < 0.0:
+        is_mirrored = True
+        rot_block[:, 2] = -rot_block[:, 2]
+
     res[:3, :3] = rot_block
+
+    if return_is_mirrored:
+        return res, is_mirrored
     return res
 
 

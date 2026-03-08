@@ -132,6 +132,10 @@ class DetectionRecord(BaseModel):
     occlusion_ratio: float = 0.0
     ppm: float = 0.0
 
+    is_mirrored: bool = Field(
+        default=False, description="True if the tag has a left-handed (mirrored) coordinate system"
+    )
+
     # --- Phase 2 Pose Baseline: High-Precision Pose ---
     position: list[float] | None = Field(
         default=None, description="[x, y, z] position in meters (OpenCV Frame)"
@@ -182,6 +186,7 @@ class DetectionRecord(BaseModel):
             self.record_type,
             float(f"{self.tag_size_mm:.4f}"),
             float(f"{self.ppm:.4f}"),
+            int(self.is_mirrored),
         ]
 
         # CSV format uses standard CW order from TL (OpenCV convention)
@@ -218,6 +223,7 @@ class DetectionRecord(BaseModel):
             "record_type",
             "tag_size_mm",
             "ppm",
+            "is_mirrored",
         ]
         for i in range(1, num_corners + 1):
             header.extend([f"x{i}", f"y{i}"])

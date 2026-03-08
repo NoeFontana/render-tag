@@ -21,7 +21,7 @@ pytestmark = pytest.mark.skipif(
 
 @pytest.mark.integration
 class TestOrientationContract:
-    """Verify that Row 0 is at the Top and Marker 0 is at Top-Left."""
+    """Verify that Row 0 is at the Bottom and Marker 0 is at Bottom-Left in the Blender render."""
 
     @pytest.fixture
     def output_dir(self, tmp_path):
@@ -112,17 +112,18 @@ class TestOrientationContract:
         # So kps_3d[:4] are corners of Tag 0 (Row 0, Col 0).
         # kps_3d[4:8] are corners of Tag 1 (Row 0, Col 1).
 
-        # Row 0 tags should have higher Y than Row 1 tags.
+        # Row 0 tags should have lower Y than Row 1 tags (due to Y_DOWN).
         # Tag 0 (Row 0) center Y: (kps_3d[0][1] + kps_3d[2][1]) / 2
         # Tag 7 (Row 1, Col 0) center Y: (kps_3d[28][1] + kps_3d[30][1]) / 2
 
         tag0_y = (kps_3d[0][1] + kps_3d[2][1]) / 2.0
         tag7_y = (kps_3d[28][1] + kps_3d[30][1]) / 2.0
 
-        assert tag0_y > tag7_y, f"Tag 0 Y ({tag0_y}) should be above Tag 7 Y ({tag7_y})"
+        assert tag0_y < tag7_y, f"Tag 0 Y ({tag0_y}) should be above Tag 7 Y ({tag7_y})"
 
         # 3. Check Ground Truth (CSV/JSON)
-        # Verify that Tag 0 is at the Top-Left in the image.
+        # Verify that Tag 0 is at the Bottom-Left in the image.
+        # (since local Y-Down puts it at -Y, which is closer to the camera and therefore bottom).
         csv_path = output_dir / "ground_truth.csv"
         import csv
 
@@ -135,11 +136,11 @@ class TestOrientationContract:
         tag7 = next(d for d in detections if int(d["tag_id"]) == 7)
 
         # In OpenCV image coords, Y increases DOWN.
-        # So Tag 0 (Top row) should have SMALLER Y than Tag 7 (Bottom row).
-        y0 = float(tag0["y1"])  # Top-left corner Y
+        # So Tag 0 (Row 0, -Y) should have LARGER Y than Tag 7 (Row 1, +Y).
+        y0 = float(tag0["y1"])  # Top-left corner Y bounding box
         y7 = float(tag7["y1"])
 
-        assert y0 < y7, f"Tag 0 Image Y ({y0}) should be above Tag 7 Image Y ({y7})"
+        assert y0 > y7, f"Tag 0 Image Y ({y0}) should be below Tag 7 Image Y ({y7})"
 
         # Tag 0 (Col 0) should have smaller X than Tag 1 (Col 1)
         tag1 = next(d for d in detections if int(d["tag_id"]) == 1)
