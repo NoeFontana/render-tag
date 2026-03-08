@@ -16,6 +16,10 @@ from rich.progress import (
     TextColumn,
 )
 
+from render_tag.generation.projection_math import (
+    quaternion_wxyz_to_matrix,
+)
+
 try:
     from fiftyone.core.session import Session
 except ImportError:
@@ -173,20 +177,6 @@ def get_polyline_points(
     return pts
 
 
-def quaternion_to_matrix(q: list[float]) -> np.ndarray:
-    """
-    Convert a wxyz quaternion to a 3x3 rotation matrix.
-    """
-    w, x, y, z = q
-    return np.array(
-        [
-            [1 - 2 * y**2 - 2 * z**2, 2 * x * y - 2 * w * z, 2 * x * z + 2 * w * y],
-            [2 * x * y + 2 * w * z, 1 - 2 * x**2 - 2 * z**2, 2 * y * z - 2 * w * x],
-            [2 * x * z - 2 * w * y, 2 * y * z + 2 * w * x, 1 - 2 * x**2 - 2 * y**2],
-        ]
-    )
-
-
 def project_tag_axes(
     record: dict[str, Any],
     k_matrix: list[list[float]],
@@ -212,17 +202,15 @@ def project_tag_axes(
     tr = normalized_corners[1]
     bl = normalized_corners[3]
 
-    # Calculate Z axis in 3D
-    # Use standard 0.1 size for offset, m=0.05
     m = 0.05
     pts_3d = np.array(
         [
             [-m, m, 0],  # Origin (estimated Top-Left in 3D)
-            [-m, m, -0.1],  # Z-axis end (Outward towards the camera is local -Z)
+            [-m, m, 0.1],  # Z-axis end (Outward towards the camera is local +Z)
         ]
     )
 
-    r_mat = quaternion_to_matrix(quat)
+    r_mat = quaternion_wxyz_to_matrix(quat)
     t_vec = np.array(pos)
 
     pts_cam = (r_mat @ pts_3d.T).T + t_vec

@@ -90,6 +90,15 @@ def matrix_to_quaternion_wxyz(matrix: Matrix4x4 | Matrix3x3) -> list[float]:
         List of 4 floats: [w, x, y, z].
     """
     m = np.asarray(matrix)[:3, :3]
+
+    # Enforce pure rotation invariants SO(3) to prevent quaternion corruption
+    assert np.allclose(m.T @ m, np.eye(3), atol=1e-4), (
+        "Matrix is not orthogonal (contains scale or shear)"
+    )
+    assert np.isclose(np.linalg.det(m), 1.0, atol=1e-4), (
+        "Matrix determinant is not +1 (contains reflection or scale)"
+    )
+
     trace = np.trace(m)
 
     if trace > 0:
@@ -145,6 +154,12 @@ def quaternion_xyzw_to_matrix(quat: list[float]) -> Matrix3x3:
     )
 
 
+def quaternion_wxyz_to_matrix(quat: list[float]) -> Matrix3x3:
+    """Convert a scalar-first unit quaternion [w, x, y, z] to a 3x3 rotation matrix."""
+    w, x, y, z = quat
+    return quaternion_xyzw_to_matrix([x, y, z, w])
+
+
 def calculate_relative_pose(
     tag_world_matrix: Matrix4x4, blender_cam_world_matrix: Matrix4x4
 ) -> dict[str, list[float]]:
@@ -168,9 +183,17 @@ def calculate_relative_pose(
     # 3. Relative transformation: T_cam_tag = T_world_to_cam * T_tag_in_world
     rel_mat = world_to_opencv_cam @ tag_world_matrix
 
-    # 4. Extract position and quaternion
+    # 4. Extract position and orthogonalize rotation
     pos = rel_mat[:3, 3].tolist()
-    quat = matrix_to_quaternion_wxyz(rel_mat)
+
+    # Isolate rotation block and re-establish orthonormality by normalizing basis vectors (columns)
+    rot_block = rel_mat[:3, :3]
+    norms = np.linalg.norm(rot_block, axis=0)
+
+    # Avoid division by zero if degenerate
+    orthogonal_rot = np.eye(3) if np.any(norms < 1e-10) else rot_block / norms
+
+    quat = matrix_to_quaternion_wxyz(orthogonal_rot)
 
     return {
         "position": [float(p) for p in pos],
