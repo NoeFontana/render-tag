@@ -12,16 +12,16 @@ import csv
 import json
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import numpy as np
 
-if TYPE_CHECKING:
-    from render_tag.core.schema import DetectionRecord
 from render_tag.core.logging import get_logger
-
-logger = get_logger(__name__)
-
+from render_tag.core.schema import (
+    BoardConfig,
+    DetectionRecord,
+    SceneProvenance,
+)
 
 # Import pure-Python geometry modules
 try:
@@ -36,9 +36,7 @@ try:
 except ImportError:
     GEOMETRY_AVAILABLE = False
 
-
-if TYPE_CHECKING:
-    from render_tag.core.schema import BoardConfig, DetectionRecord, SceneProvenance
+logger = get_logger(__name__)
 
 
 class AtomicWriter:
@@ -75,7 +73,6 @@ class CSVWriter:
         """Create the file and write header if not already done."""
         if not self._initialized:
             self.output_path.parent.mkdir(parents=True, exist_ok=True)
-            from render_tag.core.schema.base import DetectionRecord
 
             header = DetectionRecord.csv_header(num_corners, num_keypoints)
             with open(self.output_path, "w", newline="") as f:

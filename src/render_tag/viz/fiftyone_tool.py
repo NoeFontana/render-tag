@@ -16,6 +16,11 @@ from rich.progress import (
     TextColumn,
 )
 
+try:
+    from fiftyone.core.session import Session
+except ImportError:
+    Session = None
+
 
 def create_dataset(name: str) -> fo.Dataset:
     """
@@ -345,13 +350,8 @@ def find_active_session() -> fo.Session | None:
     """
     Find an active FiftyOne session if one exists.
     """
-    try:
-        from fiftyone.core.session import Session
-
-        if hasattr(Session, "_instances") and Session._instances:
-            return next(iter(Session._instances.values()))
-    except (ImportError, AttributeError):
-        pass
+    if Session and hasattr(Session, "_instances") and Session._instances:
+        return next(iter(Session._instances.values()))
     return None
 
 

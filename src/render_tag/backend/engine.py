@@ -5,6 +5,7 @@ Combines the RenderFacade (Blender abstraction) and the execution loop
 into a single, high-performance module.
 """
 
+import json
 import logging
 import os
 import time
@@ -17,7 +18,8 @@ from PIL import Image
 
 from render_tag.backend.assets import create_tag_plane, global_pool
 from render_tag.backend.bridge import bridge
-from render_tag.backend.camera import setup_sensor_dynamics
+from render_tag.backend.camera import set_camera_intrinsics, setup_sensor_dynamics
+from render_tag.backend.projection import generate_board_records, generate_subject_records
 from render_tag.backend.scene import (
     create_board,
     create_board_plane,
@@ -261,7 +263,6 @@ class RenderFacade:
                         rotation_euler=rotation,
                     )
                     board_obj.blender_obj["tag_family"] = "calibration_board"
-                    import json
 
                     board_obj.blender_obj["board"] = json.dumps(board_cfg)
                     board_obj.blender_obj["type"] = "BOARD"
@@ -294,8 +295,6 @@ class RenderFacade:
         setup_sensor_dynamics(pose_matrix, camera_recipe.get("sensor_dynamics"))
 
         # Apply intrinsics (Resolution, FOV, etc.)
-        from render_tag.backend.camera import set_camera_intrinsics
-
         set_camera_intrinsics(camera_recipe)
 
         cam_data = bridge.bpy.context.scene.camera.data
@@ -420,8 +419,6 @@ def _setup_scene(
         if tag.blender_obj.get("type") == "BOARD":
             board_data = tag.blender_obj.get("board")
             if board_data:
-                import json
-
                 try:
                     config = json.loads(board_data) if isinstance(board_data, str) else board_data
                     dictionary = config.get("dictionary")
@@ -492,7 +489,6 @@ def _extract_and_save_ground_truth(
 ) -> None:
     """Project objects to image space and save detection records."""
     all_detections: list[DetectionRecord] = []
-    from render_tag.backend.projection import generate_board_records, generate_subject_records
 
     for obj in tag_objects:
         obj_type = obj.blender_obj.get("type", "TAG")

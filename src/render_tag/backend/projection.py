@@ -11,10 +11,14 @@ It must preserve the index ordering defined in the 3D local-space asset contract
 
 from __future__ import annotations
 
+import json
+import os
 from typing import Any
 
 from render_tag.backend.bridge import bridge
+from render_tag.core import TAG_GRID_SIZES
 from render_tag.core.schema import DetectionRecord
+from render_tag.core.schema.board import BoardConfig
 from render_tag.generation.board import (
     BoardLayout,
     BoardSpec,
@@ -25,6 +29,7 @@ from render_tag.generation.board import (
 from render_tag.generation.projection_math import (
     calculate_angle_of_incidence,
     calculate_distance,
+    calculate_ppm,
     calculate_relative_pose,
     get_world_normal,
     project_points,
@@ -72,8 +77,6 @@ def project_corners_to_image(
 def check_tag_visibility(tag_obj: Any, min_visible_corners: int = 3) -> bool:
     """Check if a tag is visible in the current camera view."""
     # Staff Engineer: Bypass visibility check in mock mode to ensure data generation in tests
-    import os
-
     if os.environ.get("RENDER_TAG_BACKEND_MOCK") == "1":
         return True
 
@@ -133,9 +136,6 @@ def compute_geometric_metadata(tag_obj: Any) -> dict[str, Any]:
     pixel_area = compute_tag_area_in_image(corners_2d) if corners_2d else 0.0
 
     # Calculate PPM
-    from render_tag.core import TAG_GRID_SIZES
-    from render_tag.generation.projection_math import calculate_ppm
-
     tag_family = tag_obj.blender_obj.get("tag_family", "tag36h11")
     grid_size = TAG_GRID_SIZES.get(tag_family, 8)
     tag_obj.blender_obj.get("margin_bits", 0)
@@ -258,8 +258,6 @@ def generate_subject_records(
 
     # Calculate tag_size_mm (active black-to-black size)
     # Using raw_size_m property instead of matrix norm to avoid float drift
-    from render_tag.core import TAG_GRID_SIZES
-
     grid_size = TAG_GRID_SIZES.get(tag_family, 8)
     margin_bits = blender_obj.get("margin_bits", 0)
     total_bits = grid_size + 2 * margin_bits
@@ -338,10 +336,6 @@ def generate_board_records(
     skip_visibility: bool = False,
 ) -> list[DetectionRecord]:
     """Generate detection records for all tags on a calibration board."""
-    import json
-
-    from render_tag.core.schema.board import BoardConfig
-
     board_data = board_obj.blender_obj.get("board")
     if not board_data:
         return []
