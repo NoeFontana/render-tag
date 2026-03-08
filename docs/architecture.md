@@ -4,7 +4,7 @@
 
 ## High-Level Overview
 
-The system is divided into **Host** code (Python 3.11) and **Backend** code (Blender/BlenderProc).
+The system is divided into **Host** code (Python >=3.11) and **Backend** code (Blender/BlenderProc).
 
 ```mermaid
 graph TD
