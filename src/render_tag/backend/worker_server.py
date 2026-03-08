@@ -25,7 +25,6 @@ from render_tag.data_io.writers import (
     CSVWriter,
     ProvenanceWriter,
     RichTruthWriter,
-    SidecarWriter,
 )
 
 if TYPE_CHECKING:
@@ -140,7 +139,6 @@ class ZmqBackendServer:
             "coco": COCOWriter(output_dir, filename=f"coco_shard_{shard_id}.json"),
             "rich": RichTruthWriter(output_dir / f"rich_truth_shard_{shard_id}.json"),
             "provenance": ProvenanceWriter(output_dir / f"provenance_shard_{shard_id}.json"),
-            "sidecar": SidecarWriter(output_dir),
         }
         self.writers["csv"]._ensure_initialized()
 
@@ -330,7 +328,6 @@ class ZmqBackendServer:
                 coco_writer=self.writers["coco"],
                 rich_writer=self.writers["rich"],
                 provenance_writer=self.writers["provenance"],
-                sidecar_writer=self.writers["sidecar"],
                 global_seed=self.seed,
                 skip_visibility=p.get("skip_visibility", False),
             )

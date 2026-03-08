@@ -132,28 +132,34 @@ class DetectionRecord(BaseModel):
     occlusion_ratio: float = 0.0
     ppm: float = 0.0
 
-    # Phase 2 Pose Baseline: High-Precision Pose
-    position: list[float] | None = Field(default=None, description="[x, y, z] position in meters")
+    # --- Phase 2 Pose Baseline: High-Precision Pose ---
+    position: list[float] | None = Field(
+        default=None, description="[x, y, z] position in meters (OpenCV Frame)"
+    )
     rotation_quaternion: list[float] | None = Field(
-        default=None, description="[w, x, y, z] quaternion (Scalar First)"
+        default=None, description="[w, x, y, z] quaternion (Internal Scalar-First)"
     )
     tag_size_mm: float = Field(
-        default=0.0, description="Active physical size of the tag (black-to-black) in millimeters"
+        default=0.0, description="Active physical size (black-to-black) in millimeters"
     )
 
-    # Intrinsics Snapshot (For Self-Contained PnP)
+    # --- Unified Data Product: Intrinsics ---
     k_matrix: list[list[float]] | None = Field(
         default=None, description="3x3 Camera Intrinsic Matrix [[fx, 0, cx], ...]"
     )
     resolution: list[int] | None = Field(default=None, description="[width, height] in pixels")
 
-    # Physics & Sensor Conditions (For Benchmark Analysis)
-    velocity: list[float] | None = Field(default=None, description="[vx, vy, vz] in m/s")
-    shutter_time_ms: float = 0.0
-    rolling_shutter_ms: float = 0.0
-    fstop: float | None = None
+    # --- Unified Data Product: Physics & Sensor Conditions ---
+    velocity: list[float] | None = Field(
+        default=None, description="Camera velocity [vx, vy, vz] in m/s"
+    )
+    shutter_time_ms: float = Field(default=0.0, description="Exposure time in milliseconds")
+    rolling_shutter_ms: float = Field(
+        default=0.0, description="Rolling shutter scan duration in milliseconds"
+    )
+    fstop: float | None = Field(default=None, description="Aperture f-number")
 
-    # Provenance
+    # --- Provenance ---
     global_seed: int | None = Field(default=None, description="Master random seed used")
     scene_seed: int | None = Field(default=None, description="Scene-specific derived seed")
 

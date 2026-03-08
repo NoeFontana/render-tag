@@ -377,56 +377,6 @@ class RichTruthWriter(AtomicWriter):
         return self.output_path
 
 
-class SidecarWriter(AtomicWriter):
-    """Writes metadata sidecar files for generated images."""
-
-    def __init__(self, output_dir: Path) -> None:
-        self.output_dir = output_dir
-
-    def write_sidecar(self, image_name: str, provenance: dict[str, Any] | SceneProvenance) -> Path:
-        """Write the provenance data to a JSON sidecar file.
-
-        Args:
-            image_name: Base name of the image (e.g. 'scene_0000_cam_0000')
-            provenance: SceneProvenance object or dict
-
-        Returns:
-            Path to the written file
-        """
-        # Place sidecar alongside images in 'images' subdirectory
-        sidecar_dir = self.output_dir / "images"
-        sidecar_dir.mkdir(parents=True, exist_ok=True)
-
-        filename = f"{image_name}_meta.json"
-        path = sidecar_dir / filename
-
-        # IO BOUNDARY: Ensure quaternion flip if checking tags in provenance
-        # Typically the SceneProvenance might not have detailed detections,
-        # but if we add them, we must ensure consistency.
-        # Currently SceneProvenance creates a unique snapshot.
-
-        # If we had detection records here, we'd flip them.
-        # But SidecarWriter mostly writes the SceneProvenance/Recipe.
-        # "Recipe" has camera positions which are matrices.
-        # If we serialize specific geometric metadata here, we should check.
-        # Current usage:
-        # It dumps SceneProvenance which has `recipe_snapshot`.
-
-        # If we have detection-level metadata for sidecars (which we might in later phases),
-        # we'd process it here.
-        # For now, we act on the user's instruction
-        # "Implement the permutation logic strictly at the IO boundary inside writers.py".
-        # RichTruthWriter is the main consumer of DetectionRecord.
-
-        # We also have COCOWriter attributes.
-
-        model_dump = getattr(provenance, "model_dump", None)
-        data = model_dump(mode="json") if callable(model_dump) else provenance
-        self._write_atomic(path, data)
-
-        return path
-
-
 class ProvenanceWriter(AtomicWriter):
     """Writer for a unified dataset provenance mapping (image_id -> SceneRecipe)."""
 

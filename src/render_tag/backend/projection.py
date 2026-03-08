@@ -173,6 +173,26 @@ def compute_geometric_metadata(tag_obj: Any) -> dict[str, Any]:
     }
 
 
+def _extract_physics(cam_recipe: dict[str, Any] | None) -> dict[str, Any]:
+    """Extract physics and sensor conditions from a camera recipe."""
+    physics = {
+        "velocity": None,
+        "shutter_time_ms": 0.0,
+        "rolling_shutter_ms": 0.0,
+        "fstop": None,
+    }
+
+    if cam_recipe:
+        dynamics = cam_recipe.get("sensor_dynamics")
+        if dynamics:
+            physics["velocity"] = dynamics.get("velocity")
+            physics["shutter_time_ms"] = dynamics.get("shutter_time_ms", 0.0)
+            physics["rolling_shutter_ms"] = dynamics.get("rolling_shutter_duration_ms", 0.0)
+        physics["fstop"] = cam_recipe.get("fstop")
+
+    return physics
+
+
 def generate_subject_records(
     obj: Any,
     image_id: str,
@@ -212,18 +232,7 @@ def generate_subject_records(
     pose = calculate_relative_pose(world_matrix, blender_cam_mat)
 
     # Physics Metadata
-    velocity = None
-    shutter_time = 0.0
-    rolling_shutter = 0.0
-    fstop = None
-
-    if cam_recipe:
-        dynamics = cam_recipe.get("sensor_dynamics")
-        if dynamics:
-            velocity = dynamics.get("velocity")
-            shutter_time = dynamics.get("shutter_time_ms", 0.0)
-            rolling_shutter = dynamics.get("rolling_shutter_duration_ms", 0.0)
-        fstop = cam_recipe.get("fstop")
+    physics = _extract_physics(cam_recipe)
 
     # Project all keypoints
     world_kps = []
@@ -276,10 +285,10 @@ def generate_subject_records(
                 tag_size_mm=float(active_size_mm),
                 k_matrix=k_list,
                 resolution=res,
-                velocity=velocity,
-                shutter_time_ms=shutter_time,
-                rolling_shutter_ms=rolling_shutter,
-                fstop=fstop,
+                velocity=physics["velocity"],
+                shutter_time_ms=physics["shutter_time_ms"],
+                rolling_shutter_ms=physics["rolling_shutter_ms"],
+                fstop=physics["fstop"],
             )
         )
     else:
@@ -312,10 +321,10 @@ def generate_subject_records(
                 tag_size_mm=float(active_size_mm),
                 k_matrix=k_list,
                 resolution=res,
-                velocity=velocity,
-                shutter_time_ms=shutter_time,
-                rolling_shutter_ms=rolling_shutter,
-                fstop=fstop,
+                velocity=physics["velocity"],
+                shutter_time_ms=physics["shutter_time_ms"],
+                rolling_shutter_ms=physics["rolling_shutter_ms"],
+                fstop=physics["fstop"],
             )
         )
 
@@ -459,20 +468,7 @@ def _get_scene_transformations(
     k_list = k_matrix.tolist() if hasattr(k_matrix, "tolist") else k_matrix
 
     # Physics Metadata
-    physics = {
-        "velocity": None,
-        "shutter_time_ms": 0.0,
-        "rolling_shutter_ms": 0.0,
-        "fstop": None,
-    }
-
-    if cam_recipe:
-        dynamics = cam_recipe.get("sensor_dynamics")
-        if dynamics:
-            physics["velocity"] = dynamics.get("velocity")
-            physics["shutter_time_ms"] = dynamics.get("shutter_time_ms", 0.0)
-            physics["rolling_shutter_ms"] = dynamics.get("rolling_shutter_duration_ms", 0.0)
-        physics["fstop"] = cam_recipe.get("fstop")
+    physics = _extract_physics(cam_recipe)
 
     return (
         world_matrix,

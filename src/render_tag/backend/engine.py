@@ -32,8 +32,8 @@ from render_tag.core.utils import get_git_hash
 from render_tag.data_io.writers import (
     COCOWriter,
     CSVWriter,
+    ProvenanceWriter,
     RichTruthWriter,
-    SidecarWriter,
 )
 
 logger = get_logger(__name__)
@@ -48,8 +48,7 @@ class RenderContext:
     csv_writer: CSVWriter
     coco_writer: COCOWriter
     rich_writer: RichTruthWriter
-    sidecar_writer: SidecarWriter
-    provenance_writer: Any
+    provenance_writer: ProvenanceWriter
     global_seed: int
     logger: Any = None
     skip_visibility: bool = False
@@ -476,8 +475,6 @@ def _render_camera_and_save(
     if img_array is not None and bridge.np.asarray(img_array).size > 0:
         Image.fromarray(bridge.np.asarray(img_array).astype(bridge.np.uint8)).save(str(image_path))
 
-    # Deprecated: Using unified rich_truth.json and global provenance.json
-    # ctx.sidecar_writer.write_sidecar(image_name, provenance)
     ctx.provenance_writer.add_provenance(image_name, provenance)
     coco_img_id = ctx.coco_writer.add_image(f"images/{image_path.name}", res[0], res[1])
 

@@ -39,12 +39,16 @@ The pose represents the transformation from the **Object Local Space** (defined 
 *   **Position (`position`):** A 3-element list `[x, y, z]` in meters.
 *   **Active Size (`tag_size_mm`):** The physical edge length of the black border in millimeters. Use this value for PnP and scale-dependent pose estimation.
 *   **Intrinsics (`k_matrix`, `resolution`):** Injected directly into each detection record in `rich_truth.json` and `coco_labels.json`.
+*   **Physics Conditions:** Metadata such as `shutter_time_ms`, `rolling_shutter_ms`, and `velocity` are included in each record to enable detailed error analysis (e.g., impact of motion blur on corner jitter).
 *   **Rotation (`rotation_quaternion`):** 
     *   **Format:** **`[x, y, z, w]` (Scalar-Last)** in all exported JSON/CSV files.
     *   *Note: Internally, the pipeline uses `[w, x, y, z]`, but performs a flip at the IO boundary for SciPy/Ceres compatibility.*
 
+### Reproducibility (Provenance)
+For total dataset unification, a single **`provenance.json`** file is generated at the root of the dataset. This file maps every `image_id` to its full `SceneRecipe`, including lighting, material properties, and renderer settings. Individual `_meta.json` sidecars are deprecated in favor of this global manifest.
+
 ### Camera Intrinsics
-Found in the `recipe_snapshot` within `*_meta.json` sidecar files, and also duplicated in each detection record for convenience.
+Found in the global **`provenance.json`** manifest, and also duplicated in each detection record for convenience.
 
 *   **Intrinsic Matrix (K):** 3x3 matrix in the following format:
     ```python
