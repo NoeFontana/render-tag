@@ -185,7 +185,7 @@ uv run render-tag viz fiftyone --dataset output/dataset_01
 
 **Key Debugging Capabilities:**
 - **Saved Views:** Use the **"Anomalies"** view to instantly filter for samples with `ERR_OOB`, `ERR_OVERLAP`, or `ERR_SCALE_DRIFT` tags.
-- **Labeled Corners:** Keypoints are labeled `0`, `1`, `2`, `3` to allow instant verification of the OpenCV CW winding order contract.
+- **Labeled Corners:** Keypoints are labeled `0`, `1`, `2`, `3` to allow instant verification of the **Orientation Contract** (CW winding from TL) defined in [coordinates.md](coordinates.md).
 - **3D Axes:** Visualizes X (Red), Y (Green), and Z (Blue) coordinate axes at the tag center using relative pose metadata.
 - **Metadata Filtering:** Use the sidebar sliders to filter samples by `ppm`, `distance`, or `angle_of_incidence`.
 

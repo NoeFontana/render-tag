@@ -47,7 +47,7 @@ uv run render-tag hub pull-assets
 
 `render-tag` uses a decoupled **Host-Backend** architecture for high-performance rendering:
 
-*   **Host (Python 3.12)**: Procedural math, recipe generation, and worker orchestration.
+*   **Host (Python >=3.11)**: Procedural math, recipe generation, and worker orchestration.
 *   **Backend (Blender/ZMQ)**: Persistent 3D workers running a **ZMQ-based Hot Loop**. This avoids the massive overhead of Blender startup by keeping workers alive and sending "Scene Recipes" over the wire.
 *   **Unified Orchestrator**: Manages parallel sharding, ZMQ communication, VRAM guardrails, and telemetry.
 
@@ -264,9 +264,13 @@ output/dataset_01/
 │   ├── scene_0000_cam_0000.png
 │   ├── scene_0000_cam_0001.png
 │   └── ...
-├── tags.csv              # Corner annotations
-├── annotations.json      # COCO format annotations
-├── rich_truth.json       # Extended metadata (occlusions, noise levels, etc.)
+├── provenance.json       # Master manifest (Unified SceneRecipes)
+├── tags.csv              # Merged corner annotations
+├── annotations.json      # Merged COCO format annotations
+├── rich_truth.json       # Merged extended metadata
+├── coco_shard_*.json     # Raw COCO shards (before merge)
+├── tags_shard_*.csv      # Raw CSV shards (before merge)
+├── rich_truth_shard_*.json # Raw metadata shards (before merge)
 └── visualizations/       # Debug visualizations (from viz command)
 
 output/test_results/      # Automatic redirection for pytest artifacts
