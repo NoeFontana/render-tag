@@ -210,12 +210,12 @@ def project_tag_axes(
     r_mat = quaternion_wxyz_to_matrix(quat)
     t_vec = np.array(pos)
     k_np = np.array(k_matrix)
-    
+
     # 3D Normal (Local Z) in camera space
     # Flipping Z to point INTO the tag (Away from camera in OpenCV convention)
     # Since our local +Z is Outward (towards camera), we use -Z here.
     z_unit_cam = r_mat @ np.array([0, 0, -1])
-    
+
     # Project a small Z offset from the center to get 2D direction in pixels
     def project(p_cam):
         p_2d_hom = k_np @ p_cam
@@ -223,17 +223,17 @@ def project_tag_axes(
 
     c_2d = project(t_vec)
     z_2d = project(t_vec + z_unit_cam * 0.01)
-    
+
     z_vec_px = z_2d - c_2d
     z_vec_norm = np.linalg.norm(z_vec_px)
-    
+
     if z_vec_norm < 1e-6:
         z_end = tl_2d
     else:
         # Scale the 2D direction in relative image units
         z_vec_fo = (z_vec_px / z_vec_norm) * z_len_fo
         z_end = [tl_2d[0] + float(z_vec_fo[0]), tl_2d[1] + float(z_vec_fo[1])]
-    
+
     return {
         "axis_x": fo.Polyline(label="X", points=[[tl_2d, tr_2d]]),
         "axis_y": fo.Polyline(label="Y", points=[[tl_2d, bl_2d]]),
