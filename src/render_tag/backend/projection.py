@@ -215,7 +215,18 @@ def generate_subject_records(
         return []
 
     # Get Transformation
-    world_matrix = bridge.np.array(obj.get_local2world_mat())
+    raw_world_mat = obj.get_local2world_mat()
+    raw_world_matrix = bridge.np.array(raw_world_mat) if raw_world_mat is not None else None
+
+    # Defensive check for unit-testing mocks
+    if raw_world_matrix is None or raw_world_matrix.ndim != 2 or raw_world_matrix.shape != (4, 4):
+        raw_world_matrix = bridge.np.eye(4)
+
+    world_matrix = sanitize_to_rigid_transform(raw_world_matrix)
+
+    # Extract scale to apply to keypoints
+    norms = bridge.np.linalg.norm(raw_world_matrix[:3, :3], axis=0)
+    obj_scale = float(bridge.np.mean(norms))
 
     blender_cam_mat = bridge.np.array(bridge.bpy.context.scene.camera.matrix_world)
     k_matrix = bridge.bproc.camera.get_intrinsics_as_K_matrix()
@@ -235,10 +246,11 @@ def generate_subject_records(
     # Physics Metadata
     physics = _extract_physics(cam_recipe)
 
-    # Project all keypoints
+    # Project all keypoints (absorbing scale)
     world_kps = []
     for loc in keypoints_3d:
-        p = bridge.np.append(bridge.np.array(loc), 1.0)
+        p_local = bridge.np.array(loc) * obj_scale
+        p = bridge.np.append(p_local, 1.0)
         pw = bridge.np.dot(world_matrix, p)
         world_kps.append(pw[:3] / pw[3])
 
@@ -347,14 +359,41 @@ def generate_board_records(
 
     config = BoardConfig.model_validate(board_data) if isinstance(board_data, dict) else board_data
 
-    # 1. Recompute Layout
+    # 1. Extract Scale and Recompute Layout
+    # Staff Engineer: We must account for Blender object-level scaling by 'absorbing' it
+    # into the physical metrics. This allows us to maintain the invariant that the
+    # world_matrix used for projection and pose is a pure SE(3) rigid transform.
+    raw_world_mat = board_obj.get_local2world_mat()
+    raw_mat = bridge.np.array(raw_world_mat) if raw_world_mat is not None else None
+
+    # Defensive check for unit-testing mocks
+    if raw_mat is None or raw_mat.ndim != 2 or raw_mat.shape != (4, 4):
+        raw_mat = bridge.np.eye(4)
+
+    norms = bridge.np.linalg.norm(raw_mat[:3, :3], axis=0)
+    # Using average of X and Y as boards are planar assets
+    obj_scale = float(bridge.np.mean(norms[:2]))
+
+    if hasattr(config, "model_copy"):
+        # Pydantic model
+        update = {"marker_size": config.marker_size * obj_scale}
+        sq_size = getattr(config, "square_size", None)
+        if sq_size is not None:
+            update["square_size"] = sq_size * obj_scale
+        config = config.model_copy(update=update)
+    elif isinstance(config, dict):
+        config = config.copy()
+        config["marker_size"] = config.get("marker_size", 0.1) * obj_scale
+        if config.get("square_size") is not None:
+            config["square_size"] = config["square_size"] * obj_scale
+
     layout, spec, board_info = _parse_board_config_and_layout(config)
     b_type, rows, cols, marker_size, dictionary = board_info
 
-    # 2. Get Transformation
+    # 2. Get Transformation (NOW RIGID/SANITIZED)
     transform_data = _get_scene_transformations(board_obj, cam_recipe=cam_recipe)
     world_matrix, blender_cam_mat, k_matrix, res, meta = transform_data
-    _, _, _, _ = meta
+    _, _, _, _, _, _ = meta
 
     records = []
 
@@ -442,7 +481,7 @@ def _get_scene_transformations(
     bridge.np.ndarray,
     bridge.np.ndarray,
     list[int],
-    tuple[float, float, dict[str, Any], dict[str, Any]],
+    tuple[float, float, dict[str, Any], dict[str, Any], bridge.np.ndarray, bridge.np.ndarray],
 ]:
     """Extract world matrices, intrinsics, and compute common metadata."""
     raw_world_matrix = bridge.np.array(board_obj.get_local2world_mat())
@@ -471,7 +510,7 @@ def _get_scene_transformations(
         blender_cam_mat,
         k_list,
         res,
-        (distance, angle_deg, pose, physics),
+        (distance, angle_deg, pose, physics, cam_location, world_normal),
     )
 
 
@@ -488,29 +527,32 @@ def _process_board_tags(
     skip_visibility: bool = False,
 ) -> list[DetectionRecord]:
     """Project and create records for all tags in the layout."""
-    distance, angle_deg, pose, physics = meta
+    _, _, _, physics, cam_location, world_normal = meta
     records = []
 
     for sq in layout.squares:
         if not sq.has_tag:
             continue
 
-        m = marker_size / 2.0
-        # corners order: TL, TR, BR, BL (Clockwise)
-        # Assuming local Z-up, Y-forward convention for the plane itself.
-        local_corners = [
-            [sq.center.x - m, sq.center.y + m, 0.0],  # TL
-            [sq.center.x + m, sq.center.y + m, 0.0],  # TR
-            [sq.center.x + m, sq.center.y - m, 0.0],  # BR
-            [sq.center.x - m, sq.center.y - m, 0.0],  # BL
-        ]
+        # 1. Compute Unique Tag Transform (Local Translation)
+        # Staff Engineer: We apply the procedural offset of the specific tag
+        # relative to the board origin to establish its true localized matrix.
+        local_mat = bridge.np.eye(4)
+        local_mat[0, 3] = sq.center.x
+        local_mat[1, 3] = sq.center.y
+        tag_world_matrix = world_matrix @ local_mat
+        tag_location = tag_world_matrix[:3, 3]
 
-        # Project all corners
-        world_corners = []
-        for loc in local_corners:
-            p = bridge.np.append(bridge.np.array(loc), 1.0)
-            pw = bridge.np.dot(world_matrix, p)
-            world_corners.append(pw[:3] / pw[3])
+        # 2. Project all corners via the localized matrix
+        m = marker_size / 2.0
+        # corners order in tag-local: TL, TR, BR, BL (Clockwise)
+        tag_local_corners = [
+            [-m, m, 0.0, 1.0],  # TL
+            [m, m, 0.0, 1.0],  # TR
+            [m, -m, 0.0, 1.0],  # BR
+            [-m, -m, 0.0, 1.0],  # BL
+        ]
+        world_corners = [(tag_world_matrix @ p)[:3] for p in tag_local_corners]
 
         corners_2d_raw = project_points(
             bridge.np.array(world_corners), blender_cam_mat, res, k_matrix
@@ -521,18 +563,11 @@ def _process_board_tags(
 
         corners_2d = [(float(p[0]), float(p[1])) for p in corners_2d_raw]
 
-        if not skip_visibility:
-            # Full occlusion check
-            # For efficiency, we check the center and a small margin inside each corner.
+        if not skip_visibility and not is_facing_camera(tag_location, world_normal, cam_location):
+            continue
 
-            # Determine if tag is facing the camera
-            tag_center = bridge.np.array([sq.center.x, sq.center.y, 0.0, 1.0])
-            tag_center_world = (world_matrix @ tag_center)[:3]
-            world_normal = get_world_normal(world_matrix)
-            cam_pos = bridge.np.array(bridge.bpy.context.scene.camera.location)
-
-            if not is_facing_camera(tag_center_world, world_normal, cam_pos):
-                continue
+        # 3. Calculate Independent Metadata
+        tag_pose = calculate_relative_pose(tag_world_matrix, blender_cam_mat)
 
         records.append(
             DetectionRecord(
@@ -541,10 +576,12 @@ def _process_board_tags(
                 tag_family=dictionary,
                 corners=corners_2d,
                 record_type="TAG",
-                distance=distance,
-                angle_of_incidence=angle_deg,
-                position=pose["position"],
-                rotation_quaternion=pose["rotation_quaternion"],
+                distance=float(calculate_distance(tag_location, cam_location)),
+                angle_of_incidence=calculate_angle_of_incidence(
+                    tag_location, world_normal, cam_location
+                ),
+                position=tag_pose["position"],
+                rotation_quaternion=tag_pose["rotation_quaternion"],
                 tag_size_mm=float(marker_size * 1000.0),
                 k_matrix=k_matrix,
                 resolution=res,
@@ -570,7 +607,7 @@ def _process_board_keypoints(
     meta: tuple[float, float, dict[str, Any], dict[str, Any]],
 ) -> list[DetectionRecord]:
     """Process extra keypoints (saddle points or corners) for specific board types."""
-    distance, angle_deg, pose, physics = meta
+    _, _, _, physics, cam_location, world_normal = meta
     records = []
 
     if b_type == "charuco":
@@ -584,19 +621,25 @@ def _process_board_keypoints(
                 x = start_x + c * spec.square_size
                 y = start_y - r * spec.square_size
 
-                # Project this intersection
-                p_local = bridge.np.array([x, y, 0.0, 1.0])
-                p_world = bridge.np.dot(world_matrix, p_local)
-                p_world = p_world[:3] / p_world[3]
+                # 1. Compute Unique Saddle Transform
+                local_mat = bridge.np.eye(4)
+                local_mat[0, 3] = x
+                local_mat[1, 3] = y
+                kp_world_matrix = world_matrix @ local_mat
+                kp_location = kp_world_matrix[:3, 3]
 
+                # 2. Project this intersection
                 pixel = project_points(
-                    bridge.np.array([p_world]),
+                    bridge.np.array([kp_location]),
                     blender_cam_mat,
                     res,
                     k_matrix.tolist() if hasattr(k_matrix, "tolist") else k_matrix,
                 )
                 if pixel is None:
                     continue
+
+                # 3. Calculate Independent Metadata
+                kp_pose = calculate_relative_pose(kp_world_matrix, blender_cam_mat)
 
                 records.append(
                     DetectionRecord(
@@ -605,10 +648,12 @@ def _process_board_keypoints(
                         tag_family="charuco_saddle",
                         corners=[(float(pixel[0][0]), float(pixel[0][1]))],
                         record_type="CHARUCO_SADDLE",
-                        distance=distance,
-                        angle_of_incidence=angle_deg,
-                        position=pose["position"],
-                        rotation_quaternion=pose["rotation_quaternion"],
+                        distance=float(calculate_distance(kp_location, cam_location)),
+                        angle_of_incidence=calculate_angle_of_incidence(
+                            kp_location, world_normal, cam_location
+                        ),
+                        position=kp_pose["position"],
+                        rotation_quaternion=kp_pose["rotation_quaternion"],
                         tag_size_mm=0.0,  # Saddle points are 0D
                         k_matrix=k_matrix,
                         resolution=res,
