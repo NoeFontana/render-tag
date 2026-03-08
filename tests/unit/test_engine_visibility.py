@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 from render_tag.backend.engine import _extract_and_save_ground_truth
 
 
-@patch("render_tag.backend.projection.generate_subject_records")
+@patch("render_tag.backend.engine.generate_subject_records")
 def test_extract_and_save_ground_truth_skip_visibility_no_full_screen(mock_subject_records):
     """
     Test that _extract_and_save_ground_truth does NOT return full-screen dummy corners
@@ -28,7 +28,10 @@ def test_extract_and_save_ground_truth_skip_visibility_no_full_screen(mock_subje
         MagicMock(corners=[(100.0, 100.0), (200.0, 100.0), (200.0, 200.0), (100.0, 200.0)])
     ]
 
-    _extract_and_save_ground_truth(tag_objects, image_name, 1, res, ctx, scene_logger)
+    # Minimal camera recipe
+    cam_recipe = {"intrinsics": {"resolution": res}}
+
+    _extract_and_save_ground_truth(tag_objects, image_name, 1, res, ctx, scene_logger, cam_recipe)
 
     # Check if generate_subject_records was called
     mock_subject_records.assert_called()

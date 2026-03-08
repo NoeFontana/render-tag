@@ -38,7 +38,7 @@ def test_ppm_zdepth_consistency():
 @patch("render_tag.backend.projection.calculate_angle_of_incidence")
 @patch("render_tag.backend.projection.project_corners_to_image")
 @patch("render_tag.backend.projection.calculate_relative_pose")
-@patch("render_tag.generation.projection_math.calculate_ppm")
+@patch("render_tag.backend.projection.calculate_ppm")
 def test_compute_geometric_metadata_zdepth(
     mock_ppm, mock_pose, mock_project, mock_angle, mock_dist, mock_bridge
 ):
@@ -70,11 +70,13 @@ def test_compute_geometric_metadata_zdepth(
         [0, 0, 1],
     ]
     mock_project.return_value = None
+    mock_pose.return_value = {"position": [0, 0, 2], "rotation_quaternion": [1, 0, 0, 0]}
 
     # ACT
     compute_geometric_metadata(mock_tag)
 
     # VERIFY
     # calculate_ppm should be called with z_depth_m=2.0
+    mock_ppm.assert_called()
     _, kwargs = mock_ppm.call_args
     assert np.isclose(kwargs["z_depth_m"], 2.0)

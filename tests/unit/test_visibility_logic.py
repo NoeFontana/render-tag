@@ -53,7 +53,12 @@ def test_generate_subject_records_skips_hidden(
         np.eye(4),  # blender_cam_mat
         np.eye(3),  # k_matrix
         [640, 480],  # res
-        (1.0, 0.0, {"position": [0, 0, 1], "rotation_quaternion": [1, 0, 0, 0]}),  # meta
+        (
+            1.0,
+            0.0,
+            {"position": [0, 0, 1], "rotation_quaternion": [1, 0, 0, 0]},
+            {"velocity": None, "shutter_time_ms": 0.0, "rolling_shutter_ms": 0.0, "fstop": None},
+        ),  # meta
     )
 
     with patch("render_tag.backend.projection.project_points") as mock_proj:

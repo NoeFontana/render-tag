@@ -238,6 +238,8 @@ class SceneCompiler:
         elif target_tag.type == "BOARD" and target_tag.board:
             tag_size_m = target_tag.board.marker_size
 
+        from render_tag.core.constants import TAG_GRID_SIZES
+
         return solve_distance_for_ppm(
             target_ppm=target_ppm,
             tag_size_m=tag_size_m,
@@ -381,7 +383,7 @@ class SceneCompiler:
             pose = self._sample_single_pose(np_rng, dist_override, elev_override, target_tag)
 
             if not pose:
-                # Proper fix: Raise error if we cannot find a valid pose after rejection sampling.
+                # Proper fix: Raise error if we cannot find a valid iose after rejection sampling.
                 # This ensures we don't generate invalid/incomplete recipes.
                 raise ValueError(
                     f"Failed to sample a valid camera pose for scene {scene_id} "

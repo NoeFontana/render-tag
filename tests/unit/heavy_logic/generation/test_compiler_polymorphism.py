@@ -7,7 +7,7 @@ def test_compile_tag_subject():
     config = GenConfig()
     config.dataset.num_scenes = 1
     config.scenario.subject.root = TagSubjectConfig(
-        tag_families=["tag36h11"], size_meters=0.1, tags_per_scene=5
+        tag_families=["tag36h11"], size_mm=100.0, tags_per_scene=5
     )
 
     compiler = SceneCompiler(config)
@@ -28,7 +28,12 @@ def test_compile_board_subject():
     config = GenConfig()
     config.dataset.num_scenes = 1
     config.scenario.subject.root = BoardSubjectConfig(
-        type="BOARD", rows=3, cols=4, marker_size=0.05, square_size=0.06, dictionary="tag36h11"
+        type="BOARD",
+        rows=3,
+        cols=4,
+        marker_size_mm=50.0,
+        square_size_mm=60.0,
+        dictionary="tag36h11",
     )
 
     compiler = SceneCompiler(config)

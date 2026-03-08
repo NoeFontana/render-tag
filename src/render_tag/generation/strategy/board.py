@@ -48,10 +48,10 @@ class BoardStrategy(SubjectStrategy):
             type=BoardType.APRILGRID if config.spacing_ratio is not None else BoardType.CHARUCO,
             rows=config.rows,
             cols=config.cols,
-            marker_size=config.marker_size,
+            marker_size=config.marker_size_mm / 1000.0,
             dictionary=config.dictionary,
             spacing_ratio=config.spacing_ratio,
-            square_size=config.square_size,
+            square_size=config.square_size_mm / 1000.0 if config.square_size_mm else None,
             ids=config.ids,
         )
 
@@ -82,12 +82,15 @@ class BoardStrategy(SubjectStrategy):
             A list containing exactly one ObjectRecipe for the board plane.
         """
         # Calculate physical dimensions from grid parameters
+        marker_size = self.config.marker_size_mm / 1000.0
         if self.config.spacing_ratio is not None:
             # AprilGrid: square_size = marker_size * (1 + spacing_ratio)
-            square_size = self.config.marker_size * (1.0 + self.config.spacing_ratio)
+            square_size = marker_size * (1.0 + self.config.spacing_ratio)
         else:
             # ChArUco: square_size is explicit
-            square_size = self.config.square_size or self.config.marker_size
+            square_size = (
+                self.config.square_size_mm / 1000.0 if self.config.square_size_mm else marker_size
+            )
 
         width_m = self.config.cols * square_size
         height_m = self.config.rows * square_size
@@ -107,7 +110,7 @@ class BoardStrategy(SubjectStrategy):
                 rows=self.config.rows,
                 cols=self.config.cols,
                 square_size=square_size,
-                marker_margin=(square_size - self.config.marker_size) / 2.0,
+                marker_margin=(square_size - marker_size) / 2.0,
                 board_type=GenBoardType.APRILGRID,
             )
             layout = compute_aprilgrid_layout(spec, tag_ids=self._board_config.ids)
@@ -116,14 +119,14 @@ class BoardStrategy(SubjectStrategy):
                 rows=self.config.rows,
                 cols=self.config.cols,
                 square_size=square_size,
-                marker_margin=(square_size - self.config.marker_size) / 2.0,
+                marker_margin=(square_size - marker_size) / 2.0,
                 board_type=GenBoardType.CHARUCO,
             )
             layout = compute_charuco_layout(spec, tag_ids=self._board_config.ids)
 
         keypoints_3d = []
         # 1. Tag corners (standardized order)
-        m = self.config.marker_size / 2.0
+        m = marker_size / 2.0
         for pos in layout.tag_positions:
             keypoints_3d.extend(
                 [

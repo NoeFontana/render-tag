@@ -1,30 +1,24 @@
 dataset:
   num_scenes: 1
-  output_dir: output/test_minimal
 camera:
-  resolution:
-  - 320
-  - 240
-  samples_per_scene: 1
-  iso: 100
-  tone_mapping: filmic
-  sensor_noise_sigma: 0.0
-  ppm_constraint: null
+  resolution: [640, 480]
+  fov: 120.0
+  min_distance: 0.5
+  max_distance: 1.5
 tag:
   family: tag36h11
-  size_meters: 0.1
+  size_mm: 100.0
 scenario:
-  layout: plain
+  sampling_mode: random
   subject:
     type: TAGS
-    tag_families:
-    - tag36h11
-    size_meters: 0.1
+    tag_families: [tag36h11]
+    size_mm: 100.0
     tags_per_scene: 1
 scene:
-  lighting:
-    intensity_min: 100
-    intensity_max: 100
   background_hdri: null
-  texture_dir: null
+physics:
+  scatter_radius: 0.1
+renderer:
+  mode: workbench
 version: '0.2'

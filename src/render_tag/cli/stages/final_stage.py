@@ -11,10 +11,16 @@ from render_tag.audit.reporting import generate_dataset_info
 from render_tag.cli.pipeline import GenerationContext, PipelineStage
 from render_tag.cli.tools import console, get_asset_manager
 from render_tag.core.manifest import ChecksumManifest
-from render_tag.core.schema.job import JobSpec, calculate_job_id, get_env_fingerprint
+from render_tag.core.schema.job import (
+    JobPaths,
+    JobSpec,
+    calculate_job_id,
+    get_env_fingerprint,
+)
 from render_tag.data_io.writers import (
     merge_coco_shards,
     merge_csv_shards,
+    merge_provenance_shards,
     merge_rich_truth_shards,
 )
 
@@ -46,7 +52,12 @@ class FinalizationStage(PipelineStage):
         # 3. Checksums
         manifest = ChecksumManifest(job_id=ctx.final_job_id, output_dir=ctx.output_dir)
         manifest.add_directory(ctx.output_dir / "images", pattern="*.png")
-        for filename in ["ground_truth.csv", "coco_labels.json", "rich_truth.json"]:
+        for filename in [
+            "ground_truth.csv",
+            "coco_labels.json",
+            "rich_truth.json",
+            "provenance.json",
+        ]:
             path = ctx.output_dir / filename
             if path.exists():
                 manifest.add_file(path)
@@ -64,6 +75,8 @@ class FinalizationStage(PipelineStage):
         merge_coco_shards(output_dir, final_filename="coco_labels.json", cleanup=True)
         # RichTruth Shards
         merge_rich_truth_shards(output_dir, final_filename="rich_truth.json", cleanup=True)
+        # Provenance Shards
+        merge_provenance_shards(output_dir, final_filename="provenance.json", cleanup=True)
 
     def _create_virtual_job_id(self, ctx: GenerationContext) -> str:
         if not ctx.gen_config:
@@ -76,8 +89,6 @@ class FinalizationStage(PipelineStage):
         if ctx.config_path and ctx.config_path.exists():
             with open(ctx.config_path, "rb") as f:
                 cfg_hash = hashlib.sha256(f.read()).hexdigest()
-
-        from render_tag.core.schema.job import JobPaths
 
         paths = JobPaths(
             output_dir=ctx.output_dir,

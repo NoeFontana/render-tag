@@ -2,11 +2,12 @@ import json
 from unittest.mock import MagicMock
 
 from render_tag.backend.engine import RenderContext, execute_recipe
+from render_tag.data_io.writers import ProvenanceWriter
 
 
-def test_provenance_sidecar_generated(tmp_path, stabilized_bridge):
+def test_provenance_manifest_generated(tmp_path, stabilized_bridge):
     """
-    Staff Engineer: Verify that sidecar JSON files are generated with images.
+    Staff Engineer: Verify that the unified provenance manifest is generated.
     Using direct execute_recipe call for speed and reliability.
     """
     output_dir = tmp_path / "out"
@@ -27,9 +28,7 @@ def test_provenance_sidecar_generated(tmp_path, stabilized_bridge):
     }
 
     # Mock writers
-    from render_tag.data_io.writers import SidecarWriter
-
-    sidecar_writer = SidecarWriter(output_dir)
+    provenance_writer = ProvenanceWriter(output_dir / "provenance_shard_0.json")
 
     ctx = RenderContext(
         output_dir=output_dir,
@@ -37,19 +36,26 @@ def test_provenance_sidecar_generated(tmp_path, stabilized_bridge):
         csv_writer=MagicMock(),
         coco_writer=MagicMock(),
         rich_writer=MagicMock(),
-        sidecar_writer=sidecar_writer,
+        provenance_writer=provenance_writer,
         global_seed=42,
         skip_visibility=True,
     )
 
     execute_recipe(recipe, ctx)
 
-    # Check sidecar
-    sidecar_path = output_dir / "images/scene_0000_cam_0000_meta.json"
-    assert sidecar_path.exists(), "Sidecar file not found"
+    # Finalize provenance writer (usually handled by worker_server finalize_writers)
+    provenance_writer.save()
 
-    with open(sidecar_path) as f:
-        data = json.load(f)
+    # Check manifest
+    manifest_path = output_dir / "provenance_shard_0.json"
+    assert manifest_path.exists(), "Provenance manifest not found"
+
+    with open(manifest_path) as f:
+        master_data = json.load(f)
+        # It's a mapping of image_id -> provenance
+        image_id = "scene_0000_cam_0000"
+        assert image_id in master_data
+        data = master_data[image_id]
         assert "git_hash" in data
         assert "timestamp" in data
         assert "recipe_snapshot" in data

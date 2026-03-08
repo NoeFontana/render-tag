@@ -8,7 +8,7 @@ from render_tag.generation.strategy.tags import TagStrategy
 
 
 def test_tag_strategy_sample_pose():
-    config = TagSubjectConfig(tag_families=["tag36h11"], size_meters=0.1, tags_per_scene=5)
+    config = TagSubjectConfig(tag_families=["tag36h11"], size_mm=100.0, tags_per_scene=5)
     strategy = TagStrategy(config)
 
     # Mock context
@@ -27,7 +27,7 @@ def test_tag_strategy_sample_pose():
 
 
 def test_tag_strategy_prepare_assets():
-    config = TagSubjectConfig(tag_families=["tag36h11"], size_meters=0.1, tags_per_scene=5)
+    config = TagSubjectConfig(tag_families=["tag36h11"], size_mm=100.0, tags_per_scene=5)
     strategy = TagStrategy(config)
 
     ctx = MagicMock(spec=GenerationContext)

@@ -18,6 +18,7 @@ except ImportError:
     bpy = None
 
 from render_tag.backend.bridge import bridge
+from render_tag.core import TAG_GRID_SIZES
 
 if TYPE_CHECKING:
     pass
@@ -124,7 +125,6 @@ def create_tag_plane(
     # Store corner coordinates as custom properties
     # Detection standard is the OUTER BLACK BORDER corners.
     # If margin_bits > 0, the black border is smaller than size_meters.
-    from render_tag.core import TAG_GRID_SIZES
 
     grid_size = TAG_GRID_SIZES.get(tag_family, 8)
     total_bits = grid_size + (2 * margin_bits)
@@ -147,6 +147,7 @@ def create_tag_plane(
     plane.blender_obj["tag_id"] = tag_id
     plane.blender_obj["tag_family"] = tag_family
     plane.blender_obj["margin_bits"] = margin_bits
+    plane.blender_obj["raw_size_m"] = float(size_meters)
 
     # Apply texture if provided
     if texture_path:

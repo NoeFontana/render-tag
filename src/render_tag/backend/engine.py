@@ -5,6 +5,7 @@ Combines the RenderFacade (Blender abstraction) and the execution loop
 into a single, high-performance module.
 """
 
+import json
 import logging
 import os
 import time
@@ -17,7 +18,8 @@ from PIL import Image
 
 from render_tag.backend.assets import create_tag_plane, global_pool
 from render_tag.backend.bridge import bridge
-from render_tag.backend.camera import setup_sensor_dynamics
+from render_tag.backend.camera import set_camera_intrinsics, setup_sensor_dynamics
+from render_tag.backend.projection import generate_board_records, generate_subject_records
 from render_tag.backend.scene import (
     create_board,
     create_board_plane,
@@ -32,8 +34,8 @@ from render_tag.core.utils import get_git_hash
 from render_tag.data_io.writers import (
     COCOWriter,
     CSVWriter,
+    ProvenanceWriter,
     RichTruthWriter,
-    SidecarWriter,
 )
 
 logger = get_logger(__name__)
@@ -48,7 +50,7 @@ class RenderContext:
     csv_writer: CSVWriter
     coco_writer: COCOWriter
     rich_writer: RichTruthWriter
-    sidecar_writer: SidecarWriter
+    provenance_writer: ProvenanceWriter
     global_seed: int
     logger: Any = None
     skip_visibility: bool = False
@@ -261,7 +263,6 @@ class RenderFacade:
                         rotation_euler=rotation,
                     )
                     board_obj.blender_obj["tag_family"] = "calibration_board"
-                    import json
 
                     board_obj.blender_obj["board"] = json.dumps(board_cfg)
                     board_obj.blender_obj["type"] = "BOARD"
@@ -294,8 +295,6 @@ class RenderFacade:
         setup_sensor_dynamics(pose_matrix, camera_recipe.get("sensor_dynamics"))
 
         # Apply intrinsics (Resolution, FOV, etc.)
-        from render_tag.backend.camera import set_camera_intrinsics
-
         set_camera_intrinsics(camera_recipe)
 
         cam_data = bridge.bpy.context.scene.camera.data
@@ -372,7 +371,9 @@ def execute_recipe(
             renderer, cam_idx, cam_recipe, recipe, ctx, scene_logger, provenance, res
         )
 
-        _extract_and_save_ground_truth(tag_objects, image_name, coco_img_id, res, ctx, scene_logger)
+        _extract_and_save_ground_truth(
+            tag_objects, image_name, coco_img_id, res, ctx, scene_logger, cam_recipe
+        )
 
         scene_logger.info(
             f"Scene {scene_idx} progress: {cam_idx + 1}/{len(cam_recipes)}",
@@ -418,8 +419,6 @@ def _setup_scene(
         if tag.blender_obj.get("type") == "BOARD":
             board_data = tag.blender_obj.get("board")
             if board_data:
-                import json
-
                 try:
                     config = json.loads(board_data) if isinstance(board_data, str) else board_data
                     dictionary = config.get("dictionary")
@@ -473,7 +472,7 @@ def _render_camera_and_save(
     if img_array is not None and bridge.np.asarray(img_array).size > 0:
         Image.fromarray(bridge.np.asarray(img_array).astype(bridge.np.uint8)).save(str(image_path))
 
-    ctx.sidecar_writer.write_sidecar(image_name, provenance)
+    ctx.provenance_writer.add_provenance(image_name, provenance)
     coco_img_id = ctx.coco_writer.add_image(f"images/{image_path.name}", res[0], res[1])
 
     return coco_img_id, image_name
@@ -486,17 +485,21 @@ def _extract_and_save_ground_truth(
     res: list[int],
     ctx: RenderContext,
     scene_logger: Any,
+    cam_recipe: dict[str, Any],
 ) -> None:
     """Project objects to image space and save detection records."""
     all_detections: list[DetectionRecord] = []
-    from render_tag.backend.projection import generate_board_records, generate_subject_records
 
     for obj in tag_objects:
         obj_type = obj.blender_obj.get("type", "TAG")
         if obj_type == "BOARD":
-            records = generate_board_records(obj, image_name, skip_visibility=ctx.skip_visibility)
+            records = generate_board_records(
+                obj, image_name, cam_recipe=cam_recipe, skip_visibility=ctx.skip_visibility
+            )
         else:
-            records = generate_subject_records(obj, image_name, skip_visibility=ctx.skip_visibility)
+            records = generate_subject_records(
+                obj, image_name, cam_recipe=cam_recipe, skip_visibility=ctx.skip_visibility
+            )
 
         all_detections.extend(records)
 

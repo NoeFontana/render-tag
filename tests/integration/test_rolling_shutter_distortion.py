@@ -85,7 +85,7 @@ def test_rolling_shutter_backend_mapping_no_errors(tmp_path, stabilized_bridge):
         csv_writer=MagicMock(),
         coco_writer=MagicMock(),
         rich_writer=MagicMock(),
-        sidecar_writer=MagicMock(),
+        provenance_writer=MagicMock(),
         global_seed=42,
         skip_visibility=True,
     )

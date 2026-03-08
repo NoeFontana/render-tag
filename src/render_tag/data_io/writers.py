@@ -12,16 +12,16 @@ import csv
 import json
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import numpy as np
 
-if TYPE_CHECKING:
-    from render_tag.core.schema import DetectionRecord
 from render_tag.core.logging import get_logger
-
-logger = get_logger(__name__)
-
+from render_tag.core.schema import (
+    BoardConfig,
+    DetectionRecord,
+    SceneProvenance,
+)
 
 # Import pure-Python geometry modules
 try:
@@ -36,9 +36,7 @@ try:
 except ImportError:
     GEOMETRY_AVAILABLE = False
 
-
-if TYPE_CHECKING:
-    from render_tag.core.schema import BoardConfig, DetectionRecord, SceneProvenance
+logger = get_logger(__name__)
 
 
 class AtomicWriter:
@@ -75,7 +73,6 @@ class CSVWriter:
         """Create the file and write header if not already done."""
         if not self._initialized:
             self.output_path.parent.mkdir(parents=True, exist_ok=True)
-            from render_tag.core.schema.base import DetectionRecord
 
             header = DetectionRecord.csv_header(num_corners, num_keypoints)
             with open(self.output_path, "w", newline="") as f:
@@ -256,12 +253,19 @@ class COCOWriter(AtomicWriter):
         attributes = {
             "tag_id": detection.tag_id if detection else 0,
             "record_type": detection.record_type if detection else "TAG",
+            "tag_size_mm": detection.tag_size_mm if detection else 0.0,
             "distance": detection.distance if detection else 0.0,
             "angle_of_incidence": detection.angle_of_incidence if detection else 0.0,
             "pixel_area": detection.pixel_area if detection else area,
             "occlusion_ratio": detection.occlusion_ratio if detection else 0.0,
             "position": detection.position if detection else None,
             "rotation_quaternion": None,
+            "k_matrix": detection.k_matrix if detection else None,
+            "resolution": detection.resolution if detection else None,
+            "velocity": detection.velocity if detection else None,
+            "shutter_time_ms": detection.shutter_time_ms if detection else 0.0,
+            "rolling_shutter_ms": detection.rolling_shutter_ms if detection else 0.0,
+            "fstop": detection.fstop if detection else None,
         }
 
         # IO BOUNDARY: Flip WXYZ -> XYZW for attributes
@@ -333,6 +337,7 @@ class RichTruthWriter(AtomicWriter):
             "image_id": detection.image_id,
             "tag_id": detection.tag_id,
             "tag_family": detection.tag_family,
+            "tag_size_mm": detection.tag_size_mm,
             "record_type": detection.record_type,
             "corners": detection.corners,
             "keypoints": detection.keypoints,
@@ -343,6 +348,12 @@ class RichTruthWriter(AtomicWriter):
             "ppm": detection.ppm,
             "position": detection.position,
             "rotation_quaternion": detection.rotation_quaternion,
+            "k_matrix": detection.k_matrix,
+            "resolution": detection.resolution,
+            "velocity": detection.velocity,
+            "shutter_time_ms": detection.shutter_time_ms,
+            "rolling_shutter_ms": detection.rolling_shutter_ms,
+            "fstop": detection.fstop,
             "global_seed": detection.global_seed,
             "scene_seed": detection.scene_seed,
             "metadata": detection.metadata,
@@ -363,54 +374,24 @@ class RichTruthWriter(AtomicWriter):
         return self.output_path
 
 
-class SidecarWriter(AtomicWriter):
-    """Writes metadata sidecar files for generated images."""
+class ProvenanceWriter(AtomicWriter):
+    """Writer for a unified dataset provenance mapping (image_id -> SceneRecipe)."""
 
-    def __init__(self, output_dir: Path) -> None:
-        self.output_dir = output_dir
+    def __init__(self, output_path: Path) -> None:
+        self.output_path = output_path
+        self._provenance: dict[str, Any] = {}
 
-    def write_sidecar(self, image_name: str, provenance: dict[str, Any] | SceneProvenance) -> Path:
-        """Write the provenance data to a JSON sidecar file.
-
-        Args:
-            image_name: Base name of the image (e.g. 'scene_0000_cam_0000')
-            provenance: SceneProvenance object or dict
-
-        Returns:
-            Path to the written file
-        """
-        # Place sidecar alongside images in 'images' subdirectory
-        sidecar_dir = self.output_dir / "images"
-        sidecar_dir.mkdir(parents=True, exist_ok=True)
-
-        filename = f"{image_name}_meta.json"
-        path = sidecar_dir / filename
-
-        # IO BOUNDARY: Ensure quaternion flip if checking tags in provenance
-        # Typically the SceneProvenance might not have detailed detections,
-        # but if we add them, we must ensure consistency.
-        # Currently SceneProvenance creates a unique snapshot.
-
-        # If we had detection records here, we'd flip them.
-        # But SidecarWriter mostly writes the SceneProvenance/Recipe.
-        # "Recipe" has camera positions which are matrices.
-        # If we serialize specific geometric metadata here, we should check.
-        # Current usage:
-        # It dumps SceneProvenance which has `recipe_snapshot`.
-
-        # If we have detection-level metadata for sidecars (which we might in later phases),
-        # we'd process it here.
-        # For now, we act on the user's instruction
-        # "Implement the permutation logic strictly at the IO boundary inside writers.py".
-        # RichTruthWriter is the main consumer of DetectionRecord.
-
-        # We also have COCOWriter attributes.
-
+    def add_provenance(self, image_id: str, provenance: dict[str, Any] | SceneProvenance) -> None:
+        """Add provenance for a single image."""
         model_dump = getattr(provenance, "model_dump", None)
         data = model_dump(mode="json") if callable(model_dump) else provenance
-        self._write_atomic(path, data)
+        self._provenance[image_id] = data
 
-        return path
+    def save(self) -> Path:
+        """Save the unified provenance mapping to a JSON file."""
+        self.output_path.parent.mkdir(parents=True, exist_ok=True)
+        self._write_atomic(self.output_path, self._provenance)
+        return self.output_path
 
 
 class BoardConfigWriter:
@@ -555,3 +536,28 @@ def merge_rich_truth_shards(
         for shard_path in shard_files:
             shard_path.unlink()
         logger.info("Cleaned up RichTruth shard files.")
+
+
+def merge_provenance_shards(
+    output_dir: Path, final_filename: str = "provenance.json", cleanup: bool = False
+):
+    """Merge multiple provenance JSON shards into a single canonical file."""
+    shard_files = sorted(output_dir.glob("provenance_shard_*.json"))
+    if not shard_files:
+        return
+
+    master_data = {}
+    for shard_path in shard_files:
+        with open(shard_path) as f:
+            shard_data = json.load(f)
+            master_data.update(shard_data)
+
+    final_path = output_dir / final_filename
+    with open(final_path, "w") as f:
+        json.dump(master_data, f, indent=2)
+    logger.info(f"Merged {len(shard_files)} shards into {final_path}")
+
+    if cleanup:
+        for shard_path in shard_files:
+            shard_path.unlink()
+        logger.info("Cleaned up provenance shard files.")

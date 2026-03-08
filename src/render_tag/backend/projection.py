@@ -11,10 +11,14 @@ It must preserve the index ordering defined in the 3D local-space asset contract
 
 from __future__ import annotations
 
+import json
+import os
 from typing import Any
 
 from render_tag.backend.bridge import bridge
+from render_tag.core import TAG_GRID_SIZES
 from render_tag.core.schema import DetectionRecord
+from render_tag.core.schema.board import BoardConfig
 from render_tag.generation.board import (
     BoardLayout,
     BoardSpec,
@@ -25,6 +29,7 @@ from render_tag.generation.board import (
 from render_tag.generation.projection_math import (
     calculate_angle_of_incidence,
     calculate_distance,
+    calculate_ppm,
     calculate_relative_pose,
     get_world_normal,
     project_points,
@@ -72,8 +77,6 @@ def project_corners_to_image(
 def check_tag_visibility(tag_obj: Any, min_visible_corners: int = 3) -> bool:
     """Check if a tag is visible in the current camera view."""
     # Staff Engineer: Bypass visibility check in mock mode to ensure data generation in tests
-    import os
-
     if os.environ.get("RENDER_TAG_BACKEND_MOCK") == "1":
         return True
 
@@ -133,9 +136,6 @@ def compute_geometric_metadata(tag_obj: Any) -> dict[str, Any]:
     pixel_area = compute_tag_area_in_image(corners_2d) if corners_2d else 0.0
 
     # Calculate PPM
-    from render_tag.core import TAG_GRID_SIZES
-    from render_tag.generation.projection_math import calculate_ppm
-
     tag_family = tag_obj.blender_obj.get("tag_family", "tag36h11")
     grid_size = TAG_GRID_SIZES.get(tag_family, 8)
     tag_obj.blender_obj.get("margin_bits", 0)
@@ -173,8 +173,31 @@ def compute_geometric_metadata(tag_obj: Any) -> dict[str, Any]:
     }
 
 
+def _extract_physics(cam_recipe: dict[str, Any] | None) -> dict[str, Any]:
+    """Extract physics and sensor conditions from a camera recipe."""
+    physics = {
+        "velocity": None,
+        "shutter_time_ms": 0.0,
+        "rolling_shutter_ms": 0.0,
+        "fstop": None,
+    }
+
+    if cam_recipe:
+        dynamics = cam_recipe.get("sensor_dynamics")
+        if dynamics:
+            physics["velocity"] = dynamics.get("velocity")
+            physics["shutter_time_ms"] = dynamics.get("shutter_time_ms", 0.0)
+            physics["rolling_shutter_ms"] = dynamics.get("rolling_shutter_duration_ms", 0.0)
+        physics["fstop"] = cam_recipe.get("fstop")
+
+    return physics
+
+
 def generate_subject_records(
-    obj: Any, image_id: str, skip_visibility: bool = False
+    obj: Any,
+    image_id: str,
+    cam_recipe: dict[str, Any] | None = None,
+    skip_visibility: bool = False,
 ) -> list[DetectionRecord]:
     """Generate detection records for any subject using its 3D keypoints."""
     blender_obj = obj.blender_obj
@@ -182,7 +205,9 @@ def generate_subject_records(
 
     # Delegate BOARD ground truth generation to specialized generator if metadata is present
     if obj_type == "BOARD" and blender_obj.get("board"):
-        return generate_board_records(obj, image_id, skip_visibility=skip_visibility)
+        return generate_board_records(
+            obj, image_id, cam_recipe=cam_recipe, skip_visibility=skip_visibility
+        )
 
     keypoints_3d = blender_obj.get("keypoints_3d")
     if not keypoints_3d:
@@ -206,6 +231,9 @@ def generate_subject_records(
     angle_deg = calculate_angle_of_incidence(obj_location, world_normal, cam_location)
     pose = calculate_relative_pose(world_matrix, blender_cam_mat)
 
+    # Physics Metadata
+    physics = _extract_physics(cam_recipe)
+
     # Project all keypoints
     world_kps = []
     for loc in keypoints_3d:
@@ -222,8 +250,20 @@ def generate_subject_records(
     if pixels is None:
         return []
 
+    # Final Intrinsics for Metadata
+    k_list = k_matrix.tolist() if hasattr(k_matrix, "tolist") else k_matrix
+
     tag_id = blender_obj.get("tag_id", 0)
     tag_family = blender_obj.get("tag_family", "unknown")
+
+    # Calculate tag_size_mm (active black-to-black size)
+    # Using raw_size_m property instead of matrix norm to avoid float drift
+    grid_size = TAG_GRID_SIZES.get(tag_family, 8)
+    margin_bits = blender_obj.get("margin_bits", 0)
+    total_bits = grid_size + 2 * margin_bits
+
+    total_size_m = float(blender_obj.get("raw_size_m", 0.1))
+    active_size_mm = (total_size_m * 1000.0 * grid_size) / total_bits
 
     records = []
     if obj_type == "TAG":
@@ -240,6 +280,13 @@ def generate_subject_records(
                 angle_of_incidence=angle_deg,
                 position=pose["position"],
                 rotation_quaternion=pose["rotation_quaternion"],
+                tag_size_mm=float(active_size_mm),
+                k_matrix=k_list,
+                resolution=res,
+                velocity=physics["velocity"],
+                shutter_time_ms=physics["shutter_time_ms"],
+                rolling_shutter_ms=physics["rolling_shutter_ms"],
+                fstop=physics["fstop"],
             )
         )
     else:
@@ -269,6 +316,13 @@ def generate_subject_records(
                 angle_of_incidence=angle_deg,
                 position=pose["position"],
                 rotation_quaternion=pose["rotation_quaternion"],
+                tag_size_mm=float(active_size_mm),
+                k_matrix=k_list,
+                resolution=res,
+                velocity=physics["velocity"],
+                shutter_time_ms=physics["shutter_time_ms"],
+                rolling_shutter_ms=physics["rolling_shutter_ms"],
+                fstop=physics["fstop"],
             )
         )
 
@@ -276,13 +330,12 @@ def generate_subject_records(
 
 
 def generate_board_records(
-    board_obj: Any, image_id: str, skip_visibility: bool = False
+    board_obj: Any,
+    image_id: str,
+    cam_recipe: dict[str, Any] | None = None,
+    skip_visibility: bool = False,
 ) -> list[DetectionRecord]:
     """Generate detection records for all tags on a calibration board."""
-    import json
-
-    from render_tag.core.schema.board import BoardConfig
-
     board_data = board_obj.blender_obj.get("board")
     if not board_data:
         return []
@@ -298,9 +351,9 @@ def generate_board_records(
     b_type, rows, cols, marker_size, dictionary = board_info
 
     # 2. Get Transformation
-    transform_data = _get_scene_transformations(board_obj)
+    transform_data = _get_scene_transformations(board_obj, cam_recipe=cam_recipe)
     world_matrix, blender_cam_mat, k_matrix, res, meta = transform_data
-    _, _, _ = meta
+    _, _, _, _ = meta
 
     records = []
 
@@ -382,12 +435,13 @@ def _parse_board_config_and_layout(
 
 def _get_scene_transformations(
     board_obj: Any,
+    cam_recipe: dict[str, Any] | None = None,
 ) -> tuple[
     bridge.np.ndarray,
     bridge.np.ndarray,
     bridge.np.ndarray,
     list[int],
-    tuple[float, float, dict[str, Any]],
+    tuple[float, float, dict[str, Any], dict[str, Any]],
 ]:
     """Extract world matrices, intrinsics, and compute common metadata."""
     world_matrix = bridge.np.array(board_obj.get_local2world_mat())
@@ -405,13 +459,17 @@ def _get_scene_transformations(
     world_normal = get_world_normal(world_matrix)
     angle_deg = calculate_angle_of_incidence(board_location, world_normal, cam_location)
     pose = calculate_relative_pose(world_matrix, blender_cam_mat)
+    k_list = k_matrix.tolist() if hasattr(k_matrix, "tolist") else k_matrix
+
+    # Physics Metadata
+    physics = _extract_physics(cam_recipe)
 
     return (
         world_matrix,
         blender_cam_mat,
-        k_matrix,
+        k_list,
         res,
-        (distance, angle_deg, pose),
+        (distance, angle_deg, pose, physics),
     )
 
 
@@ -424,11 +482,11 @@ def _process_board_tags(
     k_matrix: bridge.np.ndarray,
     image_id: str,
     dictionary: str,
-    meta: tuple[float, float, dict[str, Any]],
+    meta: tuple[float, float, dict[str, Any], dict[str, Any]],
     skip_visibility: bool = False,
 ) -> list[DetectionRecord]:
     """Project and create records for all tags in the layout."""
-    distance, angle_deg, pose = meta
+    distance, angle_deg, pose, physics = meta
     records = []
 
     for sq in layout.squares:
@@ -485,6 +543,13 @@ def _process_board_tags(
                 angle_of_incidence=angle_deg,
                 position=pose["position"],
                 rotation_quaternion=pose["rotation_quaternion"],
+                tag_size_mm=float(marker_size * 1000.0),
+                k_matrix=k_matrix,
+                resolution=res,
+                velocity=physics["velocity"],
+                shutter_time_ms=physics["shutter_time_ms"],
+                rolling_shutter_ms=physics["rolling_shutter_ms"],
+                fstop=physics["fstop"],
             )
         )
     return records
@@ -500,10 +565,10 @@ def _process_board_keypoints(
     res: list[int],
     k_matrix: bridge.np.ndarray,
     image_id: str,
-    meta: tuple[float, float, dict[str, Any]],
+    meta: tuple[float, float, dict[str, Any], dict[str, Any]],
 ) -> list[DetectionRecord]:
     """Process extra keypoints (saddle points or corners) for specific board types."""
-    distance, angle_deg, pose = meta
+    distance, angle_deg, pose, physics = meta
     records = []
 
     if b_type == "charuco":
@@ -542,6 +607,13 @@ def _process_board_keypoints(
                         angle_of_incidence=angle_deg,
                         position=pose["position"],
                         rotation_quaternion=pose["rotation_quaternion"],
+                        tag_size_mm=0.0,  # Saddle points are 0D
+                        k_matrix=k_matrix,
+                        resolution=res,
+                        velocity=physics["velocity"],
+                        shutter_time_ms=physics["shutter_time_ms"],
+                        rolling_shutter_ms=physics["rolling_shutter_ms"],
+                        fstop=physics["fstop"],
                     )
                 )
     return records

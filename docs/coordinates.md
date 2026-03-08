@@ -1,6 +1,6 @@
-# Coordinate Systems
+# Coordinate Systems & Data Standards
 
-This document defines the canonical coordinate systems used within the `render-tag` pipeline.
+This document defines the canonical coordinate systems and data export standards used within the `render-tag` pipeline.
 
 ## 1. Canonical Board Frame (Local Space)
 
@@ -28,6 +28,46 @@ For a board of size $(W, H)$:
 - **Z-Up:** Blender's default world coordinate system.
 - **Camera Orientation:** Standard OpenCV camera model (Z forward, X right, Y down).
 
-## 3. Keypoint Convention
+## 3. Data Export Standards (For Downstream Users)
+
+The annotations in `coco_labels.json`, `rich_truth.json`, and `*_meta.json` follow strict geometric contracts to ensure compatibility with computer vision benchmarks.
+
+### Relative Pose (Object-to-Camera)
+The pose represents the transformation from the **Object Local Space** (defined above) to the **Camera OpenCV Space**.
+
+*   **Coordinate System:** OpenCV Convention (+X Right, +Y Down, +Z Forward).
+*   **Position (`position`):** A 3-element list `[x, y, z]` in meters.
+*   **Active Size (`tag_size_mm`):** The physical edge length of the black border in millimeters. Use this value for PnP and scale-dependent pose estimation.
+*   **Intrinsics (`k_matrix`, `resolution`):** Injected directly into each detection record in `rich_truth.json` and `coco_labels.json`.
+*   **Physics Conditions:** Metadata such as `shutter_time_ms`, `rolling_shutter_ms`, and `velocity` are included in each record to enable detailed error analysis (e.g., impact of motion blur on corner jitter).
+*   **Rotation (`rotation_quaternion`):** 
+    *   **Format:** **`[x, y, z, w]` (Scalar-Last)** in all exported JSON/CSV files.
+    *   *Note: Internally, the pipeline uses `[w, x, y, z]`, but performs a flip at the IO boundary for SciPy/Ceres compatibility.*
+
+### Reproducibility (Provenance)
+For total dataset unification, a single **`provenance.json`** file is generated at the root of the dataset. This file maps every `image_id` to its full `SceneRecipe`, including lighting, material properties, and renderer settings. Individual `_meta.json` sidecars are deprecated in favor of this global manifest.
+
+### Camera Intrinsics
+Found in the global **`provenance.json`** manifest, and also duplicated in each detection record for convenience.
+
+*   **Intrinsic Matrix (K):** 3x3 matrix in the following format:
+    ```python
+    [[fx,  0, cx],
+     [ 0, fy, cy],
+     [ 0,  0,  1]]
+    ```
+*   **Principal Point (`cx`, `cy`):** Defaults to the exact image center (`width / 2`, `height / 2`).
+*   **Distortion:** Currently exported as zero (perfect pinhole) for the 2026 baseline, following the `(k1, k2, p1, p2, k3)` OpenCV order.
+
+### Physical Size vs. Annotated Corners
+There is a critical distinction between the physical plane size and the ground truth annotations:
+
+*   **`size_meters`**: Defines the **outer edge** of the entire tag asset, including the white quiet zone (margin).
+*   **Annotated Corners**: Represent the **outer edge of the black border** only. 
+
+The distance from the physical edge to the annotated corner is determined by the `margin_bits` parameter. For a tag with $N$ bits and a margin of $M$ bits, the annotated corners are located at a scale of $N / (N + 2M)$ relative to the physical center.
+
+### Keypoint Convention
 - **Ordering:** Row-major, zero-indexed.
 - **Topology:** Continuous numbering starting from the Top-Left corner (Row 0, Col 0).
+- **Winding:** All projected 2D corners follow a **Strictly Clockwise (CW)** winding order in the image plane (Y-down).

@@ -45,5 +45,6 @@ class TestDetectionRecord:
         row = detection.to_csv_row()
         assert row[0] == "img1"
         assert row[3] == "TAG"  # record_type
-        assert row[5] == 10.5  # x1
-        assert len(row) == 13  # +1 for record_type
+        assert row[4] == 0.0  # tag_size_mm (default)
+        assert row[6] == 10.5  # x1
+        assert len(row) == 14  # image_id, tag_id, tag_family, type, size, ppm, x1..y4

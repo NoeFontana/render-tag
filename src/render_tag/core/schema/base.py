@@ -132,13 +132,34 @@ class DetectionRecord(BaseModel):
     occlusion_ratio: float = 0.0
     ppm: float = 0.0
 
-    # Phase 2 Pose Baseline: High-Precision Pose
-    position: list[float] | None = Field(default=None, description="[x, y, z] position in meters")
+    # --- Phase 2 Pose Baseline: High-Precision Pose ---
+    position: list[float] | None = Field(
+        default=None, description="[x, y, z] position in meters (OpenCV Frame)"
+    )
     rotation_quaternion: list[float] | None = Field(
-        default=None, description="[w, x, y, z] quaternion (Scalar First)"
+        default=None, description="[w, x, y, z] quaternion (Internal Scalar-First)"
+    )
+    tag_size_mm: float = Field(
+        default=0.0, description="Active physical size (black-to-black) in millimeters"
     )
 
-    # Provenance
+    # --- Unified Data Product: Intrinsics ---
+    k_matrix: list[list[float]] | None = Field(
+        default=None, description="3x3 Camera Intrinsic Matrix [[fx, 0, cx], ...]"
+    )
+    resolution: list[int] | None = Field(default=None, description="[width, height] in pixels")
+
+    # --- Unified Data Product: Physics & Sensor Conditions ---
+    velocity: list[float] | None = Field(
+        default=None, description="Camera velocity [vx, vy, vz] in m/s"
+    )
+    shutter_time_ms: float = Field(default=0.0, description="Exposure time in milliseconds")
+    rolling_shutter_ms: float = Field(
+        default=0.0, description="Rolling shutter scan duration in milliseconds"
+    )
+    fstop: float | None = Field(default=None, description="Aperture f-number")
+
+    # --- Provenance ---
     global_seed: int | None = Field(default=None, description="Master random seed used")
     scene_seed: int | None = Field(default=None, description="Scene-specific derived seed")
 
@@ -159,6 +180,7 @@ class DetectionRecord(BaseModel):
             self.tag_id,
             self.tag_family,
             self.record_type,
+            float(f"{self.tag_size_mm:.4f}"),
             float(f"{self.ppm:.4f}"),
         ]
 
@@ -194,6 +216,7 @@ class DetectionRecord(BaseModel):
             "tag_id",
             "tag_family",
             "record_type",
+            "tag_size_mm",
             "ppm",
         ]
         for i in range(1, num_corners + 1):

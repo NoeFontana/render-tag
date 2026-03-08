@@ -71,7 +71,8 @@ class TagStrategy(SubjectStrategy):
         scenario = gen_config.scenario
 
         num_tags = self.config.tags_per_scene
-        tag_size = self.config.size_meters
+        tag_size_mm = self.config.size_mm
+        tag_size = tag_size_mm / 1000.0  # Convert to meters for renderer
         tag_families = self.config.tag_families
 
         objects = []
