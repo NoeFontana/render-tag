@@ -1,3 +1,21 @@
+# v0.3.0 (2026-03-08)
+
+- Aligned FiftyOne Z-axis projection with OpenCV convention by pointing it towards the tag and removed a duplicate quaternion conversion.
+- Clean up `test_geometry_invariants.py` by removing an unused `pytest` import and applying minor formatting adjustments.
+- Add inverse-transpose normal transformation and rigid-body affine matrix sanitization with new unit tests.
+- Qol/doc (#18)
+- Enhance projection math robustness with invariant checks and orthogonalization, add new quaternion conversion utility, and introduce comprehensive unit tests. (#17)
+- Add tag_size_mm to ground truth for PnP stability (#16)
+- Qol/name and viz (#15)
+- Config/resolution matrix (#14)
+- Parallelize ci tasks for quick visual feedback (#13)
+- Viz/validate annotations (#12)
+- Fix/scramble (#11)
+- Resolve double-scaling of ground truth keypoints using SVD
+- Resolve issue where release.sh fails to extract changelog notes
+- Explicitly use the latest unreachable tag as the changelog baseline and update the warning message.
+- Prevent double-scaling of ground truth coordinates by stripping scale from Blender object matrices, add a test for board scale independence.
+
 # v0.2.0 (2026-03-06)
 
 - Resolve issue where release.sh fails to extract changelog notes
