@@ -7,7 +7,7 @@ def test_session_reuse_detection():
     """
     from render_tag.viz.fiftyone_tool import find_active_session
 
-    with patch("fiftyone.core.session.Session") as mock_session_cls:
+    with patch("render_tag.viz.fiftyone_tool.Session") as mock_session_cls:
         # Mock no active sessions
         mock_session_cls._instances = {}
         assert find_active_session() is None

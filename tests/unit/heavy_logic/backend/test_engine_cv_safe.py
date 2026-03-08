@@ -40,7 +40,7 @@ def test_execute_recipe_passes_config():
     from pathlib import Path
 
     from render_tag.backend.engine import RenderContext, execute_recipe
-    from render_tag.data_io.writers import COCOWriter, CSVWriter, RichTruthWriter, SidecarWriter
+    from render_tag.data_io.writers import COCOWriter, CSVWriter, ProvenanceWriter, RichTruthWriter
 
     bridge.stabilize()
     mock_renderer = MagicMock()
@@ -65,7 +65,7 @@ def test_execute_recipe_passes_config():
         csv_writer=MagicMock(spec=CSVWriter),
         coco_writer=MagicMock(spec=COCOWriter),
         rich_writer=MagicMock(spec=RichTruthWriter),
-        sidecar_writer=MagicMock(spec=SidecarWriter),
+        provenance_writer=MagicMock(spec=ProvenanceWriter),
         global_seed=42,
     )
 

@@ -15,7 +15,10 @@ def test_render_camera_no_duplicate_pose(mock_bridge):
     renderer = RenderFacade()
 
     # Mock camera recipe
-    camera_recipe = {"transform_matrix": np.eye(4).tolist(), "resolution": [640, 480], "fov": 60.0}
+    camera_recipe = {
+        "transform_matrix": np.eye(4).tolist(),
+        "intrinsics": {"resolution": [640, 480], "fov": 60.0},
+    }
 
     # Setup mocks for dependencies called within render_camera
     mock_bridge.np = np

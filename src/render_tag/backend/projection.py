@@ -353,7 +353,7 @@ def generate_board_records(
     # 2. Get Transformation
     transform_data = _get_scene_transformations(board_obj, cam_recipe=cam_recipe)
     world_matrix, blender_cam_mat, k_matrix, res, meta = transform_data
-    _, _, _ = meta
+    _, _, _, _ = meta
 
     records = []
 
