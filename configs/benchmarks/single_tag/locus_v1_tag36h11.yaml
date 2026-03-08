@@ -27,7 +27,7 @@ camera:
     distribution: uniform
 tag:
   family: tag36h11
-  size_meters: 0.16
+  size_mm: 160.0
   margin_bits: 1
   material:
     randomize: true
@@ -43,7 +43,7 @@ scenario:
     type: TAGS
     tag_families:
     - tag36h11
-    size_meters: 0.16
+    size_mm: 160.0
     tags_per_scene: 1
 scene:
   lighting:

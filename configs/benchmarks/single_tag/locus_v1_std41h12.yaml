@@ -27,7 +27,7 @@ camera:
     distribution: uniform
 tag:
   family: tagStandard41h12
-  size_meters: 0.16
+  size_mm: 160.0
   margin_bits: 1
   material:
     randomize: true

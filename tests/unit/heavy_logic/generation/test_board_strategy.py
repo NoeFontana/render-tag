@@ -9,7 +9,12 @@ from render_tag.generation.strategy.board import BoardStrategy
 
 def test_board_strategy_sample_pose():
     config = BoardSubjectConfig(
-        type="BOARD", rows=5, cols=8, marker_size=0.04, square_size=0.05, dictionary="tag36h11"
+        type="BOARD",
+        rows=5,
+        cols=8,
+        marker_size_mm=40.0,
+        square_size_mm=50.0,
+        dictionary="tag36h11",
     )
     strategy = BoardStrategy(config)
 
@@ -29,7 +34,12 @@ def test_board_strategy_sample_pose():
 
 def test_board_strategy_prepare_assets(tmp_path):
     config = BoardSubjectConfig(
-        type="BOARD", rows=3, cols=3, marker_size=0.08, square_size=0.1, dictionary="tag36h11"
+        type="BOARD",
+        rows=3,
+        cols=3,
+        marker_size_mm=80.0,
+        square_size_mm=100.0,
+        dictionary="tag36h11",
     )
     strategy = BoardStrategy(config)
 

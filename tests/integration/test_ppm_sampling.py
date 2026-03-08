@@ -19,7 +19,7 @@ def test_ppm_sampling_enforcement(tmp_path):
     from render_tag.core.schema.subject import TagSubjectConfig
 
     config.scenario.subject.root = TagSubjectConfig(
-        tag_families=["tag36h11"], size_meters=0.16, tags_per_scene=1
+        tag_families=["tag36h11"], size_mm=160.0, tags_per_scene=1
     )
 
     config.camera.resolution = (1280, 720)
@@ -78,7 +78,7 @@ def test_ppm_takes_precedence(tmp_path):
     from render_tag.core.schema.subject import TagSubjectConfig
 
     config.scenario.subject.root = TagSubjectConfig(
-        tag_families=["tag36h11"], size_meters=0.16, tags_per_scene=1
+        tag_families=["tag36h11"], size_mm=160.0, tags_per_scene=1
     )
 
     config.camera.resolution = (1280, 720)

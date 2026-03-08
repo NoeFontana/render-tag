@@ -7,14 +7,19 @@ from render_tag.generation.strategy.tags import TagStrategy
 
 
 def test_get_subject_strategy_tags():
-    config = TagSubjectConfig(tag_families=["tag36h11"], size_meters=0.1, tags_per_scene=10)
+    config = TagSubjectConfig(tag_families=["tag36h11"], size_mm=100.0, tags_per_scene=10)
     strategy = get_subject_strategy(config)
     assert isinstance(strategy, TagStrategy)
 
 
 def test_get_subject_strategy_board():
     config = BoardSubjectConfig(
-        type="BOARD", rows=5, cols=8, marker_size=0.04, square_size=0.05, dictionary="tag36h11"
+        type="BOARD",
+        rows=5,
+        cols=8,
+        marker_size_mm=40.0,
+        square_size_mm=50.0,
+        dictionary="tag36h11",
     )
     strategy = get_subject_strategy(config)
     assert isinstance(strategy, BoardStrategy)

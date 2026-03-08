@@ -14,7 +14,7 @@ def test_flying_tag_orientation():
 
     # Staff Engineer: Force 1 tag to ensure unambiguous target-to-camera check
     config.scenario.subject.root = TagSubjectConfig(
-        tag_families=["tag36h11"], size_meters=0.1, tags_per_scene=1
+        tag_families=["tag36h11"], size_mm=100.0, tags_per_scene=1
     )
 
     config.camera.samples_per_scene = 5
@@ -52,7 +52,7 @@ def test_grid_tag_orientation():
     # Use TAGS subject
     from render_tag.core.schema.subject import TagSubjectConfig
 
-    config.scenario.subject.root = TagSubjectConfig(tag_families=["tag36h11"], size_meters=0.1)
+    config.scenario.subject.root = TagSubjectConfig(tag_families=["tag36h11"], size_mm=100.0)
 
     # Grid size etc is now handled by the compiler's internal logic for TAGS
     # or will be added to TagSubjectConfig in Phase 2 if needed.

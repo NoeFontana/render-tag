@@ -25,7 +25,7 @@ camera:
     shutter_time_ms: 10.0
 tag:
   family: tag36h11
-  size_meters: 0.1
+  size_mm: 100.0
   material:
     randomize: true
     roughness_min: 0.2

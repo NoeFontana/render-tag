@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import (
     BaseModel,
@@ -19,17 +19,25 @@ class TagSubjectConfig(BaseModel):
     Attributes:
         type: Discriminator for polymorphic schema.
         tag_families: List of tag families to sample from.
-        size_meters: Edge length of the markers in meters.
+        size_mm: Edge length of the markers in millimeters.
         tags_per_scene: Number of markers to generate per scene.
     """
 
     type: Literal["TAGS"] = "TAGS"
     tag_families: list[str] = Field(default_factory=lambda: ["tag36h11"])
-    size_meters: PositiveFloat = 0.1
+    size_mm: PositiveFloat = 100.0
     tags_per_scene: PositiveInt = 10
     tag_spacing_bits: float = Field(default=2.0, description="Spacing between tags in bits")
 
     model_config = ConfigDict(use_enum_values=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def migrate_units(cls, data: Any) -> Any:
+        """Migrate size_meters to size_mm."""
+        if isinstance(data, dict) and "size_meters" in data:
+            data["size_mm"] = data.pop("size_meters") * 1000.0
+        return data
 
 
 class BoardSubjectConfig(BaseModel):
@@ -39,41 +47,47 @@ class BoardSubjectConfig(BaseModel):
         type: Discriminator for polymorphic schema.
         rows: Number of rows in the grid.
         cols: Number of columns in the grid.
-        marker_size: Edge length of the markers in meters.
+        marker_size_mm: Edge length of the markers in millimeters.
         dictionary: Tag family used for markers.
         spacing_ratio: Ratio of marker size to spacing (AprilGrid only).
-        square_size: Total edge length of a grid cell (ChArUco only).
+        square_size_mm: Total edge length of a grid cell (ChArUco only).
     """
 
     type: Literal["BOARD"] = "BOARD"
     rows: PositiveInt
     cols: PositiveInt
-    marker_size: PositiveFloat
+    marker_size_mm: PositiveFloat
     dictionary: str = "tag36h11"
 
     # AprilGrid specific
     spacing_ratio: PositiveFloat | None = None
 
     # ChArUco specific
-    square_size: PositiveFloat | None = None
+    square_size_mm: PositiveFloat | None = None
 
     # Optional explicit ID mapping
     ids: list[int] | None = None
 
     model_config = ConfigDict(use_enum_values=True)
 
+    @model_validator(mode="before")
+    @classmethod
+    def migrate_units(cls, data: Any) -> Any:
+        """Migrate meters to millimeters."""
+        if not isinstance(data, dict):
+            return data
+
+        if "marker_size" in data:
+            data["marker_size_mm"] = data.pop("marker_size") * 1000.0
+        if "square_size" in data:
+            data["square_size_mm"] = data.pop("square_size") * 1000.0
+        return data
+
     @model_validator(mode="after")
     def validate_board_constraints(self) -> BoardSubjectConfig:
-        """Validate that square_size is greater than marker_size for ChArUco.
-
-        Returns:
-            The validated BoardSubjectConfig instance.
-
-        Raises:
-            ValueError: If constraints are violated.
-        """
-        if self.square_size is not None and self.marker_size >= self.square_size:
-            raise ValueError("marker_size must be smaller than square_size")
+        """Validate that square_size_mm is greater than marker_size_mm for ChArUco."""
+        if self.square_size_mm is not None and self.marker_size_mm >= self.square_size_mm:
+            raise ValueError("marker_size_mm must be smaller than square_size_mm")
         return self
 
 
