@@ -220,7 +220,7 @@ class COCOWriter(AtomicWriter):
         else:
             # Standard Polygon Path
             # 1. Use pure-Python utility for bbox
-            bbox = compute_bbox(np.array(corners))
+            bbox = compute_bbox(np.array(corners), detection=detection)
 
             # 2. Use pure-Python utility for area
             area = compute_polygon_area(np.array(corners))
