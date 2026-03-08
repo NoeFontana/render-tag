@@ -33,6 +33,7 @@ from render_tag.generation.projection_math import (
     calculate_relative_pose,
     get_world_normal,
     project_points,
+    sanitize_to_rigid_transform,
 )
 from render_tag.generation.visibility import (
     is_facing_camera,
@@ -444,7 +445,8 @@ def _get_scene_transformations(
     tuple[float, float, dict[str, Any], dict[str, Any]],
 ]:
     """Extract world matrices, intrinsics, and compute common metadata."""
-    world_matrix = bridge.np.array(board_obj.get_local2world_mat())
+    raw_world_matrix = bridge.np.array(board_obj.get_local2world_mat())
+    world_matrix = sanitize_to_rigid_transform(raw_world_matrix)
 
     blender_cam_mat = bridge.np.array(bridge.bpy.context.scene.camera.matrix_world)
     k_matrix = bridge.bproc.camera.get_intrinsics_as_K_matrix()

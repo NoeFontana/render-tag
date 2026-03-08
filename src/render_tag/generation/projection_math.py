@@ -65,16 +65,66 @@ def get_opencv_camera_matrix(blender_matrix: Matrix4x4) -> Matrix4x4:
 
 def get_world_normal(world_matrix: Matrix4x4, local_normal: Vector3 | None = None) -> Vector3:
     """
-    Transforms a local normal vector to world space using a 4x4 transformation matrix.
+    Transforms a local normal vector to world space using the inverse-transpose contract.
+
+    Surface normals are covariant vectors; to correctly map them across non-uniform
+    affine transformations (scaling/shear), we must multiply by the transpose of
+    the inverse of the upper-left 3x3 block.
     """
     if local_normal is None:
-        local_normal = np.array([0, 0, 1, 0])  # Default Z-up
+        local_normal = np.array([0.0, 0.0, 1.0])  # Default Z-up
 
-    world_normal = (world_matrix @ local_normal)[:3]
-    norm = np.linalg.norm(world_normal)
-    if norm < 1e-10:
+    # Ensure local_normal is a 3D unit vector
+    local_normal = np.asarray(local_normal)[:3].astype(np.float64)
+    norm_local = np.linalg.norm(local_normal)
+    if norm_local > 1e-10:
+        local_normal /= norm_local
+
+    # 1. Isolate the deformation block (rotation + scale)
+    m_rs = world_matrix[:3, :3]
+
+    # 2. Apply inverse-transpose contract
+    # If matrix is singular or near-singular, fallback to identity/original
+    try:
+        m_normal_transform = np.linalg.inv(m_rs).T
+        world_normal = m_normal_transform @ local_normal
+    except np.linalg.LinAlgError:
+        # Fallback for degenerate matrices: use the raw transform and hope for the best
+        world_normal = m_rs @ local_normal
+
+    # 3. Re-normalize world-space normal
+    norm_world = np.linalg.norm(world_normal)
+    if norm_world < 1e-10:
         return np.array([0.0, 0.0, 1.0])
-    return world_normal / norm
+    return world_normal / norm_world
+
+
+def sanitize_to_rigid_transform(matrix: Matrix4x4) -> Matrix4x4:
+    """
+    Exctracts a pure SE(3) rigid-body transformation from a scaled affine matrix.
+
+    This function acts as a mandatory geometric sanitization boundary, stripping
+    graphics-layer scale factors to enforce perception-layer metric invariants.
+    """
+    m = np.asarray(matrix)
+    res = np.eye(4)
+
+    # 1. Translation Extraction (unaffected by local scaling)
+    res[:3, 3] = m[:3, 3]
+
+    # 2. Rotation Orthogonalization
+    # Extract the 3x3 block and normalize each column vector by its Euclidean norm.
+    # This restores the matrix to the SO(3) pure rotation group.
+    rot_block = m[:3, :3].copy()
+    norms = np.linalg.norm(rot_block, axis=0)
+
+    # Avoid division by zero for degenerate axes
+    mask = norms > 1e-10
+    rot_block[:, mask] /= norms[mask]
+    rot_block[:, ~mask] = np.eye(3)[:, ~mask]
+
+    res[:3, :3] = rot_block
+    return res
 
 
 def matrix_to_quaternion_wxyz(matrix: Matrix4x4 | Matrix3x3) -> list[float]:
@@ -183,15 +233,13 @@ def calculate_relative_pose(
     # 3. Relative transformation: T_cam_tag = T_world_to_cam * T_tag_in_world
     rel_mat = world_to_opencv_cam @ tag_world_matrix
 
-    # 4. Extract position and orthogonalize rotation
-    pos = rel_mat[:3, 3].tolist()
+    # 4. Extract position and orthogonalize rotation via sanitization boundary
+    sanitized_rel_mat = sanitize_to_rigid_transform(rel_mat)
 
-    # Isolate rotation block and re-establish orthonormality by normalizing basis vectors (columns)
-    rot_block = rel_mat[:3, :3]
-    norms = np.linalg.norm(rot_block, axis=0)
+    pos = sanitized_rel_mat[:3, 3].tolist()
+    orthogonal_rot = sanitized_rel_mat[:3, :3]
 
-    # Avoid division by zero if degenerate
-    orthogonal_rot = np.eye(3) if np.any(norms < 1e-10) else rot_block / norms
+    quat = matrix_to_quaternion_wxyz(orthogonal_rot)
 
     quat = matrix_to_quaternion_wxyz(orthogonal_rot)
 
