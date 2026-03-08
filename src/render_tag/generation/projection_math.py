@@ -241,8 +241,6 @@ def calculate_relative_pose(
 
     quat = matrix_to_quaternion_wxyz(orthogonal_rot)
 
-    quat = matrix_to_quaternion_wxyz(orthogonal_rot)
-
     return {
         "position": [float(p) for p in pos],
         "rotation_quaternion": quat,

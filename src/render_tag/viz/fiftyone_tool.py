@@ -185,7 +185,7 @@ def project_tag_axes(
 ) -> dict[str, fo.Polyline] | None:
     """
     Project 3D axes at the tag Top-Left corner.
-    Uses true 2D corners for X/Y, and projects Z outwards.
+    Uses true 2D corners for X/Y, and projects Z towards the tag (OpenCV convention).
     """
     pos = record.get("position")  # [x, y, z] in camera space
     quat = record.get("rotation_quaternion")  # [w, x, y, z] in camera space
@@ -196,41 +196,48 @@ def project_tag_axes(
 
     width, height = resolution
 
-    # Extract the true 2D corners in normalized space
+    # Extract the true 2D corners in normalized space [0, 1]
     normalized_corners = get_polyline_points(corners_2d, width, height, normalized=False)
-    tl = normalized_corners[0]
-    tr = normalized_corners[1]
-    bl = normalized_corners[3]
+    tl_2d = normalized_corners[0]
+    tr_2d = normalized_corners[1]
+    bl_2d = normalized_corners[3]
 
-    m = 0.05
-    pts_3d = np.array(
-        [
-            [-m, m, 0],  # Origin (estimated Top-Left in 3D)
-            [-m, m, 0.1],  # Z-axis end (Outward towards the camera is local +Z)
-        ]
-    )
+    # Length of projected axes in relative image units
+    edge_len_x = np.linalg.norm(np.array(tr_2d) - np.array(tl_2d))
+    edge_len_y = np.linalg.norm(np.array(bl_2d) - np.array(tl_2d))
+    z_len_fo = (edge_len_x + edge_len_y) / 4.0
 
     r_mat = quaternion_wxyz_to_matrix(quat)
     t_vec = np.array(pos)
-
-    pts_cam = (r_mat @ pts_3d.T).T + t_vec
     k_np = np.array(k_matrix)
-    pts_2d_hom = (k_np @ pts_cam.T).T
-    pts_2d = pts_2d_hom[:, :2] / pts_2d_hom[:, 2:3]
+    
+    # 3D Normal (Local Z) in camera space
+    # Flipping Z to point INTO the tag (Away from camera in OpenCV convention)
+    # Since our local +Z is Outward (towards camera), we use -Z here.
+    z_unit_cam = r_mat @ np.array([0, 0, -1])
+    
+    # Project a small Z offset from the center to get 2D direction in pixels
+    def project(p_cam):
+        p_2d_hom = k_np @ p_cam
+        return p_2d_hom[:2] / p_2d_hom[2]
 
-    pts_2d[:, 0] /= width
-    pts_2d[:, 1] /= height
-
-    z_origin = pts_2d[0]
-    z_end = pts_2d[1]
-    z_vector = z_end - z_origin
-
-    true_z_end = [tl[0] + float(z_vector[0]), tl[1] + float(z_vector[1])]
-
+    c_2d = project(t_vec)
+    z_2d = project(t_vec + z_unit_cam * 0.01)
+    
+    z_vec_px = z_2d - c_2d
+    z_vec_norm = np.linalg.norm(z_vec_px)
+    
+    if z_vec_norm < 1e-6:
+        z_end = tl_2d
+    else:
+        # Scale the 2D direction in relative image units
+        z_vec_fo = (z_vec_px / z_vec_norm) * z_len_fo
+        z_end = [tl_2d[0] + float(z_vec_fo[0]), tl_2d[1] + float(z_vec_fo[1])]
+    
     return {
-        "axis_x": fo.Polyline(label="X", points=[[tl, tr]]),
-        "axis_y": fo.Polyline(label="Y", points=[[tl, bl]]),
-        "axis_z": fo.Polyline(label="Z", points=[[tl, true_z_end]]),
+        "axis_x": fo.Polyline(label="X", points=[[tl_2d, tr_2d]]),
+        "axis_y": fo.Polyline(label="Y", points=[[tl_2d, bl_2d]]),
+        "axis_z": fo.Polyline(label="Z", points=[[tl_2d, z_end]]),
     }
 
 
