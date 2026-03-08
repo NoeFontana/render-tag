@@ -222,7 +222,9 @@ def generate_subject_records(
     if raw_world_matrix is None or raw_world_matrix.ndim != 2 or raw_world_matrix.shape != (4, 4):
         raw_world_matrix = bridge.np.eye(4)
 
-    world_matrix = sanitize_to_rigid_transform(raw_world_matrix)
+    world_matrix, is_mirrored = sanitize_to_rigid_transform(
+        raw_world_matrix, return_is_mirrored=True
+    )
 
     # Extract scale to apply to keypoints
     norms = bridge.np.linalg.norm(raw_world_matrix[:3, :3], axis=0)
@@ -300,6 +302,7 @@ def generate_subject_records(
                 shutter_time_ms=physics["shutter_time_ms"],
                 rolling_shutter_ms=physics["rolling_shutter_ms"],
                 fstop=physics["fstop"],
+                is_mirrored=is_mirrored,
             )
         )
     else:
@@ -336,6 +339,7 @@ def generate_subject_records(
                 shutter_time_ms=physics["shutter_time_ms"],
                 rolling_shutter_ms=physics["rolling_shutter_ms"],
                 fstop=physics["fstop"],
+                is_mirrored=is_mirrored,
             )
         )
 
@@ -393,8 +397,6 @@ def generate_board_records(
     # 2. Get Transformation (NOW RIGID/SANITIZED)
     transform_data = _get_scene_transformations(board_obj, cam_recipe=cam_recipe)
     world_matrix, blender_cam_mat, k_matrix, res, meta = transform_data
-    _, _, _, _, _, _ = meta
-
     records = []
 
     # 3. Process Tags
@@ -481,11 +483,13 @@ def _get_scene_transformations(
     bridge.np.ndarray,
     bridge.np.ndarray,
     list[int],
-    tuple[float, float, dict[str, Any], dict[str, Any], bridge.np.ndarray, bridge.np.ndarray],
+    tuple[float, float, dict[str, Any], dict[str, Any], bridge.np.ndarray, bridge.np.ndarray, bool],
 ]:
     """Extract world matrices, intrinsics, and compute common metadata."""
     raw_world_matrix = bridge.np.array(board_obj.get_local2world_mat())
-    world_matrix = sanitize_to_rigid_transform(raw_world_matrix)
+    world_matrix, is_mirrored = sanitize_to_rigid_transform(
+        raw_world_matrix, return_is_mirrored=True
+    )
 
     blender_cam_mat = bridge.np.array(bridge.bpy.context.scene.camera.matrix_world)
     k_matrix = bridge.bproc.camera.get_intrinsics_as_K_matrix()
@@ -510,7 +514,7 @@ def _get_scene_transformations(
         blender_cam_mat,
         k_list,
         res,
-        (distance, angle_deg, pose, physics, cam_location, world_normal),
+        (distance, angle_deg, pose, physics, cam_location, world_normal, is_mirrored),
     )
 
 
@@ -523,11 +527,13 @@ def _process_board_tags(
     k_matrix: bridge.np.ndarray,
     image_id: str,
     dictionary: str,
-    meta: tuple[float, float, dict[str, Any], dict[str, Any]],
+    meta: tuple[
+        float, float, dict[str, Any], dict[str, Any], bridge.np.ndarray, bridge.np.ndarray, bool
+    ],
     skip_visibility: bool = False,
 ) -> list[DetectionRecord]:
     """Project and create records for all tags in the layout."""
-    _, _, _, physics, cam_location, world_normal = meta
+    _, _, _, physics, cam_location, world_normal, is_mirrored = meta
     records = []
 
     for sq in layout.squares:
@@ -589,6 +595,7 @@ def _process_board_tags(
                 shutter_time_ms=physics["shutter_time_ms"],
                 rolling_shutter_ms=physics["rolling_shutter_ms"],
                 fstop=physics["fstop"],
+                is_mirrored=is_mirrored,
             )
         )
     return records
@@ -604,10 +611,12 @@ def _process_board_keypoints(
     res: list[int],
     k_matrix: bridge.np.ndarray,
     image_id: str,
-    meta: tuple[float, float, dict[str, Any], dict[str, Any]],
+    meta: tuple[
+        float, float, dict[str, Any], dict[str, Any], bridge.np.ndarray, bridge.np.ndarray, bool
+    ],
 ) -> list[DetectionRecord]:
     """Process extra keypoints (saddle points or corners) for specific board types."""
-    _, _, _, physics, cam_location, world_normal = meta
+    _, _, _, physics, cam_location, world_normal, is_mirrored = meta
     records = []
 
     if b_type == "charuco":
@@ -661,6 +670,7 @@ def _process_board_keypoints(
                         shutter_time_ms=physics["shutter_time_ms"],
                         rolling_shutter_ms=physics["rolling_shutter_ms"],
                         fstop=physics["fstop"],
+                        is_mirrored=is_mirrored,
                     )
                 )
     return records

@@ -279,11 +279,21 @@ output/test_results/      # Automatic redirection for pytest artifacts
 ### CSV Format
 
 ```csv
-image_id,tag_id,tag_family,x1,y1,x2,y2,x3,y3,x4,y4
-scene_0000_cam_0000,0,tag36h11,123.45,67.89,223.45,67.89,223.45,167.89,123.45,167.89
+image_id,tag_id,tag_family,record_type,tag_size_mm,ppm,is_mirrored,x1,y1,x2,y2,x3,y3,x4,y4
+scene_0000_cam_0000,0,tag36h11,TAG,100.0,25.4,0,123.45,67.89,223.45,67.89,223.45,167.89,123.45,167.89
 ```
 
-Corner order: TL (1), TR (2), BR (3), BL (4) - Clockwise from top-left (OpenCV convention).
+**Columns:**
+- `image_id`: Unique identifier for the rendered frame.
+- `tag_id`: Numerical ID of the tag.
+- `tag_family`: Family name (e.g., `tag36h11`).
+- `record_type`: Type of marker (e.g., `TAG`, `CHARUCO_SADDLE`).
+- `tag_size_mm`: Physical active size (black-to-black) in millimeters.
+- `ppm`: Pixels Per Module (resolution metric).
+- `is_mirrored`: Binary flag (1 if mirrored/left-handed, 0 otherwise).
+- `x1, y1, ...`: Corner coordinates in OpenCV image space.
+
+**Corner order:** TL (1), TR (2), BR (3), BL (4) - Clockwise from top-left (OpenCV convention).
 
 ## Development
 

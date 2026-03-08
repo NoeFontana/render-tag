@@ -74,13 +74,13 @@ class SaltAndPepperNoiseStrategy:
             # Salt (White)
             num_salt = int(num_pixels * salt_vs_pepper)
             if num_salt > 0:
-                coords_salt = [rng.integers(0, i - 1, size=num_salt) for i in image.shape]
+                coords_salt = [rng.integers(0, i, size=num_salt) for i in image.shape]
                 noisy[tuple(coords_salt)] = 1.0
 
             # Pepper (Black)
             num_pepper = num_pixels - num_salt
             if num_pepper > 0:
-                coords_pepper = [rng.integers(0, i - 1, size=num_pepper) for i in image.shape]
+                coords_pepper = [rng.integers(0, i, size=num_pepper) for i in image.shape]
                 noisy[tuple(coords_pepper)] = 0.0
         return noisy
 
@@ -111,7 +111,7 @@ class NoiseEngine:
 
         # 2. Finalize: Clip and convert back to uint8
         result = np.clip(result, 0, 1)
-        return (np.asarray(result) * 255).astype(np.uint8)
+        return np.round(np.asarray(result) * 255).astype(np.uint8)
 
 
 # Global engine instance for easy access

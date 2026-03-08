@@ -17,11 +17,11 @@ This order is preserved through the entire projection pipeline and is reflected 
 When defining the geometry of a calibration board (ChArUco, AprilGrid), we follow a mapping designed for Computer Vision (CV) library compatibility.
 
 #### Origin and Axes
-- **Origin (0,0,0):** The physical **Top-Left** corner or the **Center** of the board depending on the generator, but the **Keypoint 0** is always at the geometric Top-Left.
+- **Origin (0,0,0):** The physical **Top-Left** corner of the board grid.
 - **+X Axis:** Left-to-Right (traversing Columns).
-- **-Y Axis (Blender Local):** Top-to-Bottom (traversing Rows).
+- **+Y Axis:** Top-to-Bottom (traversing Rows).
 
-#### Visual Mapping (Blender Local Space)
+#### Visual Mapping (Local Space)
 ```mermaid
 graph TD
     TL["Row 0, Col 0 (Ind: 0)"] --- TR["Row 0, Col C (Ind: 1)"]
@@ -31,13 +31,14 @@ graph TD
     subgraph Board Plane [Local Z=0]
     direction LR
     X[+X Right]
-    Y[-Y Down]
+    Y[+Y Down]
     end
 ```
 
-In the Blender Cartesian coordinate system, `+Y` points "Up". To bridge this to the image-space "Y-Down" convention:
-1. Row 0 (the top row) is at the board's highest Y coordinate.
-2. Subsequent rows ($R > 0$) move in the **negative Y direction** in Blender's local space.
+To perfectly align with OpenCV image-space conventions, the board's mathematical layout treats **+Y as pointing downwards**. This means:
+1. Row 0 (the top row) is at the board's minimum Y coordinate in local space.
+2. Subsequent rows ($R > 0$) move in the **positive Y direction**.
+3. This creates a direct mapping where increasing row indices correspond to increasing $Y$ values, matching how OpenCV treats image rows.
 
 ## 2. Global Scene Space
 - **World Frame:** Z-Up (Blender default).

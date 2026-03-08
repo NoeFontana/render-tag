@@ -46,5 +46,6 @@ class TestDetectionRecord:
         assert row[0] == "img1"
         assert row[3] == "TAG"  # record_type
         assert row[4] == 0.0  # tag_size_mm (default)
-        assert row[6] == 10.5  # x1
-        assert len(row) == 14  # image_id, tag_id, tag_family, type, size, ppm, x1..y4
+        assert row[6] == 0  # is_mirrored (default)
+        assert row[7] == 10.5  # x1
+        assert len(row) == 15  # image_id, tag_id, tag_family, type, size, ppm, is_mirrored, x1..y4

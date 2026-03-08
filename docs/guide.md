@@ -219,7 +219,7 @@ uv run ruff check . --fix
 uv run ruff format .
 
 # Run static type analysis
-uv run ty .
+uv run ty check
 ```
 
 ---

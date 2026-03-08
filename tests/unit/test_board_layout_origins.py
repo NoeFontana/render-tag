@@ -58,3 +58,38 @@ def test_aprilgrid_layout_is_centered_at_origin():
     assert max(cxs) == pytest.approx(0.3)
     assert min(cys) == pytest.approx(-0.2)
     assert max(cys) == pytest.approx(0.2)
+
+
+def test_cv_space_y_down_invariant():
+    """
+    Test that the layout generator strictly follows the CV invariant:
+    Moving from Row 0 downwards geometrically increases the local Y coordinate.
+    """
+    spec = BoardSpec(
+        rows=3, cols=3, square_size=0.1, marker_margin=0.01, board_type=BoardType.APRILGRID
+    )
+    layout = compute_aprilgrid_layout(spec, center=(0, 0, 0))
+
+    r0_squares = [sq for sq in layout.squares if sq.row == 0]
+    r1_squares = [sq for sq in layout.squares if sq.row == 1]
+    r2_squares = [sq for sq in layout.squares if sq.row == 2]
+
+    assert len(r0_squares) == 3
+    assert len(r1_squares) == 3
+    assert len(r2_squares) == 3
+
+    # Y should increase as we go down the rows
+    y0 = r0_squares[0].center.y
+    y1 = r1_squares[0].center.y
+    y2 = r2_squares[0].center.y
+
+    assert y1 > y0, f"CV Invariant failed: row 1 Y ({y1}) is not > row 0 Y ({y0})"
+    assert y2 > y1, f"CV Invariant failed: row 2 Y ({y2}) is not > row 1 Y ({y1})"
+
+    # X should increase as we go across the columns
+    x0 = r0_squares[0].center.x
+    x1 = r0_squares[1].center.x
+    x2 = r0_squares[2].center.x
+
+    assert x1 > x0, f"CV Invariant failed: col 1 X ({x1}) is not > col 0 X ({x0})"
+    assert x2 > x1, f"CV Invariant failed: col 2 X ({x2}) is not > col 1 X ({x1})"

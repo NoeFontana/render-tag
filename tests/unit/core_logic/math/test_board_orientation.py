@@ -36,8 +36,8 @@ class TestBoardOrientation:
         y0 = row0_squares[0].center.y
         y1 = row1_squares[0].center.y
 
-        # CURRENTLY FAILS: y0 (-0.05) < y1 (0.05)
-        assert y0 > y1, f"Row 0 Y ({y0}) should be > Row 1 Y ({y1})"
+        # CURRENTLY PASSES: y0 (-0.05) < y1 (0.05) because Y_DOWN means Y increases for lower rows
+        assert y0 < y1, f"Row 0 Y ({y0}) should be < Row 1 Y ({y1})"
 
     @pytest.mark.parametrize("board_type", [BoardType.CHARUCO, BoardType.APRILGRID])
     def test_col_0_is_left_of_col_1(self, board_type: BoardType):
@@ -73,7 +73,7 @@ class TestBoardOrientation:
         # y = corner_start_y + row * spec.square_size
         # Row 0: -0.1, Row 1: 0.0, Row 2: 0.1
 
-        # We want: Row 0: 0.1, Row 1: 0.0, Row 2: -0.1
+        # We want: Row 0: -0.1, Row 1: 0.0, Row 2: 0.1
 
         # Let's extract Y coordinates for each corner row
         # Since corner_positions is a flat list, we need to know how it's populated.
@@ -85,4 +85,4 @@ class TestBoardOrientation:
         row0_y = layout.corner_positions[0].y  # First corner (Row 0, Col 0)
         row1_y = layout.corner_positions[3].y  # Fourth corner (Row 1, Col 0)
 
-        assert row0_y > row1_y, f"Corner Row 0 Y ({row0_y}) should be > Corner Row 1 Y ({row1_y})"
+        assert row0_y < row1_y, f"Corner Row 0 Y ({row0_y}) should be < Corner Row 1 Y ({row1_y})"

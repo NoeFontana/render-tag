@@ -60,6 +60,7 @@ def test_generate_subject_records_skips_hidden(
             {"velocity": None, "shutter_time_ms": 0.0, "rolling_shutter_ms": 0.0, "fstop": None},
             np.array([0, 0, 10]),  # cam_location
             np.array([0, 0, 1]),  # world_normal
+            False,  # is_mirrored
         ),  # meta
     )
 

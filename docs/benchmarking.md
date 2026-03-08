@@ -41,24 +41,27 @@ uv run render-tag hub push-dataset \
 
 ## Performance Tracking
 
-The `Benchmarker` utility is used internally to measure the duration of different pipeline stages.
+`render-tag` uses a built-in Telemetry system to monitor worker health and performance (VRAM, CPU, and throughput).
+
+### Telemetry Collection
+The `UnifiedWorkerOrchestrator` automatically collects telemetry from all active workers. This data is used for:
+- **Resource Guarding:** Restarting workers if VRAM exceeds thresholds.
+- **Throughput Analysis:** Measuring renders-per-second and total execution time.
+
+### Analyzing Telemetry
+After a generation or experiment run, you can use the `TelemetryAuditor` to analyze the collected metrics.
 
 ```python
-from render_tag.common.benchmarking import Benchmarker
+from render_tag.audit.auditor import TelemetryAuditor
 
-bench = Benchmarker("My Generation Run")
-with bench.measure("Scene Generation"):
-    # ... logic ...
-    pass
+# Telemetry is typically saved to 'telemetry.csv' in the output directory
+auditor = TelemetryAuditor()
+# ... (Orchestrator adds entries during run) ...
+auditor.save_csv(Path("output/dataset_01/telemetry.csv"))
 
-bench.report.log_summary()
+report = auditor.analyze_throughput()
+print(f"Average VRAM: {report['avg_vram_mb']} MB")
 ```
-
-The performance summary includes breakdown of:
-- Scene recipe generation
-- Blender context stabilization
-- Rendering time per frame
-- VRAM usage and telemetry
 
 ## Optimizations
 

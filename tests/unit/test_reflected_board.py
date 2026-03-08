@@ -32,9 +32,10 @@ def test_reflected_board_matrix_preservation(mock_bridge):
         patch("render_tag.backend.projection.calculate_angle_of_incidence"),
         patch("render_tag.backend.projection.calculate_relative_pose"),
     ):
-        res_matrix, _, _, _, _ = _get_scene_transformations(mock_obj)
+        res_matrix, _, _, _, meta = _get_scene_transformations(mock_obj)
+        is_mirrored = meta[-1]
 
-        # VERIFY: The negative determinant should be preserved
+        # VERIFY: The matrix should be sanitized to SO(3) (det=1), and is_mirrored should be True
         det = np.linalg.det(res_matrix[:3, :3])
-        assert det < 0, f"Determinant should be negative for reflected object, got {det}"
-        assert np.isclose(det, -1.0), f"Expected det -1.0, got {det}"
+        assert np.isclose(det, 1.0), f"Determinant should be 1.0 after sanitization, got {det}"
+        assert is_mirrored is True, "is_mirrored flag should be True for reflected object"

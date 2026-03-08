@@ -99,9 +99,11 @@ def get_world_normal(world_matrix: Matrix4x4, local_normal: Vector3 | None = Non
     return world_normal / norm_world
 
 
-def sanitize_to_rigid_transform(matrix: Matrix4x4) -> Matrix4x4:
+def sanitize_to_rigid_transform(
+    matrix: Matrix4x4, return_is_mirrored: bool = False
+) -> Matrix4x4 | tuple[Matrix4x4, bool]:
     """
-    Exctracts a pure SE(3) rigid-body transformation from a scaled affine matrix.
+    Extracts a pure SE(3) rigid-body transformation from a scaled affine matrix.
 
     This function acts as a mandatory geometric sanitization boundary, stripping
     graphics-layer scale factors to enforce perception-layer metric invariants.
@@ -120,10 +122,33 @@ def sanitize_to_rigid_transform(matrix: Matrix4x4) -> Matrix4x4:
 
     # Avoid division by zero for degenerate axes
     mask = norms > 1e-10
+    num_valid = np.sum(mask)
+
+    if num_valid < 2:
+        raise ValueError("Matrix has 2 or more degenerate axes; orientation is undefined.")
+
     rot_block[:, mask] /= norms[mask]
-    rot_block[:, ~mask] = np.eye(3)[:, ~mask]
+
+    if num_valid == 2:
+        # Reconstruct the single degenerate axis using the cross product of the two valid axes
+        # maintaining a right-handed coordinate system (X=YxZ, Y=ZxX, Z=XxY)
+        degenerate_idx = np.argmin(norms)
+        if degenerate_idx == 0:
+            rot_block[:, 0] = np.cross(rot_block[:, 1], rot_block[:, 2])
+        elif degenerate_idx == 1:
+            rot_block[:, 1] = np.cross(rot_block[:, 2], rot_block[:, 0])
+        else:
+            rot_block[:, 2] = np.cross(rot_block[:, 0], rot_block[:, 1])
+
+    is_mirrored = False
+    if np.linalg.det(rot_block) < 0.0:
+        is_mirrored = True
+        rot_block[:, 2] = -rot_block[:, 2]
 
     res[:3, :3] = rot_block
+
+    if return_is_mirrored:
+        return res, is_mirrored
     return res
 
 
@@ -364,8 +389,10 @@ def calculate_incidence_angle(cam_world_matrix: Matrix4x4, tag_world_matrix: Mat
         Angle in degrees (0 = facing, 90 = side-on).
     """
     # 1. Tag Normal in World Space (Z-up)
-    tag_normal_world = tag_world_matrix[:3, 2]
-    tag_normal_world /= np.linalg.norm(tag_normal_world)
+    # Surface normals are covariant; we must use the inverse-transpose contract
+    # to avoid skewed normals when the tag has non-uniform scaling.
+    tag_normal_world = get_world_normal(tag_world_matrix, np.array([0.0, 0.0, 1.0]))
+    assert np.isclose(np.linalg.norm(tag_normal_world), 1.0), "World normal must be a unit vector"
 
     # 2. Camera Location
     cam_loc = cam_world_matrix[:3, 3]
