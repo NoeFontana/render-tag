@@ -215,7 +215,22 @@ def generate_subject_records(
         return []
 
     # Get Transformation
-    world_matrix = bridge.np.array(obj.get_local2world_mat())
+    raw_world_mat = obj.get_local2world_mat()
+    raw_world_matrix = bridge.np.array(raw_world_mat) if raw_world_mat is not None else None
+
+    # Defensive check for unit-testing mocks
+    if (
+        raw_world_matrix is None
+        or raw_world_matrix.ndim != 2
+        or raw_world_matrix.shape != (4, 4)
+    ):
+        raw_world_matrix = bridge.np.eye(4)
+
+    world_matrix = sanitize_to_rigid_transform(raw_world_matrix)
+
+    # Extract scale to apply to keypoints
+    norms = bridge.np.linalg.norm(raw_world_matrix[:3, :3], axis=0)
+    obj_scale = float(bridge.np.mean(norms))
 
     blender_cam_mat = bridge.np.array(bridge.bpy.context.scene.camera.matrix_world)
     k_matrix = bridge.bproc.camera.get_intrinsics_as_K_matrix()
@@ -235,10 +250,11 @@ def generate_subject_records(
     # Physics Metadata
     physics = _extract_physics(cam_recipe)
 
-    # Project all keypoints
+    # Project all keypoints (absorbing scale)
     world_kps = []
     for loc in keypoints_3d:
-        p = bridge.np.append(bridge.np.array(loc), 1.0)
+        p_local = bridge.np.array(loc) * obj_scale
+        p = bridge.np.append(p_local, 1.0)
         pw = bridge.np.dot(world_matrix, p)
         world_kps.append(pw[:3] / pw[3])
 
@@ -347,11 +363,37 @@ def generate_board_records(
 
     config = BoardConfig.model_validate(board_data) if isinstance(board_data, dict) else board_data
 
-    # 1. Recompute Layout
+    # 1. Extract Scale and Recompute Layout
+    # Staff Engineer: We must account for Blender object-level scaling by 'absorbing' it
+    # into the physical metrics. This allows us to maintain the invariant that the
+    # world_matrix used for projection and pose is a pure SE(3) rigid transform.
+    raw_world_mat = board_obj.get_local2world_mat()
+    raw_mat = bridge.np.array(raw_world_mat) if raw_world_mat is not None else None
+
+    # Defensive check for unit-testing mocks
+    if raw_mat is None or raw_mat.ndim != 2 or raw_mat.shape != (4, 4):
+        raw_mat = bridge.np.eye(4)
+
+    norms = bridge.np.linalg.norm(raw_mat[:3, :3], axis=0)
+    # Using average of X and Y as boards are planar assets
+    obj_scale = float(bridge.np.mean(norms[:2]))
+
+    if hasattr(config, "model_copy"):
+        # Pydantic model
+        update = {"marker_size": config.marker_size * obj_scale}
+        if getattr(config, "square_size", None) is not None:
+            update["square_size"] = config.square_size * obj_scale
+        config = config.model_copy(update=update)
+    elif isinstance(config, dict):
+        config = config.copy()
+        config["marker_size"] = config.get("marker_size", 0.1) * obj_scale
+        if config.get("square_size") is not None:
+            config["square_size"] = config["square_size"] * obj_scale
+
     layout, spec, board_info = _parse_board_config_and_layout(config)
     b_type, rows, cols, marker_size, dictionary = board_info
 
-    # 2. Get Transformation
+    # 2. Get Transformation (NOW RIGID/SANITIZED)
     transform_data = _get_scene_transformations(board_obj, cam_recipe=cam_recipe)
     world_matrix, blender_cam_mat, k_matrix, res, meta = transform_data
     _, _, _, _ = meta
