@@ -212,6 +212,7 @@ def push_dataset(
         "ground_truth.csv",
         "job_spec.json",
         "manifest.json",
+        "provenance.json",
         "rich_truth.json",
     ]
     for file_name in metadata_files:
@@ -312,6 +313,7 @@ def pull_dataset(
         "ground_truth.csv",
         "job_spec.json",
         "manifest.json",
+        "provenance.json",
     ]
     for file_name in metadata_files:
         try:
