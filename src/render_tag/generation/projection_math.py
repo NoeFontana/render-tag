@@ -101,7 +101,7 @@ def get_world_normal(world_matrix: Matrix4x4, local_normal: Vector3 | None = Non
 
 def sanitize_to_rigid_transform(matrix: Matrix4x4) -> Matrix4x4:
     """
-    Exctracts a pure SE(3) rigid-body transformation from a scaled affine matrix.
+    Extracts a pure SE(3) rigid-body transformation from a scaled affine matrix.
 
     This function acts as a mandatory geometric sanitization boundary, stripping
     graphics-layer scale factors to enforce perception-layer metric invariants.
@@ -120,8 +120,23 @@ def sanitize_to_rigid_transform(matrix: Matrix4x4) -> Matrix4x4:
 
     # Avoid division by zero for degenerate axes
     mask = norms > 1e-10
+    num_valid = np.sum(mask)
+
+    if num_valid < 2:
+        raise ValueError("Matrix has 2 or more degenerate axes; orientation is undefined.")
+
     rot_block[:, mask] /= norms[mask]
-    rot_block[:, ~mask] = np.eye(3)[:, ~mask]
+
+    if num_valid == 2:
+        # Reconstruct the single degenerate axis using the cross product of the two valid axes
+        # maintaining a right-handed coordinate system (X=YxZ, Y=ZxX, Z=XxY)
+        degenerate_idx = np.argmin(norms)
+        if degenerate_idx == 0:
+            rot_block[:, 0] = np.cross(rot_block[:, 1], rot_block[:, 2])
+        elif degenerate_idx == 1:
+            rot_block[:, 1] = np.cross(rot_block[:, 2], rot_block[:, 0])
+        else:
+            rot_block[:, 2] = np.cross(rot_block[:, 0], rot_block[:, 1])
 
     res[:3, :3] = rot_block
     return res
