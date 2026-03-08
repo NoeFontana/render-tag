@@ -222,6 +222,9 @@ def generate_subject_records(
     if pixels is None:
         return []
 
+    # Final Intrinsics for Metadata
+    k_list = k_matrix.tolist() if hasattr(k_matrix, "tolist") else k_matrix
+
     tag_id = blender_obj.get("tag_id", 0)
     tag_family = blender_obj.get("tag_family", "unknown")
 
@@ -252,6 +255,8 @@ def generate_subject_records(
                 position=pose["position"],
                 rotation_quaternion=pose["rotation_quaternion"],
                 tag_size_mm=float(active_size_mm),
+                k_matrix=k_list,
+                resolution=res,
             )
         )
     else:
@@ -282,6 +287,8 @@ def generate_subject_records(
                 position=pose["position"],
                 rotation_quaternion=pose["rotation_quaternion"],
                 tag_size_mm=float(active_size_mm),
+                k_matrix=k_list,
+                resolution=res,
             )
         )
 
@@ -418,11 +425,12 @@ def _get_scene_transformations(
     world_normal = get_world_normal(world_matrix)
     angle_deg = calculate_angle_of_incidence(board_location, world_normal, cam_location)
     pose = calculate_relative_pose(world_matrix, blender_cam_mat)
+    k_list = k_matrix.tolist() if hasattr(k_matrix, "tolist") else k_matrix
 
     return (
         world_matrix,
         blender_cam_mat,
-        k_matrix,
+        k_list,
         res,
         (distance, angle_deg, pose),
     )
@@ -499,6 +507,8 @@ def _process_board_tags(
                 position=pose["position"],
                 rotation_quaternion=pose["rotation_quaternion"],
                 tag_size_mm=float(marker_size * 1000.0),
+                k_matrix=k_matrix,
+                resolution=res,
             )
         )
     return records
@@ -557,6 +567,8 @@ def _process_board_keypoints(
                         position=pose["position"],
                         rotation_quaternion=pose["rotation_quaternion"],
                         tag_size_mm=0.0,  # Saddle points are 0D
+                        k_matrix=k_matrix,
+                        resolution=res,
                     )
                 )
     return records

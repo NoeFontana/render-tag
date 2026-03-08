@@ -141,6 +141,12 @@ class DetectionRecord(BaseModel):
         default=0.0, description="Active physical size of the tag (black-to-black) in millimeters"
     )
 
+    # Intrinsics Snapshot (For Self-Contained PnP)
+    k_matrix: list[list[float]] | None = Field(
+        default=None, description="3x3 Camera Intrinsic Matrix [[fx, 0, cx], ...]"
+    )
+    resolution: list[int] | None = Field(default=None, description="[width, height] in pixels")
+
     # Provenance
     global_seed: int | None = Field(default=None, description="Master random seed used")
     scene_seed: int | None = Field(default=None, description="Scene-specific derived seed")

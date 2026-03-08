@@ -263,6 +263,8 @@ class COCOWriter(AtomicWriter):
             "occlusion_ratio": detection.occlusion_ratio if detection else 0.0,
             "position": detection.position if detection else None,
             "rotation_quaternion": None,
+            "k_matrix": detection.k_matrix if detection else None,
+            "resolution": detection.resolution if detection else None,
         }
 
         # IO BOUNDARY: Flip WXYZ -> XYZW for attributes
@@ -345,6 +347,8 @@ class RichTruthWriter(AtomicWriter):
             "ppm": detection.ppm,
             "position": detection.position,
             "rotation_quaternion": detection.rotation_quaternion,
+            "k_matrix": detection.k_matrix,
+            "resolution": detection.resolution,
             "global_seed": detection.global_seed,
             "scene_seed": detection.scene_seed,
             "metadata": detection.metadata,
