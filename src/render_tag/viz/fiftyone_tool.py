@@ -468,7 +468,6 @@ def visualize_fiftyone(
                     {"value": "TAG", "color": "#00FF00"},
                     {"value": "BOARD", "color": "#FF00FF"},
                     {"value": "CHARUCO_SADDLE", "color": "#00FFFF"},
-                    {"value": "APRILGRID_CORNER", "color": "#FFFF00"},
                 ],
             },
             {

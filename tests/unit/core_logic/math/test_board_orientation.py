@@ -58,31 +58,3 @@ class TestBoardOrientation:
 
         # Should pass: x0 (-0.05) < x1 (0.05)
         assert x0 < x1, f"Col 0 X ({x0}) should be < Col 1 X ({x1})"
-
-    def test_aprilgrid_corners_follow_y_down(self):
-        """AprilGrid corners should also follow the Top-Down convention."""
-        spec = BoardSpec(rows=2, cols=2, square_size=0.1, board_type=BoardType.APRILGRID)
-        layout = compute_aprilgrid_layout(spec, center=(0, 0, 0))
-
-        # Corner grid is (rows+1) x (cols+1) = 3x3
-        # In a 2x2 board, Row 0 corners should be at Y=0.1, Row 1 at Y=0.0, Row 2 at Y=-0.1
-        # (Assuming board height is 0.2)
-
-        # Currently, they are calculated as:
-        # corner_start_y = center[1] - spec.board_height / 2 = -0.1
-        # y = corner_start_y + row * spec.square_size
-        # Row 0: -0.1, Row 1: 0.0, Row 2: 0.1
-
-        # We want: Row 0: -0.1, Row 1: 0.0, Row 2: 0.1
-
-        # Let's extract Y coordinates for each corner row
-        # Since corner_positions is a flat list, we need to know how it's populated.
-        # In compute_aprilgrid_layout:
-        # for row in range(spec.rows + 1):
-        #     for col in range(spec.cols + 1):
-        #         layout.corner_positions.append(...)
-
-        row0_y = layout.corner_positions[0].y  # First corner (Row 0, Col 0)
-        row1_y = layout.corner_positions[3].y  # Fourth corner (Row 1, Col 0)
-
-        assert row0_y < row1_y, f"Corner Row 0 Y ({row0_y}) should be < Corner Row 1 Y ({row1_y})"

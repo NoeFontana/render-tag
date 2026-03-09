@@ -101,26 +101,6 @@ def main():
             total_error += np.sum(err)
             count += len(err)
 
-        elif det["record_type"] == "APRILGRID_CORNER":
-            r_idx = det["tag_id"] // 100
-            c_idx = det["tag_id"] % 100
-
-            lx = -board_width / 2.0 + c_idx * square_size
-            ly = -board_height / 2.0 + r_idx * square_size
-
-            p_cam = (R_rel @ np.array([lx, ly, 0.0])) + t_rel
-
-            fx, fy = K[0][0], K[1][1]
-            cx, cy = K[0][2], K[1][2]
-
-            px = (p_cam[0] * fx / p_cam[2]) + cx
-            py = (p_cam[1] * fy / p_cam[2]) + cy
-
-            actual = np.array(det["corners"][0])
-            err = np.sqrt(np.sum((np.array([px, py]) - actual) ** 2))
-            total_error += err
-            count += 1
-
     if count > 0:
         avg_err = total_error / count
         print(f"Mean Projection Error: {avg_err:.6f} px")

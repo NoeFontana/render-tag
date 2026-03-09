@@ -119,7 +119,6 @@ class BoardLayout:
     spec: BoardSpec
     squares: list[SquareInfo] = field(default_factory=list)
     tag_positions: list[BoardPosition] = field(default_factory=list)
-    corner_positions: list[BoardPosition] = field(default_factory=list)
     center: BoardPosition = field(default_factory=lambda: BoardPosition(0, 0, 0))
 
 
@@ -247,16 +246,6 @@ def compute_aprilgrid_layout(
             )
             layout.squares.append(square)
             layout.tag_positions.append(BoardPosition(x, y, z))
-
-    # Compute corner positions (at grid intersections)
-    corner_start_x = center[0] - spec.board_width / 2
-    corner_start_y = center[1] - spec.board_height / 2
-
-    for row in range(spec.rows + 1):
-        for col in range(spec.cols + 1):
-            x = corner_start_x + col * spec.square_size
-            y = corner_start_y + row * spec.square_size
-            layout.corner_positions.append(BoardPosition(x, y, center[2]))
 
     return layout
 

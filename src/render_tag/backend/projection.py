@@ -455,7 +455,7 @@ def generate_board_records(
     )
 
     # 5. Add Board-Level Metadata Record
-    distance, angle_deg, board_pose, physics, cam_location, world_normal, is_mirrored = meta
+    distance, angle_deg, board_pose, physics, _, _, is_mirrored = meta
     board_center_world = world_matrix[:3, 3]
     board_center_pixel = project_points(
         bridge.np.array([board_center_world]), blender_cam_mat, res, k_matrix
@@ -476,7 +476,8 @@ def generate_board_records(
                 tag_size_mm=float(spec.board_width * 1000.0),
                 k_matrix=k_matrix,
                 resolution=res,
-                velocity=physics["velocity"],                shutter_time_ms=physics["shutter_time_ms"],
+                velocity=physics["velocity"],
+                shutter_time_ms=physics["shutter_time_ms"],
                 rolling_shutter_ms=physics["rolling_shutter_ms"],
                 fstop=physics["fstop"],
                 is_mirrored=is_mirrored,
