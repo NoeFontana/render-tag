@@ -1,0 +1,46 @@
+dataset:
+  num_scenes: 100
+  seeds:
+    global_seed: 2026
+  evaluation_scopes: [detection, pose_estimation, corner_accuracy, calibration]
+  metadata:
+    benchmark: calibration_charuco_baseline
+    focus: general_detection_and_pose_coverage
+
+camera:
+  resolution: [1920, 1080]
+  fov: 75.0
+  samples_per_scene: 1
+  min_distance: 1.0
+  max_distance: 4.5
+  # Wide elevation range for generic coverage (low tilt to top-down)
+  min_elevation: 0.2
+  max_elevation: 0.9
+  tone_mapping: filmic
+  iso: 100
+
+scenario:
+  subject:
+    type: BOARD
+    # Asymmetric layout (5x7) helps resolve orientation ambiguities
+    rows: 5
+    cols: 7
+    # Standard desk-sized calibration board metrics
+    marker_size_mm: 40.0
+    dictionary: tag36h11
+    square_size_mm: 50.0
+  sampling_mode: random
+
+scene:
+  lighting_preset: factory
+  texture_dir: assets/textures/background
+  texture_scale_min: 1.0
+  texture_scale_max: 10.0
+
+renderer:
+  mode: cycles
+  # Balanced precision for baseline speed vs accuracy
+  noise_threshold: 0.05
+  max_samples: 128
+
+version: '0.2'
