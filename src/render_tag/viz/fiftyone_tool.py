@@ -205,16 +205,15 @@ def project_tag_axes(
     # Length of projected axes in relative image units
     edge_len_x = np.linalg.norm(np.array(tr_2d) - np.array(tl_2d))
     edge_len_y = np.linalg.norm(np.array(bl_2d) - np.array(tl_2d))
-    z_len_fo = (edge_len_x + edge_len_y) / 4.0
+    z_len_fo = (edge_len_x + edge_len_y) / 2.0
 
     r_mat = quaternion_wxyz_to_matrix(quat)
     t_vec = np.array(pos)
     k_np = np.array(k_matrix)
 
     # 3D Normal (Local Z) in camera space
-    # Flipping Z to point INTO the tag (Away from camera in OpenCV convention)
-    # Since our local +Z is Outward (towards camera), we use -Z here.
-    z_unit_cam = r_mat @ np.array([0, 0, -1])
+    # Local +Z points OUT of the tag face (towards the camera if facing)
+    z_unit_cam = r_mat @ np.array([0, 0, 1])
 
     # Project a small Z offset from the center to get 2D direction in pixels
     def project(p_cam):

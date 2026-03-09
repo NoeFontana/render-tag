@@ -228,7 +228,6 @@ def generate_subject_records(
 
     # Extract scale to apply to keypoints
     norms = bridge.np.linalg.norm(raw_world_matrix[:3, :3], axis=0)
-    obj_scale = float(bridge.np.mean(norms))
 
     blender_cam_mat = bridge.np.array(bridge.bpy.context.scene.camera.matrix_world)
     k_matrix = bridge.bproc.camera.get_intrinsics_as_K_matrix()
@@ -248,10 +247,10 @@ def generate_subject_records(
     # Physics Metadata
     physics = _extract_physics(cam_recipe)
 
-    # Project all keypoints (absorbing scale)
+    # Project all keypoints (absorbing scale element-wise)
     world_kps = []
     for loc in keypoints_3d:
-        p_local = bridge.np.array(loc) * obj_scale
+        p_local = bridge.np.array(loc) * norms
         p = bridge.np.append(p_local, 1.0)
         pw = bridge.np.dot(world_matrix, p)
         world_kps.append(pw[:3] / pw[3])
@@ -278,6 +277,10 @@ def generate_subject_records(
     total_bits = grid_size + 2 * margin_bits
 
     total_size_m = float(blender_obj.get("raw_size_m", 0.1))
+    # Account for object-level scaling in the physical size report (using planar mean)
+    obj_scale = float(bridge.np.mean(norms[:2]))
+    total_size_m *= obj_scale
+
     active_size_mm = (total_size_m * 1000.0 * grid_size) / total_bits
 
     records = []
