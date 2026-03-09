@@ -258,6 +258,8 @@ def calculate_relative_pose(
 ) -> dict[str, list[float]]:
     """
     Calculates the relative pose of a tag in OpenCV camera coordinates.
+    Adheres strictly to OpenCV >= 4.6.0 convention for the tag local frame:
+    X right, Y down, Z into the plane.
 
     Args:
         tag_world_matrix: 4x4 matrix (World-to-Tag)
@@ -273,10 +275,19 @@ def calculate_relative_pose(
     # 2. Invert to get World-to-Camera (OpenCV)
     world_to_opencv_cam = np.linalg.inv(opencv_cam_world)
 
-    # 3. Relative transformation: T_cam_tag = T_world_to_cam * T_tag_in_world
-    rel_mat = world_to_opencv_cam @ tag_world_matrix
+    # 3. Convert Tag local frame from Blender (Z-out, Y-up) to OpenCV (Z-in, Y-down)
+    # This requires a 180-degree rotation around the X-axis.
+    blender_to_cv_tag = np.array([
+        [1.0,  0.0,  0.0, 0.0],
+        [0.0, -1.0,  0.0, 0.0],
+        [0.0,  0.0, -1.0, 0.0],
+        [0.0,  0.0,  0.0, 1.0]
+    ])
 
-    # 4. Extract position and orthogonalize rotation via sanitization boundary
+    # 4. Relative transformation: T_cam_tag = T_world_to_cam * T_tag_in_world * T_blender_to_cv
+    rel_mat = world_to_opencv_cam @ tag_world_matrix @ blender_to_cv_tag
+
+    # 5. Extract position and orthogonalize rotation via sanitization boundary
     sanitized_rel_mat = sanitize_to_rigid_transform(rel_mat)
 
     pos = sanitized_rel_mat[:3, 3].tolist()

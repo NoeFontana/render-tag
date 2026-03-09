@@ -248,9 +248,13 @@ def test_board_scale_independence(mock_bridge):
     # The first 4 points should be the corners of the single tag
     tl, tr, _, _ = projected_pts[:4]
 
-    # Since world_matrix now PRESERVES scale, width in 3D should be
-    # marker_size * scale (0.1 * 0.1 = 0.01)
+    # With the new canonical scaling logic:
+    # A 2x2 board with square=0.2 has canonical width 0.4m.
+    # The default Plane in Blender is 2x2 units, so canonical_sx = 0.4 / 2.0 = 0.2.
+    # The mock matrix has absolute scale X=0.1.
+    # Therefore user_scale = 0.1 / 0.2 = 0.5.
+    # The original marker_size of 0.1m is scaled by 0.5 -> 0.05m.
     diff = np.array(tr) - np.array(tl)
     width_3d = np.linalg.norm(diff)
 
-    assert np.isclose(width_3d, 0.01), f"Expected marker 3D width 0.01, got {width_3d}"
+    assert np.isclose(width_3d, 0.05), f"Expected marker 3D width 0.05, got {width_3d}"

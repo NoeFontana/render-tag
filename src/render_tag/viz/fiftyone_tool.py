@@ -204,10 +204,10 @@ def project_tag_axes(
 
     # Local axes points (Origin at center)
     local_origin = np.array([0.0, 0.0, 0.0])
-    local_x = np.array([axis_len_m, 0.0, 0.0])
-    local_y = np.array([0.0, axis_len_m, 0.0])
+    local_x = np.array([axis_len_m, 0.0, 0.0])  # +X right
+    local_y = np.array([0.0, axis_len_m, 0.0])  # +Y down
     
-    # Local +Z points OUT of the tag face (towards the camera if facing)
+    # Local +Z points INTO the tag face (away from camera if facing)
     local_z = np.array([0.0, 0.0, axis_len_m])
 
     # Transform to camera space

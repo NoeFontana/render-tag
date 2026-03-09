@@ -45,9 +45,11 @@ def test_calculate_relative_pose_identity():
     # Position should be 0
     assert np.allclose(pose["position"], [0.0, 0.0, 0.0])
 
-    # Rotation should be flip_mat rotation (180 deg around X)
-    # wxyz: [0.0, 1.0, 0.0, 0.0]
-    assert np.allclose(pose["rotation_quaternion"], [0.0, 1.0, 0.0, 0.0])
+    # With the new OpenCV 4.6.0 convention, we apply an X-flip for the camera frame
+    # and another X-flip for the object frame. For an identity tag and identity camera,
+    # these flips cancel out, resulting in an identity rotation in OpenCV space.
+    # wxyz: [1.0, 0.0, 0.0, 0.0]
+    assert np.allclose(pose["rotation_quaternion"], [1.0, 0.0, 0.0, 0.0])
 
 
 def test_calculate_relative_pose_translation():
