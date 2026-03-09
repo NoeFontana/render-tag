@@ -17,7 +17,7 @@ from rich.progress import (
 )
 
 from render_tag.generation.projection_math import (
-    quaternion_wxyz_to_matrix,
+    quaternion_xyzw_to_matrix,
 )
 
 try:
@@ -60,7 +60,7 @@ def create_dataset(name: str) -> fo.Dataset:
     dataset.add_sample_field(
         "detections.detections.rotation_quaternion",
         fo.ListField,
-        description="3D rotation [w, x, y, z]",
+        description="3D rotation [x, y, z, w]",
     )
 
     return dataset
@@ -181,62 +181,61 @@ def project_tag_axes(
     record: dict[str, Any],
     k_matrix: list[list[float]],
     resolution: list[int],
-    axis_length: float = 0.05,
 ) -> dict[str, fo.Polyline] | None:
     """
-    Project 3D axes at the tag Top-Left corner.
-    Uses true 2D corners for X/Y, and projects Z towards the tag (OpenCV convention).
+    Project 3D axes at the tag center using its pose metadata (Single Source of Truth).
     """
     pos = record.get("position")  # [x, y, z] in camera space
-    quat = record.get("rotation_quaternion")  # [w, x, y, z] in camera space
-    corners_2d = record.get("corners")
+    quat = record.get("rotation_quaternion")  # [x, y, z, w] in camera space
+    
+    # Use tag size to determine axis length (e.g., half the tag size). Fallback to 5cm.
+    tag_size_mm = record.get("tag_size_mm", 100.0)
+    axis_len_m = (tag_size_mm / 1000.0) / 2.0
+    if axis_len_m <= 0:
+        axis_len_m = 0.05
 
-    if pos is None or quat is None or not corners_2d or len(corners_2d) < 4:
+    if pos is None or quat is None:
         return None
 
     width, height = resolution
-
-    # Extract the true 2D corners in normalized space [0, 1]
-    normalized_corners = get_polyline_points(corners_2d, width, height, normalized=False)
-    tl_2d = normalized_corners[0]
-    tr_2d = normalized_corners[1]
-    bl_2d = normalized_corners[3]
-
-    # Length of projected axes in relative image units
-    edge_len_x = np.linalg.norm(np.array(tr_2d) - np.array(tl_2d))
-    edge_len_y = np.linalg.norm(np.array(bl_2d) - np.array(tl_2d))
-    z_len_fo = (edge_len_x + edge_len_y) / 2.0
-
-    r_mat = quaternion_wxyz_to_matrix(quat)
-    t_vec = np.array(pos)
     k_np = np.array(k_matrix)
+    r_mat = quaternion_xyzw_to_matrix(quat)
+    t_vec = np.array(pos)
 
-    # 3D Normal (Local Z) in camera space
+    # Local axes points (Origin at center)
+    local_origin = np.array([0.0, 0.0, 0.0])
+    local_x = np.array([axis_len_m, 0.0, 0.0])
+    local_y = np.array([0.0, axis_len_m, 0.0])
+    
     # Local +Z points OUT of the tag face (towards the camera if facing)
-    z_unit_cam = r_mat @ np.array([0, 0, 1])
+    local_z = np.array([0.0, 0.0, axis_len_m])
 
-    # Project a small Z offset from the center to get 2D direction in pixels
+    # Transform to camera space
+    def to_cam(p_local):
+        return t_vec + r_mat @ p_local
+
+    # Project to 2D pixels and normalize to [0, 1] for FiftyOne
     def project(p_cam):
+        if p_cam[2] <= 1e-6:
+            return None  # Behind camera
         p_2d_hom = k_np @ p_cam
-        return p_2d_hom[:2] / p_2d_hom[2]
+        px = p_2d_hom[0] / p_2d_hom[2]
+        py = p_2d_hom[1] / p_2d_hom[2]
+        return [float(px / width), float(py / height)]
 
-    c_2d = project(t_vec)
-    z_2d = project(t_vec + z_unit_cam * 0.01)
+    origin_2d = project(to_cam(local_origin))
+    x_2d = project(to_cam(local_x))
+    y_2d = project(to_cam(local_y))
+    z_2d = project(to_cam(local_z))
 
-    z_vec_px = z_2d - c_2d
-    z_vec_norm = np.linalg.norm(z_vec_px)
-
-    if z_vec_norm < 1e-6:
-        z_end = tl_2d
-    else:
-        # Scale the 2D direction in relative image units
-        z_vec_fo = (z_vec_px / z_vec_norm) * z_len_fo
-        z_end = [tl_2d[0] + float(z_vec_fo[0]), tl_2d[1] + float(z_vec_fo[1])]
+    # If any point is behind the camera, skip rendering the axes
+    if not all([origin_2d, x_2d, y_2d, z_2d]):
+        return None
 
     return {
-        "axis_x": fo.Polyline(label="X", points=[[tl_2d, tr_2d]]),
-        "axis_y": fo.Polyline(label="Y", points=[[tl_2d, bl_2d]]),
-        "axis_z": fo.Polyline(label="Z", points=[[tl_2d, z_end]]),
+        "axis_x": fo.Polyline(label="X", points=[[origin_2d, x_2d]]),
+        "axis_y": fo.Polyline(label="Y", points=[[origin_2d, y_2d]]),
+        "axis_z": fo.Polyline(label="Z", points=[[origin_2d, z_2d]]),
     }
 
 
