@@ -226,9 +226,14 @@ def generate_subject_records(
         raw_world_matrix, return_is_mirrored=True
     )
 
-    # Extract scale to apply to keypoints
     norms = bridge.np.linalg.norm(raw_world_matrix[:3, :3], axis=0)
-    obj_scale = float(bridge.np.mean(norms))
+
+    # Domain Validation: Enforce strict geometric invariants for tags
+    if obj_type == "TAG" and not bridge.np.isclose(norms[0], norms[1], rtol=1e-2):
+        raise ValueError(
+            f"Fiducial TAGs must be perfectly square. "
+            f"Detected non-uniform scale (X:{norms[0]:.3f} vs Y:{norms[1]:.3f})."
+        )
 
     blender_cam_mat = bridge.np.array(bridge.bpy.context.scene.camera.matrix_world)
     k_matrix = bridge.bproc.camera.get_intrinsics_as_K_matrix()
@@ -248,10 +253,10 @@ def generate_subject_records(
     # Physics Metadata
     physics = _extract_physics(cam_recipe)
 
-    # Project all keypoints (absorbing scale)
+    # Project all keypoints (absorbing the exact scale element-wise)
     world_kps = []
     for loc in keypoints_3d:
-        p_local = bridge.np.array(loc) * obj_scale
+        p_local = bridge.np.array(loc) * norms
         p = bridge.np.append(p_local, 1.0)
         pw = bridge.np.dot(world_matrix, p)
         world_kps.append(pw[:3] / pw[3])
@@ -272,12 +277,16 @@ def generate_subject_records(
     tag_family = blender_obj.get("tag_family", "unknown")
 
     # Calculate tag_size_mm (active black-to-black size)
-    # Using raw_size_m property instead of matrix norm to avoid float drift
     grid_size = TAG_GRID_SIZES.get(tag_family, 8)
     margin_bits = blender_obj.get("margin_bits", 0)
     total_bits = grid_size + 2 * margin_bits
 
-    total_size_m = float(blender_obj.get("raw_size_m", 0.1))
+    # The Blender primitive is a 2x2 plane [-1, 1]. Total size in meters is exactly scale * 2.
+    if obj_type == "TAG":
+        total_size_m = float(norms[0]) * 2.0
+    else:
+        total_size_m = float(bridge.np.mean(norms[:2])) * 2.0
+
     active_size_mm = (total_size_m * 1000.0 * grid_size) / total_bits
 
     records = []
@@ -363,6 +372,8 @@ def generate_board_records(
 
     config = BoardConfig.model_validate(board_data) if isinstance(board_data, dict) else board_data
 
+    layout_init, spec_init, info_init = _parse_board_config_and_layout(config)
+
     # 1. Extract Scale and Recompute Layout
     # Staff Engineer: We must account for Blender object-level scaling by 'absorbing' it
     # into the physical metrics. This allows us to maintain the invariant that the
@@ -375,23 +386,44 @@ def generate_board_records(
         raw_mat = bridge.np.eye(4)
 
     norms = bridge.np.linalg.norm(raw_mat[:3, :3], axis=0)
-    # Using average of X and Y as boards are planar assets
-    obj_scale = float(bridge.np.mean(norms[:2]))
 
-    if hasattr(config, "model_copy"):
-        # Pydantic model
-        update = {"marker_size": config.marker_size * obj_scale}
-        sq_size = getattr(config, "square_size", None)
-        if sq_size is not None:
-            update["square_size"] = sq_size * obj_scale
-        config = config.model_copy(update=update)
-    elif isinstance(config, dict):
-        config = config.copy()
-        config["marker_size"] = config.get("marker_size", 0.1) * obj_scale
-        if config.get("square_size") is not None:
-            config["square_size"] = config["square_size"] * obj_scale
+    # Calculate user-applied scale by comparing current scale to canonical shape scale
+    canonical_sx = spec_init.board_width / 2.0
+    canonical_sy = spec_init.board_height / 2.0
 
-    layout, spec, board_info = _parse_board_config_and_layout(config)
+    if canonical_sx > 1e-6 and canonical_sy > 1e-6:
+        user_scale_x = norms[0] / canonical_sx
+        user_scale_y = norms[1] / canonical_sy
+
+        # Fiducial boards can be rectangular, but the USER scale applied to them MUST be uniform
+        # to prevent square markers from becoming rectangles.
+        if not bridge.np.isclose(user_scale_x, user_scale_y, rtol=1e-2):
+            raise ValueError(
+                f"Fiducial BOARDs cannot be stretched non-uniformly. "
+                f"Detected user scale X:{user_scale_x:.3f} vs Y:{user_scale_y:.3f}."
+            )
+        user_scale = float(user_scale_x)
+    else:
+        user_scale = 1.0
+
+    if not bridge.np.isclose(user_scale, 1.0, rtol=1e-4):
+        if hasattr(config, "model_copy"):
+            # Pydantic model
+            update = {"marker_size": config.marker_size * user_scale}
+            sq_size = getattr(config, "square_size", None)
+            if sq_size is not None:
+                update["square_size"] = sq_size * user_scale
+            config = config.model_copy(update=update)
+        elif isinstance(config, dict):
+            config = config.copy()
+            config["marker_size"] = config.get("marker_size", 0.1) * user_scale
+            if config.get("square_size") is not None:
+                config["square_size"] = config["square_size"] * user_scale
+
+        layout, spec, board_info = _parse_board_config_and_layout(config)
+    else:
+        layout, spec, board_info = layout_init, spec_init, info_init
+
     b_type, rows, cols, marker_size, dictionary = board_info
 
     # 2. Get Transformation (NOW RIGID/SANITIZED)

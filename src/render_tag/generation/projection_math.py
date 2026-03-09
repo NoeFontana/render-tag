@@ -5,9 +5,13 @@ No Blender dependencies.
 
 from __future__ import annotations
 
+import logging
+
 import numpy as np
 
 from render_tag.generation.math import Matrix3x3, Matrix4x4, Vector3
+
+logger = logging.getLogger(__name__)
 
 
 def calculate_distance(point1: Vector3, point2: Vector3) -> float:
@@ -107,6 +111,13 @@ def sanitize_to_rigid_transform(
 
     This function acts as a mandatory geometric sanitization boundary, stripping
     graphics-layer scale factors to enforce perception-layer metric invariants.
+
+    Architectural Note: This function assumes the input matrix is composed of a rigid
+    transformation and uniform (or orthogonal) scaling (e.g., standard Blender transforms).
+    It operates by normalizing the column vectors of the 3x3 block. If the original matrix
+    contains shear or extreme non-uniform scaling that breaks orthogonality, the output
+    will not strictly restore the original SO(3) rotation. Downstream systems must
+    enforce uniform planar scaling before reaching this boundary.
     """
     m = np.asarray(matrix)
     res = np.eye(4)
@@ -114,9 +125,7 @@ def sanitize_to_rigid_transform(
     # 1. Translation Extraction (unaffected by local scaling)
     res[:3, 3] = m[:3, 3]
 
-    # 2. Rotation Orthogonalization
-    # Extract the 3x3 block and normalize each column vector by its Euclidean norm.
-    # This restores the matrix to the SO(3) pure rotation group.
+    # 2. Extract and Validate Scale
     rot_block = m[:3, :3].copy()
     norms = np.linalg.norm(rot_block, axis=0)
 
@@ -127,6 +136,7 @@ def sanitize_to_rigid_transform(
     if num_valid < 2:
         raise ValueError("Matrix has 2 or more degenerate axes; orientation is undefined.")
 
+    # 3. Rotation Orthogonalization
     rot_block[:, mask] /= norms[mask]
 
     if num_valid == 2:
@@ -139,6 +149,15 @@ def sanitize_to_rigid_transform(
             rot_block[:, 1] = np.cross(rot_block[:, 2], rot_block[:, 0])
         else:
             rot_block[:, 2] = np.cross(rot_block[:, 0], rot_block[:, 1])
+
+    # Validate Orthogonality (Lack of Shear)
+    # The normalized matrix should now be orthogonal (R^T @ R = I)
+    ortho_check = rot_block.T @ rot_block
+    if not np.allclose(ortho_check, np.eye(3), atol=1e-2):
+        raise ValueError(
+            "Matrix contains shear or non-orthogonal transformations. "
+            "Rigid extraction cannot safely recover the true SE(3) pose."
+        )
 
     is_mirrored = False
     if np.linalg.det(rot_block) < 0.0:
@@ -240,6 +259,8 @@ def calculate_relative_pose(
 ) -> dict[str, list[float]]:
     """
     Calculates the relative pose of a tag in OpenCV camera coordinates.
+    Adheres strictly to OpenCV >= 4.6.0 convention for the tag local frame:
+    X right, Y down, Z into the plane.
 
     Args:
         tag_world_matrix: 4x4 matrix (World-to-Tag)
@@ -255,10 +276,16 @@ def calculate_relative_pose(
     # 2. Invert to get World-to-Camera (OpenCV)
     world_to_opencv_cam = np.linalg.inv(opencv_cam_world)
 
-    # 3. Relative transformation: T_cam_tag = T_world_to_cam * T_tag_in_world
-    rel_mat = world_to_opencv_cam @ tag_world_matrix
+    # 3. Convert Tag local frame from Blender (Z-out, Y-up) to OpenCV (Z-in, Y-down)
+    # This requires a 180-degree rotation around the X-axis.
+    blender_to_cv_tag = np.array(
+        [[1.0, 0.0, 0.0, 0.0], [0.0, -1.0, 0.0, 0.0], [0.0, 0.0, -1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
+    )
 
-    # 4. Extract position and orthogonalize rotation via sanitization boundary
+    # 4. Relative transformation: T_cam_tag = T_world_to_cam * T_tag_in_world * T_blender_to_cv
+    rel_mat = world_to_opencv_cam @ tag_world_matrix @ blender_to_cv_tag
+
+    # 5. Extract position and orthogonalize rotation via sanitization boundary
     sanitized_rel_mat = sanitize_to_rigid_transform(rel_mat)
 
     pos = sanitized_rel_mat[:3, 3].tolist()

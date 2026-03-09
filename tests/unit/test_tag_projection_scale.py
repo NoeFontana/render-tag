@@ -57,3 +57,45 @@ def test_generate_subject_records_tag_scale(mock_bridge):
         np.testing.assert_array_almost_equal(
             actual_tl, expected_tl, err_msg="Scale was stripped from TAG projection!"
         )
+
+
+@patch("render_tag.backend.projection.bridge")
+def test_generate_subject_records_planar_scale(mock_bridge):
+    """
+    Verify if generate_subject_records correctly raises ValueError when a TAG
+    is given a non-uniform planar scale, enforcing the geometric invariant.
+    """
+    import pytest
+
+    mock_obj = MagicMock()
+    # Normalized keypoints [-1, 1]
+    kps = [[-1.0, 1.0, 0.0], [1.0, 1.0, 0.0], [1.0, -1.0, 0.0], [-1.0, -1.0, 0.0]]
+    mock_obj.blender_obj = {
+        "type": "TAG",
+        "tag_id": 1,
+        "tag_family": "tag36h11",
+        "keypoints_3d": kps,
+        "raw_size_m": 0.1,
+        "margin_bits": 0,
+    }
+
+    # Non-Uniform Planar scale: X=0.1, Y=0.2 (Z=5.0 is ignored but doesn't cause failure)
+    # The X/Y mismatch is what triggers the invariant validation.
+    world_matrix = np.diag([0.1, 0.2, 5.0, 1.0])
+    world_matrix[0:3, 3] = [0, 0, 10]  # Translation to z=10
+
+    mock_obj.get_local2world_mat.return_value = world_matrix
+    mock_obj.get_location.return_value = [0, 0, 10]
+
+    mock_bridge.np = np
+    mock_bridge.bpy.context.scene.camera.matrix_world = np.eye(4)
+    mock_bridge.bpy.context.scene.camera.location = [0, 0, 0]
+    mock_bridge.bpy.context.scene.render.resolution_x = 640
+    mock_bridge.bpy.context.scene.render.resolution_y = 480
+
+    mock_bridge.bproc.camera.get_intrinsics_as_K_matrix.return_value = np.array(
+        [[500, 0, 320], [0, 500, 240], [0, 0, 1]]
+    )
+
+    with pytest.raises(ValueError, match="Fiducial TAGs must be perfectly square"):
+        generate_subject_records(mock_obj, "test_img")

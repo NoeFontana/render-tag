@@ -143,6 +143,9 @@ class DetectionRecord(BaseModel):
     rotation_quaternion: list[float] | None = Field(
         default=None, description="[w, x, y, z] quaternion (Internal Scalar-First)"
     )
+    axes: dict[str, list[tuple[float, float]]] | None = Field(
+        default=None, description="Pre-computed 2D projections of the 3D X, Y, Z axes"
+    )
     tag_size_mm: float = Field(
         default=0.0, description="Active physical size (black-to-black) in millimeters"
     )

@@ -6,12 +6,17 @@ from render_tag.viz.fiftyone_tool import project_tag_axes
 def test_project_tag_axes_logic():
     """Verify that project_tag_axes correctly projects 3D axes to 2D polylines."""
     # Mock record
-    # Position at [0, 0, 1] relative to camera
-    # Identity rotation (facing camera)
+    # Position at [0, 0, 1] relative to camera (center of tag)
+    # Identity rotation (facing camera, though +Z points away in OpenCV,
+    #                    our local +Z points to camera if rotated)
+    # Actually, if rotation is identity, local axes match camera axes.
+    # Cam: X right, Y down, Z forward.
+    # Local: X right, Y down, Z forward.
+    # tag_size_mm = 100.0, so axis_len_m = 0.05
     record = {
         "position": [0.0, 0.0, 1.0],
-        "rotation_quaternion": [1.0, 0.0, 0.0, 0.0],
-        "corners": [[100, 100], [200, 100], [200, 200], [100, 200]],
+        "rotation_quaternion": [0.0, 0.0, 0.0, 1.0],  # Identity in XYZW format
+        "tag_size_mm": 100.0,
         "k_matrix": [[500, 0, 320], [0, 500, 240], [0, 0, 1]],
         "resolution": [640, 480],
     }
@@ -25,35 +30,20 @@ def test_project_tag_axes_logic():
     assert "axis_y" in axes
     assert "axis_z" in axes
 
-    # Check X axis (TL to TR)
-    # TL in normalized: [100/640, 100/480]
-    # TR in normalized: [200/640, 100/480]
-    x_points = axes["axis_x"].points[0]
-    np.testing.assert_allclose(x_points[0], [100 / 640, 100 / 480])
-    np.testing.assert_allclose(x_points[1], [200 / 640, 100 / 480])
+    # Calculate expected normalized 2D points
+    # Center: [0, 0, 1] -> [320/640, 240/480] = [0.5, 0.5]
+    # X: [0.05, 0, 1] -> [ (0.05 * 500 / 1) + 320, 240 ] / res -> [345/640, 240/480]
+    # Y: [0, 0.05, 1] -> [ 320, (0.05 * 500 / 1) + 240 ] / res -> [320/640, 265/480]
+    # Z: [0, 0, 1.05] -> [ 320, 240 ] / res -> [320/640, 240/480]
 
-    # Check Z axis (points towards camera)
-    # Origin is at Top-Left in 3D: [-0.05, 0.05, 0] relative to tag center
-    # Tag center is at [0, 0, 1] in cam space
-    # So origin is at [-0.05, 0.05, 1] in cam space
-    # Z-axis end is at [-0.05, 0.05, 0.1] in local tag space?
-    # No, in our new code it is [+0.1]
-    # So Z end is at [-0.05, 0.05, 0.1] relative to tag center?
-    # Local Z is outward from tag face.
-    # If tag is at Z=1 facing camera, tag +Z is towards camera (if we use right-handed)
-    # In project_tag_axes: pts_3d = [[-m, m, 0], [-m, m, 0.1]]
-    # This means Z end is at Z=0.1 in local space.
-    # Total Z in camera space for Z_end = 1.0 + 0.1 = 1.1?
-    # No, if Normal is +Z local, and tag normal points towards camera (-Z camera),
-    # then local +Z should be towards camera.
-    # If tag is facing camera, tag +Z is camera -Z.
-    # Wait, identity rotation means tag axes align with camera axes?
-    # Blender Cam: X right, Y up, Z back (looking towards -Z)
-    # OpenCV Cam: X right, Y down, Z forward.
-    # If rotation is identity in OpenCV Cam space, tag axes align with camera axes.
-    # So tag +Z is camera +Z (pointing away from camera).
-    # To point TOWARDS camera, we would need tag +Z to be camera -Z.
+    x_points = axes["axis_x"].points[0]
+    np.testing.assert_allclose(x_points[0], [320 / 640, 240 / 480])
+    np.testing.assert_allclose(x_points[1], [345 / 640, 240 / 480])
+
+    y_points = axes["axis_y"].points[0]
+    np.testing.assert_allclose(y_points[0], [320 / 640, 240 / 480])
+    np.testing.assert_allclose(y_points[1], [320 / 640, 265 / 480])
 
     z_points = axes["axis_z"].points[0]
-    # Check that Z axis exists and has two points
-    assert len(z_points) == 2
+    np.testing.assert_allclose(z_points[0], [320 / 640, 240 / 480])
+    np.testing.assert_allclose(z_points[1], [320 / 640, 240 / 480])
