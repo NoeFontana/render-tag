@@ -20,6 +20,7 @@ When defining the geometry of a calibration board (ChArUco, AprilGrid), we follo
 - **Origin (0,0,0):** The physical **Top-Left** corner of the board grid.
 - **+X Axis:** Left-to-Right (traversing Columns).
 - **+Y Axis:** Top-to-Bottom (traversing Rows).
+- **+Z Axis:** Points **into the board plane** (away from the viewer). This strictly adheres to the OpenCV $\ge$ 4.6.0 convention for fiducial markers.
 
 #### Visual Mapping (Local Space)
 ```mermaid
@@ -33,12 +34,13 @@ graph TD
     X[+X Right]
     Y[+Y Down]
     end
+    Z[+Z Into Plane] -.-> Board Plane
 ```
 
-To perfectly align with OpenCV image-space conventions, the board's mathematical layout treats **+Y as pointing downwards**. This means:
+To perfectly align with modern OpenCV image-space conventions, the board's mathematical layout treats **+Y as pointing downwards** and **+Z as pointing inwards**. This means:
 1. Row 0 (the top row) is at the board's minimum Y coordinate in local space.
 2. Subsequent rows ($R > 0$) move in the **positive Y direction**.
-3. This creates a direct mapping where increasing row indices correspond to increasing $Y$ values, matching how OpenCV treats image rows.
+3. The surface normal facing the camera represents the **-Z** direction.
 
 ## 2. Global Scene Space
 - **World Frame:** Z-Up (Blender default).
@@ -49,13 +51,13 @@ To perfectly align with OpenCV image-space conventions, the board's mathematical
 The annotations in `coco_labels.json`, `rich_truth.json`, and `provenance.json` follow strict geometric contracts.
 
 ### 3.1 Relative Pose (Object-to-Camera)
-The pose represents the transformation from the **Object Local Space** (defined above) to the **Camera OpenCV Space**.
+The pose represents the transformation from the **Object Local Space** (defined above) to the **Camera OpenCV Space**. 
 
-*   **Coordinate System:** OpenCV Convention.
+*   **Coordinate System:** OpenCV Convention. Both the camera frame (+Z forward) and the tag frame (+Z into plane) adhere to this standard.
 *   **Position (`position`):** `[x, y, z]` in meters.
 *   **Rotation (`rotation_quaternion`):** 
     *   **Format:** **`[x, y, z, w]` (Scalar-Last)** in all exported files (SciPy/Rust/Ceres compatible).
-    *   *Note: Internally, Blender uses `[w, x, y, z]`, but we perform a flip at the IO boundary.*
+    *   *Note: Internally, Blender uses `[w, x, y, z]` and a Z-Up/Y-Forward system, but we perform math transformations at the generation boundary to guarantee the exported pose is purely OpenCV-native.*
 
 ### 3.2 Detection Metadata
 *   **Active Size (`tag_size_mm`):** The physical edge length of the **black border** only (excluding margin/quiet zone) in millimeters.
