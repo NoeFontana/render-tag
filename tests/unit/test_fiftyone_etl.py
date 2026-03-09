@@ -3,23 +3,23 @@ from unittest.mock import patch
 
 
 def test_rich_truth_indexing():
-    """Test that rich_truth.json is indexed correctly by image_id and tag_id."""
+    """Test that rich_truth.json is indexed correctly by image_id, tag_id and record_type."""
     from render_tag.viz.fiftyone_tool import index_rich_truth
 
     # Mock rich truth data
     rich_truth_data = [
-        {"image_id": "img1", "tag_id": 42, "distance": 5.0},
-        {"image_id": "img1", "tag_id": 99, "distance": 2.0},
-        {"image_id": "img2", "tag_id": 42, "distance": 10.0},
+        {"image_id": "img1", "tag_id": 42, "distance": 5.0},  # Default is TAG
+        {"image_id": "img1", "tag_id": 99, "record_type": "TAG", "distance": 2.0},
+        {"image_id": "img2", "tag_id": 42, "record_type": "BOARD", "distance": 10.0},
     ]
 
     # ACT
     index = index_rich_truth(rich_truth_data)
 
     # VERIFY
-    assert index[("img1", 42)]["distance"] == 5.0
-    assert index[("img1", 99)]["distance"] == 2.0
-    assert index[("img2", 42)]["distance"] == 10.0
+    assert index[("img1", 42, "TAG")]["distance"] == 5.0
+    assert index[("img1", 99, "TAG")]["distance"] == 2.0
+    assert index[("img2", 42, "BOARD")]["distance"] == 10.0
     assert len(index) == 3
 
 
