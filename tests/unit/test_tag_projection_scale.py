@@ -62,9 +62,11 @@ def test_generate_subject_records_tag_scale(mock_bridge):
 @patch("render_tag.backend.projection.bridge")
 def test_generate_subject_records_planar_scale(mock_bridge):
     """
-    Verify if generate_subject_records enforces uniform planar scale
-    and correctly ignores the Z-axis scale (which may cause incorrect scaling if included).
+    Verify if generate_subject_records correctly raises ValueError when a TAG 
+    is given a non-uniform planar scale, enforcing the geometric invariant.
     """
+    import pytest
+    
     mock_obj = MagicMock()
     # Normalized keypoints [-1, 1]
     kps = [[-1.0, 1.0, 0.0], [1.0, 1.0, 0.0], [1.0, -1.0, 0.0], [-1.0, -1.0, 0.0]]
@@ -77,8 +79,9 @@ def test_generate_subject_records_planar_scale(mock_bridge):
         "margin_bits": 0,
     }
 
-    # Planar scale: X=0.1, Y=0.1, Z=5.0 (Z should be ignored)
-    world_matrix = np.diag([0.1, 0.1, 5.0, 1.0])
+    # Non-Uniform Planar scale: X=0.1, Y=0.2 (Z=5.0 is ignored but doesn't cause failure)
+    # The X/Y mismatch is what triggers the invariant validation.
+    world_matrix = np.diag([0.1, 0.2, 5.0, 1.0])
     world_matrix[0:3, 3] = [0, 0, 10]  # Translation to z=10
 
     mock_obj.get_local2world_mat.return_value = world_matrix
@@ -94,24 +97,5 @@ def test_generate_subject_records_planar_scale(mock_bridge):
         [[500, 0, 320], [0, 500, 240], [0, 0, 1]]
     )
 
-    with patch("render_tag.backend.projection.project_points") as mock_proj:
-        # Mock projection to return valid CW corners
-        mock_proj.return_value = np.array([[315, 230], [325, 230], [325, 250], [315, 250]])
-
-        records = generate_subject_records(mock_obj, "test_img")
-
-        args, _ = mock_proj.call_args
-        world_kps_used = args[0]
-
-        # Expected TL: sanitized rigid matrix @ [-1*0.1, 1*0.1, 0*0.1, 1]
-        # = [-0.1, 0.1, 10.0]
-        expected_tl = np.array([-0.1, 0.1, 10.0])
-        actual_tl = world_kps_used[0]
-
-        np.testing.assert_array_almost_equal(
-            actual_tl, expected_tl, err_msg="Planar scale was incorrectly handled!"
-        )
-
-        # Verify tag_size_mm (mean of X/Y scale: 0.1)
-        # base 100mm * 0.1 = 10mm
-        assert np.isclose(records[0].tag_size_mm, 10.0)
+    with pytest.raises(ValueError, match="Fiducial TAGs must be perfectly square"):
+        generate_subject_records(mock_obj, "test_img")

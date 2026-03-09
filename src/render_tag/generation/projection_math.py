@@ -135,17 +135,6 @@ def sanitize_to_rigid_transform(
     if num_valid < 2:
         raise ValueError("Matrix has 2 or more degenerate axes; orientation is undefined.")
 
-    # Validate Planar Scale Uniformity (X vs Y)
-    # If X and Y scales diverge significantly, our geometric invariants (square tags) break.
-    if num_valid >= 2 and mask[0] and mask[1]:
-        scale_ratio = norms[0] / norms[1]
-        if scale_ratio > 1.1 or scale_ratio < 0.9:
-            logger.warning(
-                f"Non-uniform planar scale detected (X:{norms[0]:.3f} vs Y:{norms[1]:.3f}). "
-                "Fiducial annotations assume uniform scaling. "
-                "Bounding box and pose invariants may drift from visual ground truth."
-            )
-
     # 3. Rotation Orthogonalization
     rot_block[:, mask] /= norms[mask]
 
@@ -164,10 +153,9 @@ def sanitize_to_rigid_transform(
     # The normalized matrix should now be orthogonal (R^T @ R = I)
     ortho_check = rot_block.T @ rot_block
     if not np.allclose(ortho_check, np.eye(3), atol=1e-2):
-        logger.warning(
+        raise ValueError(
             "Matrix contains shear or non-orthogonal transformations. "
-            "Rigid extraction cannot safely recover the true SE(3) pose and "
-            "annotations will deviate from the visual mesh."
+            "Rigid extraction cannot safely recover the true SE(3) pose."
         )
 
     is_mirrored = False
