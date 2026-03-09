@@ -60,9 +60,10 @@ def test_generate_subject_records_tag_scale(mock_bridge):
 
 
 @patch("render_tag.backend.projection.bridge")
-def test_generate_subject_records_non_uniform_scale(mock_bridge):
+def test_generate_subject_records_planar_scale(mock_bridge):
     """
-    Verify if generate_subject_records handles non-uniform scale (X != Y).
+    Verify if generate_subject_records enforces uniform planar scale
+    and correctly ignores the Z-axis scale (which may cause incorrect scaling if included).
     """
     mock_obj = MagicMock()
     # Normalized keypoints [-1, 1]
@@ -76,8 +77,8 @@ def test_generate_subject_records_non_uniform_scale(mock_bridge):
         "margin_bits": 0,
     }
 
-    # Non-uniform scale: X=0.1, Y=0.2, Z=1.0
-    world_matrix = np.diag([0.1, 0.2, 1.0, 1.0])
+    # Planar scale: X=0.1, Y=0.1, Z=5.0 (Z should be ignored)
+    world_matrix = np.diag([0.1, 0.1, 5.0, 1.0])
     world_matrix[0:3, 3] = [0, 0, 10]  # Translation to z=10
 
     mock_obj.get_local2world_mat.return_value = world_matrix
@@ -102,14 +103,15 @@ def test_generate_subject_records_non_uniform_scale(mock_bridge):
         args, _ = mock_proj.call_args
         world_kps_used = args[0]
 
-        # Expected TL: world_matrix @ [-1, 1, 0, 1] = [-0.1, 0.2, 10]
-        expected_tl = np.array([-0.1, 0.2, 10.0])
+        # Expected TL: sanitized rigid matrix @ [-1*0.1, 1*0.1, 0*0.1, 1]
+        # = [-0.1, 0.1, 10.0]
+        expected_tl = np.array([-0.1, 0.1, 10.0])
         actual_tl = world_kps_used[0]
 
         np.testing.assert_array_almost_equal(
-            actual_tl, expected_tl, err_msg="Non-uniform scale was incorrectly handled!"
+            actual_tl, expected_tl, err_msg="Planar scale was incorrectly handled!"
         )
 
-        # Verify tag_size_mm (mean of X/Y scale: 0.15)
-        # base 100mm * 0.15 = 15mm
-        assert np.isclose(records[0].tag_size_mm, 15.0)
+        # Verify tag_size_mm (mean of X/Y scale: 0.1)
+        # base 100mm * 0.1 = 10mm
+        assert np.isclose(records[0].tag_size_mm, 10.0)

@@ -107,6 +107,13 @@ def sanitize_to_rigid_transform(
 
     This function acts as a mandatory geometric sanitization boundary, stripping
     graphics-layer scale factors to enforce perception-layer metric invariants.
+
+    Architectural Note: This function assumes the input matrix is composed of a rigid 
+    transformation and uniform (or orthogonal) scaling (e.g., standard Blender transforms).
+    It operates by normalizing the column vectors of the 3x3 block. If the original matrix 
+    contains shear or extreme non-uniform scaling that breaks orthogonality, the output 
+    will not strictly restore the original SO(3) rotation. Downstream systems must 
+    enforce uniform planar scaling before reaching this boundary.
     """
     m = np.asarray(matrix)
     res = np.eye(4)

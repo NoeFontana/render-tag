@@ -226,8 +226,13 @@ def generate_subject_records(
         raw_world_matrix, return_is_mirrored=True
     )
 
-    # Extract scale to apply to keypoints
+    # Extract Uniform Planar Scale
+    # Staff Engineer Note: Fiducial tags must maintain a strictly square invariant.
+    # We ignore the Z-axis scale (often left at 1.0 for planes in Blender) and average
+    # X and Y to derive a single, uniform object scale. This ensures the Pose, Size,
+    # and Keypoints all mathematically align with a perfect rigid square.
     norms = bridge.np.linalg.norm(raw_world_matrix[:3, :3], axis=0)
+    obj_scale = float(bridge.np.mean(norms[:2]))
 
     blender_cam_mat = bridge.np.array(bridge.bpy.context.scene.camera.matrix_world)
     k_matrix = bridge.bproc.camera.get_intrinsics_as_K_matrix()
@@ -247,10 +252,10 @@ def generate_subject_records(
     # Physics Metadata
     physics = _extract_physics(cam_recipe)
 
-    # Project all keypoints (absorbing scale element-wise)
+    # Project all keypoints (absorbing the uniform planar scale)
     world_kps = []
     for loc in keypoints_3d:
-        p_local = bridge.np.array(loc) * norms
+        p_local = bridge.np.array(loc) * obj_scale
         p = bridge.np.append(p_local, 1.0)
         pw = bridge.np.dot(world_matrix, p)
         world_kps.append(pw[:3] / pw[3])
@@ -276,9 +281,8 @@ def generate_subject_records(
     margin_bits = blender_obj.get("margin_bits", 0)
     total_bits = grid_size + 2 * margin_bits
 
+    # Apply the same uniform scale to the physical dimensions
     total_size_m = float(blender_obj.get("raw_size_m", 0.1))
-    # Account for object-level scaling in the physical size report (using planar mean)
-    obj_scale = float(bridge.np.mean(norms[:2]))
     total_size_m *= obj_scale
 
     active_size_mm = (total_size_m * 1000.0 * grid_size) / total_bits
