@@ -62,11 +62,11 @@ def test_generate_subject_records_tag_scale(mock_bridge):
 @patch("render_tag.backend.projection.bridge")
 def test_generate_subject_records_planar_scale(mock_bridge):
     """
-    Verify if generate_subject_records correctly raises ValueError when a TAG 
+    Verify if generate_subject_records correctly raises ValueError when a TAG
     is given a non-uniform planar scale, enforcing the geometric invariant.
     """
     import pytest
-    
+
     mock_obj = MagicMock()
     # Normalized keypoints [-1, 1]
     kps = [[-1.0, 1.0, 0.0], [1.0, 1.0, 0.0], [1.0, -1.0, 0.0], [-1.0, -1.0, 0.0]]

@@ -7,7 +7,8 @@ def test_project_tag_axes_logic():
     """Verify that project_tag_axes correctly projects 3D axes to 2D polylines."""
     # Mock record
     # Position at [0, 0, 1] relative to camera (center of tag)
-    # Identity rotation (facing camera, though +Z points away in OpenCV, our local +Z points to camera if rotated)
+    # Identity rotation (facing camera, though +Z points away in OpenCV,
+    #                    our local +Z points to camera if rotated)
     # Actually, if rotation is identity, local axes match camera axes.
     # Cam: X right, Y down, Z forward.
     # Local: X right, Y down, Z forward.
@@ -46,4 +47,3 @@ def test_project_tag_axes_logic():
     z_points = axes["axis_z"].points[0]
     np.testing.assert_allclose(z_points[0], [320 / 640, 240 / 480])
     np.testing.assert_allclose(z_points[1], [320 / 640, 240 / 480])
-

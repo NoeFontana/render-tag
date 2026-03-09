@@ -187,7 +187,7 @@ def project_tag_axes(
     """
     pos = record.get("position")  # [x, y, z] in camera space
     quat = record.get("rotation_quaternion")  # [x, y, z, w] in camera space
-    
+
     # Use tag size to determine axis length (e.g., half the tag size). Fallback to 5cm.
     tag_size_mm = record.get("tag_size_mm", 100.0)
     axis_len_m = (tag_size_mm / 1000.0) / 2.0
@@ -206,7 +206,7 @@ def project_tag_axes(
     local_origin = np.array([0.0, 0.0, 0.0])
     local_x = np.array([axis_len_m, 0.0, 0.0])  # +X right
     local_y = np.array([0.0, axis_len_m, 0.0])  # +Y down
-    
+
     # Local +Z points INTO the tag face (away from camera if facing)
     local_z = np.array([0.0, 0.0, axis_len_m])
 

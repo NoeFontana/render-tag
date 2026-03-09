@@ -229,12 +229,11 @@ def generate_subject_records(
     norms = bridge.np.linalg.norm(raw_world_matrix[:3, :3], axis=0)
 
     # Domain Validation: Enforce strict geometric invariants for tags
-    if obj_type == "TAG":
-        if not bridge.np.isclose(norms[0], norms[1], rtol=1e-2):
-            raise ValueError(
-                f"Fiducial TAGs must be perfectly square. "
-                f"Detected non-uniform scale (X:{norms[0]:.3f} vs Y:{norms[1]:.3f})."
-            )
+    if obj_type == "TAG" and not bridge.np.isclose(norms[0], norms[1], rtol=1e-2):
+        raise ValueError(
+            f"Fiducial TAGs must be perfectly square. "
+            f"Detected non-uniform scale (X:{norms[0]:.3f} vs Y:{norms[1]:.3f})."
+        )
 
     blender_cam_mat = bridge.np.array(bridge.bpy.context.scene.camera.matrix_world)
     k_matrix = bridge.bproc.camera.get_intrinsics_as_K_matrix()
@@ -387,7 +386,7 @@ def generate_board_records(
         raw_mat = bridge.np.eye(4)
 
     norms = bridge.np.linalg.norm(raw_mat[:3, :3], axis=0)
-    
+
     # Calculate user-applied scale by comparing current scale to canonical shape scale
     canonical_sx = spec_init.board_width / 2.0
     canonical_sy = spec_init.board_height / 2.0
@@ -395,7 +394,7 @@ def generate_board_records(
     if canonical_sx > 1e-6 and canonical_sy > 1e-6:
         user_scale_x = norms[0] / canonical_sx
         user_scale_y = norms[1] / canonical_sy
-        
+
         # Fiducial boards can be rectangular, but the USER scale applied to them MUST be uniform
         # to prevent square markers from becoming rectangles.
         if not bridge.np.isclose(user_scale_x, user_scale_y, rtol=1e-2):
@@ -424,7 +423,7 @@ def generate_board_records(
         layout, spec, board_info = _parse_board_config_and_layout(config)
     else:
         layout, spec, board_info = layout_init, spec_init, info_init
-        
+
     b_type, rows, cols, marker_size, dictionary = board_info
 
     # 2. Get Transformation (NOW RIGID/SANITIZED)
