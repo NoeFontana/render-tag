@@ -5,9 +5,12 @@ No Blender dependencies.
 
 from __future__ import annotations
 
+import logging
 import numpy as np
 
 from render_tag.generation.math import Matrix3x3, Matrix4x4, Vector3
+
+logger = logging.getLogger(__name__)
 
 
 def calculate_distance(point1: Vector3, point2: Vector3) -> float:
@@ -121,9 +124,7 @@ def sanitize_to_rigid_transform(
     # 1. Translation Extraction (unaffected by local scaling)
     res[:3, 3] = m[:3, 3]
 
-    # 2. Rotation Orthogonalization
-    # Extract the 3x3 block and normalize each column vector by its Euclidean norm.
-    # This restores the matrix to the SO(3) pure rotation group.
+    # 2. Extract and Validate Scale
     rot_block = m[:3, :3].copy()
     norms = np.linalg.norm(rot_block, axis=0)
 
@@ -134,6 +135,18 @@ def sanitize_to_rigid_transform(
     if num_valid < 2:
         raise ValueError("Matrix has 2 or more degenerate axes; orientation is undefined.")
 
+    # Validate Planar Scale Uniformity (X vs Y)
+    # If X and Y scales diverge significantly, our geometric invariants (square tags) break.
+    if num_valid >= 2 and mask[0] and mask[1]:
+        scale_ratio = norms[0] / norms[1]
+        if scale_ratio > 1.1 or scale_ratio < 0.9:
+            logger.warning(
+                f"Non-uniform planar scale detected (X:{norms[0]:.3f} vs Y:{norms[1]:.3f}). "
+                "Fiducial annotations assume uniform scaling. "
+                "Bounding box and pose invariants may drift from visual ground truth."
+            )
+
+    # 3. Rotation Orthogonalization
     rot_block[:, mask] /= norms[mask]
 
     if num_valid == 2:
@@ -146,6 +159,16 @@ def sanitize_to_rigid_transform(
             rot_block[:, 1] = np.cross(rot_block[:, 2], rot_block[:, 0])
         else:
             rot_block[:, 2] = np.cross(rot_block[:, 0], rot_block[:, 1])
+
+    # Validate Orthogonality (Lack of Shear)
+    # The normalized matrix should now be orthogonal (R^T @ R = I)
+    ortho_check = rot_block.T @ rot_block
+    if not np.allclose(ortho_check, np.eye(3), atol=1e-2):
+        logger.warning(
+            "Matrix contains shear or non-orthogonal transformations. "
+            "Rigid extraction cannot safely recover the true SE(3) pose and "
+            "annotations will deviate from the visual mesh."
+        )
 
     is_mirrored = False
     if np.linalg.det(rot_block) < 0.0:
