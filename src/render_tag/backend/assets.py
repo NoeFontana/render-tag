@@ -105,7 +105,7 @@ class AssetPool:
             # Reset parent if any
             obj.blender_obj.parent = None
             # Clear custom properties to avoid metadata leak
-            keys = [k for k in obj.blender_obj if not k.startswith("_")]
+            keys = [k for k in obj.blender_obj.keys() if not k.startswith("_")]  # noqa: SIM118
             for k in keys:
                 del obj.blender_obj[k]
 
