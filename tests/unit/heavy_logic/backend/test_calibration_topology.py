@@ -116,9 +116,10 @@ def test_charuco_indexing_layout(mock_bridge):
     records = generate_board_records(mock_obj, "test_img")
     board_records = [r for r in records if r.record_type == "BOARD"]
     assert len(board_records) == 1
-    
+
     saddle_records = board_records[0].keypoints
 
+    assert saddle_records is not None
     # There should be (3-1)*(3-1) = 4 saddle points
     assert len(saddle_records) == 4
 
