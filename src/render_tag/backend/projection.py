@@ -388,19 +388,19 @@ def generate_board_records(
     norms = bridge.np.linalg.norm(raw_mat[:3, :3], axis=0)
 
     # Calculate user-applied scale by comparing current scale to canonical shape scale
-    # Staff Engineer: The Blender mesh is created from a 2x2 plane (-1 to 1) 
-    # and scaled by (width/2, height/2). persist_transformation_into_mesh() 
+    # Staff Engineer: The Blender mesh is created from a 2x2 plane (-1 to 1)
+    # and scaled by (width/2, height/2). persist_transformation_into_mesh()
     # bakes this in, meaning the vertices now literally span [-width/2, width/2].
     # Thus, the base 'canonical' scale of the resulting object is (1.0, 1.0, 1.0).
     # Any user-applied scale in the ObjectRecipe will appear directly in the norms.
     canonical_sx = spec_init.board_width / 2.0
     canonical_sy = spec_init.board_height / 2.0
 
-    # If the generator uses Object-Level scaling (scale=[w/2, h/2]) INSTEAD of 
+    # If the generator uses Object-Level scaling (scale=[w/2, h/2]) INSTEAD of
     # bakes, we must detect which mode is active.
     # Case A: Local vertices are [-1, 1], Matrix Scale is [w/2, h/2].
     # Case B: Local vertices are [-w/2, w/2], Matrix Scale is [1, 1].
-    
+
     # We check if the norms are closer to 1.0 or the canonical half-dims.
     if bridge.np.isclose(norms[0], canonical_sx, rtol=1e-2):
         # Case A: Matrix Scale contains the board dimensions
