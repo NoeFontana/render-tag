@@ -388,23 +388,21 @@ def generate_board_records(
     norms = bridge.np.linalg.norm(raw_mat[:3, :3], axis=0)
 
     # Calculate user-applied scale by comparing current scale to canonical shape scale
-    canonical_sx = spec_init.board_width / 2.0
-    canonical_sy = spec_init.board_height / 2.0
+    # Since create_board_plane uses persist_transformation_into_mesh(), the base object
+    # scale is (1.0, 1.0, 1.0) and exactly matches the physical dimensions.
+    # Therefore, the norms of the matrix directly represent any additional scaling
+    # the user applied after creation.
+    user_scale_x = norms[0]
+    user_scale_y = norms[1]
 
-    if canonical_sx > 1e-6 and canonical_sy > 1e-6:
-        user_scale_x = norms[0] / canonical_sx
-        user_scale_y = norms[1] / canonical_sy
-
-        # Fiducial boards can be rectangular, but the USER scale applied to them MUST be uniform
-        # to prevent square markers from becoming rectangles.
-        if not bridge.np.isclose(user_scale_x, user_scale_y, rtol=1e-2):
-            raise ValueError(
-                f"Fiducial BOARDs cannot be stretched non-uniformly. "
-                f"Detected user scale X:{user_scale_x:.3f} vs Y:{user_scale_y:.3f}."
-            )
-        user_scale = float(user_scale_x)
-    else:
-        user_scale = 1.0
+    # Fiducial boards can be rectangular, but the USER scale applied to them MUST be uniform
+    # to prevent square markers from becoming rectangles.
+    if not bridge.np.isclose(user_scale_x, user_scale_y, rtol=1e-2):
+        raise ValueError(
+            f"Fiducial BOARDs cannot be stretched non-uniformly. "
+            f"Detected user scale X:{user_scale_x:.3f} vs Y:{user_scale_y:.3f}."
+        )
+    user_scale = float(user_scale_x)
 
     if not bridge.np.isclose(user_scale, 1.0, rtol=1e-4):
         if hasattr(config, "model_copy"):
