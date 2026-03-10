@@ -39,23 +39,45 @@ class AssetPool:
     """Manages a pool of Blender objects to avoid creation/deletion overhead."""
 
     def __init__(self):
-        self._tag_pool: list[Any] = []
-        self._active_count = 0
+        self._mesh_pool: list[Any] = []
+        self._light_pool: list[Any] = []
+        self._mesh_active_count = 0
+        self._light_active_count = 0
         self._bg_plane: Any | None = None
 
-    def get_tag(self) -> Any:
-        """Get an available tag plane from the pool or create a new one."""
-        if self._active_count < len(self._tag_pool):
-            obj = self._tag_pool[self._active_count]
-            obj.blender_obj.hide_render = False
-            obj.blender_obj.hide_viewport = False
-        else:
-            # Create a new plane primitive
-            obj = bridge.bproc.object.create_primitive("PLANE")
-            self._tag_pool.append(obj)
+    def get_mesh_object(self, shape: str = "PLANE") -> Any:
+        """Get an available mesh object from the pool or create a new one."""
+        # For now, we only pool PLANEs as they are the most common
+        if shape == "PLANE":
+            if self._mesh_active_count < len(self._mesh_pool):
+                obj = self._mesh_pool[self._mesh_active_count]
+                obj.blender_obj.hide_render = False
+                obj.blender_obj.hide_viewport = False
+            else:
+                obj = bridge.bproc.object.create_primitive("PLANE")
+                self._mesh_pool.append(obj)
+            self._mesh_active_count += 1
+            return obj
 
-        self._active_count += 1
-        return obj
+        # Non-pooled fallback
+        return bridge.bproc.object.create_primitive(shape)
+
+    def get_light(self) -> Any:
+        """Get an available light from the pool or create a new one."""
+        if self._light_active_count < len(self._light_pool):
+            light = self._light_pool[self._light_active_count]
+            # Lights don't have hide_render in bproc types usually,
+            # we rely on setting energy to > 0 later
+        else:
+            light = bridge.bproc.types.Light()
+            self._light_pool.append(light)
+
+        self._light_active_count += 1
+        return light
+
+    def get_tag(self) -> Any:
+        """Legacy alias for get_mesh_object('PLANE')."""
+        return self.get_mesh_object("PLANE")
 
     def get_background_plane(self) -> Any:
         """Get or create the singleton background plane."""
@@ -73,7 +95,8 @@ class AssetPool:
 
     def release_all(self):
         """Reset the pool, hiding all objects for the next scene."""
-        for obj in self._tag_pool:
+        # Release generic mesh objects (TAG, BOARD, etc.)
+        for obj in self._mesh_pool:
             obj.blender_obj.hide_render = True
             obj.blender_obj.hide_viewport = True
             # Reset transforms to avoid state leak
@@ -81,12 +104,21 @@ class AssetPool:
             obj.set_scale([1, 1, 1])
             # Reset parent if any
             obj.blender_obj.parent = None
+            # Clear custom properties to avoid metadata leak
+            keys = [k for k in obj.blender_obj.keys() if not k.startswith("_")]  # noqa: SIM118
+            for k in keys:
+                del obj.blender_obj[k]
+
+        # Release lights (set energy to 0 to "hide" them)
+        for light in self._light_pool:
+            light.set_energy(0.0)
 
         if self._bg_plane:
             self._bg_plane.blender_obj.hide_render = True
             self._bg_plane.blender_obj.hide_viewport = True
 
-        self._active_count = 0
+        self._mesh_active_count = 0
+        self._light_active_count = 0
 
 
 # Global singleton for the backend session
@@ -272,19 +304,10 @@ def get_corner_world_coords(tag_obj: Any) -> list[list[float]]:
 
     if not corners_local:
         # Fallback: use default corners in local space.
-        # We distinguish between Unit Planes (TAG) and Physical Planes (BOARD).
-        obj_type = tag_obj.blender_obj.get("type", "TAG")
-
-        if obj_type == "BOARD":
-            # Persisted board: dimensions reflect the physical size in meters.
-            # Local space is already in meters, so we use dimensions/2.
-            size_x, size_y = tag_obj.blender_obj.dimensions[:2]
-            hx, hy = size_x / 2.0, size_y / 2.0
-            corners_local = [[-hx, hy, 0.0], [hx, hy, 0.0], [hx, -hy, 0.0], [-hx, -hy, 0.0]]
-        else:
-            # Unit plane (TAG): world_matrix handles the local-to-world conversion
-            # including scale, so we use normalized local corners here.
-            corners_local = [list(c) for c in CORNER_ORDER]
+        # Since both TAG and BOARD are essentially Unit Planes (2x2 base mesh)
+        # the world_matrix handles the local-to-world conversion including scale,
+        # so we use normalized local corners here.
+        corners_local = [list(c) for c in CORNER_ORDER]
     world_matrix = tag_obj.get_local2world_mat()
     corners_world = []
     for corner in corners_local:

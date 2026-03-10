@@ -208,6 +208,7 @@ class RenderFacade:
             scale = obj_recipe.get("scale", [1, 1, 1])
             texture_path = obj_recipe.get("texture_path")
             keypoints_3d = obj_recipe.get("keypoints_3d")
+            calibration_points_3d = obj_recipe.get("calibration_points_3d")
             forward_axis = obj_recipe.get("forward_axis")
 
             if obj_type == "TAG":
@@ -282,6 +283,8 @@ class RenderFacade:
 
                 if keypoints_3d:
                     board_obj.blender_obj["keypoints_3d"] = keypoints_3d
+                if calibration_points_3d:
+                    board_obj.blender_obj["calibration_points_3d"] = calibration_points_3d
                 if forward_axis:
                     board_obj.blender_obj["forward_axis"] = forward_axis
 
@@ -368,7 +371,7 @@ def execute_recipe(
     # 3. Render Cameras and Save Data
     for cam_idx, cam_recipe in enumerate(cam_recipes):
         coco_img_id, image_name = _render_camera_and_save(
-            renderer, cam_idx, cam_recipe, recipe, ctx, scene_logger, provenance, res
+            renderer, cam_idx, cam_recipe, recipe_dict, ctx, scene_logger, provenance, res
         )
 
         _extract_and_save_ground_truth(

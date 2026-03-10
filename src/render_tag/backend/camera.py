@@ -62,8 +62,8 @@ def setup_sensor_dynamics(
         return
 
     velocity = dynamics_recipe.get("velocity")
-    shutter_time_ms = dynamics_recipe.get("shutter_time_ms", 0.0)
-    rolling_shutter_ms = dynamics_recipe.get("rolling_shutter_duration_ms", 0.0)
+    shutter_time_ms = dynamics_recipe.get("shutter_time_ms") or 0.0
+    rolling_shutter_ms = dynamics_recipe.get("rolling_shutter_duration_ms") or 0.0
 
     # 1. Handle Motion Blur (Keyframing)
     if velocity and shutter_time_ms > 0:

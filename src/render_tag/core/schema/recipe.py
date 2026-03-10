@@ -87,6 +87,10 @@ class ObjectRecipe(BaseModel):
     keypoints_3d: list[list[float]] | None = Field(
         default=None, description="Standardized 3D keypoints [x, y, z] in local object space"
     )
+    calibration_points_3d: list[list[float]] | None = Field(
+        default=None,
+        description="Optional grid of points (e.g., ChArUco saddle points) in local object space",
+    )
 
 
 class LightRecipe(BaseModel):
