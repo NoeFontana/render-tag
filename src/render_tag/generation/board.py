@@ -153,18 +153,18 @@ def compute_charuco_layout(
         raise ValueError(f"Expected {spec.white_square_count} tag IDs, got {len(tag_ids)}")
 
     # Calculate starting position (center of top-left cell)
-    # CV-Standard: Row 0 is at the top (-Y in Blender local if Y is down, Y increases as rows do)
-    # Actually: Origin is top-left, Y increases down.
-    # We want the mathematical layout to conform to CV standard (Y increases downwards).
+    # CV-Standard: Origin is top-left, Y increases downwards in CV space.
+    # In Blender local space (Y is up), Top-Left is (min X, max Y).
+    # We start at max Y and move downwards (-Y).
     start_x = center[0] - spec.board_width / 2 + spec.square_size / 2
-    start_y = center[1] - spec.board_height / 2 + spec.square_size / 2
+    start_y = center[1] + spec.board_height / 2 - spec.square_size / 2
 
     tag_counter = 0
 
     for row in range(spec.rows):
         for col in range(spec.cols):
             x = start_x + col * spec.square_size
-            y = start_y + row * spec.square_size
+            y = start_y - row * spec.square_size
             z = center[2]
 
             # In standard ChArUco: (row+col) % 2 == 0 are white squares
@@ -229,16 +229,17 @@ def compute_aprilgrid_layout(
         raise ValueError(f"Expected {spec.rows * spec.cols} tag IDs, got {len(tag_ids)}")
 
     # Calculate starting position (center of top-left cell)
-    # CV-Standard: Row 0 is at the top (-Y in Blender local, increases down)
+    # CV-Standard: Origin is top-left, Y increases downwards in CV space.
+    # In Blender local space (Y is up), Top-Left is (min X, max Y).
     start_x = center[0] - spec.board_width / 2 + spec.square_size / 2
-    start_y = center[1] - spec.board_height / 2 + spec.square_size / 2
+    start_y = center[1] + spec.board_height / 2 - spec.square_size / 2
 
     # All cells have tags in AprilGrid
     tag_counter = 0
     for row in range(spec.rows):
         for col in range(spec.cols):
             x = start_x + col * spec.square_size
-            y = start_y + row * spec.square_size
+            y = start_y - row * spec.square_size
             z = center[2]
 
             current_id = tag_ids[tag_counter] if tag_ids is not None else tag_counter

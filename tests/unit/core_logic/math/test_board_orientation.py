@@ -36,8 +36,8 @@ class TestBoardOrientation:
         y0 = row0_squares[0].center.y
         y1 = row1_squares[0].center.y
 
-        # CURRENTLY PASSES: y0 (-0.05) < y1 (0.05) because Y_DOWN means Y increases for lower rows
-        assert y0 < y1, f"Row 0 Y ({y0}) should be < Row 1 Y ({y1})"
+        # Y decreases for lower rows in Blender space
+        assert y0 > y1, f"Row 0 Y ({y0}) should be > Row 1 Y ({y1})"
 
     @pytest.mark.parametrize("board_type", [BoardType.CHARUCO, BoardType.APRILGRID])
     def test_col_0_is_left_of_col_1(self, board_type: BoardType):

@@ -26,13 +26,17 @@ def test_reflected_board_matrix_preservation(mock_bridge):
     mock_obj.get_local2world_mat.return_value = world_matrix
     mock_obj.get_location.return_value = np.array([0, 0, 0])
 
+    mock_spec = MagicMock()
+    mock_spec.board_width = 1.0
+    mock_spec.board_height = 1.0
+
     with (
         patch("render_tag.backend.projection.get_world_normal"),
         patch("render_tag.backend.projection.calculate_distance"),
         patch("render_tag.backend.projection.calculate_angle_of_incidence"),
         patch("render_tag.backend.projection.calculate_relative_pose"),
     ):
-        res_matrix, _, _, _, meta = _get_scene_transformations(mock_obj)
+        res_matrix, _, _, _, meta = _get_scene_transformations(mock_obj, mock_spec)
         is_mirrored = meta[-1]
 
         # VERIFY: The matrix should be sanitized to SO(3) (det=1), and is_mirrored should be True

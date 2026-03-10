@@ -30,6 +30,10 @@ def test_get_scene_transformations_no_drift(mock_bridge):
     mock_obj.get_local2world_mat.return_value = world_matrix
     mock_obj.get_location.return_value = [1, 2, 3]
 
+    mock_spec = MagicMock()
+    mock_spec.board_width = 1.0
+    mock_spec.board_height = 1.0
+
     # We need to mock get_world_normal and other helpers if they are called
     with (
         patch("render_tag.backend.projection.get_world_normal") as mock_normal,
@@ -43,8 +47,7 @@ def test_get_scene_transformations_no_drift(mock_bridge):
         mock_pose.return_value = {}
 
         # ACT
-        rigid_matrix, _, _, _, _ = _get_scene_transformations(mock_obj)
-
+        rigid_matrix, _, _, _, _ = _get_scene_transformations(mock_obj, mock_spec)
         # VERIFY
         # The rigid_matrix should match the world_matrix exactly (since scale was 1)
         np.testing.assert_array_almost_equal(rigid_matrix, world_matrix)

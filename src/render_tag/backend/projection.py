@@ -248,7 +248,16 @@ def generate_subject_records(
     distance = calculate_distance(obj_location, cam_location)
     world_normal = get_world_normal(world_matrix)
     angle_deg = calculate_angle_of_incidence(obj_location, world_normal, cam_location)
-    pose = calculate_relative_pose(world_matrix, blender_cam_mat)
+
+    # OpenCV 4.6.0 Convention: Pose is anchored at the Top-Left corner (Index 0).
+    pose_world_matrix = world_matrix.copy()
+    if keypoints_3d and len(keypoints_3d) > 0:
+        tl_local = bridge.np.array(keypoints_3d[0]) * norms[: len(keypoints_3d[0])]
+        tl_offset = bridge.np.eye(4)
+        tl_offset[:3, 3] = tl_local[:3] if len(tl_local) >= 3 else [tl_local[0], tl_local[1], 0.0]
+        pose_world_matrix = world_matrix @ tl_offset
+
+    pose = calculate_relative_pose(pose_world_matrix, blender_cam_mat)
 
     # Physics Metadata
     physics = _extract_physics(cam_recipe)
@@ -440,8 +449,8 @@ def generate_board_records(
 
     b_type, rows, cols, marker_size, dictionary = board_info
 
-    # 2. Get Transformation (NOW RIGID/SANITIZED)
-    transform_data = _get_scene_transformations(board_obj, cam_recipe=cam_recipe)
+    # 2. Get Transformation (NOW RIGID/SANITIZED and anchored Top-Left)
+    transform_data = _get_scene_transformations(board_obj, spec, cam_recipe=cam_recipe)
     world_matrix, blender_cam_mat, k_matrix, res, meta = transform_data
     records = []
 
@@ -595,6 +604,7 @@ def _parse_board_config_and_layout(
 
 def _get_scene_transformations(
     board_obj: Any,
+    spec: BoardSpec,
     cam_recipe: dict[str, Any] | None = None,
 ) -> tuple[
     bridge.np.ndarray,
@@ -621,7 +631,15 @@ def _get_scene_transformations(
     distance = calculate_distance(board_location, cam_location)
     world_normal = get_world_normal(world_matrix)
     angle_deg = calculate_angle_of_incidence(board_location, world_normal, cam_location)
-    pose = calculate_relative_pose(world_matrix, blender_cam_mat)
+
+    # Shift pose matrix to Top-Left corner for OpenCV 4.6.0 compliance
+    # In Blender local space, Top-Left is (-width/2, height/2)
+    tl_offset = bridge.np.eye(4)
+    tl_offset[0, 3] = -spec.board_width / 2.0
+    tl_offset[1, 3] = spec.board_height / 2.0
+    pose_matrix = world_matrix @ tl_offset
+
+    pose = calculate_relative_pose(pose_matrix, blender_cam_mat)
     k_list = k_matrix.tolist() if hasattr(k_matrix, "tolist") else k_matrix
 
     # Physics Metadata
@@ -691,7 +709,12 @@ def _process_board_tags(
             continue
 
         # 3. Calculate Independent Metadata
-        tag_pose = calculate_relative_pose(tag_world_matrix, blender_cam_mat)
+        # Shift tag's pose matrix to its Top-Left corner for OpenCV 4.6.0 compliance
+        tl_offset = bridge.np.eye(4)
+        tl_offset[0, 3] = -m
+        tl_offset[1, 3] = m
+        tag_pose_matrix = tag_world_matrix @ tl_offset
+        tag_pose = calculate_relative_pose(tag_pose_matrix, blender_cam_mat)
 
         records.append(
             DetectionRecord(
