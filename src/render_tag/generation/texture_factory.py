@@ -112,10 +112,11 @@ class TextureFactory:
                         border_bits=1,
                     )
                     if tag_img is not None:
+                        tag_h, tag_w = tag_img.shape[:2]
                         # Center tag in square
-                        dy = (y1 - y0 - marker_px) // 2
-                        dx = (x1 - x0 - marker_px) // 2
-                        img[y0 + dy : y0 + dy + marker_px, x0 + dx : x0 + dx + marker_px] = tag_img
+                        dy = (y1 - y0 - tag_h) // 2
+                        dx = (x1 - x0 - tag_w) // 2
+                        img[y0 + dy : y0 + dy + tag_h, x0 + dx : x0 + dx + tag_w] = tag_img
                     tag_id += 1
 
     def _draw_aprilgrid(self, img: np.ndarray, config: BoardConfig, square_px: int, marker_px: int):
@@ -139,7 +140,6 @@ class TextureFactory:
                 y1 = (r + 1) * square_px if r < rows - 1 else img.shape[0]
                 x1 = (c + 1) * square_px if c < cols - 1 else img.shape[1]
 
-                # Draw tag
                 tag_img = generate_tag_image(
                     family=config.dictionary,
                     tag_id=tag_id,
@@ -147,9 +147,10 @@ class TextureFactory:
                     border_bits=1,
                 )
                 if tag_img is not None:
-                    dy = (y1 - y0 - marker_px) // 2
-                    dx = (x1 - x0 - marker_px) // 2
-                    img[y0 + dy : y0 + dy + marker_px, x0 + dx : x0 + dx + marker_px] = tag_img
+                    tag_h, tag_w = tag_img.shape[:2]
+                    dy = (y1 - y0 - tag_h) // 2
+                    dx = (x1 - x0 - tag_w) // 2
+                    img[y0 + dy : y0 + dy + tag_h, x0 + dx : x0 + dx + tag_w] = tag_img
                 tag_id += 1
 
         # Draw black corner squares (AprilGrid characteristic)
