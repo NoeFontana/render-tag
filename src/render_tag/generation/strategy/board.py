@@ -126,14 +126,19 @@ class BoardStrategy(SubjectStrategy):
 
         keypoints_3d = []
         # 1. Tag corners (standardized order)
-        m = marker_size / 2.0
+        # Normalize keypoints so that they are in the range [-1, 1] relative to the 2x2 base mesh.
+        # The object's transform_matrix will scale them back to physical meters.
         for pos in layout.tag_positions:
+            nx = pos.x / (width_m / 2.0)
+            ny = pos.y / (height_m / 2.0)
+            nmx = (marker_size / 2.0) / (width_m / 2.0)
+            nmy = (marker_size / 2.0) / (height_m / 2.0)
             keypoints_3d.extend(
                 [
-                    [pos.x - m, pos.y + m, 0.0],
-                    [pos.x + m, pos.y + m, 0.0],
-                    [pos.x + m, pos.y - m, 0.0],
-                    [pos.x - m, pos.y - m, 0.0],
+                    [nx - nmx, ny + nmy, 0.0],
+                    [nx + nmx, ny + nmy, 0.0],
+                    [nx + nmx, ny - nmy, 0.0],
+                    [nx - nmx, ny - nmy, 0.0],
                 ]
             )
 

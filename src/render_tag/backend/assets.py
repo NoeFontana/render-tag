@@ -304,19 +304,10 @@ def get_corner_world_coords(tag_obj: Any) -> list[list[float]]:
 
     if not corners_local:
         # Fallback: use default corners in local space.
-        # We distinguish between Unit Planes (TAG) and Physical Planes (BOARD).
-        obj_type = tag_obj.blender_obj.get("type", "TAG")
-
-        if obj_type == "BOARD":
-            # Persisted board: dimensions reflect the physical size in meters.
-            # Local space is already in meters, so we use dimensions/2.
-            size_x, size_y = tag_obj.blender_obj.dimensions[:2]
-            hx, hy = size_x / 2.0, size_y / 2.0
-            corners_local = [[-hx, hy, 0.0], [hx, hy, 0.0], [hx, -hy, 0.0], [-hx, -hy, 0.0]]
-        else:
-            # Unit plane (TAG): world_matrix handles the local-to-world conversion
-            # including scale, so we use normalized local corners here.
-            corners_local = [list(c) for c in CORNER_ORDER]
+        # Since both TAG and BOARD are essentially Unit Planes (2x2 base mesh)
+        # the world_matrix handles the local-to-world conversion including scale,
+        # so we use normalized local corners here.
+        corners_local = [list(c) for c in CORNER_ORDER]
     world_matrix = tag_obj.get_local2world_mat()
     corners_world = []
     for corner in corners_local:

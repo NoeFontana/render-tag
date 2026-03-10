@@ -183,8 +183,8 @@ def create_board(
         # More clearance below layout (-0.005) to avoid z-fighting with tags/squares at 0 or near 0
         board.set_location([0, 0, -0.005])
 
+    # Set dimensions (PLANE is 2x2 by default)
     board.set_scale([board_width / 2, board_height / 2, 1])
-    board.persist_transformation_into_mesh()
 
     # Pure White Emission Material (fail-safe for high contrast)
     mat = _create_white_emission_material("BoardWhite")
@@ -224,7 +224,6 @@ def create_board_plane(
 
     # Set dimensions (PLANE is 2x2 by default)
     board.set_scale([width / 2, height / 2, 1])
-    board.persist_transformation_into_mesh()
 
     if location:
         board.set_location(location)
