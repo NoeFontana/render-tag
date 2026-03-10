@@ -247,13 +247,6 @@ class TestAprilGridLayout:
 
         assert len(layout.tag_positions) == 5 * 7
 
-    def test_aprilgrid_corner_count(self) -> None:
-        """Corner count should be (rows+1) * (cols+1)."""
-        spec = BoardSpec(rows=5, cols=7, square_size=0.05, board_type=BoardType.APRILGRID)
-        layout = compute_aprilgrid_layout(spec)
-
-        assert len(layout.corner_positions) == 6 * 8  # (5+1) * (7+1) = 48
-
     def test_aprilgrid_positions_form_regular_grid(self) -> None:
         """Tag positions should form a regular grid with uniform spacing."""
         spec = BoardSpec(rows=4, cols=4, square_size=0.1, board_type=BoardType.APRILGRID)

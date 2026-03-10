@@ -9,5 +9,5 @@ Verify static types to prevent runtime errors.
 1.  **Run Type Checker**
     Execute the type checking utility.
     ```bash
-    uv run ty
+    uv run ty check
     ```

@@ -48,16 +48,16 @@ def test_aprilgrid_layout_is_centered_at_origin():
     is_valid, msg = validate_board_is_centered(layout)
     assert is_valid, f"AprilGrid board should be centered at (0,0,0): {msg}"
 
-    # Check corner bounds
-    cxs = [p.x for p in layout.corner_positions]
-    cys = [p.y for p in layout.corner_positions]
+    # Check square bounds
+    sxs = [sq.center.x for sq in layout.squares]
+    sys = [sq.center.y for sq in layout.squares]
 
-    # Corners are at grid intersections. For 4 rows, 6 cols, width=0.6, height=0.4
-    # Corners should range from -0.3 to 0.3 in X, and -0.2 to 0.2 in Y
-    assert min(cxs) == pytest.approx(-0.3)
-    assert max(cxs) == pytest.approx(0.3)
-    assert min(cys) == pytest.approx(-0.2)
-    assert max(cys) == pytest.approx(0.2)
+    # For 4 rows, 6 cols of 0.1m squares, width=0.6, height=0.4
+    # Square centers should range from -0.25 to 0.25 in X, and -0.15 to 0.15 in Y
+    assert min(sxs) == pytest.approx(-0.25)
+    assert max(sxs) == pytest.approx(0.25)
+    assert min(sys) == pytest.approx(-0.15)
+    assert max(sys) == pytest.approx(0.15)
 
 
 def test_cv_space_y_down_invariant():

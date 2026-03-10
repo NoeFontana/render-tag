@@ -120,7 +120,7 @@ class DetectionRecord(BaseModel):
         return v
 
     # Calibration & Keypoint Support
-    record_type: str = Field(default="TAG", description="TAG, CHARUCO_SADDLE, or APRILGRID_CORNER")
+    record_type: str = Field(default="TAG", description="TAG, BOARD, or CHARUCO_SADDLE")
     keypoints: list[tuple[float, float]] | None = Field(
         default=None, description="Optional extra keypoints (e.g. saddle points)"
     )

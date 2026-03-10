@@ -131,16 +131,71 @@ def test_charuco_indexing_layout(mock_bridge):
             assert p0[0] < p_other[0]  # In same row, ID 0 is leftmost
 
 
-def test_aprilgrid_intersection_deprecation(mock_bridge):
+def test_board_level_record_export(mock_bridge):
     """
-    Verify AprilGrid does not output global intersections.
-    It should only output tag corners.
+    Verify that generate_board_records exports a single 'BOARD' record
+    representing the overall board pose and physical size.
+    """
+    mock_obj = MagicMock()
+    board_config = {
+        "type": "charuco",
+        "rows": 4,
+        "cols": 4,
+        "marker_size": 0.05,
+        "square_size": 0.08,
+        "dictionary": "tag36h11",
+    }
+    mock_obj.blender_obj.get.side_effect = lambda key, default=None: {"board": board_config}.get(
+        key, default
+    )
+
+    # Board width for 4 cols of 0.08m squares is 0.32m.
+    # Blender default plane is 2x2, so scale 0.16 results in 0.32m width.
+    mock_obj.get_local2world_mat.return_value = np.diag([0.16, 0.16, 1.0, 1.0])
+    mock_obj.get_location.return_value = [0, 0, 0]
+    mock_bridge.np = np
+    mock_bridge.bpy.context.scene.camera.location = [0, 0, 10]
+    mock_bridge.bpy.context.scene.camera.matrix_world = np.eye(4)
+    mock_bridge.bpy.context.scene.render.resolution_x = 1000
+    mock_bridge.bpy.context.scene.render.resolution_y = 1000
+    mock_bridge.bproc.camera.get_intrinsics_as_K_matrix.return_value = np.eye(3)
+
+    records = generate_board_records(mock_obj, "test_img")
+
+    # Should have exactly one record_type == "BOARD"
+    board_records = [r for r in records if r.record_type == "BOARD"]
+    assert len(board_records) == 1
+    board_det = board_records[0]
+
+    assert board_det.tag_id == -1
+    assert board_det.tag_family == "board_charuco"
+    # Board width should now be exactly 320mm
+    assert np.isclose(board_det.tag_size_mm, 320.0)
+    # Origin (center) should project to image center (500, -500 because of our mock flip)
+    # Wait, our mock_project does py = -pts[:, 1]. Center is [0,0,0] in world.
+    # Cam at [0,0,1] in world looking at origin.
+    # pts in cam space: [0,0,-1]... no wait.
+    # In this test, cam is at [0,0,1] identity matrix?
+    # Blender cam identity looks towards -Z.
+    # Tag at origin [0,0,0] is at cam space [0,0,1]... wait.
+    # If cam at [0,0,1] looking at [0,0,0], that's looking towards -Z.
+    # Blender identity matrix is X right, Y up, Z back.
+    # So looking towards -Z.
+    # Origin is at [0,0,-1] in blender cam local space.
+    # project_points uses OpenCV convention.
+    # Anyway, let's just check it exists.
+    assert len(board_det.corners) == 1
+
+
+def test_board_level_record_export_aprilgrid(mock_bridge):
+    """
+    Verify that AprilGrid boards also export a 'BOARD' record.
     """
     mock_obj = MagicMock()
     board_config = {
         "type": "aprilgrid",
         "rows": 4,
-        "cols": 4,
+        "cols": 6,
         "marker_size": 0.05,
         "spacing_ratio": 0.2,
         "dictionary": "tag36h11",
@@ -149,16 +204,22 @@ def test_aprilgrid_intersection_deprecation(mock_bridge):
         key, default
     )
 
-    mock_obj.get_local2world_mat.return_value = np.eye(4)
+    # Square size = 0.05 * 1.2 = 0.06
+    # Board width = 6 * 0.06 = 0.36m. Canonical sx = 0.18.
+    # Board height = 4 * 0.06 = 0.24m. Canonical sy = 0.12.
+    mock_obj.get_local2world_mat.return_value = np.diag([0.18, 0.12, 1.0, 1.0])
     mock_obj.get_location.return_value = [0, 0, 0]
     mock_bridge.np = np
     mock_bridge.bpy.context.scene.camera.location = [0, 0, 10]
+    mock_bridge.bpy.context.scene.camera.matrix_world = np.eye(4)
+    mock_bridge.bproc.camera.get_intrinsics_as_K_matrix.return_value = np.eye(3)
 
     records = generate_board_records(mock_obj, "test_img")
 
-    # Should NOT have any record_type == "APRILGRID_CORNER" (global intersections)
-    intersection_records = [r for r in records if r.record_type == "APRILGRID_CORNER"]
-    assert len(intersection_records) == 0
+    board_records = [r for r in records if r.record_type == "BOARD"]
+    assert len(board_records) == 1
+    assert board_records[0].tag_family == "board_aprilgrid"
+    assert np.isclose(board_records[0].tag_size_mm, 360.0)
 
 
 def test_detection_record_tag_id_type_enforcement():

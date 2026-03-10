@@ -86,16 +86,17 @@ def load_dataset_from_coco(dataset_dir: Path, name: str) -> fo.Dataset:
 
 def index_rich_truth(
     rich_truth_data: list[dict[str, Any]],
-) -> dict[tuple[str, int], dict[str, Any]]:
+) -> dict[tuple[str, int, str], dict[str, Any]]:
     """
-    Index rich truth data by (image_id, tag_id) for rapid lookup.
+    Index rich truth data by (image_id, tag_id, record_type) for rapid lookup.
     """
     index = {}
     for record in rich_truth_data:
         image_id = record.get("image_id")
         tag_id = record.get("tag_id")
+        record_type = record.get("record_type", "TAG")
         if image_id is not None and tag_id is not None:
-            index[(str(image_id), int(tag_id))] = record
+            index[(str(image_id), int(tag_id), str(record_type))] = record
     return index
 
 
@@ -115,6 +116,7 @@ def hydrate_detection(detection: fo.Detection, record: dict[str, Any]) -> None:
         "shutter_time_ms",
         "rolling_shutter_ms",
         "fstop",
+        "record_type",
     ]
     for field in fields:
         if field in record:
@@ -402,7 +404,15 @@ def visualize_fiftyone(
                     if tag_id is None and "tag_id" in det.attributes:
                         tag_id = det.attributes["tag_id"]
 
-                    record = rich_index.get((img_stem, tag_id))
+                    record_type = (
+                        det.get_field("record_type")
+                        if hasattr(det, "get_field")
+                        else det.get("record_type")
+                    )
+                    if record_type is None and "record_type" in det.attributes:
+                        record_type = det.attributes["record_type"]
+
+                    record = rich_index.get((img_stem, tag_id, record_type))
                     if record:
                         hydrate_detection(det, record)
 
@@ -451,6 +461,15 @@ def visualize_fiftyone(
             {"path": "axis_x", "colorByAttribute": "path", "fieldColor": "#FF0000"},
             {"path": "axis_y", "colorByAttribute": "path", "fieldColor": "#00FF00"},
             {"path": "axis_z", "colorByAttribute": "path", "fieldColor": "#0000FF"},
+            {
+                "path": "detections",
+                "colorByAttribute": "record_type",
+                "valueColors": [
+                    {"value": "TAG", "color": "#00FF00"},
+                    {"value": "BOARD", "color": "#FF00FF"},
+                    {"value": "CHARUCO_SADDLE", "color": "#00FFFF"},
+                ],
+            },
             {
                 "path": "corners",
                 "colorByAttribute": "label",
