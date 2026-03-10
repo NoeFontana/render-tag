@@ -30,7 +30,7 @@ def set_camera_intrinsics(camera_recipe: dict) -> None:
 
         fov = camera_recipe.get("fov", 60.0)
         fx = fy = res[0] / (2.0 * math.tan(math.radians(fov / 2.0)))
-        cx, cy = res[0] / 2.0, res[1] / 2.0
+        cx, cy = (res[0] - 1) / 2.0, (res[1] - 1) / 2.0
         k_matrix = [[float(fx), 0.0, float(cx)], [0.0, float(fy), float(cy)], [0.0, 0.0, 1.0]]
         logger.warning(f"No k_matrix found in recipe. Using fallback FOV={fov}")
 
