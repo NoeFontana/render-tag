@@ -88,8 +88,8 @@ class TestCameraConfig:
         k = config.get_k_matrix()
         assert k[0][0] == 500.0  # fx
         assert k[1][1] == 500.0  # fy
-        assert k[0][2] == 320.0  # cx (centered)
-        assert k[1][2] == 240.0  # cy (centered)
+        assert k[0][2] == 319.5  # cx (centered: (640-1)/2)
+        assert k[1][2] == 239.5  # cy (centered: (480-1)/2)
 
     def test_k_matrix_from_fov(self) -> None:
         config = CameraConfig(resolution=(640, 480), fov=90.0)

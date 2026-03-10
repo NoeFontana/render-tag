@@ -7,7 +7,8 @@ def test_generate_apriltag():
     """Verify that an AprilTag image can be generated."""
     img = generate_tag_image("tag36h11", 1, size_pixels=100)
     assert img is not None
-    assert img.shape == (100, 100)
+    # Size snaps to nearest multiple of grid_size (8): 100//8*8 = 96
+    assert img.shape == (96, 96)
     assert img.dtype == "uint8"
     # Check that it's not all one color
     assert len(set(img.flatten())) > 1
@@ -17,7 +18,8 @@ def test_generate_aruco():
     """Verify that an ArUco image can be generated."""
     img = generate_tag_image("DICT_4X4_50", 42, size_pixels=100)
     assert img is not None
-    assert img.shape == (100, 100)
+    # DICT_4X4 has grid_size=6, so 100//6*6 = 96
+    assert img.shape == (96, 96)
     # Check that it's not all one color
     assert len(set(img.flatten())) > 1
 

@@ -55,7 +55,8 @@ def generate_tag_image(
     Args:
         family: Tag family name (e.g., "tag36h11" or "DICT_4X4_50")
         tag_id: The marker ID to generate
-        size_pixels: Size of the final output image in pixels (square)
+        size_pixels: Approximate size of the final output image in pixels (square).
+            Snapped down to nearest multiple of total_bits for pixel-perfect alignment.
         border_bits: Thickness of the black border in bits
         margin_bits: Width of the white quiet zone in bits
 
@@ -71,8 +72,14 @@ def generate_tag_image(
     grid_size = TAG_GRID_SIZES.get(family, 8)
     total_bits = grid_size + (2 * margin_bits)
 
-    # 2. Calculate inner marker size in pixels
-    inner_size = int(size_pixels * (grid_size / total_bits))
+    # 2. Snap to exact multiple of total_bits for pixel-perfect module alignment.
+    # This ensures every module (including margin) occupies exactly the same
+    # number of pixels, eliminating centering truncation errors.
+    pixels_per_bit = size_pixels // total_bits
+    if pixels_per_bit < 1:
+        pixels_per_bit = 1
+    actual_size = pixels_per_bit * total_bits
+    inner_size = pixels_per_bit * grid_size
 
     # 3. Generate inner marker
     dictionary = cv2.aruco.getPredefinedDictionary(TAG_DICT_MAP[family])
@@ -81,10 +88,13 @@ def generate_tag_image(
     )
 
     # 4. Create final image with white margin
-    final_img = np.full((size_pixels, size_pixels), 255, dtype=np.uint8)
+    if margin_bits == 0:
+        return marker_img
 
-    # Center the marker
-    offset = (size_pixels - inner_size) // 2
+    final_img = np.full((actual_size, actual_size), 255, dtype=np.uint8)
+
+    # Center the marker (exact because both sizes are multiples of pixels_per_bit)
+    offset = pixels_per_bit * margin_bits
     final_img[offset : offset + inner_size, offset : offset + inner_size] = marker_img
 
     return final_img
