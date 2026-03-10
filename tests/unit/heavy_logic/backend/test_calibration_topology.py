@@ -76,21 +76,21 @@ def test_charuco_indexing_continuity(mock_bridge):
 
     records = generate_board_records(mock_obj, "test_img")
 
-    # Filter for saddle points
-    saddle_records = [r for r in records if r.record_type == "CHARUCO_SADDLE"]
+    # Find the BOARD record
+    board_records = [r for r in records if r.record_type == "BOARD"]
+    assert len(board_records) == 1
+    board_record = board_records[0]
 
-    assert len(saddle_records) == 9
-    ids = sorted([r.tag_id for r in saddle_records])
-
-    # Should be continuous 0 to 8
-    assert ids == list(range(9))
+    assert len(board_record.keypoints) == 9
+    # The IDs are implicitly their index in the keypoints list.
+    # No need to assert IDs themselves, just that 9 were generated.
 
 
 def test_charuco_indexing_layout(mock_bridge):
     """
     Verify row-major physical ordering for ChArUco.
-    ID 0 should be Top-Left physically (smallest X, smallest Y in OpenCV).
-    ID 1 should be directly to its right.
+    Index 0 should be Top-Left physically (smallest X, smallest Y in OpenCV).
+    Index 1 should be directly to its right.
     """
     mock_obj = MagicMock()
     board_config = {
@@ -114,15 +114,17 @@ def test_charuco_indexing_layout(mock_bridge):
     # the minimum X and minimum Y coordinates among all intersections.
 
     records = generate_board_records(mock_obj, "test_img")
-    saddle_records = {r.tag_id: r.corners[0] for r in records if r.record_type == "CHARUCO_SADDLE"}
+    board_records = [r for r in records if r.record_type == "BOARD"]
+    assert len(board_records) == 1
+    
+    saddle_records = board_records[0].keypoints
 
-    # ID 0 should exist if fixed
-    assert 0 in saddle_records
+    # There should be (3-1)*(3-1) = 4 saddle points
+    assert len(saddle_records) == 4
 
     p0 = saddle_records[0]
-    for other_id, p_other in saddle_records.items():
-        if other_id == 0:
-            continue
+    for other_id in range(1, len(saddle_records)):
+        p_other = saddle_records[other_id]
         # Row-major: scanning left-to-right, then top-to-bottom.
         # ID 0 is top-leftmost.
         # In Y-down, top means smaller Y. Left means smaller X.

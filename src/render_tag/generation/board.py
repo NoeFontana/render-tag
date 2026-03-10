@@ -119,6 +119,7 @@ class BoardLayout:
     spec: BoardSpec
     squares: list[SquareInfo] = field(default_factory=list)
     tag_positions: list[BoardPosition] = field(default_factory=list)
+    calibration_positions: list[BoardPosition] = field(default_factory=list)
     center: BoardPosition = field(default_factory=lambda: BoardPosition(0, 0, 0))
 
 
@@ -186,6 +187,13 @@ def compute_charuco_layout(
 
             if is_white:
                 layout.tag_positions.append(BoardPosition(x, y, z))
+
+            # Saddle points (internal corners)
+            # Add saddle point at bottom-right corner if not the last row/col
+            if row < spec.rows - 1 and col < spec.cols - 1:
+                sx = x + spec.square_size / 2
+                sy = y + spec.square_size / 2
+                layout.calibration_positions.append(BoardPosition(sx, sy, z))
 
     return layout
 

@@ -462,11 +462,52 @@ def generate_board_records(
     )
 
     # 4. Handle Extra Keypoints (Saddle Points / Corner Squares)
-    records.extend(
-        _process_board_keypoints(
-            b_type, rows, cols, spec, world_matrix, blender_cam_mat, res, k_matrix, image_id, meta
-        )
-    )
+    calibration_points_2d = []
+    calib_pts_3d = board_obj.blender_obj.get("calibration_points_3d")
+
+    if calib_pts_3d:
+        # Project normalized calibration points from the ObjectRecipe
+        for pt in calib_pts_3d:
+            # pt is [nx, ny, 0.0] normalized in [-1, 1] range.
+            # Convert to homogeneous and multiply by world matrix
+            local_homo = bridge.np.array([pt[0], pt[1], pt[2], 1.0])
+            world_homo = bridge.np.dot(world_matrix, local_homo)
+            world_pos = (
+                world_homo[:3] / world_homo[3] if abs(world_homo[3]) > 1e-6 else world_homo[:3]
+            )
+
+            pixel = project_points(
+                bridge.np.array([world_pos]),
+                blender_cam_mat,
+                res,
+                k_matrix.tolist() if hasattr(k_matrix, "tolist") else k_matrix,
+            )
+            if pixel is not None:
+                calibration_points_2d.append((float(pixel[0][0]), float(pixel[0][1])))
+    elif b_type == "charuco":
+        # Fallback for old recipes without calibration_points_3d
+        start_x = -spec.board_width / 2 + spec.square_size
+        start_y = spec.board_height / 2 - spec.square_size
+
+        for r in range(rows - 1):
+            for c in range(cols - 1):
+                x = start_x + c * spec.square_size
+                y = start_y - r * spec.square_size
+
+                local_mat = bridge.np.eye(4)
+                local_mat[0, 3] = x
+                local_mat[1, 3] = y
+                kp_world_matrix = world_matrix @ local_mat
+                kp_location = kp_world_matrix[:3, 3]
+
+                pixel = project_points(
+                    bridge.np.array([kp_location]),
+                    blender_cam_mat,
+                    res,
+                    k_matrix.tolist() if hasattr(k_matrix, "tolist") else k_matrix,
+                )
+                if pixel is not None:
+                    calibration_points_2d.append((float(pixel[0][0]), float(pixel[0][1])))
 
     # 5. Add Board-Level Metadata Record
     distance, angle_deg, board_pose, physics, _, _, is_mirrored = meta
@@ -482,6 +523,7 @@ def generate_board_records(
                 tag_id=-1,  # Special ID for board center
                 tag_family=f"board_{b_type}",
                 corners=[(float(board_center_pixel[0][0]), float(board_center_pixel[0][1]))],
+                keypoints=calibration_points_2d if calibration_points_2d else None,
                 record_type="BOARD",
                 distance=float(distance),
                 angle_of_incidence=float(angle_deg),
@@ -674,79 +716,4 @@ def _process_board_tags(
                 is_mirrored=is_mirrored,
             )
         )
-    return records
-
-
-def _process_board_keypoints(
-    b_type: str,
-    rows: int,
-    cols: int,
-    spec: BoardSpec,
-    world_matrix: bridge.np.ndarray,
-    blender_cam_mat: bridge.np.ndarray,
-    res: list[int],
-    k_matrix: bridge.np.ndarray,
-    image_id: str,
-    meta: tuple[
-        float, float, dict[str, Any], dict[str, Any], bridge.np.ndarray, bridge.np.ndarray, bool
-    ],
-) -> list[DetectionRecord]:
-    """Process extra keypoints (saddle points or corners) for specific board types."""
-    _, _, _, physics, cam_location, world_normal, is_mirrored = meta
-    records = []
-
-    if b_type == "charuco":
-        # Intersections (saddle points)
-        # For rows x cols squares, there are (rows-1) x (cols-1) intersections
-        start_x = -spec.board_width / 2 + spec.square_size
-        start_y = spec.board_height / 2 - spec.square_size
-
-        for r in range(rows - 1):
-            for c in range(cols - 1):
-                x = start_x + c * spec.square_size
-                y = start_y - r * spec.square_size
-
-                # 1. Compute Unique Saddle Transform
-                local_mat = bridge.np.eye(4)
-                local_mat[0, 3] = x
-                local_mat[1, 3] = y
-                kp_world_matrix = world_matrix @ local_mat
-                kp_location = kp_world_matrix[:3, 3]
-
-                # 2. Project this intersection
-                pixel = project_points(
-                    bridge.np.array([kp_location]),
-                    blender_cam_mat,
-                    res,
-                    k_matrix.tolist() if hasattr(k_matrix, "tolist") else k_matrix,
-                )
-                if pixel is None:
-                    continue
-
-                # 3. Calculate Independent Metadata
-                kp_pose = calculate_relative_pose(kp_world_matrix, blender_cam_mat)
-
-                records.append(
-                    DetectionRecord(
-                        image_id=image_id,
-                        tag_id=r * (cols - 1) + c,
-                        tag_family="charuco_saddle",
-                        corners=[(float(pixel[0][0]), float(pixel[0][1]))],
-                        record_type="CHARUCO_SADDLE",
-                        distance=float(calculate_distance(kp_location, cam_location)),
-                        angle_of_incidence=calculate_angle_of_incidence(
-                            kp_location, world_normal, cam_location
-                        ),
-                        position=kp_pose["position"],
-                        rotation_quaternion=kp_pose["rotation_quaternion"],
-                        tag_size_mm=0.0,  # Saddle points are 0D
-                        k_matrix=k_matrix,
-                        resolution=res,
-                        velocity=physics["velocity"],
-                        shutter_time_ms=physics["shutter_time_ms"],
-                        rolling_shutter_ms=physics["rolling_shutter_ms"],
-                        fstop=physics["fstop"],
-                        is_mirrored=is_mirrored,
-                    )
-                )
     return records

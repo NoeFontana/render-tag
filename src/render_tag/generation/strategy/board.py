@@ -142,6 +142,13 @@ class BoardStrategy(SubjectStrategy):
                 ]
             )
 
+        calibration_points_3d = []
+        # 2. Calibration points (saddle points)
+        for pos in layout.calibration_positions:
+            nx = pos.x / (width_m / 2.0)
+            ny = pos.y / (height_m / 2.0)
+            calibration_points_3d.append([nx, ny, 0.0])
+
         # Apply a small random offset to the board to avoid centering bias
         import numpy as np
 
@@ -165,5 +172,6 @@ class BoardStrategy(SubjectStrategy):
                 texture_path=self._texture_path,
                 board=self._board_config,
                 keypoints_3d=keypoints_3d,
+                calibration_points_3d=calibration_points_3d if calibration_points_3d else None,
             )
         ]
