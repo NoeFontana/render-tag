@@ -150,8 +150,8 @@ def test_board_level_record_export(mock_bridge):
     )
 
     # Board width for 4 cols of 0.08m squares is 0.32m.
-    # Blender default plane is 2x2, so scale 0.16 results in 0.32m width.
-    mock_obj.get_local2world_mat.return_value = np.diag([0.16, 0.16, 1.0, 1.0])
+    # The mesh has dimensions baked in, so local scale is 1.0.
+    mock_obj.get_local2world_mat.return_value = np.eye(4)
     mock_obj.get_location.return_value = [0, 0, 0]
     mock_bridge.np = np
     mock_bridge.bpy.context.scene.camera.location = [0, 0, 10]
@@ -205,9 +205,10 @@ def test_board_level_record_export_aprilgrid(mock_bridge):
     )
 
     # Square size = 0.05 * 1.2 = 0.06
-    # Board width = 6 * 0.06 = 0.36m. Canonical sx = 0.18.
-    # Board height = 4 * 0.06 = 0.24m. Canonical sy = 0.12.
-    mock_obj.get_local2world_mat.return_value = np.diag([0.18, 0.12, 1.0, 1.0])
+    # Board width = 6 * 0.06 = 0.36m.
+    # Board height = 4 * 0.06 = 0.24m.
+    # The mesh has dimensions baked in, so local scale is 1.0.
+    mock_obj.get_local2world_mat.return_value = np.eye(4)
     mock_obj.get_location.return_value = [0, 0, 0]
     mock_bridge.np = np
     mock_bridge.bpy.context.scene.camera.location = [0, 0, 10]
@@ -263,12 +264,13 @@ def test_board_scale_independence(mock_bridge):
         key, default
     )
 
-    # Simulate a Blender object that has a 0.1 scale and a simple translation
+    # Simulate a Blender object that has a 0.5 uniform scale and a simple translation
+    # (The canonical shape is already baked into the mesh)
     scaled_world_matrix = np.array(
         [
-            [0.1, 0.0, 0.0, 1.0],
-            [0.0, 0.1, 0.0, 2.0],
-            [0.0, 0.0, 0.1, 3.0],
+            [0.5, 0.0, 0.0, 1.0],
+            [0.0, 0.5, 0.0, 2.0],
+            [0.0, 0.0, 0.5, 3.0],
             [0.0, 0.0, 0.0, 1.0],
         ]
     )
@@ -303,17 +305,14 @@ def test_board_scale_independence(mock_bridge):
     assert len(tag_records) == 2
 
     # The projected_pts passed to project_points should have standard physical size
-    # Width of the marker in 3D without the 0.1 object scale should be 0.1m.
+    # Width of the marker in 3D without the 0.5 user scale should be 0.1m.
     # We check the world width (distance between TL and TR).
     assert len(projected_pts) >= 4
     # The first 4 points should be the corners of the single tag
     tl, tr, _, _ = projected_pts[:4]
 
-    # With the new canonical scaling logic:
-    # A 2x2 board with square=0.2 has canonical width 0.4m.
-    # The default Plane in Blender is 2x2 units, so canonical_sx = 0.4 / 2.0 = 0.2.
-    # The mock matrix has absolute scale X=0.1.
-    # Therefore user_scale = 0.1 / 0.2 = 0.5.
+    # With the new scaling logic:
+    # User applied a 0.5x uniform scale on top of the baked physical dimensions.
     # The original marker_size of 0.1m is scaled by 0.5 -> 0.05m.
     diff = np.array(tr) - np.array(tl)
     width_3d = np.linalg.norm(diff)

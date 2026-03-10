@@ -388,23 +388,37 @@ def generate_board_records(
     norms = bridge.np.linalg.norm(raw_mat[:3, :3], axis=0)
 
     # Calculate user-applied scale by comparing current scale to canonical shape scale
+    # Staff Engineer: The Blender mesh is created from a 2x2 plane (-1 to 1)
+    # and scaled by (width/2, height/2). persist_transformation_into_mesh()
+    # bakes this in, meaning the vertices now literally span [-width/2, width/2].
+    # Thus, the base 'canonical' scale of the resulting object is (1.0, 1.0, 1.0).
+    # Any user-applied scale in the ObjectRecipe will appear directly in the norms.
     canonical_sx = spec_init.board_width / 2.0
     canonical_sy = spec_init.board_height / 2.0
 
-    if canonical_sx > 1e-6 and canonical_sy > 1e-6:
+    # If the generator uses Object-Level scaling (scale=[w/2, h/2]) INSTEAD of
+    # bakes, we must detect which mode is active.
+    # Case A: Local vertices are [-1, 1], Matrix Scale is [w/2, h/2].
+    # Case B: Local vertices are [-w/2, w/2], Matrix Scale is [1, 1].
+
+    # We check if the norms are closer to 1.0 or the canonical half-dims.
+    if bridge.np.isclose(norms[0], canonical_sx, rtol=1e-2):
+        # Case A: Matrix Scale contains the board dimensions
         user_scale_x = norms[0] / canonical_sx
         user_scale_y = norms[1] / canonical_sy
-
-        # Fiducial boards can be rectangular, but the USER scale applied to them MUST be uniform
-        # to prevent square markers from becoming rectangles.
-        if not bridge.np.isclose(user_scale_x, user_scale_y, rtol=1e-2):
-            raise ValueError(
-                f"Fiducial BOARDs cannot be stretched non-uniformly. "
-                f"Detected user scale X:{user_scale_x:.3f} vs Y:{user_scale_y:.3f}."
-            )
-        user_scale = float(user_scale_x)
     else:
-        user_scale = 1.0
+        # Case B: Matrix Scale is pure user-applied scale (mesh is baked)
+        user_scale_x = norms[0]
+        user_scale_y = norms[1]
+
+    # Fiducial boards can be rectangular, but the USER scale applied to them MUST be uniform
+    # to prevent square markers from becoming rectangles.
+    if not bridge.np.isclose(user_scale_x, user_scale_y, rtol=1e-2):
+        raise ValueError(
+            f"Fiducial BOARDs cannot be stretched non-uniformly. "
+            f"Detected user scale X:{user_scale_x:.3f} vs Y:{user_scale_y:.3f}."
+        )
+    user_scale = float(user_scale_x)
 
     if not bridge.np.isclose(user_scale, 1.0, rtol=1e-4):
         if hasattr(config, "model_copy"):

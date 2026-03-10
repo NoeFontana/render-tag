@@ -214,9 +214,7 @@ class COCOWriter(AtomicWriter):
 
             bbox = [min_x, min_y, max_x - min_x, max_y - min_y]
             area = (max_x - min_x) * (max_y - min_y)
-            segmentation = []
-            for c in corners:
-                segmentation.extend([c[0], c[1]])
+            segmentation = []  # COCO polygons require >= 3 points
         else:
             # Standard Polygon Path
             # 1. Use pure-Python utility for bbox
@@ -280,7 +278,7 @@ class COCOWriter(AtomicWriter):
                 "id": annotation_id,
                 "image_id": image_id,
                 "category_id": category_id,
-                "segmentation": [segmentation],
+                "segmentation": [segmentation] if segmentation else [],
                 "bbox": bbox,
                 "area": area,
                 "keypoints": keypoints,
