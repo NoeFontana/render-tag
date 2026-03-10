@@ -6,7 +6,7 @@ from render_tag.viz.fiftyone_tool import project_tag_axes
 def test_project_tag_axes_logic():
     """Verify that project_tag_axes correctly projects 3D axes to 2D polylines."""
     # Mock record
-    # Position at [0, 0, 1] relative to camera (center of tag)
+    # Position at [0, 0, 1] relative to camera (Top-Left of tag)
     # Identity rotation (facing camera, though +Z points away in OpenCV,
     #                    our local +Z points to camera if rotated)
     # Actually, if rotation is identity, local axes match camera axes.
@@ -31,7 +31,7 @@ def test_project_tag_axes_logic():
     assert "axis_z" in axes
 
     # Calculate expected normalized 2D points
-    # Center: [0, 0, 1] -> [320/640, 240/480] = [0.5, 0.5]
+    # Origin (Top-Left): [0, 0, 1] -> [320/640, 240/480] = [0.5, 0.5]
     # X: [0.05, 0, 1] -> [ (0.05 * 500 / 1) + 320, 240 ] / res -> [345/640, 240/480]
     # Y: [0, 0.05, 1] -> [ 320, (0.05 * 500 / 1) + 240 ] / res -> [320/640, 265/480]
     # Z: [0, 0, 1.05] -> [ 320, 240 ] / res -> [320/640, 240/480]

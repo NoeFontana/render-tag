@@ -185,7 +185,7 @@ def project_tag_axes(
     resolution: list[int],
 ) -> dict[str, fo.Polyline] | None:
     """
-    Project 3D axes at the tag center using its pose metadata (Single Source of Truth).
+    Project 3D axes at the tag origin (Top-Left) using its pose metadata.
     """
     pos = record.get("position")  # [x, y, z] in camera space
     quat = record.get("rotation_quaternion")  # [x, y, z, w] in camera space
@@ -204,12 +204,12 @@ def project_tag_axes(
     r_mat = quaternion_xyzw_to_matrix(quat)
     t_vec = np.array(pos)
 
-    # Local axes points (Origin at center)
+    # Local axes points (Origin at Top-Left)
     local_origin = np.array([0.0, 0.0, 0.0])
     local_x = np.array([axis_len_m, 0.0, 0.0])  # +X right
     local_y = np.array([0.0, axis_len_m, 0.0])  # +Y down
 
-    # Local +Z points INTO the tag face (away from camera if facing)
+    # Local +Z points INTO the tag face
     local_z = np.array([0.0, 0.0, axis_len_m])
 
     # Transform to camera space
@@ -394,6 +394,7 @@ def visualize_fiftyone(
                 new_axis_x = []
                 new_axis_y = []
                 new_axis_z = []
+                new_polygons = []
 
                 for det in detections:
                     img_stem = Path(sample.filepath).stem
@@ -420,6 +421,15 @@ def visualize_fiftyone(
                             pts = get_polyline_points(record["corners"], width, height)
                             det.segmentation = [pts]
 
+                            # Add explicit Polyline to visually verify the CW winding order contract
+                            new_polygons.append(
+                                fo.Polyline(
+                                    label=str(tag_id),
+                                    points=[pts],
+                                    closed=True,
+                                )
+                            )
+
                             kps = map_corners_to_keypoints(record["corners"], width, height)
                             new_keypoints.extend(kps.keypoints)
 
@@ -437,6 +447,8 @@ def visualize_fiftyone(
 
                 if new_keypoints:
                     sample["corners"] = fo.Keypoints(keypoints=new_keypoints)
+                if new_polygons:
+                    sample["polygons"] = fo.Polylines(polylines=new_polygons)
                 if new_axis_x:
                     sample["axis_x"] = fo.Polylines(polylines=new_axis_x)
                     sample["axis_y"] = fo.Polylines(polylines=new_axis_y)
@@ -483,6 +495,16 @@ def visualize_fiftyone(
         ],
     )
     dataset.app_config.color_scheme = color_scheme
+
+    # Render edges connecting the corners to visualize the Clockwise (CW) winding order
+    dataset.skeletons.update(
+        {
+            "corners": fo.KeypointSkeleton(
+                labels=["0", "1", "2", "3"], edges=[[0, 1], [1, 2], [2, 3], [3, 0]]
+            )
+        }
+    )
+
     dataset.save()
 
     session = find_active_session()
