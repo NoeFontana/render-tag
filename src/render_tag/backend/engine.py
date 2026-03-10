@@ -368,7 +368,7 @@ def execute_recipe(
     # 3. Render Cameras and Save Data
     for cam_idx, cam_recipe in enumerate(cam_recipes):
         coco_img_id, image_name = _render_camera_and_save(
-            renderer, cam_idx, cam_recipe, recipe, ctx, scene_logger, provenance, res
+            renderer, cam_idx, cam_recipe, recipe_dict, ctx, scene_logger, provenance, res
         )
 
         _extract_and_save_ground_truth(

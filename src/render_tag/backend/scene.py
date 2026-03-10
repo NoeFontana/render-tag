@@ -10,6 +10,7 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from render_tag.backend.assets import global_pool
 from render_tag.backend.bridge import bridge
 
 if TYPE_CHECKING:
@@ -63,7 +64,7 @@ def setup_lighting(lights: list[Any]) -> list:
         # Support both Pydantic model and dict
         l_dict = light_data.model_dump() if hasattr(light_data, "model_dump") else light_data
 
-        light = bridge.bproc.types.Light()
+        light = global_pool.get_light()
         light.set_type(l_dict.get("type", "POINT"))
         light.set_location(l_dict["location"])
         light.set_energy(l_dict["intensity"])
@@ -172,7 +173,7 @@ def create_board(
     board_height = rows * square_size
 
     # Create a simple plane for the board
-    board = bridge.bproc.object.create_primitive("PLANE")
+    board = global_pool.get_mesh_object("PLANE")
     board.blender_obj.name = f"Board_Background_{layout_mode}"
 
     # Use provided location or fallback to default clearance
@@ -218,7 +219,7 @@ def create_board_plane(
         The board mesh object
     """
     # Create plane using bproc
-    board = bridge.bproc.object.create_primitive("PLANE")
+    board = global_pool.get_mesh_object("PLANE")
     board.blender_obj.name = "CalibrationBoard"
 
     # Set dimensions (PLANE is 2x2 by default)

@@ -58,8 +58,13 @@ class MockLoader:
 
 class MockObjectModule:
     def create_primitive(self, shape, **kwargs):
+        from render_tag.backend.bridge import bridge
+
         mesh = MockMesh(name=f"{shape}_Mesh")
         obj = MockObject(name=f"{shape}_primitive", data=mesh)
+        # Register in mock bpy.data.objects
+        if bridge.bpy and bridge.bpy.data:
+            bridge.bpy.data.objects.append(obj)
         return MockBProcObject(blender_obj=obj)
 
     def simulate_physics_and_fix_final_poses(self, **kwargs):
@@ -145,6 +150,13 @@ def clean_up():
 
 
 class MockLight:
+    def __init__(self):
+        from render_tag.backend.bridge import bridge
+
+        self.blender_obj = MockObject(name="Light")
+        if bridge.bpy and bridge.bpy.data:
+            bridge.bpy.data.objects.append(self.blender_obj)
+
     def set_type(self, type_name: str):
         pass
 

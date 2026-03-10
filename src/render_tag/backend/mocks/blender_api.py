@@ -33,6 +33,13 @@ class MockObject:
     def __setitem__(self, key, value):
         self._properties[key] = value
 
+    def __delitem__(self, key):
+        if key in self._properties:
+            del self._properties[key]
+
+    def keys(self):
+        return self._properties.keys()
+
     @property
     def matrix_world(self):
         if self._matrix_world is not None:
@@ -104,9 +111,15 @@ class MockCollection:
         self._objects.clear()
 
     def append(self, obj):
-        # Allow appending objects (mostly for materials list)
-        # Use object name as key or a generated one
-        name = getattr(obj, "name", f"Appended_{len(self)}")
+        # Allow appending objects
+        # Use object name as key, handle collisions like Blender
+        base_name = getattr(obj, "name", "Object")
+        name = base_name
+        counter = 1
+        while name in self._objects:
+            name = f"{base_name}.{counter:03d}"
+            counter += 1
+        obj.name = name
         self._objects[name] = obj
 
 
