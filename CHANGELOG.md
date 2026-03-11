@@ -1,3 +1,16 @@
+# v0.4.0 (2026-03-11)
+
+- Align coordinate system and pose anchoring with OpenCV 4.6+ (#28)
+- Fix/accuracy (#27)
+- Fix/multi board (#26)
+- Resolve false positive non-uniform scale error on calibration boards (#25)
+- Benches/board (#24)
+- Fix/math scaling annotation (#23)
+- Fix/scramble 2 (#22)
+- Robust/math 2 (#21)
+- Add provenance.json to hub push/pull metadata (#20)
+- Robust/math (#19)
+
 # v0.3.0 (2026-03-08)
 
 - Aligned FiftyOne Z-axis projection with OpenCV convention by pointing it towards the tag and removed a duplicate quaternion conversion.
