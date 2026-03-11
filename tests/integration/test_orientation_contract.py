@@ -119,8 +119,8 @@ class TestOrientationContract:
         tag0_y = (kps_3d[0][1] + kps_3d[2][1]) / 2.0
         tag7_y = (kps_3d[28][1] + kps_3d[30][1]) / 2.0
 
-        assert tag0_y < tag7_y, f"Tag 0 Y ({tag0_y}) should be above Tag 7 Y ({tag7_y})"
-
+        # Y decreases for lower rows in Blender space
+        assert tag0_y > tag7_y, f"Tag 0 Y ({tag0_y}) should be above Tag 7 Y ({tag7_y})"
         # 3. Check Ground Truth (CSV/JSON)
         # Verify that Tag 0 is at the Bottom-Left in the image.
         # (since local Y-Down puts it at -Y, which is closer to the camera and therefore bottom).
@@ -136,12 +136,12 @@ class TestOrientationContract:
         tag7 = next(d for d in detections if int(d["tag_id"]) == 7)
 
         # In OpenCV image coords, Y increases DOWN.
-        # So Tag 0 (Row 0, -Y) should have LARGER Y than Tag 7 (Row 1, +Y).
+        # Since Row 0 is at the top of the physical board (Top-Left origin),
+        # its projection on the image should have a SMALLER Y coordinate than Row 1.
         y0 = float(tag0["y1"])  # Top-left corner Y bounding box
         y7 = float(tag7["y1"])
 
-        assert y0 > y7, f"Tag 0 Image Y ({y0}) should be below Tag 7 Image Y ({y7})"
-
+        assert y0 < y7, f"Tag 0 Image Y ({y0}) should be above Tag 7 Image Y ({y7})"
         # Tag 0 (Col 0) should have smaller X than Tag 1 (Col 1)
         tag1 = next(d for d in detections if int(d["tag_id"]) == 1)
         x0 = float(tag0["x1"])
