@@ -42,9 +42,16 @@ def compute_bbox(points: np.ndarray, detection: Any | None = None) -> list[float
         k_matrix = np.array(detection.k_matrix)
         marker_size_m = detection.tag_size_mm / 1000.0
 
-        m = marker_size_m / 2.0
-        # Tag local corners: TL, TR, BR, BL
-        local_corners = np.array([[-m, m, 0.0], [m, m, 0.0], [m, -m, 0.0], [-m, -m, 0.0]])
+        # OpenCV 4.6.0 Convention: Pose is anchored at the Top-Left corner (Index 0).
+        # +X is Right, +Y is Down, +Z is Into the plane.
+        local_corners = np.array(
+            [
+                [0.0, 0.0, 0.0],  # TL
+                [marker_size_m, 0.0, 0.0],  # TR
+                [marker_size_m, marker_size_m, 0.0],  # BR
+                [0.0, marker_size_m, 0.0],  # BL
+            ]
+        )
 
         rot_mat = quaternion_wxyz_to_matrix(rot_quat)
         points_cam = (rot_mat @ local_corners.T).T + pos
