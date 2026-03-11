@@ -18,12 +18,10 @@ This strictly clockwise (CW) winding order is preserved through the entire proje
 When defining the geometry of a calibration board (ChArUco, AprilGrid), we follow a mapping designed for Computer Vision (CV) library compatibility.
 
 #### Origin and Axes
-- **Origin (0,0,0):** 
-  - For **AprilGrid** boards: The physical **Top-Left** corner of the board grid.
-  - For **ChArUco** boards: The origin is typically the **Bottom-Left** corner of the board rather than the center or top-left, matching the default OpenCV `charuco_board` generation.
-- **+X Axis:** Left-to-Right (traversing Columns).
-- **+Y Axis:** Top-to-Bottom (for Y-down layouts) or Bottom-to-Top (for ChArUco Y-up layouts).
-- **+Z Axis:** Points **into the board plane** (away from the viewer). This strictly adheres to the OpenCV $\ge$ 4.6.0 convention for fiducial markers.
+- **Origin (0,0,0):** Anchored exactly at the **Top-Left** corner of the physical asset (the top-left corner of the black border for single markers, and the top-left outer corner for ChArUco and AprilGrid boards).
+- **+X Axis:** Points Right (running along the top boundary).
+- **+Y Axis:** Points Down (running along the left boundary).
+- **+Z Axis:** Points **into the board plane** (away from the viewer). This strictly adheres to the OpenCV $\ge$ 4.6.0 convention for fiducial markers (represented by the `ARUCO_CW_TOP_LEFT_CORNER` API enum).
 
 #### Visual Mapping (Local Space)
 ```mermaid

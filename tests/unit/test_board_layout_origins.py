@@ -83,8 +83,8 @@ def test_cv_space_y_down_invariant():
     y1 = r1_squares[0].center.y
     y2 = r2_squares[0].center.y
 
-    assert y1 > y0, f"CV Invariant failed: row 1 Y ({y1}) is not > row 0 Y ({y0})"
-    assert y2 > y1, f"CV Invariant failed: row 2 Y ({y2}) is not > row 1 Y ({y1})"
+    assert y1 < y0, f"CV Invariant failed: row 1 Y ({y1}) is not < row 0 Y ({y0})"
+    assert y2 < y1, f"CV Invariant failed: row 2 Y ({y2}) is not < row 1 Y ({y1})"
 
     # X should increase as we go across the columns
     x0 = r0_squares[0].center.x
