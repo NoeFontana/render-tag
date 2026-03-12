@@ -1,3 +1,11 @@
+# v0.5.0 (2026-03-12)
+
+- **BREAKING CHANGE**: Rectified sub-pixel intrinsic shift in camera model.
+  - Aligned principal point calculation with strictly continuous OpenCV coordinates: `cx = width / 2.0`, `cy = height / 2.0`.
+  - Removed legacy `(W-1)/2` and `(H-1)/2` centering logic to eliminate 0.5-pixel projection bias.
+  - Updated all unit and integration tests to enforce the new standard.
+  - Previous datasets are considered invalid and should be re-rendered to maintain consistency.
+
 # v0.4.0 (2026-03-11)
 
 - Align coordinate system and pose anchoring with OpenCV 4.6+ (#28)
