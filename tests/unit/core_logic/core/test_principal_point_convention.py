@@ -25,19 +25,15 @@ from render_tag.core.config import CameraConfig, CameraIntrinsics
     ],
 )
 def test_default_principal_point_convention(width: int, height: int):
-    """Default principal point must be (W-1)/2, (H-1)/2 for centered cameras."""
+    """Default principal point must be W/2, H/2 for centered cameras."""
     config = CameraConfig(resolution=(width, height), fov=70.0)
     k = config.get_k_matrix()
 
-    expected_cx = (width - 1) / 2.0
-    expected_cy = (height - 1) / 2.0
+    expected_cx = width / 2.0
+    expected_cy = height / 2.0
 
-    assert k[0][2] == pytest.approx(expected_cx), (
-        f"cx should be (W-1)/2 = {expected_cx}, got {k[0][2]}"
-    )
-    assert k[1][2] == pytest.approx(expected_cy), (
-        f"cy should be (H-1)/2 = {expected_cy}, got {k[1][2]}"
-    )
+    assert k[0][2] == pytest.approx(expected_cx), f"cx should be W/2 = {expected_cx}, got {k[0][2]}"
+    assert k[1][2] == pytest.approx(expected_cy), f"cy should be H/2 = {expected_cy}, got {k[1][2]}"
 
 
 def test_explicit_principal_point_overrides_default():
@@ -75,7 +71,7 @@ def test_focal_length_from_fov():
 
 
 def test_camera_fallback_principal_point():
-    """The emergency fallback in camera.py should also use (W-1)/2 convention."""
+    """The emergency fallback in camera.py should also use W/2 convention."""
     from unittest.mock import MagicMock, patch
 
     import numpy as np
@@ -93,13 +89,13 @@ def test_camera_fallback_principal_point():
 
         set_camera_intrinsics(camera_recipe)
 
-    # The K matrix passed to set_intrinsics_from_K_matrix should have cx=959.5
+    # The K matrix passed to set_intrinsics_from_K_matrix should have cx=960.0
     call_args = mock_bridge.bproc.camera.set_intrinsics_from_K_matrix.call_args
     k_passed = call_args.kwargs.get("K") or call_args[1].get("K") or call_args[0][0]
 
-    assert k_passed[0][2] == pytest.approx(959.5), (
-        f"Fallback cx should be 959.5, got {k_passed[0][2]}"
+    assert k_passed[0][2] == pytest.approx(960.0), (
+        f"Fallback cx should be 960.0, got {k_passed[0][2]}"
     )
-    assert k_passed[1][2] == pytest.approx(539.5), (
-        f"Fallback cy should be 539.5, got {k_passed[1][2]}"
+    assert k_passed[1][2] == pytest.approx(540.0), (
+        f"Fallback cy should be 540.0, got {k_passed[1][2]}"
     )

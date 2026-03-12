@@ -546,12 +546,12 @@ class CameraConfig(BaseModel):
         cx = (
             intrinsics.principal_point_x
             if intrinsics.principal_point_x is not None
-            else (self.width - 1) / 2.0
+            else self.width / 2.0
         )
         cy = (
             intrinsics.principal_point_y
             if intrinsics.principal_point_y is not None
-            else (self.height - 1) / 2.0
+            else self.height / 2.0
         )
 
         # Try focal_length_x/y
