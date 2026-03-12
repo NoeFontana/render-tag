@@ -25,7 +25,7 @@ def mock_bridge(monkeypatch):
     blender_obj = MagicMock()
     blender_obj.__getitem__ = lambda self, key: blender_obj.get(key)
     blender_obj.__setitem__ = lambda self, key, value: blender_obj.set(key, value)
-    
+
     # Mock Blender mesh data for vertex manipulation
     # A standard Blender PLANE primitive is 2x2 centered at 0,0
     mock_data = MagicMock()
@@ -67,14 +67,13 @@ def test_create_tag_plane_mesh_boundary():
     size = 0.1  # marker_size_m
     tag_family = "tag36h11"
     margin_bits = 1
-    
+
     # For tag36h11, grid_size = 8
     # offset_m = (0.1 / 8) * 1 = 0.0125
 
-    mock = MagicMock()
     mock_obj = MagicMock()
     blender_obj = MagicMock()
-    
+
     mock_data = MagicMock()
     # A standard Blender PLANE primitive is 2x2 centered at 0,0
     mock_data.vertices = [
@@ -85,35 +84,40 @@ def test_create_tag_plane_mesh_boundary():
     ]
     blender_obj.data = mock_data
     mock_obj.blender_obj = blender_obj
-    
+
     import render_tag.backend.assets as assets
+
     original_get_tag = assets.global_pool.get_tag
     assets.global_pool.get_tag = lambda: mock_obj
-    
+
     try:
         # Note: the new contract expects size_meters to be marker_size_m
-        create_tag_plane(size_meters=size, texture_path=None, tag_family=tag_family, margin_bits=margin_bits)
-        
+        create_tag_plane(
+            size_meters=size, texture_path=None, tag_family=tag_family, margin_bits=margin_bits
+        )
+
         vertices = mock_obj.blender_obj.data.vertices
         coords = [v.co for v in vertices]
-        
-        # We expect the vertices to bound from [-offset_m, -offset_m] to [marker_size_m + offset_m, marker_size_m + offset_m]
+
+        # We expect vertices to bound from [-offset_m, -offset_m]
+        # to [marker_size_m + offset_m, marker_size_m + offset_m]
         offset_m = (size / 8) * margin_bits
-        
+
         # The plane's min X and Y should be exactly -offset_m
         min_x = min(co[0] for co in coords)
         min_y = min(co[1] for co in coords)
         assert pytest.approx(min_x) == -offset_m
         assert pytest.approx(min_y) == -offset_m
-        
+
         # The plane's max X and Y should be exactly size + offset_m
         max_x = max(co[0] for co in coords)
         max_y = max(co[1] for co in coords)
         assert pytest.approx(max_x) == size + offset_m
         assert pytest.approx(max_y) == size + offset_m
-        
+
     finally:
         assets.global_pool.get_tag = original_get_tag
+
 
 def test_create_tag_plane_assigns_keypoints_3d(mock_bridge):
     """Verify that create_tag_plane assigns keypoints_3d custom property."""
@@ -249,4 +253,3 @@ def test_integrated_tag_creation_and_projection(mock_bridge):
     for i in range(4):
         for j in range(3):
             assert pytest.approx(world_coords[i][j]) == expected[i][j]
-

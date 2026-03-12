@@ -322,6 +322,7 @@ class MockVertex(MockObject):
         super().__init__(name=name)
         self.co = co or [0.0, 0.0, 0.0]
 
+
 class MockMesh(MockObject):
     def __init__(self, name="MockMesh"):
         super().__init__(name=name)

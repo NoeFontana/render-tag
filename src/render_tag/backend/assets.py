@@ -157,29 +157,30 @@ def create_tag_plane(
     marker_size_m = size_meters
     offset_m = (marker_size_m / grid_size) * margin_bits
 
-    # We shift the vertices so that the inner black border corners fall exactly on [0, marker_size_m].
-    # Following OpenCV convention: +X Right, +Y Down.
+    # We shift the vertices so that the inner black border corners fall exactly
+    # on [0, marker_size_m]. Following OpenCV convention: +X Right, +Y Down.
     # Therefore, Top-Left is [-offset_m, -offset_m]
     # Bottom-Right is [marker_size_m + offset_m, marker_size_m + offset_m]
-    
+
     # In Blender's default PLANE (size 2x2, centered at 0,0):
     # v[0] = BL (-1, -1), v[1] = BR (1, -1), v[2] = TL (-1, 1), v[3] = TR (1, 1)
     # UV mapping: BL->(0,0), BR->(1,0), TL->(0,1), TR->(1,1)
     # To map the image correctly (Top-Left of image to Top-Left in 3D),
     # the vertex with UV(0,1) [TL, v[2]] must become the physical Top-Left [-offset_m, -offset_m].
-    
+
     mesh = plane.blender_obj.data
     for v in mesh.vertices:
         # Determine logical corner based on original local signs
         is_right = v.co[0] > 0
         is_top = v.co[1] > 0
-        
+
         # Map to new OpenCV coordinates (+X Right, +Y Down)
         x = marker_size_m + offset_m if is_right else -offset_m
-        
-        # In original Blender PLANE, Y>0 is Top (UV v=1). We map this to Top in OpenCV (Y = -offset_m)
+
+        # In original Blender PLANE, Y>0 is Top (UV v=1).
+        # We map this to Top in OpenCV (Y = -offset_m)
         y = -offset_m if is_top else marker_size_m + offset_m
-        
+
         v.co = [x, y, 0.0]
 
     # The corners of the inner black border
