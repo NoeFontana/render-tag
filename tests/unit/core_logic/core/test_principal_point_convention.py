@@ -89,13 +89,14 @@ def test_camera_fallback_principal_point():
 
         set_camera_intrinsics(camera_recipe)
 
-    # The K matrix passed to set_intrinsics_from_K_matrix should have cx=960.0
+    # The K matrix passed to set_intrinsics_from_K_matrix should have cx=959.5 because
+    # camera.py subtracts 0.5 to counteract BlenderProc's automatic sensor shift.
     call_args = mock_bridge.bproc.camera.set_intrinsics_from_K_matrix.call_args
     k_passed = call_args.kwargs.get("K") or call_args[1].get("K") or call_args[0][0]
 
-    assert k_passed[0][2] == pytest.approx(960.0), (
-        f"Fallback cx should be 960.0, got {k_passed[0][2]}"
+    assert k_passed[0][2] == pytest.approx(959.5), (
+        f"Fallback cx passed to BlenderProc should be 959.5, got {k_passed[0][2]}"
     )
-    assert k_passed[1][2] == pytest.approx(540.0), (
-        f"Fallback cy should be 540.0, got {k_passed[1][2]}"
+    assert k_passed[1][2] == pytest.approx(539.5), (
+        f"Fallback cy passed to BlenderProc should be 539.5, got {k_passed[1][2]}"
     )

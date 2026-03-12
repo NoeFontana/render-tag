@@ -41,6 +41,19 @@ from render_tag.generation.visibility import (
 )
 
 
+def _get_corrected_k_matrix() -> bridge.np.ndarray:
+    """Get the K matrix from BlenderProc and correct its principal point to continuous coords."""
+    k = bridge.bproc.camera.get_intrinsics_as_K_matrix()
+    # Staff Engineer: BlenderProc's `get_intrinsics_as_K_matrix` reconstructs the principal point
+    # using the legacy `(W - 1) / 2` convention. Because we forcefully centered the physical
+    # sensor by passing `W/2 - 0.5` during setup, BlenderProc returns `(W - 1) / 2` here.
+    # We must add 0.5 back to restore the strictly continuous OpenCV coordinates (W/2.0, H/2.0)
+    # required for perfect mathematical projection without a half-pixel bias.
+    k[0][2] += 0.5
+    k[1][2] += 0.5
+    return k
+
+
 def project_corners_to_image(
     tag_obj: Any,
     camera_matrix: bridge.np.ndarray | None = None,
@@ -52,11 +65,7 @@ def project_corners_to_image(
     if not corners_world or len(corners_world) != 4:
         return None
 
-    k_matrix = (
-        camera_matrix
-        if camera_matrix is not None
-        else bridge.bproc.camera.get_intrinsics_as_K_matrix()
-    )
+    k_matrix = camera_matrix if camera_matrix is not None else _get_corrected_k_matrix()
 
     # Use bridge/math logic for matrix conversion
     blender_cam_mat = bridge.np.array(bridge.bpy.context.scene.camera.matrix_world)
@@ -141,7 +150,7 @@ def compute_geometric_metadata(tag_obj: Any) -> dict[str, Any]:
     grid_size = TAG_GRID_SIZES.get(tag_family, 8)
     tag_obj.blender_obj.get("margin_bits", 0)
 
-    intrinsics = bridge.bproc.camera.get_intrinsics_as_K_matrix()
+    intrinsics = _get_corrected_k_matrix()
     f_px = intrinsics[0][0]  # fx
 
     black_border_size = tag_obj.blender_obj.get("corner_coords", [[0, 0], [0.05, 0]])[1][0] * 2.0
@@ -236,7 +245,7 @@ def generate_subject_records(
         )
 
     blender_cam_mat = bridge.np.array(bridge.bpy.context.scene.camera.matrix_world)
-    k_matrix = bridge.bproc.camera.get_intrinsics_as_K_matrix()
+    k_matrix = _get_corrected_k_matrix()
     res = [
         bridge.bpy.context.scene.render.resolution_x,
         bridge.bpy.context.scene.render.resolution_y,
@@ -620,7 +629,7 @@ def _get_scene_transformations(
     )
 
     blender_cam_mat = bridge.np.array(bridge.bpy.context.scene.camera.matrix_world)
-    k_matrix = bridge.bproc.camera.get_intrinsics_as_K_matrix()
+    k_matrix = _get_corrected_k_matrix()
     res = [
         int(bridge.bpy.context.scene.render.resolution_x),
         int(bridge.bpy.context.scene.render.resolution_y),

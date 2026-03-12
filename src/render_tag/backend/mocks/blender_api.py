@@ -317,27 +317,11 @@ class MockUVLayers(MockCollection):
         return obj
 
 
-class MockVertex(MockObject):
-    def __init__(self, name="MockVertex", co=None):
-        super().__init__(name=name)
-        self.co = co or [0.0, 0.0, 0.0]
-
-
 class MockMesh(MockObject):
     def __init__(self, name="MockMesh"):
         super().__init__(name=name)
         self.materials = MockCollection()
         self.uv_layers = MockUVLayers()
-        # Default primitive PLANE vertices for mocked mesh manipulation
-        self.vertices = [
-            MockVertex(co=[-1.0, -1.0, 0.0]),
-            MockVertex(co=[1.0, -1.0, 0.0]),
-            MockVertex(co=[-1.0, 1.0, 0.0]),
-            MockVertex(co=[1.0, 1.0, 0.0]),
-        ]
-
-    def update(self):
-        pass
 
 
 class MockData:
