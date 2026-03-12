@@ -39,7 +39,7 @@ def test_hot_loop_render_command(tmp_path, port_generator, stabilized_bridge):
         ],
         "cameras": [
             {
-                "transform_matrix": [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 2], [0, 0, 0, 1]],
+                "transform_matrix": [[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 2], [0, 0, 0, 1]],
                 "intrinsics": {"resolution": [100, 100]},
             }
         ],

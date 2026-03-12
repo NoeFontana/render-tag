@@ -136,7 +136,7 @@ def create_tag_plane(
     """Create a textured plane representing a fiducial marker.
 
     Args:
-        size_meters: The size of the tag in meters (outer edge, including margin)
+        size_meters: The size of the tag in meters (inner black edge)
         texture_path: Path to the tag texture image
         tag_family: Tag family identifier for metadata
         tag_id: Tag ID number
@@ -150,31 +150,48 @@ def create_tag_plane(
     plane = global_pool.get_tag()
     plane.blender_obj.name = f"Tag_{tag_family}_{tag_id}"
 
-    # Scale to desired size
-    # PLANE primitive is 2x2 (-1 to 1), so we scale by size/2
-    plane.set_scale([size_meters / 2.0, size_meters / 2.0, 1])
-
-    # Store corner coordinates as custom properties
-    # Detection standard is the OUTER BLACK BORDER corners.
-    # If margin_bits > 0, the black border is smaller than size_meters.
+    # Reset scale as we are modifying vertices directly
+    plane.set_scale([1.0, 1.0, 1.0])
 
     grid_size = TAG_GRID_SIZES.get(tag_family, 8)
-    total_bits = grid_size + (2 * margin_bits)
+    marker_size_m = size_meters
+    offset_m = (marker_size_m / grid_size) * margin_bits
 
-    # Calculate local scale factor for black border relative to total plane.
-    # Since the local plane is 2x2 (from -1 to 1), the half-width of the
-    # full plane is 1.0. The half-width of the black border is thus:
-    half_black = grid_size / total_bits
+    # We shift the vertices so that the inner black border corners fall exactly
+    # on [0, marker_size_m]. Following OpenCV convention: +X Right, +Y Down.
+    # Therefore, Top-Left is [-offset_m, -offset_m]
+    # Bottom-Right is [marker_size_m + offset_m, marker_size_m + offset_m]
 
+    # In Blender's default PLANE (size 2x2, centered at 0,0):
+    # v[0] = BL (-1, -1), v[1] = BR (1, -1), v[2] = TL (-1, 1), v[3] = TR (1, 1)
+    # UV mapping: BL->(0,0), BR->(1,0), TL->(0,1), TR->(1,1)
+    # To map the image correctly (Top-Left of image to Top-Left in 3D),
+    # the vertex with UV(0,1) [TL, v[2]] must become the physical Top-Left [-offset_m, -offset_m].
+
+    mesh = plane.blender_obj.data
+    for v in mesh.vertices:
+        # Determine logical corner based on original local signs
+        is_right = v.co[0] > 0
+        is_top = v.co[1] > 0
+
+        # Map to new OpenCV coordinates (+X Right, +Y Down)
+        x = marker_size_m + offset_m if is_right else -offset_m
+
+        # In original Blender PLANE, Y>0 is Top (UV v=1).
+        # We map this to Top in OpenCV (Y = -offset_m)
+        y = -offset_m if is_top else marker_size_m + offset_m
+
+        v.co = [x, y, 0.0]
+
+    # The corners of the inner black border
     corners_local = [
-        [-half_black, half_black, 0.0],  # TL
-        [half_black, half_black, 0.0],  # TR
-        [half_black, -half_black, 0.0],  # BR
-        [-half_black, -half_black, 0.0],  # BL
+        [0.0, 0.0, 0.0],  # TL
+        [marker_size_m, 0.0, 0.0],  # TR
+        [marker_size_m, marker_size_m, 0.0],  # BR
+        [0.0, marker_size_m, 0.0],  # BL
     ]
 
     # Store metadata on the object
-    # Orientation Contract: keypoints_3d is the source of truth for ordered keypoints.
     plane.blender_obj["keypoints_3d"] = corners_local
     plane.blender_obj["tag_id"] = tag_id
     plane.blender_obj["tag_family"] = tag_family
@@ -193,6 +210,9 @@ def create_tag_plane(
 
     # Disable shadow casting to avoid "floating" look for stickers
     plane.blender_obj.visible_shadow = False
+
+    # Force a mesh update
+    mesh.update()
 
     return plane
 
