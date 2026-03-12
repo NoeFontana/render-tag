@@ -39,9 +39,20 @@ def set_camera_intrinsics(camera_recipe: dict) -> None:
     # Set resolution
     bridge.bproc.camera.set_resolution(res[0], res[1])
 
+    # Staff Engineer: BlenderProc's `set_intrinsics_from_K_matrix` hardcodes a sensor shift
+    # calculation based on `cx - (image_width - 1) / 2`. Because our strictly continuous
+    # OpenCV K matrix uses `cx = image_width / 2.0`, BlenderProc incorrectly shifts the physical
+    # sensor by 0.5 pixels. To prevent this and keep the Blender camera perfectly centered
+    # (which perfectly matches our pure Python OpenCV projection math), we subtract 0.5 here.
+    import copy
+
+    bproc_k_matrix = copy.deepcopy(k_matrix)
+    bproc_k_matrix[0][2] -= 0.5  # cx
+    bproc_k_matrix[1][2] -= 0.5  # cy
+
     # Apply pre-calculated K matrix
     bridge.bproc.camera.set_intrinsics_from_K_matrix(
-        K=k_matrix,
+        K=bproc_k_matrix,
         image_width=res[0],
         image_height=res[1],
     )
