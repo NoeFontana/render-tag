@@ -137,7 +137,7 @@ def create_tag_plane(
 
     Args:
         size_meters: The active size of the black border in meters (NOT including white margin).
-            The physical plane will be inflated to total_bits/grid_size × size_meters to
+            The physical plane will be inflated to total_bits/grid_size * size_meters to
             accommodate the quiet zone so the black border renders at exactly size_meters.
         texture_path: Path to the tag texture image
         tag_family: Tag family identifier for metadata

@@ -60,7 +60,7 @@ def create_dataset(name: str) -> fo.Dataset:
     dataset.add_sample_field(
         "detections.detections.rotation_quaternion",
         fo.ListField,
-        description="3D rotation [x, y, z, w]",
+        description="3D rotation [w, x, y, z]",
     )
 
     return dataset
@@ -188,7 +188,7 @@ def project_tag_axes(
     Project 3D axes at the tag origin (geometric center) using its pose metadata.
     """
     pos = record.get("position")  # [x, y, z] in camera space
-    quat = record.get("rotation_quaternion")  # [x, y, z, w] in camera space
+    quat = record.get("rotation_quaternion")  # [w, x, y, z] in camera space
 
     # Use tag size to determine axis length (e.g., half the tag size). Fallback to 5cm.
     tag_size_mm = record.get("tag_size_mm", 100.0)

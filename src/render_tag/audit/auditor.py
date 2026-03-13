@@ -262,9 +262,7 @@ class DatasetAuditor:
         quarantined = chirality_failures > 0 or orientation_failures > 0
 
         if chirality_failures > 0:
-            gate_failures.append(
-                f"CHIRALITY: {chirality_failures} tag(s) have wrong winding order"
-            )
+            gate_failures.append(f"CHIRALITY: {chirality_failures} tag(s) have wrong winding order")
             gate_passed = False
         if orientation_failures > 0:
             msg = f"ORIENTATION: {orientation_failures} tag(s) fail 3D anchor projection"
@@ -332,9 +330,7 @@ class DatasetAuditor:
                 )
         return failures
 
-    def _run_anchor_check(
-        self, records: list[dict[str, Any]]
-    ) -> tuple[int, bool]:
+    def _run_anchor_check(self, records: list[dict[str, Any]]) -> tuple[int, bool]:
         """Phase 2: 3D-to-2D projection anchor test.
 
         Projects the TL corner of the tag (using the stored pose) and measures
@@ -347,7 +343,7 @@ class DatasetAuditor:
         Returns:
             (failure_count, dictionary_orientation_error)
         """
-        _PASS_THRESHOLD = 0.5   # sub-pixel, px
+        _PASS_THRESHOLD = 0.5  # sub-pixel, px
         _FAIL_THRESHOLD = 10.0  # significant error, px
 
         failures = 0
@@ -358,11 +354,11 @@ class DatasetAuditor:
                 continue
             corners = rec.get("corners")
             pos = rec.get("position")
-            quat_xyzw = rec.get("rotation_quaternion")
+            quat_wxyz = rec.get("rotation_quaternion")
             k_mat = rec.get("k_matrix")
             tag_size_mm = rec.get("tag_size_mm")
 
-            if not all([corners, pos, quat_xyzw, k_mat, tag_size_mm]):
+            if not corners or pos is None or quat_wxyz is None or k_mat is None or tag_size_mm is None:
                 continue
             if len(corners) < 4:
                 continue
@@ -371,7 +367,7 @@ class DatasetAuditor:
 
             # Center-Origin, Y-down convention: TL = (-half, -half, 0)
             local_tl = np.array([-half, -half, 0.0])
-            R = quaternion_wxyz_to_matrix(quat_xyzw)
+            R = quaternion_wxyz_to_matrix(quat_wxyz)
             t = np.array(pos, dtype=float)
             p_cam = R @ local_tl + t
 
