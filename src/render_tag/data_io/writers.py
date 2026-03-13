@@ -37,6 +37,16 @@ except ImportError:
 
 logger = get_logger(__name__)
 
+# Fields already encoded natively by the COCO annotation envelope.
+# Excluded from the DetectionRecord dump to avoid duplication.
+_COCO_NATIVE_FIELDS = frozenset({"image_id", "corners", "keypoints", "metadata"})
+
+
+def _flip_quat_wxyz_to_xyzw(quat: list[float]) -> list[float]:
+    """Re-order a quaternion from internal WXYZ to external XYZW convention."""
+    w, x, y, z = quat
+    return [x, y, z, w]
+
 
 class AtomicWriter:
     """Mixin for atomic file writing using temp file + rename."""
@@ -242,31 +252,22 @@ class COCOWriter(AtomicWriter):
             keypoints.extend(extra_kp)
             num_keypoints += len(detection.keypoints)
 
-        # Prepare attributes
-        attributes = {
-            "tag_id": detection.tag_id if detection else 0,
-            "record_type": detection.record_type if detection else "TAG",
-            "tag_size_mm": detection.tag_size_mm if detection else 0.0,
-            "distance": detection.distance if detection else 0.0,
-            "angle_of_incidence": detection.angle_of_incidence if detection else 0.0,
-            "pixel_area": detection.pixel_area if detection else area,
-            "occlusion_ratio": detection.occlusion_ratio if detection else 0.0,
-            "position": detection.position if detection else None,
-            "rotation_quaternion": None,
-            "k_matrix": detection.k_matrix if detection else None,
-            "resolution": detection.resolution if detection else None,
-            "velocity": detection.velocity if detection else None,
-            "shutter_time_ms": detection.shutter_time_ms if detection else 0.0,
-            "rolling_shutter_ms": detection.rolling_shutter_ms if detection else 0.0,
-            "fstop": detection.fstop if detection else None,
-        }
-
-        # IO BOUNDARY: Flip WXYZ -> XYZW for attributes
-        if detection and detection.rotation_quaternion:
-            w, x, y, z = detection.rotation_quaternion
-            attributes["rotation_quaternion"] = [x, y, z, w]
-        if detection and hasattr(detection, "metadata"):
-            attributes.update(detection.metadata)
+        # Prepare attributes: dynamic dump excludes COCO-native fields
+        if detection:
+            attributes = detection.model_dump(mode="json", exclude=_COCO_NATIVE_FIELDS)
+            # Fallback: pixel_area may be 0.0 if not computed; use polygon area instead
+            if attributes.get("pixel_area") is None:
+                attributes["pixel_area"] = area
+            # IO BOUNDARY: Flip WXYZ -> XYZW for attributes
+            quat = attributes.get("rotation_quaternion")
+            if isinstance(quat, list) and len(quat) == 4:
+                attributes["rotation_quaternion"] = _flip_quat_wxyz_to_xyzw(quat)
+            # Merge unstructured metadata without overwriting schema fields
+            for k, v in detection.metadata.items():
+                if k not in attributes:
+                    attributes[k] = v
+        else:
+            attributes = {}
 
         self.annotations.append(
             {
@@ -325,38 +326,12 @@ class RichTruthWriter(AtomicWriter):
 
     def add_detection(self, detection: DetectionRecord) -> None:
         """Add a detection record to the output list."""
-        # Convert dataclass to dict, handle simple types
-        record = {
-            "image_id": detection.image_id,
-            "tag_id": detection.tag_id,
-            "tag_family": detection.tag_family,
-            "tag_size_mm": detection.tag_size_mm,
-            "record_type": detection.record_type,
-            "corners": detection.corners,
-            "keypoints": detection.keypoints,
-            "distance": detection.distance,
-            "angle_of_incidence": detection.angle_of_incidence,
-            "pixel_area": detection.pixel_area,
-            "occlusion_ratio": detection.occlusion_ratio,
-            "ppm": detection.ppm,
-            "position": detection.position,
-            "rotation_quaternion": detection.rotation_quaternion,
-            "k_matrix": detection.k_matrix,
-            "resolution": detection.resolution,
-            "velocity": detection.velocity,
-            "shutter_time_ms": detection.shutter_time_ms,
-            "rolling_shutter_ms": detection.rolling_shutter_ms,
-            "fstop": detection.fstop,
-            "global_seed": detection.global_seed,
-            "scene_seed": detection.scene_seed,
-            "metadata": detection.metadata,
-        }
+        record = detection.model_dump(mode="json")
 
         # IO BOUNDARY: Flip quaternion from WXYZ (Blender/internal) to XYZW (SciPy/Rust)
         quat = record.get("rotation_quaternion")
         if isinstance(quat, list) and len(quat) == 4:
-            w, x, y, z = quat
-            record["rotation_quaternion"] = [x, y, z, w]
+            record["rotation_quaternion"] = _flip_quat_wxyz_to_xyzw(quat)
 
         self._detections.append(record)
 
