@@ -29,7 +29,10 @@ graph TD
     TL["Corner 0: TL (-x, -y)"] --- TR["Corner 1: TR (+x, -y)"]
     TL --- BL["Corner 3: BL (-x, +y)"]
     TR --- BR["Corner 2: BR (+x, +y)"]
-    O["Origin (0,0,0) = Center"]
+    TL -.- O["Origin (0,0,0) = Center"]
+    TR -.- O
+    BR -.- O
+    BL -.- O
 
     subgraph Board Plane [Local Z=0]
     direction LR
