@@ -53,6 +53,7 @@ def test_validate_winding_order_self_intersecting():
 
 # --- Phase 1: Chirality Invariant (diagonal cross product) ---
 
+
 def _diagonal_cross(corners):
     """Ax*By - Ay*Bx where A=P0→P2, B=P1→P3."""
     p0, p1, p2, p3 = corners

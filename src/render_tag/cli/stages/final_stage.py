@@ -95,9 +95,7 @@ class FinalizationStage(PipelineStage):
 
         if result.quarantined:
             quarantine_path = output_dir / "QUARANTINE"
-            quarantine_path.write_text(
-                "\n".join(result.gate_failures) + "\n", encoding="utf-8"
-            )
+            quarantine_path.write_text("\n".join(result.gate_failures) + "\n", encoding="utf-8")
             for msg in result.gate_failures:
                 console.print(f"[bold red]✗ QUALITY GATE FAIL:[/bold red] {msg}")
             console.print(

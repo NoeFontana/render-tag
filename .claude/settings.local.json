@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git add:*)",
+      "Bash(find /home/dev/src/render-tag -name \"*.py\" -type f -exec grep -l \"quaternion\" {} \\\\; | head -20)",
+      "Bash(wait && cat /tmp/claude-1000/-home-dev-src-render-tag/tasks/bk74aoowe.output 2>&1; echo \"EXIT: $?\")"
+    ]
+  }
+}

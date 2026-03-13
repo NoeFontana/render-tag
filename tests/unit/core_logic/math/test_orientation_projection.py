@@ -75,6 +75,7 @@ def test_generate_subject_records_preserves_order(mock_bridge):
 
 # --- Phase 2: 3D-to-2D Projection Anchor Tests (pure math, no Blender) ---
 
+
 def _project_tl(tag_size_mm, position, rotation_quaternion, k_matrix):
     """Project the TL corner using the stored pose and K matrix."""
     from render_tag.generation.projection_math import quaternion_wxyz_to_matrix
