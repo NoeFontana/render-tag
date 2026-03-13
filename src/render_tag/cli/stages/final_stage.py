@@ -7,6 +7,7 @@ import hashlib
 import sys
 from pathlib import Path
 
+from render_tag.audit.auditor import DatasetAuditor, DictionaryOrientationError
 from render_tag.audit.reporting import generate_dataset_info
 from render_tag.cli.pipeline import GenerationContext, PipelineStage
 from render_tag.cli.tools import console, get_asset_manager
@@ -64,6 +65,10 @@ class FinalizationStage(PipelineStage):
 
         path = manifest.save()
         console.print(f"[dim]Checksums saved to:[/dim] {path}")
+
+        # 4. Quality Gate Audit
+        self._run_quality_gate(ctx.output_dir)
+
         console.print("[bold green]✓ Generation session complete[/bold green]")
 
     def _merge_shards(self, output_dir: Path) -> None:
@@ -77,6 +82,36 @@ class FinalizationStage(PipelineStage):
         merge_rich_truth_shards(output_dir, final_filename="rich_truth.json", cleanup=True)
         # Provenance Shards
         merge_provenance_shards(output_dir, final_filename="provenance.json", cleanup=True)
+
+    def _run_quality_gate(self, output_dir: Path) -> None:
+        """Run geometric integrity checks and quarantine the dataset if they fail."""
+        rich_path = output_dir / "rich_truth.json"
+        if not rich_path.exists():
+            return
+
+        console.print("[dim]Running quality gate audit...[/dim]")
+        result = DatasetAuditor(output_dir).run_audit()
+        integrity = result.report.integrity
+
+        if result.quarantined:
+            quarantine_path = output_dir / "QUARANTINE"
+            quarantine_path.write_text(
+                "\n".join(result.gate_failures) + "\n", encoding="utf-8"
+            )
+            for msg in result.gate_failures:
+                console.print(f"[bold red]✗ QUALITY GATE FAIL:[/bold red] {msg}")
+            console.print(
+                f"[bold red]Dataset quarantined → {quarantine_path}[/bold red]\n"
+                "This dataset must NOT be synced to the Hub."
+            )
+            if integrity.dictionary_orientation_error:
+                raise DictionaryOrientationError(
+                    "Texture payload is 180° out of phase with 3D geometry. "
+                    "The projected TL anchor lands on annotated corners[2] (BR). "
+                    "Fix the UV mapping or corner index convention before re-generating."
+                )
+        else:
+            console.print("[bold green]✓ Quality gate passed[/bold green]")
 
     def _create_virtual_job_id(self, ctx: GenerationContext) -> str:
         if not ctx.gen_config:

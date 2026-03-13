@@ -16,10 +16,10 @@ def test_dataset_metadata_valid():
             "height": 720,
         },
         "tag_specification": {"tag_family": "tag36h11", "tag_size_m": 0.160},
-        "pose_convention": "xyzw",
+        "pose_convention": "wxyz",
     }
     manifest = DatasetManifest(**data)
-    assert manifest.pose_convention == "xyzw"
+    assert manifest.pose_convention == "wxyz"
     assert manifest.tag_specification.tag_size_m == 0.160
 
 
@@ -38,14 +38,14 @@ def test_dataset_metadata_invalid_tag_size_legacy():
             "tag_family": "tag36h11",
             "tag_size_mm": 160,  # Old field
         },
-        "pose_convention": "xyzw",
+        "pose_convention": "wxyz",
     }
     with pytest.raises(ValidationError):
         DatasetManifest(**data)
 
 
 def test_dataset_metadata_invalid_convention():
-    """Verify that only 'xyzw' is allowed for now."""
+    """Verify that only 'wxyz' is allowed."""
     data = {
         "camera_intrinsics": {
             "fx": 1000.0,
@@ -56,7 +56,7 @@ def test_dataset_metadata_invalid_convention():
             "height": 720,
         },
         "tag_specification": {"tag_family": "tag36h11", "tag_size_m": 0.160},
-        "pose_convention": "wxyz",  # Invalid
+        "pose_convention": "xyzw",  # Invalid (legacy format)
     }
     with pytest.raises(ValidationError):
         DatasetManifest(**data)

@@ -42,12 +42,6 @@ logger = get_logger(__name__)
 _COCO_NATIVE_FIELDS = frozenset({"image_id", "corners", "keypoints", "metadata"})
 
 
-def _flip_quat_wxyz_to_xyzw(quat: list[float]) -> list[float]:
-    """Re-order a quaternion from internal WXYZ to external XYZW convention."""
-    w, x, y, z = quat
-    return [x, y, z, w]
-
-
 class AtomicWriter:
     """Mixin for atomic file writing using temp file + rename."""
 
@@ -258,10 +252,6 @@ class COCOWriter(AtomicWriter):
             # Fallback: pixel_area may be 0.0 if not computed; use polygon area instead
             if attributes.get("pixel_area") is None:
                 attributes["pixel_area"] = area
-            # IO BOUNDARY: Flip WXYZ -> XYZW for attributes
-            quat = attributes.get("rotation_quaternion")
-            if isinstance(quat, list) and len(quat) == 4:
-                attributes["rotation_quaternion"] = _flip_quat_wxyz_to_xyzw(quat)
             # Merge unstructured metadata without overwriting schema fields
             for k, v in detection.metadata.items():
                 if k not in attributes:
@@ -327,12 +317,6 @@ class RichTruthWriter(AtomicWriter):
     def add_detection(self, detection: DetectionRecord) -> None:
         """Add a detection record to the output list."""
         record = detection.model_dump(mode="json")
-
-        # IO BOUNDARY: Flip quaternion from WXYZ (Blender/internal) to XYZW (SciPy/Rust)
-        quat = record.get("rotation_quaternion")
-        if isinstance(quat, list) and len(quat) == 4:
-            record["rotation_quaternion"] = _flip_quat_wxyz_to_xyzw(quat)
-
         self._detections.append(record)
 
     def save(self) -> Path:

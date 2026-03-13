@@ -17,7 +17,7 @@ from rich.progress import (
 )
 
 from render_tag.generation.projection_math import (
-    quaternion_xyzw_to_matrix,
+    quaternion_wxyz_to_matrix,
 )
 
 try:
@@ -201,7 +201,7 @@ def project_tag_axes(
 
     width, height = resolution
     k_np = np.array(k_matrix)
-    r_mat = quaternion_xyzw_to_matrix(quat)
+    r_mat = quaternion_wxyz_to_matrix(quat)
     t_vec = np.array(pos)
 
     # Local axes points (Origin at geometric center of the black border)

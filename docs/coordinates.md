@@ -60,9 +60,8 @@ The pose represents the transformation from the **Tag Center** (defined above) t
 
 *   **Coordinate System:** OpenCV Convention. Both the camera frame (+Z forward) and the tag frame (+Z into plane) adhere to this standard.
 *   **Position (`position`):** `[x, y, z]` in meters.
-*   **Rotation (`rotation_quaternion`):** 
-    *   **Format:** **`[x, y, z, w]` (Scalar-Last)** in all exported files (SciPy/Rust/Ceres compatible).
-    *   *Note: Internally, Blender uses `[w, x, y, z]` and a Z-Up/Y-Forward system, but we perform math transformations at the generation boundary to guarantee the exported pose is purely OpenCV-native.*
+*   **Rotation (`rotation_quaternion`):**
+    *   **Format:** **`[w, x, y, z]` (Scalar-First)** in all exported files and throughout the entire pipeline.
 
 ### 3.2 Detection Metadata
 *   **Active Size (`tag_size_mm`):** The physical edge length of the **black border** only (excluding margin/quiet zone) in millimeters.

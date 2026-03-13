@@ -4,7 +4,7 @@ from pathlib import Path
 
 import numpy as np
 
-from render_tag.generation.projection_math import quaternion_xyzw_to_matrix
+from render_tag.generation.projection_math import quaternion_wxyz_to_matrix
 
 
 def main():
@@ -45,7 +45,7 @@ def main():
 
     print(f"Verifying {b_type} board: {cols}x{rows}")
 
-    R_rel = quaternion_xyzw_to_matrix(quat_xyzw)
+    R_rel = quaternion_wxyz_to_matrix(quat_xyzw)
     t_rel = np.array(pos)
 
     with open(dataset_dir / "recipes_shard_0.json") as f:
