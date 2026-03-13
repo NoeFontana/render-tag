@@ -359,8 +359,11 @@ class DatasetAuditor:
             tag_size_mm = rec.get("tag_size_mm")
 
             if (
-                not corners or pos is None or quat_wxyz is None
-                or k_mat is None or tag_size_mm is None
+                not corners
+                or pos is None
+                or quat_wxyz is None
+                or k_mat is None
+                or tag_size_mm is None
             ):
                 continue
             if len(corners) < 4:
