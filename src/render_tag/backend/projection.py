@@ -148,12 +148,22 @@ def compute_geometric_metadata(tag_obj: Any) -> dict[str, Any]:
     # Calculate PPM
     tag_family = tag_obj.blender_obj.get("tag_family", "tag36h11")
     grid_size = TAG_GRID_SIZES.get(tag_family, 8)
-    tag_obj.blender_obj.get("margin_bits", 0)
 
     intrinsics = _get_corrected_k_matrix()
     f_px = intrinsics[0][0]  # fx
 
-    black_border_size = tag_obj.blender_obj.get("corner_coords", [[0, 0], [0.05, 0]])[1][0] * 2.0
+    # Calculate the physical width of the active black border from keypoints_3d.
+    # keypoints_3d[0]=TL, keypoints_3d[1]=TR in local [-1,1] space, inset by margin_bits.
+    # The physical size is local_width * scale_norm (X column of the world matrix).
+    norms = bridge.np.linalg.norm(world_matrix[:3, :3], axis=0)
+    keypoints_3d = tag_obj.blender_obj.get("keypoints_3d")
+    if keypoints_3d and len(keypoints_3d) >= 2:
+        tl = bridge.np.array(keypoints_3d[0])
+        tr = bridge.np.array(keypoints_3d[1])
+        local_width = float(bridge.np.linalg.norm(tr[:2] - tl[:2]))
+        black_border_size = local_width * float(norms[0])
+    else:
+        black_border_size = float(norms[0]) * 2.0  # Full plane width as fallback
 
     # Calculate orthogonal Z-depth (distance along camera's forward axis)
     # Camera forward in Blender is -Z.
