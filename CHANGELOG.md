@@ -1,3 +1,18 @@
+# v0.6.0 (2026-03-13)
+
+- Fixup! fix(lint): clean up stale XYZW comments and type-narrow corners guard
+- Fixup! fix(lint): clean up stale XYZW comments and type-narrow corners guard
+- Clean up stale XYZW comments and type-narrow corners guard
+- Standardize on WXYZ (scalar-first) throughout pipeline
+- Update bbox, viz, and docs to match center pose anchor
+- Standardize pose origin to tag center (Center-Origin)
+- Eliminate schema drift via dynamic model_dump serialization
+- Derive black_border_size from keypoints_3d instead of legacy corner_coords
+- SSOT and simplify - CW convention
+- Fix zoomed-in tag issue and half-pixel projection shift: properly scale physical planes and counteract BlenderProc's automatic sensor shift (#32)
+- Rectify 3D mesh boundary shift to OpenCV continuous coordinates (#31)
+- Rectify sub-pixel intrinsic shift and align with OpenCV continuous coordinates (#30)
+
 # v0.5.0 (2026-03-12)
 
 - **BREAKING CHANGE**: Rectified sub-pixel intrinsic shift in camera model.
