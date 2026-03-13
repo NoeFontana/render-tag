@@ -458,7 +458,7 @@ def validate_winding_order(corners: list[tuple[float, float]]) -> bool:
     if len(corners) < 3:
         return False
 
-    pts = np.array(corners)
+    pts = np.asarray(corners)
     x = pts[:, 0]
     y = pts[:, 1]
 

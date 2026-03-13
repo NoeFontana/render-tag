@@ -26,49 +26,38 @@ def test_compute_bbox():
 
 
 def test_normalize_corner_order_default():
-    # Input: BL, BR, TR, TL
-    np.array([[0, 0], [1, 0], [1, 1], [0, 1]])
-    # Implementation currently assumes input is already CW from TL or just maps indices directly.
-    # Wait, the implementation is: tl, tr, br, bl = corners[0], corners[1], corners[2], corners[3]
-    # So if we want TL to be (0,1), it MUST be at index 0.
-
+    # normalize_corner_order is a pass-through: it returns corners unchanged.
     corners_ordered = np.array([[0, 1], [1, 1], [1, 0], [0, 0]])
     ordered = normalize_corner_order(corners_ordered)
 
-    assert ordered[0] == (0.0, 1.0)  # TL
-    assert ordered[1] == (1.0, 1.0)  # TR
-    assert ordered[2] == (1.0, 0.0)  # BR
-    assert ordered[3] == (0.0, 0.0)  # BL
+    assert ordered[0] == (0.0, 1.0)
+    assert ordered[1] == (1.0, 1.0)
+    assert ordered[2] == (1.0, 0.0)
+    assert ordered[3] == (0.0, 0.0)
 
 
 def test_normalize_corner_order_ccw_bl():
-    # Input is already ccw_bl: BL, BR, TR, TL
-    # Wait, the input is BL, BR, TR, TL.
-    # normalize_corner_order with target_order="ccw_bl" expects input to be CW from TL?
-    # Let's check the implementation.
-    # It does: tl, tr, br, bl = corners[0], corners[1], corners[2], corners[3]
-    # So it ASSUMES input is TL, TR, BR, BL.
-
-    # If input is [0,1], [1,1], [1,0], [0,0] (TL, TR, BR, BL)
+    # normalize_corner_order is a pass-through regardless of target_order.
+    # The 3D asset contract guarantees corners are already CW from TL; no
+    # image-space reordering is permitted.
     corners = np.array([[0, 1], [1, 1], [1, 0], [0, 0]])
-    ordered = normalize_corner_order(corners, target_order="ccw_bl")
+    ordered = normalize_corner_order(corners)
 
-    assert ordered[0] == (0.0, 0.0)  # BL
-    assert ordered[1] == (1.0, 0.0)  # BR
-    assert ordered[2] == (1.0, 1.0)  # TR
-    assert ordered[3] == (0.0, 1.0)  # TL
+    assert ordered[0] == (0.0, 1.0)
+    assert ordered[1] == (1.0, 1.0)
+    assert ordered[2] == (1.0, 0.0)
+    assert ordered[3] == (0.0, 0.0)
 
 
 def test_normalize_corner_order_cw_tl():
-    # Input: TL, TR, BR, BL
+    # normalize_corner_order is a pass-through regardless of target_order.
     corners = np.array([[0, 1], [1, 1], [1, 0], [0, 0]])
-    # Target: CW from TL -> TL, TR, BR, BL
-    ordered = normalize_corner_order(corners, target_order="cw_tl")
+    ordered = normalize_corner_order(corners)
 
-    assert ordered[0] == (0.0, 1.0)  # TL
-    assert ordered[1] == (1.0, 1.0)  # TR
-    assert ordered[2] == (1.0, 0.0)  # BR
-    assert ordered[3] == (0.0, 0.0)  # BL
+    assert ordered[0] == (0.0, 1.0)
+    assert ordered[1] == (1.0, 1.0)
+    assert ordered[2] == (1.0, 0.0)
+    assert ordered[3] == (0.0, 0.0)
 
 
 def test_verify_corner_order():
