@@ -180,8 +180,6 @@ class DetectionRecord(BaseModel):
         self, width: float | None = None, height: float | None = None
     ) -> list[str | int | float]:
         """Convert to CSV row format (normalized and optionally clipped)."""
-        from render_tag.data_io.annotations import normalize_corner_order
-
         row: list[str | int | float] = [
             self.image_id,
             self.tag_id,
@@ -192,11 +190,8 @@ class DetectionRecord(BaseModel):
             int(self.is_mirrored),
         ]
 
-        # CSV format uses standard CW order from TL (OpenCV convention)
-        if len(self.corners) == 4:
-            ordered_corners = normalize_corner_order(self.corners, target_order="cw_tl")
-        else:
-            ordered_corners = self.corners
+        # CSV format: corners are guaranteed CW from TL by the 3D asset contract.
+        ordered_corners = self.corners
 
         for x, y in ordered_corners:
             if width is not None and x > -999999.0:

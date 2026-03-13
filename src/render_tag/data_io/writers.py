@@ -28,7 +28,6 @@ try:
     from render_tag.data_io.annotations import (
         compute_bbox,
         format_coco_keypoints,
-        normalize_corner_order,
     )
     from render_tag.generation.math import compute_polygon_area
 
@@ -223,19 +222,15 @@ class COCOWriter(AtomicWriter):
             # 2. Use pure-Python utility for area
             area = compute_polygon_area(np.array(corners))
 
-            # 3. Use pure-Python utility for corner reordering (COCO prefers CW from TL)
-            # Input 'corners' is now assumed to be CW from TL (OpenCV convention).
-
+            # 3. Serialize corners directly: the 3D asset contract guarantees CW from TL.
             # Segmentation:
-            ordered_corners_seg = normalize_corner_order(corners, target_order="cw_tl")
             segmentation = []
-            for corner in ordered_corners_seg:
+            for corner in corners:
                 segmentation.extend([corner[0], corner[1]])
 
         # Keypoints:
         if len(corners) == 4:
-            ordered_corners_kp = normalize_corner_order(corners, target_order="cw_tl")
-            keypoints = format_coco_keypoints(np.array(ordered_corners_kp))
+            keypoints = format_coco_keypoints(np.array(corners))
             num_keypoints = 4
         else:
             # Use raw points as keypoints

@@ -10,7 +10,10 @@ from typing import Any
 
 import numpy as np
 
-from render_tag.generation.projection_math import quaternion_wxyz_to_matrix
+from render_tag.generation.projection_math import (
+    quaternion_wxyz_to_matrix,
+    validate_winding_order,
+)
 
 
 def compute_bbox(points: np.ndarray, detection: Any | None = None) -> list[float]:
@@ -111,54 +114,36 @@ def compute_bbox(points: np.ndarray, detection: Any | None = None) -> list[float
 
 def normalize_corner_order(
     corners: np.ndarray | list[tuple[float, float]],
-    target_order: str = "cw_tl",
 ) -> list[tuple[float, float]]:
-    """Normalize 4 tag corners to a standard order.
+    """Convert corners to a list of (x, y) float tuples.
 
-    Target Orders:
-    - cw_tl: Top-Left (0), Top-Right (1), Bottom-Right (2), Bottom-Left (3) [Standard/OpenCV]
-    - ccw_bl: Bottom-Left (0), Bottom-Right (1), Top-Right (2), Top-Left (3)
+    The pipeline MUST NOT perform any image-space sorting of corners. Index 0 is
+    always Top-Left and the winding is always Clockwise, as enforced by
+    backend.projection. This function is a serialization helper only.
 
     Args:
-        corners: (4, 2) corner coordinates.
-        target_order: Desired output order.
+        corners: (N, 2) corner coordinates.
 
     Returns:
-        List of 4 (x, y) tuples.
+        List of (x, y) tuples in the original order.
     """
     corners = np.asarray(corners)
-    assert corners.ndim == 2, "Corners must be a 2D array."
-    assert corners.shape[1] == 2, "Corners must have 2 columns (x, y)."
-    if corners.shape != (4, 2):
-        # If not exactly 4 corners, return as-is after converting to tuples
-        return [(float(pt[0]), float(pt[1])) for pt in corners]
-    assert len(corners) == 4
-
-    # Current logic in writers.py and backend now assumes input is CW from TL
-    # TL, TR, BR, BL
-    tl, tr, br, bl = corners[0], corners[1], corners[2], corners[3]
-
-    if target_order == "cw_tl":
-        ordered = [tl, tr, br, bl]
-    elif target_order == "ccw_bl":
-        # BL, BR, TR, TL
-        ordered = [bl, br, tr, tl]
-    else:
-        # If target_order is unknown, return original corners as tuples
-        ordered = [(float(p[0]), float(p[1])) for p in corners]
-
-    return [(float(p[0]), float(p[1])) for p in ordered]
+    return [(float(pt[0]), float(pt[1])) for pt in corners]
 
 
 def verify_corner_order(
     corners: np.ndarray | list[tuple[float, float]],
-    expected_order: str = "ccw",
+    expected_order: str = "cw",
 ) -> bool:
     """Verify that corners are in the expected winding order.
 
+    Delegates to the single source of truth: ``validate_winding_order`` from
+    ``render_tag.generation.projection_math``.  In a Y-down coordinate system
+    (OpenCV/image space), Clockwise polygons have a positive signed area.
+
     Args:
         corners: (4, 2) corner coordinates.
-        expected_order: "ccw" (positive area) or "cw" (negative area).
+        expected_order: "cw" (positive area, default) or "ccw" (negative area).
 
     Returns:
         True if the winding order matches.
@@ -167,15 +152,10 @@ def verify_corner_order(
     if len(corners) != 4:
         return False
 
-    # We need signed area for winding order
-    x = corners[:, 0]
-    y = corners[:, 1]
-    signed_area = 0.5 * (np.dot(x, np.roll(y, -1)) - np.dot(y, np.roll(x, -1)))
-
-    if expected_order == "ccw":
-        return bool(signed_area < 0)
-    else:  # cw
-        return bool(signed_area > 0)
+    if expected_order == "cw":
+        return validate_winding_order(corners)
+    else:  # ccw
+        return not validate_winding_order(corners)
 
 
 def format_coco_keypoints(
