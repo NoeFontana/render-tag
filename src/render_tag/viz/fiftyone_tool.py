@@ -185,7 +185,7 @@ def project_tag_axes(
     resolution: list[int],
 ) -> dict[str, fo.Polyline] | None:
     """
-    Project 3D axes at the tag origin (Top-Left) using its pose metadata.
+    Project 3D axes at the tag origin (geometric center) using its pose metadata.
     """
     pos = record.get("position")  # [x, y, z] in camera space
     quat = record.get("rotation_quaternion")  # [x, y, z, w] in camera space
@@ -204,7 +204,7 @@ def project_tag_axes(
     r_mat = quaternion_xyzw_to_matrix(quat)
     t_vec = np.array(pos)
 
-    # Local axes points (Origin at Top-Left)
+    # Local axes points (Origin at geometric center of the black border)
     local_origin = np.array([0.0, 0.0, 0.0])
     local_x = np.array([axis_len_m, 0.0, 0.0])  # +X right
     local_y = np.array([0.0, axis_len_m, 0.0])  # +Y down
