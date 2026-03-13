@@ -1,3 +1,7 @@
+# v0.6.1 (2026-03-13)
+
+- Fixup! chore(release): v0.6.0
+
 # v0.6.0 (2026-03-13)
 
 - Fixup! fix(lint): clean up stale XYZW comments and type-narrow corners guard
