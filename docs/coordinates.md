@@ -18,18 +18,19 @@ This strictly clockwise (CW) winding order is preserved through the entire proje
 When defining the geometry of a calibration board (ChArUco, AprilGrid), we follow a mapping designed for Computer Vision (CV) library compatibility.
 
 #### Origin and Axes
-- **Origin (0,0,0):** Anchored exactly at the **Top-Left** corner of the physical asset (the top-left corner of the black border for single markers, and the top-left outer corner for ChArUco and AprilGrid boards).
-- **+X Axis:** Points Right (running along the top boundary).
-- **+Y Axis:** Points Down (running along the left boundary).
-- **+Z Axis:** Points **into the board plane** (away from the viewer). This strictly adheres to the OpenCV $\ge$ 4.6.0 convention for fiducial markers (represented by the `ARUCO_CW_TOP_LEFT_CORNER` API enum).
+- **Origin (0,0,0):** Anchored at the **mathematical center** of the active black border (for single markers) or the geometric center of the board (for ChArUco and AprilGrid boards). This matches the native behavior of AprilTag, ArUco, and locus-tag detectors.
+- **+X Axis:** Points Right.
+- **+Y Axis:** Points Down.
+- **+Z Axis:** Points **into the board plane** (away from the viewer), following the standard OpenCV camera convention.
 
 #### Visual Mapping (Local Space)
 ```mermaid
 graph TD
-    TL["Row 0, Col 0 (Ind: 0)"] --- TR["Row 0, Col C (Ind: 1)"]
-    TL --- BL["Row R, Col 0 (Ind: 3)"]
-    TR --- BR["Row R, Col C (Ind: 2)"]
-    
+    TL["Corner 0: TL (-x, -y)"] --- TR["Corner 1: TR (+x, -y)"]
+    TL --- BL["Corner 3: BL (-x, +y)"]
+    TR --- BR["Corner 2: BR (+x, +y)"]
+    O["Origin (0,0,0) = Center"]
+
     subgraph Board Plane [Local Z=0]
     direction LR
     X[+X Right]
@@ -38,9 +39,9 @@ graph TD
     Z[+Z Into Plane] -.-> Board Plane
 ```
 
-To perfectly align with modern OpenCV image-space conventions, the board's mathematical layout treats **+Y as pointing downwards** and **+Z as pointing inwards**. This means:
-1. Row 0 (the top row) is at the board's minimum Y coordinate in local space.
-2. Subsequent rows ($R > 0$) move in the **positive Y direction**.
+The board's mathematical layout treats **+Y as pointing downwards** and **+Z as pointing inwards**. With the origin at center:
+1. The Top-Left corner is at local coordinates $(-w/2, -h/2, 0)$.
+2. The Bottom-Right corner is at local coordinates $(+w/2, +h/2, 0)$.
 3. The surface normal facing the camera represents the **-Z** direction.
 
 ## 2. Global Scene Space
@@ -52,7 +53,7 @@ To perfectly align with modern OpenCV image-space conventions, the board's mathe
 The annotations in `coco_labels.json`, `rich_truth.json`, and `provenance.json` follow strict geometric contracts.
 
 ### 3.1 Relative Pose (Object-to-Camera)
-The pose represents the transformation from the **Object Local Space** (defined above) to the **Camera OpenCV Space**. 
+The pose represents the transformation from the **Tag Center** (defined above) to the **Camera OpenCV Space**.
 
 *   **Coordinate System:** OpenCV Convention. Both the camera frame (+Z forward) and the tag frame (+Z into plane) adhere to this standard.
 *   **Position (`position`):** `[x, y, z]` in meters.

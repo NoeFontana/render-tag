@@ -45,14 +45,15 @@ def compute_bbox(points: np.ndarray, detection: Any | None = None) -> list[float
         k_matrix = np.array(detection.k_matrix)
         marker_size_m = detection.tag_size_mm / 1000.0
 
-        # OpenCV 4.6.0 Convention: Pose is anchored at the Top-Left corner (Index 0).
+        # Center-Origin Convention: Pose is anchored at the geometric center.
         # +X is Right, +Y is Down, +Z is Into the plane.
+        half = marker_size_m / 2.0
         local_corners = np.array(
             [
-                [0.0, 0.0, 0.0],  # TL
-                [marker_size_m, 0.0, 0.0],  # TR
-                [marker_size_m, marker_size_m, 0.0],  # BR
-                [0.0, marker_size_m, 0.0],  # BL
+                [-half, -half, 0.0],  # TL
+                [half, -half, 0.0],  # TR
+                [half, half, 0.0],  # BR
+                [-half, half, 0.0],  # BL
             ]
         )
 
