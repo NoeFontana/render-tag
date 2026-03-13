@@ -73,6 +73,66 @@ def test_generate_subject_records_preserves_order(mock_bridge):
         assert corners_2d[i][1] == logical_kps[i][1]
 
 
+# --- Phase 2: 3D-to-2D Projection Anchor Tests (pure math, no Blender) ---
+
+
+def _project_tl(tag_size_mm, position, rotation_quaternion, k_matrix):
+    """Project the TL corner using the stored pose and K matrix."""
+    from render_tag.generation.projection_math import quaternion_wxyz_to_matrix
+
+    half = tag_size_mm / 2000.0  # mm → m, half-size
+    local_tl = np.array([-half, -half, 0.0])  # Center-Origin, Y-down
+    R = quaternion_wxyz_to_matrix(rotation_quaternion)
+    t = np.array(position, dtype=float)
+    p_cam = R @ local_tl + t
+
+    k = np.array(k_matrix, dtype=float)
+    x = k[0, 0] * p_cam[0] / p_cam[2] + k[0, 2]
+    y = k[1, 1] * p_cam[1] / p_cam[2] + k[1, 2]
+    return x, y
+
+
+def test_anchor_projection_perfect_pose():
+    """Projected TL must land sub-pixel on corners[0] when pose is exact."""
+    # Tag at Z=1m, identity rotation, fx=fy=500, principal point=(320, 240)
+    tag_size_mm = 160.0
+    position = [0.0, 0.0, 1.0]
+    rotation_quaternion = [1.0, 0.0, 0.0, 0.0]  # wxyz identity
+    k_matrix = [[500.0, 0.0, 320.0], [0.0, 500.0, 240.0], [0.0, 0.0, 1.0]]
+
+    x_proj, y_proj = _project_tl(tag_size_mm, position, rotation_quaternion, k_matrix)
+
+    # half = 0.08m → projected offset = 500 * (-0.08) / 1 = -40px from principal point
+    # TL expected at (320 - 40, 240 - 40) = (280, 200)
+    corners_correct = [(280.0, 200.0), (360.0, 200.0), (360.0, 280.0), (280.0, 280.0)]
+
+    dist0 = np.hypot(x_proj - corners_correct[0][0], y_proj - corners_correct[0][1])
+    assert dist0 < 0.5, f"Anchor failed: dist_to_corner0={dist0:.3f}px"
+
+
+def test_anchor_projection_detects_180_degree_error():
+    """When corners[0] and corners[2] are swapped, projected TL lands on corners[2].
+
+    This is the DictionaryOrientationError signature: the texture is 180° out of
+    phase with the 3D geometry.
+    """
+    tag_size_mm = 160.0
+    position = [0.0, 0.0, 1.0]
+    rotation_quaternion = [1.0, 0.0, 0.0, 0.0]  # wxyz identity
+    k_matrix = [[500.0, 0.0, 320.0], [0.0, 500.0, 240.0], [0.0, 0.0, 1.0]]
+
+    x_proj, y_proj = _project_tl(tag_size_mm, position, rotation_quaternion, k_matrix)
+
+    # corners with 180° index swap: BR at [0], TL at [2]
+    corners_180 = [(360.0, 280.0), (280.0, 280.0), (280.0, 200.0), (360.0, 200.0)]
+
+    dist0 = np.hypot(x_proj - corners_180[0][0], y_proj - corners_180[0][1])
+    dist2 = np.hypot(x_proj - corners_180[2][0], y_proj - corners_180[2][1])
+
+    assert dist0 > 10.0, f"Expected large dist to corners[0], got {dist0:.1f}px"
+    assert dist2 < 0.5, f"Expected near-zero dist to corners[2], got {dist2:.3f}px"
+
+
 def test_projection_engine_is_agnostic_to_visual_shuffling(mock_bridge, monkeypatch):
     """
     Verify that even if visual order is 'inverted', the logical

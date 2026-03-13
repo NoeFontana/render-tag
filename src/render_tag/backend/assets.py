@@ -136,7 +136,9 @@ def create_tag_plane(
     """Create a textured plane representing a fiducial marker.
 
     Args:
-        size_meters: The size of the tag in meters (outer edge, including margin)
+        size_meters: The active size of the black border in meters (NOT including white margin).
+            The physical plane will be inflated to total_bits/grid_size * size_meters to
+            accommodate the quiet zone so the black border renders at exactly size_meters.
         texture_path: Path to the tag texture image
         tag_family: Tag family identifier for metadata
         tag_id: Tag ID number
@@ -153,13 +155,11 @@ def create_tag_plane(
     grid_size = TAG_GRID_SIZES.get(tag_family, 8)
     total_bits = grid_size + (2 * margin_bits)
 
-    # Calculate local scale factor for black border relative to total plane.
-    # Since the local plane is 2x2 (from -1 to 1), the half-width of the
-    # full plane is 1.0. The half-width of the black border is thus:
+    # In local space the plane spans [-1, 1]. The black border occupies
+    # grid_size/total_bits of that range; the remainder is the white quiet zone.
     half_black = grid_size / total_bits
 
-    # The requested size_meters is the active size of the INNER BLACK BORDER.
-    # The physical plane must be larger to fit the white margin perfectly.
+    # Inflate the physical plane so the black border is exactly size_meters wide.
     total_size_m = size_meters * (total_bits / grid_size)
 
     # Scale to desired physical size

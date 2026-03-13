@@ -27,7 +27,6 @@ camera:
     distribution: uniform
 tag:
   family: tag36h11
-  size_mm: 160.0
   margin_bits: 1
   material:
     randomize: true

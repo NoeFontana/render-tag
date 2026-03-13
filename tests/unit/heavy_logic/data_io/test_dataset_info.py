@@ -37,7 +37,7 @@ def test_generate_dataset_info_modern(sample_dataset):
     assert EvaluationScope.POSE_ACCURACY in info.evaluation_scopes
     assert info.provenance.render_tag_version is not None
     assert info.metadata["custom"] == "value"
-    assert info.pose_convention == "xyzw"
+    assert info.pose_convention == "wxyz"
 
     # Verify file written (it's now manifest.json per the implementation)
     info_file = sample_dataset / "manifest.json"

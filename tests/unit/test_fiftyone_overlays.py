@@ -15,7 +15,7 @@ def test_project_tag_axes_logic():
     # tag_size_mm = 100.0, so axis_len_m = 0.05
     record = {
         "position": [0.0, 0.0, 1.0],
-        "rotation_quaternion": [0.0, 0.0, 0.0, 1.0],  # Identity in XYZW format
+        "rotation_quaternion": [1.0, 0.0, 0.0, 0.0],  # Identity in WXYZ format
         "tag_size_mm": 100.0,
         "k_matrix": [[500, 0, 320], [0, 500, 240], [0, 0, 1]],
         "resolution": [640, 480],

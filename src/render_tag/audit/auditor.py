@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 from pydantic import BaseModel, Field
 
 try:
@@ -21,8 +22,20 @@ except ImportError:
 
 from render_tag.core.logging import get_logger
 from render_tag.core.schema.hot_loop import Telemetry
+from render_tag.generation.projection_math import quaternion_wxyz_to_matrix
 
 logger = get_logger(__name__)
+
+
+# --- EXCEPTIONS ---
+
+
+class DictionaryOrientationError(ValueError):
+    """Raised when the texture payload is 180° out of phase with the 3D geometry.
+
+    The projected 3D TL anchor lands on annotated corners[2] (BR) instead of
+    corners[0] (TL), which proves the UV mapping or index convention is inverted.
+    """
 
 
 # --- SCHEMAS ---
@@ -61,6 +74,9 @@ class IntegrityAudit(BaseModel):
     orphaned_tags: int = 0
     impossible_poses: int = 0
     corrupted_frames: int = 0
+    chirality_failures: int = 0
+    orientation_failures: int = 0
+    dictionary_orientation_error: bool = False
 
 
 class AuditReport(BaseModel):
@@ -97,6 +113,7 @@ class AuditResult(BaseModel):
     report: AuditReport
     gate_passed: bool = True
     gate_failures: list[str] = Field(default_factory=list)
+    quarantined: bool = False
 
 
 # --- TELEMETRY ---
@@ -174,6 +191,14 @@ class DatasetReader:
         with open(rich_path) as f:
             return pl.DataFrame(json.load(f))
 
+    def load_raw_records(self) -> list[dict[str, Any]]:
+        """Load raw JSON records for structural checks (nested fields intact)."""
+        rich_path = self.dataset_path / "rich_truth.json"
+        if not rich_path.exists():
+            return []
+        with open(rich_path) as f:
+            return json.load(f)
+
 
 class DatasetAuditor:
     """Orchestrates the full audit of a dataset."""
@@ -184,6 +209,7 @@ class DatasetAuditor:
 
     def run_audit(self, gate_config: QualityGateConfig | None = None) -> AuditResult:
         df = self.reader.load_rich_detections()
+        raw_records = self.reader.load_raw_records()
 
         def get_stats(col):
             if col not in df.columns:
@@ -205,10 +231,17 @@ class DatasetAuditor:
             image_count=df["image_id"].n_unique() if "image_id" in df.columns else 0,
         )
         env = EnvironmentalAudit(lighting_intensity=get_stats("lighting_intensity"))
+
+        chirality_failures = self._run_chirality_check(raw_records)
+        orientation_failures, dict_orient_error = self._run_anchor_check(raw_records)
+
         integrity = IntegrityAudit(
             impossible_poses=int(df.filter(pl.col("distance") < 0).height)
             if "distance" in df.columns
-            else 0
+            else 0,
+            chirality_failures=chirality_failures,
+            orientation_failures=orientation_failures,
+            dictionary_orientation_error=dict_orient_error,
         )
 
         report = AuditReport(
@@ -226,7 +259,24 @@ class DatasetAuditor:
             # Simple gate logic for tests
             pass
 
-        return AuditResult(report=report, gate_passed=gate_passed, gate_failures=gate_failures)
+        quarantined = chirality_failures > 0 or orientation_failures > 0
+
+        if chirality_failures > 0:
+            gate_failures.append(f"CHIRALITY: {chirality_failures} tag(s) have wrong winding order")
+            gate_passed = False
+        if orientation_failures > 0:
+            msg = f"ORIENTATION: {orientation_failures} tag(s) fail 3D anchor projection"
+            if dict_orient_error:
+                msg += " [DictionaryOrientationError: texture is 180° out of phase]"
+            gate_failures.append(msg)
+            gate_passed = False
+
+        return AuditResult(
+            report=report,
+            gate_passed=gate_passed,
+            gate_failures=gate_failures,
+            quarantined=quarantined,
+        )
 
     def _calculate_score(
         self, geom: GeometricAudit, env: EnvironmentalAudit, integrity: IntegrityAudit
@@ -236,11 +286,130 @@ class DatasetAuditor:
             return 0.0
         score = 100.0
         score -= integrity.impossible_poses * 10
+        if geom.tag_count > 0:
+            score -= (integrity.chirality_failures / geom.tag_count) * 50
+            score -= (integrity.orientation_failures / geom.tag_count) * 50
         if geom.incidence_angle.max < 45:
             score -= 20
         if geom.distance.max - geom.distance.min < 1.0:
             score -= 10
         return float(max(0.0, min(100.0, score)))
+
+    def _run_chirality_check(self, records: list[dict[str, Any]]) -> int:
+        """Phase 1: Chirality invariant test via diagonal cross product.
+
+        For a CW quad [P0=TL, P1=TR, P2=BR, P3=BL] in Y-down image space:
+            A = P0→P2,  B = P1→P3
+            cross = Ax*By - Ay*Bx  must be > 0
+
+        Note: A 180° index rotation produces the same positive cross product,
+        so this test catches mirror flips but NOT 180° orientation errors.
+        That is handled by _run_anchor_check.
+
+        Returns:
+            Number of TAG records that fail the chirality invariant.
+        """
+        failures = 0
+        for rec in records:
+            if rec.get("record_type") != "TAG":
+                continue
+            corners = rec.get("corners")
+            if not corners or len(corners) < 4:
+                continue
+            p0, p1, p2, p3 = corners[0], corners[1], corners[2], corners[3]
+            ax = p2[0] - p0[0]
+            ay = p2[1] - p0[1]
+            bx = p3[0] - p1[0]
+            by = p3[1] - p1[1]
+            if ax * by - ay * bx <= 0:
+                failures += 1
+                logger.warning(
+                    "Chirality failure",
+                    image_id=rec.get("image_id"),
+                    tag_id=rec.get("tag_id"),
+                )
+        return failures
+
+    def _run_anchor_check(self, records: list[dict[str, Any]]) -> tuple[int, bool]:
+        """Phase 2: 3D-to-2D projection anchor test.
+
+        Projects the TL corner of the tag (using the stored pose) and measures
+        its distance to annotated corners[0]. Sub-pixel accuracy is expected.
+
+        If the projected TL lands near corners[2] (BR) instead, this is a
+        DictionaryOrientationError: the texture is 180° out of phase with the
+        3D geometry.
+
+        Returns:
+            (failure_count, dictionary_orientation_error)
+        """
+        _PASS_THRESHOLD = 0.5  # sub-pixel, px
+        _FAIL_THRESHOLD = 10.0  # significant error, px
+
+        failures = 0
+        dict_orient_error = False
+
+        for rec in records:
+            if rec.get("record_type") != "TAG":
+                continue
+            corners = rec.get("corners")
+            pos = rec.get("position")
+            quat_wxyz = rec.get("rotation_quaternion")
+            k_mat = rec.get("k_matrix")
+            tag_size_mm = rec.get("tag_size_mm")
+
+            if (
+                not corners
+                or pos is None
+                or quat_wxyz is None
+                or k_mat is None
+                or tag_size_mm is None
+            ):
+                continue
+            if len(corners) < 4:
+                continue
+
+            half = float(tag_size_mm) / 2000.0  # mm → m, half-size
+
+            # Center-Origin, Y-down convention: TL = (-half, -half, 0)
+            local_tl = np.array([-half, -half, 0.0])
+            R = quaternion_wxyz_to_matrix(quat_wxyz)
+            t = np.array(pos, dtype=float)
+            p_cam = R @ local_tl + t
+
+            if p_cam[2] <= 0:
+                continue  # Behind camera
+
+            k = np.array(k_mat, dtype=float)
+            x_proj = k[0, 0] * p_cam[0] / p_cam[2] + k[0, 2]
+            y_proj = k[1, 1] * p_cam[1] / p_cam[2] + k[1, 2]
+
+            c0 = corners[0]
+            dist0 = float(np.hypot(x_proj - c0[0], y_proj - c0[1]))
+
+            if dist0 > _PASS_THRESHOLD:
+                failures += 1
+                logger.warning(
+                    "Anchor projection failure",
+                    image_id=rec.get("image_id"),
+                    tag_id=rec.get("tag_id"),
+                    dist_to_corner0=round(dist0, 2),
+                )
+
+                if dist0 > _FAIL_THRESHOLD:
+                    c2 = corners[2]
+                    dist2 = float(np.hypot(x_proj - c2[0], y_proj - c2[1]))
+                    if dist2 < _PASS_THRESHOLD:
+                        dict_orient_error = True
+                        logger.error(
+                            "DictionaryOrientationError: texture 180° out of phase",
+                            image_id=rec.get("image_id"),
+                            tag_id=rec.get("tag_id"),
+                            dist_to_corner0=round(dist0, 2),
+                            dist_to_corner2=round(dist2, 2),
+                        )
+
+        return failures, dict_orient_error
 
 
 class AuditDiff:

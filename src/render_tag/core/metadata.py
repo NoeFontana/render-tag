@@ -55,8 +55,8 @@ class DatasetManifest(BaseModel):
     provenance: ProvenanceMetadata = Field(default_factory=ProvenanceMetadata)
     camera_intrinsics: CameraIntrinsicsMetadata
     tag_specification: TagSpecificationMetadata
-    pose_convention: Literal["xyzw"] = Field(
-        default="xyzw", description="Quaternion convention (Scalar Last)"
+    pose_convention: Literal["wxyz"] = Field(
+        default="wxyz", description="Quaternion convention (Scalar First)"
     )
     evaluation_scopes: list[EvaluationScope] = Field(
         default_factory=lambda: [EvaluationScope.DETECTION]
