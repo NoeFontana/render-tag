@@ -90,8 +90,12 @@ class WorkbenchRenderStrategy:
 
 
 class RenderFacade:
-    """
-    High-level interface for rendering fiducial tag scenes.
+    """High-level interface for rendering fiducial tag scenes.
+
+    Attributes:
+        renderer_mode: The rendering engine to use ('cycles', 'eevee', 'workbench').
+        logger: Logger for tracking rendering progress.
+        config: Detailed configuration for the renderer.
     """
 
     def __init__(
@@ -100,6 +104,13 @@ class RenderFacade:
         logger: logging.Logger | None = None,
         config: RendererConfig | None = None,
     ):
+        """Initialize the RenderFacade.
+
+        Args:
+            renderer_mode: Name of the engine to use.
+            logger: Optional pre-configured logger.
+            config: Optional renderer configuration presets.
+        """
         # Ensure bridge is stabilized before using it
         if not bridge.bpy or not bridge.bproc:
             bridge.stabilize()
@@ -292,7 +303,14 @@ class RenderFacade:
         return tag_objects
 
     def render_camera(self, camera_recipe: dict[str, Any]) -> dict[str, Any]:
-        """Configures a camera and renders the image."""
+        """Configures a camera and renders the image.
+
+        Args:
+            camera_recipe: Resolved dictionary containing pose, intrinsics, and sensor settings.
+
+        Returns:
+            A dictionary containing the 'img' (ndarray) and 'segmap' (metadata).
+        """
         pose_matrix = bridge.np.array(camera_recipe["transform_matrix"])
         bridge.bproc.camera.add_camera_pose(pose_matrix, frame=0)
         setup_sensor_dynamics(pose_matrix, camera_recipe.get("sensor_dynamics"))
@@ -334,7 +352,13 @@ def execute_recipe(
     ctx: RenderContext,
     seed: int | None = None,
 ) -> None:
-    """Execute a single scene recipe using the RenderContext."""
+    """Execute a single scene recipe using the RenderContext.
+
+    Args:
+        recipe: The fully resolved scene description.
+        ctx: Execution context (writers, output paths, etc.).
+        seed: Optional overrides for reproducibility.
+    """
     # Staff Engineer: Normalize input to dictionary for uniform processing
     if hasattr(recipe, "model_dump"):
         # Pydantic model
