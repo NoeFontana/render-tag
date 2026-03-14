@@ -68,15 +68,14 @@ def test_asset_provider_absolute_path_passthrough(temp_assets_dir):
 
 
 @patch("render_tag.data_io.assets.hf_hub_download")
-def test_asset_provider_download_failure(mock_hf_download, temp_assets_dir):
-    # Simulate an exception during download
+def test_asset_provider_download_failure_raises_asset_error(mock_hf_download, temp_assets_dir):
+    """Download failure must raise AssetError instead of silently returning a bad path."""
+    from render_tag.core.errors import AssetError
+
     mock_hf_download.side_effect = Exception("HF Error")
 
     provider = AssetProvider(local_dir=temp_assets_dir)
     target_rel_path = "tags/error_tag.png"
 
-    # It should log error and return the local path anyway
-    resolved = provider.resolve_path(target_rel_path)
-
-    assert resolved == temp_assets_dir / target_rel_path
-    assert not resolved.exists()
+    with pytest.raises(AssetError, match="Failed to download asset"):
+        provider.resolve_path(target_rel_path)

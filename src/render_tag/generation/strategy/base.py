@@ -3,8 +3,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
-    from render_tag.cli.pipeline import GenerationContext
     from render_tag.core.schema.recipe import ObjectRecipe
+    from render_tag.generation.context import GenerationContext
 
 
 @runtime_checkable

@@ -5,7 +5,6 @@ Handles the expansion of high-level Experiment descriptions into concrete
 variants (SceneRecipes) and manages provenance (Manifests).
 """
 
-import random
 from pathlib import Path
 from typing import Any
 
@@ -20,16 +19,6 @@ from .experiment_schema import (
     Sweep,
     SweepType,
 )
-
-
-def seed_everything(seed: int):
-    """Set seeds for all RNGs to ensure reproducibility.
-
-    Args:
-        seed: The integer seed to use.
-    """
-    random.seed(seed)
-    np.random.seed(seed)
 
 
 def load_experiment_config(path: Path) -> Experiment | Campaign:

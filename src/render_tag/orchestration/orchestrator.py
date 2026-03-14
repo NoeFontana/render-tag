@@ -8,7 +8,6 @@ import hashlib
 import json
 import os
 import queue
-import random
 import re
 import shutil
 import signal
@@ -82,9 +81,14 @@ class OrchestratorConfig:
     memory_limit_mb: int | None = None
 
     def __post_init__(self):
-        """Handle default path for blender_script if not provided."""
+        """Resolve defaults for blender_script and blender_executable."""
         if self.blender_script is None:
-            pass
+            default = Path(__file__).resolve().parents[3] / "scripts" / "worker_bootstrap.py"
+            object.__setattr__(self, "blender_script", default)
+        mock = self.mock or (os.environ.get("RENDER_TAG_FORCE_MOCK") == "1")
+        if self.blender_executable is None:
+            exe = sys.executable if mock else "blenderproc"
+            object.__setattr__(self, "blender_executable", exe)
 
 
 class UnifiedWorkerOrchestrator:
@@ -99,13 +103,8 @@ class UnifiedWorkerOrchestrator:
         self.config = config
 
         self.mock = self.config.mock or (os.environ.get("RENDER_TAG_FORCE_MOCK") == "1")
-        self.blender_script = (
-            self.config.blender_script
-            or Path(__file__).resolve().parents[3] / "scripts" / "worker_bootstrap.py"
-        )
-        self.blender_executable = self.config.blender_executable or (
-            sys.executable if self.mock else "blenderproc"
-        )
+        self.blender_script = self.config.blender_script
+        self.blender_executable = self.config.blender_executable
 
         self.job_id = str(uuid.uuid4())
         self.context = zmq.Context() if zmq else None
@@ -175,11 +174,12 @@ class UnifiedWorkerOrchestrator:
             if self.running:
                 return
 
-            seed_str = f"{shard_id}-{os.getpid()}-{random.random()}"
+            seed_str = f"{shard_id}-{os.getpid()}-{os.urandom(8).hex()}"
             port_offset = (
                 int(hashlib.md5(seed_str.encode(), usedforsecurity=False).hexdigest(), 16) % 10000
             )
-            current_base_port = self.base_port + port_offset + random.randint(0, 50) * 10
+            jitter = int.from_bytes(os.urandom(2), "big") % 50 * 10
+            current_base_port = self.base_port + port_offset + jitter
             # Calculate memory budget per worker
             effective_memory_limit = calculate_worker_memory_budget(
                 num_workers=self.num_workers, explicit_limit_mb=self.memory_limit_mb
@@ -312,7 +312,7 @@ class UnifiedWorkerOrchestrator:
                         and telemetry.vram_used_mb > self.vram_threshold_mb
                     ):
                         should_restart = True
-            except Exception as e:
+            except (WorkerCommunicationError, OSError, ValueError) as e:
                 if not intentional_exit:
                     logger.error(f"Telemetry check failed for {worker.worker_id}: {e}")
 
@@ -397,8 +397,9 @@ class UnifiedWorkerOrchestrator:
                     },
                 )
 
-                # Check for memory limit exceeded during render
-                # In this case, we don't count it as a failed attempt
+                # Check for memory limit exceeded during render.
+                # Worker is already dead — restart it via release_worker, then retry
+                # without counting as a failed attempt.
                 if (
                     resp.status == ResponseStatus.FAILURE
                     and resp.message
@@ -408,20 +409,19 @@ class UnifiedWorkerOrchestrator:
                         f"Worker {worker.worker_id} exceeded resource limits during render. "
                         "Retrying."
                     )
-                    worker.stop()
-                    # Do not increment attempt counter
+                    self.release_worker(worker)
                     continue
 
                 if resp.status == ResponseStatus.SUCCESS:
                     worker.renders_completed += 1
+                self.release_worker(worker)
                 return resp
             except Exception as e:
                 last_error = e
                 logger.warning(f"Render attempt {attempt + 1} failed for {worker.worker_id}: {e}")
                 worker.stop()
-                attempt += 1
-            finally:
                 self.release_worker(worker)
+                attempt += 1
 
         raise WorkerCommunicationError(
             f"Execute recipe failed after {max_retries} retries: {last_error}"

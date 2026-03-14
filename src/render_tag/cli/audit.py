@@ -263,11 +263,11 @@ def prune(
         # Get unique valid images
         valid_images = filtered_df["image_id"].unique().to_list()
 
-        # Diversify selection (shuffle)
+        # Diversify selection (deterministic shuffle without perturbing global PRNG)
         import random
 
-        random.seed(42)
-        random.shuffle(valid_images)
+        rng = random.Random(42)
+        rng.shuffle(valid_images)
 
         # Truncate
         selected_images = valid_images[:limit]

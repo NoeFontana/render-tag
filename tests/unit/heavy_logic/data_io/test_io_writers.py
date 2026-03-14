@@ -6,22 +6,21 @@ import json
 from pathlib import Path
 
 from render_tag.core.schema.base import DetectionRecord
-from render_tag.data_io.writers import COCOWriter, CSVWriter
+from render_tag.data_io.writers import COCOWriter, CSVWriter, merge_coco_shards
 
 
 class TestCSVWriter:
     def test_write_single_detection(self, tmp_path: Path) -> None:
         csv_path = tmp_path / "tags.csv"
-        writer = CSVWriter(csv_path)
-
-        corners = [(10.5, 20.5), (110.5, 20.5), (110.5, 120.5), (10.5, 120.5)]
-        detection = DetectionRecord(
-            image_id="scene_0001",
-            tag_id=0,
-            tag_family="tag36h11",
-            corners=corners,
-        )
-        writer.write_detection(detection)
+        with CSVWriter(csv_path) as writer:
+            corners = [(10.5, 20.5), (110.5, 20.5), (110.5, 120.5), (10.5, 120.5)]
+            detection = DetectionRecord(
+                image_id="scene_0001",
+                tag_id=0,
+                tag_family="tag36h11",
+                corners=corners,
+            )
+            writer.write_detection(detection)
 
         # Read and verify
         content = csv_path.read_text()
@@ -37,15 +36,16 @@ class TestCSVWriter:
 
     def test_write_multiple_detections(self, tmp_path: Path) -> None:
         csv_path = tmp_path / "tags.csv"
-        writer = CSVWriter(csv_path)
-
-        corners = [(0, 0), (100, 0), (100, 100), (0, 100)]
-        detections = [
-            DetectionRecord(image_id="img1", tag_id=0, tag_family="tag36h11", corners=corners),
-            DetectionRecord(image_id="img2", tag_id=1, tag_family="tag36h11", corners=corners),
-            DetectionRecord(image_id="img3", tag_id=2, tag_family="DICT_4X4_50", corners=corners),
-        ]
-        writer.write_detections(detections)
+        with CSVWriter(csv_path) as writer:
+            corners = [(0, 0), (100, 0), (100, 100), (0, 100)]
+            detections = [
+                DetectionRecord(image_id="img1", tag_id=0, tag_family="tag36h11", corners=corners),
+                DetectionRecord(image_id="img2", tag_id=1, tag_family="tag36h11", corners=corners),
+                DetectionRecord(
+                    image_id="img3", tag_id=2, tag_family="DICT_4X4_50", corners=corners
+                ),
+            ]
+            writer.write_detections(detections)
 
         lines = csv_path.read_text().strip().split("\n")
         assert len(lines) == 4  # Header + 3 detections
@@ -59,6 +59,7 @@ class TestCSVWriter:
             image_id="img1", tag_id=0, tag_family="tag36h11", corners=[(0, 0), (1, 1), (2, 2)]
         )
         writer.write_detection(detection)
+        writer.close()
 
         # File should not be created since the only detection was invalid
         assert not csv_path.exists()
@@ -149,3 +150,38 @@ class TestCOCOWriter:
         assert bbox[1] == 50  # y_min
         assert bbox[2] == 150  # width (200 - 50)
         assert bbox[3] == 150  # height (200 - 50)
+
+
+class TestShardMerge:
+    def test_merge_coco_shards_is_atomic(self, tmp_path: Path) -> None:
+        """Merged output must not leave partial files on disk."""
+        # Create two shard files
+        shard_1 = {
+            "images": [{"id": 1, "file_name": "a.png", "width": 640, "height": 480}],
+            "annotations": [{"id": 1, "image_id": 1, "category_id": 1}],
+            "categories": [{"id": 1, "name": "tag36h11"}],
+        }
+        shard_2 = {
+            "images": [{"id": 1, "file_name": "b.png", "width": 640, "height": 480}],
+            "annotations": [{"id": 1, "image_id": 1, "category_id": 1}],
+            "categories": [{"id": 1, "name": "tag36h11"}],
+        }
+        for i, shard in enumerate([shard_1, shard_2]):
+            with open(tmp_path / f"coco_shard_{i}.json", "w") as f:
+                json.dump(shard, f)
+
+        merge_coco_shards(tmp_path, cleanup=False)
+
+        final_path = tmp_path / "coco_labels.json"
+        assert final_path.exists()
+        # No .tmp file should remain
+        assert not final_path.with_suffix(".tmp").exists()
+
+        with open(final_path) as f:
+            merged = json.load(f)
+
+        assert len(merged["images"]) == 2
+        assert len(merged["annotations"]) == 2
+        # IDs should be re-mapped to avoid collisions
+        image_ids = [img["id"] for img in merged["images"]]
+        assert len(set(image_ids)) == 2  # unique IDs

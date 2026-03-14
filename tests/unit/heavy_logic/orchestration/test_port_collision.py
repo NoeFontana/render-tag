@@ -19,15 +19,23 @@ def test_is_port_in_use():
 
 
 def test_orchestrator_port_collision_avoidance():
+    """Verify that the orchestrator avoids ports already in use."""
+    import os as real_os
+
+    original_urandom = real_os.urandom
+
+    def controlled_urandom(n):
+        """Return zeros for the port jitter calls (2 and 8 bytes), pass through for uuid."""
+        if n in (2, 8):
+            return b"\x00" * n
+        return original_urandom(n)
+
     with (
         patch("hashlib.md5") as mock_md5,
-        patch("random.randint") as mock_randint,
-        patch("random.random") as mock_random,
+        patch("render_tag.orchestration.orchestrator.os.urandom", side_effect=controlled_urandom),
         patch("render_tag.orchestration.orchestrator.is_port_in_use") as mock_is_port_in_use,
     ):
         mock_md5.return_value.hexdigest.return_value = "0"
-        mock_randint.return_value = 0
-        mock_random.return_value = 0
 
         # Deterministically mock port availability to avoid CI flakiness
         # Return True if port is 26000 (simulating collision), False otherwise
@@ -41,4 +49,6 @@ def test_orchestrator_port_collision_avoidance():
             with UnifiedWorkerOrchestrator(num_workers=1, base_port=26000, mock=True) as orch:
                 assert orch.running
                 worker = orch.workers[0]
+                # With zeroed urandom, port_offset=0, jitter=0, so base=26000.
+                # Port 26000 is in use, so it shifts by 200 to 26200.
                 assert worker.port == 26200

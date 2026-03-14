@@ -65,12 +65,18 @@ class AtomicWriter:
 
 
 class CSVWriter:
-    """Writes detection data to a CSV file."""
+    """Writes detection data to a CSV file.
+
+    Keeps the file handle open for the writer's lifetime to avoid per-row
+    open/close overhead. Call close() or use as a context manager to flush.
+    """
 
     def __init__(self, output_path: Path) -> None:
         """Initialize the CSV writer."""
         self.output_path = output_path
         self._initialized = False
+        self._file = None
+        self._writer = None
 
     def _ensure_initialized(self, num_corners: int = 4, num_keypoints: int = 0) -> None:
         """Create the file and write header if not already done."""
@@ -78,11 +84,10 @@ class CSVWriter:
             self.output_path.parent.mkdir(parents=True, exist_ok=True)
 
             header = DetectionRecord.csv_header(num_corners, num_keypoints)
-            with open(self.output_path, "w", newline="") as f:
-                writer = csv.writer(f)
-                writer.writerow(header)
-                f.flush()
-                os.fsync(f.fileno())
+            self._file = open(self.output_path, "w", newline="")  # noqa: SIM115
+            self._writer = csv.writer(self._file)
+            self._writer.writerow(header)
+            self._file.flush()
             self._initialized = True
 
     def write_detection(
@@ -103,17 +108,28 @@ class CSVWriter:
 
         # Delegate CSV formatting to the data record
         row = detection.to_csv_row(width=width, height=height)
-
-        with open(self.output_path, "a", newline="") as f:
-            writer = csv.writer(f)
-            writer.writerow(row)
-            # Frequent fsync kills performance, but ensures data safety.
-            # We rely on OS buffering here, accepting minor loss on crash.
+        self._writer.writerow(row)
 
     def write_detections(self, detections: list[DetectionRecord]) -> None:
         """Write multiple detections to the CSV file."""
         for detection in detections:
             self.write_detection(detection)
+
+    def close(self) -> None:
+        """Flush and close the underlying file handle."""
+        if self._file and not self._file.closed:
+            self._file.flush()
+            os.fsync(self._file.fileno())
+            self._file.close()
+
+    def __del__(self) -> None:
+        self.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
 
 
 class COCOWriter(AtomicWriter):
@@ -376,6 +392,21 @@ class BoardConfigWriter:
         return output_path
 
 
+def _write_json_atomic(path: Path, data: Any) -> None:
+    """Write JSON data atomically using temp file + rename."""
+    temp_path = path.with_suffix(".tmp")
+    try:
+        with open(temp_path, "w") as f:
+            json.dump(data, f, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        temp_path.rename(path)
+    except Exception:
+        if temp_path.exists():
+            temp_path.unlink()
+        raise
+
+
 def merge_coco_shards(
     output_dir: Path, final_filename: str = "coco_labels.json", cleanup: bool = False
 ):
@@ -421,8 +452,7 @@ def merge_coco_shards(
         global_ann_id_offset += max_ann_id + 1
 
     final_path = output_dir / final_filename
-    with open(final_path, "w") as f:
-        json.dump(master_data, f, indent=2)
+    _write_json_atomic(final_path, master_data)
     logger.info(f"Merged {len(shard_files)} shards into {final_path}")
 
     if cleanup:
@@ -441,20 +471,31 @@ def merge_csv_shards(
         return
 
     final_path = output_dir / final_filename
-    with open(final_path, "w", newline="") as fout:
-        writer = csv.writer(fout)
-        header_written = False
+    temp_path = final_path.with_suffix(".tmp")
+    try:
+        with open(temp_path, "w", newline="") as fout:
+            writer = csv.writer(fout)
+            header_written = False
 
-        for shard_path in shard_files:
-            with open(shard_path, newline="") as fin:
-                reader = csv.reader(fin)
-                header = next(reader, None)
-                if not header_written and header:
-                    writer.writerow(header)
-                    header_written = True
+            for shard_path in shard_files:
+                with open(shard_path, newline="") as fin:
+                    reader = csv.reader(fin)
+                    header = next(reader, None)
+                    if not header_written and header:
+                        writer.writerow(header)
+                        header_written = True
 
-                for row in reader:
-                    writer.writerow(row)
+                    for row in reader:
+                        writer.writerow(row)
+
+            fout.flush()
+            os.fsync(fout.fileno())
+
+        temp_path.rename(final_path)
+    except Exception:
+        if temp_path.exists():
+            temp_path.unlink()
+        raise
 
     logger.info(f"Merged {len(shard_files)} shards into {final_path}")
 
@@ -480,8 +521,7 @@ def merge_rich_truth_shards(
             master_data.extend(shard_data)
 
     final_path = output_dir / final_filename
-    with open(final_path, "w") as f:
-        json.dump(master_data, f, indent=2)
+    _write_json_atomic(final_path, master_data)
     logger.info(f"Merged {len(shard_files)} shards into {final_path}")
 
     if cleanup:
@@ -505,8 +545,7 @@ def merge_provenance_shards(
             master_data.update(shard_data)
 
     final_path = output_dir / final_filename
-    with open(final_path, "w") as f:
-        json.dump(master_data, f, indent=2)
+    _write_json_atomic(final_path, master_data)
     logger.info(f"Merged {len(shard_files)} shards into {final_path}")
 
     if cleanup:

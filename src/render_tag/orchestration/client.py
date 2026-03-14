@@ -99,13 +99,12 @@ class ZmqHostClient:
             if self.mgmt_socket.poll(2000):
                 self.mgmt_socket.recv_string()
                 return True
+            # Timeout — recreate socket to clear EFSM state
+            self._recreate_mgmt_socket()
             return False
-        except Exception:
+        except (zmq.ZMQError, OSError):
+            self._recreate_mgmt_socket()
             return False
-        finally:
-            # Always recreate mgmt socket on failure/timeout to clear EFSM
-            if not self.mgmt_socket.poll(0):
-                self._recreate_mgmt_socket()
 
     def _recreate_mgmt_socket(self):
         if not self.context:
