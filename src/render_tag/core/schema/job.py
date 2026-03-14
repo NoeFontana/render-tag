@@ -4,6 +4,7 @@ Job specification and infrastructure schemas for render-tag.
 Defines the JobSpec contract used to communicate between the CLI/Host and
 the rendering backend.
 """
+
 import hashlib
 import json
 import shutil
