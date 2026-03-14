@@ -51,7 +51,22 @@ console = Console()
 
 @dataclass(frozen=True)
 class OrchestratorConfig:
-    """Immutable configuration for the UnifiedWorkerOrchestrator."""
+    """Immutable configuration for the UnifiedWorkerOrchestrator.
+
+    Attributes:
+        num_workers: Number of parallel Blender processes to maintain.
+        base_port: Starting port for ZMQ communication.
+        blender_script: Path to the worker bootstrap script.
+        blender_executable: Path to the Blender or BlenderProc binary.
+        use_blenderproc: Whether to use the BlenderProc wrapper.
+        mock: If True, uses mocks instead of a real Blender process.
+        vram_threshold_mb: VRAM limit for preventative worker restarts.
+        ephemeral: If True, workers are optimized for short-lived jobs.
+        max_renders_per_worker: Restart worker after this many renders.
+        worker_id_prefix: Prefix for naming worker processes.
+        seed: Global random seed for deterministic generation.
+        memory_limit_mb: Soft RAM limit per worker process.
+    """
 
     num_workers: int = 1
     base_port: int = 20000
@@ -67,10 +82,8 @@ class OrchestratorConfig:
     memory_limit_mb: int | None = None
 
     def __post_init__(self):
-        # Handle default path for blender_script if not provided
+        """Handle default path for blender_script if not provided."""
         if self.blender_script is None:
-            # We can't easily use Path(__file__) in frozen dataclass post_init for default
-            # but we can handle it in the Orchestrator
             pass
 
 
@@ -151,6 +164,12 @@ class UnifiedWorkerOrchestrator:
 
         Calculates memory budgets, verifies port availability, and launches workers
         in parallel.
+
+        Args:
+            shard_id: Optional identifier for the current work shard.
+
+        Raises:
+            WorkerStartupError: If workers fail to initialize or contact the bridge.
         """
         with self._lock:
             if self.running:
@@ -346,6 +365,18 @@ class UnifiedWorkerOrchestrator:
         """Execute a single render job on an available worker.
 
         Handles retries for transient failures and resource exhaustion.
+
+        Args:
+            recipe: The JSON-serializable scene description.
+            output_dir: Path where the rendered artifacts will be saved.
+            rm: Renderer mode ('cycles', 'eevee', 'workbench').
+            sid: Optional shard ID for the render task.
+
+        Returns:
+            The worker response containing status and metadata.
+
+        Raises:
+            WorkerCommunicationError: If the render fails after all retries.
         """
         max_retries = 2
         attempt = 0
@@ -543,6 +574,17 @@ def orchestrate(
     """Main orchestration loop for executing a JobSpec.
 
     Handles sharding, resumption, and parallel execution of render tasks.
+
+    Args:
+        job_spec: Detailed specification of the rendering job.
+        workers: Number of parallel worker processes to spawn.
+        executor_type: Infrastructure target ('local', 'cloud').
+        resume: If True, skips already completed scenes.
+        batch_size: Number of recipes per worker batch.
+        verbose: If True, enables debug logging.
+
+    Raises:
+        typer.Exit: With code 1 if any render tasks failed.
     """
     import typer
 

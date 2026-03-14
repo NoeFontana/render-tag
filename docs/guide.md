@@ -17,20 +17,31 @@ uv run render-tag generate [OPTIONS]
 - `-c, --config PATH`: Path to config YAML file [default: `configs/default.yaml`]
 - `-o, --output PATH`: Output directory [default: `output/dataset_01`]
 - `-n, --scenes INTEGER`: Number of scenes to generate [default: 1]
+- `-w, --workers INTEGER`: Number of parallel workers [default: 1]
 - `-v, --verbose`: Enable verbose output from BlenderProc
 - `-e, --executor TEXT`: Execution engine: `local`, `docker`, `mock` [default: `local`]
 
-### Execution Engines
+---
 
-| Executor | Description | Use Case |
-|----------|-------------|----------|
-| `local` | Uses local BlenderProc installation | Fast local development |
-| `docker` | Runs BlenderProc inside a container | Hermetic, reproducible runs |
-| `mock` | No-op execution (logs only) | Testing pipeline logic |
+### Dataset Auditing
+
+The `audit` command group provides tools for analyzing dataset quality and performance.
+
+#### Run Audit
+Analyze a dataset's geometric distribution and integrity.
+```bash
+uv run render-tag audit run --dir output/dataset_01
+```
+
+#### Diff Datasets
+Compare two datasets to detect drift or regressions.
+```bash
+uv run render-tag audit diff --base output/baseline --experimental output/variant_a
+```
 
 ---
 
-## Configuration
+### Configuration
 
 `render-tag` uses YAML for configuration. The configuration is divided into several sections.
 

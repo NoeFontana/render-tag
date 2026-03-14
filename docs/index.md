@@ -1,50 +1,22 @@
-# render-tag
+# render-tag Documentation
 
-Procedural 3D synthetic data generation for fiducial marker (AprilTag/ArUco) detector training.
+Welcome to the official documentation for `render-tag`, a high-performance procedural 3D synthetic data generator for fiducial marker training.
 
-`render-tag` is a robust pipeline for generating high-fidelity synthetic datasets. It uses Blender and BlenderProc to create photorealistic renders with precise ground truth annotations.
+`render-tag` is designed to bridge the gap between photorealistic 3D rendering and high-precision computer vision requirements, specifically for AprilTag and ArUco detection.
 
-## Installation
+## Core Documentation
 
-```bash
-# Clone the repository
-git clone https://github.com/NoeFontana/render-tag.git
-cd render-tag
+-   **[User Guide](guide.md)**: Installation, CLI usage, and configuration presets.
+-   **[Architecture](architecture.md)**: Deep dive into the Host-Backend design and "Hot Loop" implementation.
+-   **[Coordinate Systems & Standards](coordinates.md)**: Canonical geometric contracts, pose conventions, and output data formats.
+-   **[Benchmarking & Auditing](benchmarking.md)**: Tracking performance and verifying dataset quality.
+-   **[API Reference](api.md)**: Low-level Python API documentation.
 
-# Install with uv (recommended)
-uv sync
+## Key Features
 
-# Or with pip
-pip install -e .
-```
-
-### BlenderProc (Required for generation)
-
-For actual data generation, you need BlenderProc:
-
-```bash
-pip install blenderproc
-```
-
-## Quick Start
-
-```bash
-# Check installation status
-uv run render-tag info
-
-# Validate a configuration file
-uv run render-tag validate-config --config configs/default.yaml
-
-# Generate synthetic data (requires BlenderProc)
-uv run render-tag generate --config configs/default.yaml --output output/dataset_01 --scenes 10
-
-# Visualize detection annotations
-uv run render-tag viz dataset --output output/dataset_01
-```
-
-## Documentation Structure
-
-- [User Guide](guide.md): Detailed configuration and usage instructions.
-- [Architecture](architecture.md): Overview of the generation pipeline and backend.
-- [Coordinate Systems](coordinates.md): Definition of camera and tag spaces.
-- [API Reference](api.md): Auto-generated documentation from source code.
+-   **Procedural Scene Generation**: Deterministic generation of complex 3D scenes with randomized lighting, textures, and physics.
+-   **Host-Backend Architecture**: Decouples heavy 3D rendering (Blender) from generation logic (Python), enabling high-throughput pipelines.
+-   **Sub-pixel Accuracy**: Optimized Cycles rendering configurations ensuring edge and corner integrity.
+-   **Rich Annotations**: Comprehensive ground truth including 6DoF poses, PPM, and visibility metrics.
+-   **Hugging Face Integration**: Native support for managing assets and datasets on the Hub.
+ from source code.

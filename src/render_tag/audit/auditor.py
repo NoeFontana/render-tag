@@ -201,13 +201,34 @@ class DatasetReader:
 
 
 class DatasetAuditor:
-    """Orchestrates the full audit of a dataset."""
+    """Orchestrates the full audit of a dataset.
+
+    Coordinates geometric, environmental, and integrity checks to produce
+    a comprehensive quality report and gate status.
+
+    Attributes:
+        dataset_path: Path to the dataset root.
+        reader: Helper for high-speed data ingestion.
+    """
 
     def __init__(self, dataset_path: Path) -> None:
+        """Initialize the DatasetAuditor.
+
+        Args:
+            dataset_path: Directory containing the images and metadata.
+        """
         self.dataset_path = dataset_path
         self.reader = DatasetReader(dataset_path)
 
     def run_audit(self, gate_config: QualityGateConfig | None = None) -> AuditResult:
+        """Execute all audit passes and evaluate quality gates.
+
+        Args:
+            gate_config: Optional configuration for metric-based pass/fail gates.
+
+        Returns:
+            An AuditResult containing the full report and gate status.
+        """
         df = self.reader.load_rich_detections()
         raw_records = self.reader.load_raw_records()
 

@@ -31,11 +31,17 @@ if TYPE_CHECKING:
 
 
 class SceneCompiler:
-    """
-    Compiles a high-level JobSpec/GenConfig into a list of rigid SceneRecipes.
+    """Compiles a high-level JobSpec/GenConfig into a list of rigid SceneRecipes.
 
     This class owns all randomness and ensures that the resulting recipes
     are purely execution-ready instructions for a "dumb" worker.
+
+    Attributes:
+        config: The generation configuration.
+        global_seed: Master seed for deterministic derivations.
+        output_dir: Path to storage for recipes and textures.
+        asset_provider: Resolver for textures and HDRI environments.
+        strategy: Current subject rendering strategy (e.g., TagStrategy).
     """
 
     def __init__(
@@ -86,7 +92,16 @@ class SceneCompiler:
         total_shards: int,
         exclude_ids: set[int] | None = None,
     ) -> list[SceneRecipe]:
-        """Compile a specific shard of scenes."""
+        """Compile a specific shard of scenes.
+
+        Args:
+            shard_index: The zero-based index of the current shard.
+            total_shards: The total number of shards the job is split into.
+            exclude_ids: Optional set of scene IDs to skip.
+
+        Returns:
+            A list of compiled SceneRecipe objects for this shard.
+        """
         exclude_ids = exclude_ids or set()
         total_scenes = self.config.dataset.num_scenes
 
@@ -107,7 +122,14 @@ class SceneCompiler:
         return recipes
 
     def compile_scene(self, scene_id: int) -> SceneRecipe:
-        """Compile a single scene recipe with full determinism."""
+        """Compile a single scene recipe with full determinism.
+
+        Args:
+            scene_id: The unique identifier for the scene.
+
+        Returns:
+            A fully resolved SceneRecipe with all randomness removed.
+        """
         # Derive Scene Seed
         scene_seed = derive_seed(self.global_seed, "scene", scene_id)
 

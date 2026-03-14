@@ -24,6 +24,13 @@ class Generator:
     """Generates scene recipes based on configuration.
 
     Refactored to use the SceneCompiler for rigid, deterministic construction.
+
+    Attributes:
+        config: Generation configuration.
+        output_dir: Directory where recipes and assets are stored.
+        global_seed: Master seed for deterministic randomness.
+        asset_provider: Interface for resolving external assets.
+        compiler: Rigid compiler for building scene recipes.
     """
 
     def __init__(
@@ -33,6 +40,14 @@ class Generator:
         global_seed: int = 42,
         asset_provider: AssetProvider | None = None,
     ):
+        """Initialize the Generator.
+
+        Args:
+            config: The generation configuration object.
+            output_dir: Root directory for dataset generation.
+            global_seed: Master seed for all deterministic derivations.
+            asset_provider: Optional custom asset provider.
+        """
         self.config = config
         self.output_dir = output_dir
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -47,6 +62,14 @@ class Generator:
         )
 
     def generate_all(self, exclude_ids: set[int] | None = None) -> list[SceneRecipe]:
+        """Generate all scenes as defined in the configuration.
+
+        Args:
+            exclude_ids: Optional set of scene IDs to skip (useful for resumption).
+
+        Returns:
+            A list of compiled SceneRecipe objects.
+        """
         num_scenes = self.config.dataset.num_scenes
         exclude_ids = exclude_ids or set()
         recipes = []
@@ -84,6 +107,12 @@ class Generator:
         """Generate a single scene recipe using the Compiler.
 
         Guarantees validity by re-sampling if pre-flight checks fail.
+
+        Args:
+            scene_id: The unique ID for the scene being generated.
+
+        Returns:
+            A validated SceneRecipe object.
         """
         from ..core.validator import RecipeValidator
 

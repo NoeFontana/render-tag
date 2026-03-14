@@ -1,3 +1,10 @@
+"""
+Job specification and infrastructure schemas for render-tag.
+
+Defines the JobSpec contract used to communicate between the CLI/Host and
+the rendering backend.
+"""
+
 import hashlib
 import json
 import shutil
@@ -33,7 +40,19 @@ class JobInfrastructure(BaseModel):
 
 
 class JobSpec(BaseModel):
-    """Immutable specification for a rendering job."""
+    """Immutable specification for a rendering job.
+
+    A JobSpec defines everything needed to execute a complex rendering task,
+    including paths, infrastructure limits, and the scene configuration.
+
+    Attributes:
+        version: The schema version for migration tracking.
+        job_id: Unique identifier for the job.
+        paths: Absolute paths to output and asset locations.
+        infrastructure: Resource limits (workers, memory).
+        global_seed: Master seed for all deterministic operations.
+        scene_config: The procedural generation parameters.
+    """
 
     model_config = ConfigDict(frozen=True)
 
