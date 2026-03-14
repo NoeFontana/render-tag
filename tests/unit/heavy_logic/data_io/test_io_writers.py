@@ -12,16 +12,15 @@ from render_tag.data_io.writers import COCOWriter, CSVWriter
 class TestCSVWriter:
     def test_write_single_detection(self, tmp_path: Path) -> None:
         csv_path = tmp_path / "tags.csv"
-        writer = CSVWriter(csv_path)
-
-        corners = [(10.5, 20.5), (110.5, 20.5), (110.5, 120.5), (10.5, 120.5)]
-        detection = DetectionRecord(
-            image_id="scene_0001",
-            tag_id=0,
-            tag_family="tag36h11",
-            corners=corners,
-        )
-        writer.write_detection(detection)
+        with CSVWriter(csv_path) as writer:
+            corners = [(10.5, 20.5), (110.5, 20.5), (110.5, 120.5), (10.5, 120.5)]
+            detection = DetectionRecord(
+                image_id="scene_0001",
+                tag_id=0,
+                tag_family="tag36h11",
+                corners=corners,
+            )
+            writer.write_detection(detection)
 
         # Read and verify
         content = csv_path.read_text()
@@ -37,15 +36,20 @@ class TestCSVWriter:
 
     def test_write_multiple_detections(self, tmp_path: Path) -> None:
         csv_path = tmp_path / "tags.csv"
-        writer = CSVWriter(csv_path)
-
-        corners = [(0, 0), (100, 0), (100, 100), (0, 100)]
-        detections = [
-            DetectionRecord(image_id="img1", tag_id=0, tag_family="tag36h11", corners=corners),
-            DetectionRecord(image_id="img2", tag_id=1, tag_family="tag36h11", corners=corners),
-            DetectionRecord(image_id="img3", tag_id=2, tag_family="DICT_4X4_50", corners=corners),
-        ]
-        writer.write_detections(detections)
+        with CSVWriter(csv_path) as writer:
+            corners = [(0, 0), (100, 0), (100, 100), (0, 100)]
+            detections = [
+                DetectionRecord(
+                    image_id="img1", tag_id=0, tag_family="tag36h11", corners=corners
+                ),
+                DetectionRecord(
+                    image_id="img2", tag_id=1, tag_family="tag36h11", corners=corners
+                ),
+                DetectionRecord(
+                    image_id="img3", tag_id=2, tag_family="DICT_4X4_50", corners=corners
+                ),
+            ]
+            writer.write_detections(detections)
 
         lines = csv_path.read_text().strip().split("\n")
         assert len(lines) == 4  # Header + 3 detections
@@ -59,6 +63,7 @@ class TestCSVWriter:
             image_id="img1", tag_id=0, tag_family="tag36h11", corners=[(0, 0), (1, 1), (2, 2)]
         )
         writer.write_detection(detection)
+        writer.close()
 
         # File should not be created since the only detection was invalid
         assert not csv_path.exists()

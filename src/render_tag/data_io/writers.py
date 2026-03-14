@@ -65,12 +65,18 @@ class AtomicWriter:
 
 
 class CSVWriter:
-    """Writes detection data to a CSV file."""
+    """Writes detection data to a CSV file.
+
+    Keeps the file handle open for the writer's lifetime to avoid per-row
+    open/close overhead. Call close() or use as a context manager to flush.
+    """
 
     def __init__(self, output_path: Path) -> None:
         """Initialize the CSV writer."""
         self.output_path = output_path
         self._initialized = False
+        self._file = None
+        self._writer = None
 
     def _ensure_initialized(self, num_corners: int = 4, num_keypoints: int = 0) -> None:
         """Create the file and write header if not already done."""
@@ -78,11 +84,10 @@ class CSVWriter:
             self.output_path.parent.mkdir(parents=True, exist_ok=True)
 
             header = DetectionRecord.csv_header(num_corners, num_keypoints)
-            with open(self.output_path, "w", newline="") as f:
-                writer = csv.writer(f)
-                writer.writerow(header)
-                f.flush()
-                os.fsync(f.fileno())
+            self._file = open(self.output_path, "w", newline="")
+            self._writer = csv.writer(self._file)
+            self._writer.writerow(header)
+            self._file.flush()
             self._initialized = True
 
     def write_detection(
@@ -103,17 +108,28 @@ class CSVWriter:
 
         # Delegate CSV formatting to the data record
         row = detection.to_csv_row(width=width, height=height)
-
-        with open(self.output_path, "a", newline="") as f:
-            writer = csv.writer(f)
-            writer.writerow(row)
-            # Frequent fsync kills performance, but ensures data safety.
-            # We rely on OS buffering here, accepting minor loss on crash.
+        self._writer.writerow(row)
 
     def write_detections(self, detections: list[DetectionRecord]) -> None:
         """Write multiple detections to the CSV file."""
         for detection in detections:
             self.write_detection(detection)
+
+    def close(self) -> None:
+        """Flush and close the underlying file handle."""
+        if self._file and not self._file.closed:
+            self._file.flush()
+            os.fsync(self._file.fileno())
+            self._file.close()
+
+    def __del__(self) -> None:
+        self.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
 
 
 class COCOWriter(AtomicWriter):
