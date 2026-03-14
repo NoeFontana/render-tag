@@ -397,8 +397,9 @@ class UnifiedWorkerOrchestrator:
                     },
                 )
 
-                # Check for memory limit exceeded during render
-                # In this case, we don't count it as a failed attempt
+                # Check for memory limit exceeded during render.
+                # Worker is already dead — restart it via release_worker, then retry
+                # without counting as a failed attempt.
                 if (
                     resp.status == ResponseStatus.FAILURE
                     and resp.message
@@ -408,20 +409,19 @@ class UnifiedWorkerOrchestrator:
                         f"Worker {worker.worker_id} exceeded resource limits during render. "
                         "Retrying."
                     )
-                    worker.stop()
-                    # Do not increment attempt counter
+                    self.release_worker(worker)
                     continue
 
                 if resp.status == ResponseStatus.SUCCESS:
                     worker.renders_completed += 1
+                self.release_worker(worker)
                 return resp
             except Exception as e:
                 last_error = e
                 logger.warning(f"Render attempt {attempt + 1} failed for {worker.worker_id}: {e}")
                 worker.stop()
-                attempt += 1
-            finally:
                 self.release_worker(worker)
+                attempt += 1
 
         raise WorkerCommunicationError(
             f"Execute recipe failed after {max_retries} retries: {last_error}"
