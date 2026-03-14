@@ -6,6 +6,7 @@ from pathlib import Path
 
 from huggingface_hub import hf_hub_download, snapshot_download
 
+from render_tag.core.errors import AssetError
 from render_tag.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -54,7 +55,7 @@ class AssetProvider:
             try:
                 if any(local_p.parent.glob(pattern)):
                     exists = True
-            except Exception:
+            except OSError:
                 pass
 
         if exists:
@@ -93,10 +94,7 @@ class AssetProvider:
             self._cache[asset_path] = res_path
             return res_path
         except Exception as e:
-            logger.error(
-                "Failed to download asset from HF",
-                asset_path=asset_path,
-                error=str(e),
-            )
-            # Return the local path anyway, it will probably fail later but we tried
-            return local_p
+            raise AssetError(
+                f"Failed to download asset '{asset_path}' from {self.repo_id}: {e}",
+                original_error=e,
+            ) from e

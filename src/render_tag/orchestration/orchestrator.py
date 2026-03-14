@@ -312,7 +312,7 @@ class UnifiedWorkerOrchestrator:
                         and telemetry.vram_used_mb > self.vram_threshold_mb
                     ):
                         should_restart = True
-            except Exception as e:
+            except (WorkerCommunicationError, OSError, ValueError) as e:
                 if not intentional_exit:
                     logger.error(f"Telemetry check failed for {worker.worker_id}: {e}")
 
