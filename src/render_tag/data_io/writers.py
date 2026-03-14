@@ -392,6 +392,21 @@ class BoardConfigWriter:
         return output_path
 
 
+def _write_json_atomic(path: Path, data: Any) -> None:
+    """Write JSON data atomically using temp file + rename."""
+    temp_path = path.with_suffix(".tmp")
+    try:
+        with open(temp_path, "w") as f:
+            json.dump(data, f, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        temp_path.rename(path)
+    except Exception:
+        if temp_path.exists():
+            temp_path.unlink()
+        raise
+
+
 def merge_coco_shards(
     output_dir: Path, final_filename: str = "coco_labels.json", cleanup: bool = False
 ):
@@ -437,8 +452,7 @@ def merge_coco_shards(
         global_ann_id_offset += max_ann_id + 1
 
     final_path = output_dir / final_filename
-    with open(final_path, "w") as f:
-        json.dump(master_data, f, indent=2)
+    _write_json_atomic(final_path, master_data)
     logger.info(f"Merged {len(shard_files)} shards into {final_path}")
 
     if cleanup:
@@ -457,20 +471,31 @@ def merge_csv_shards(
         return
 
     final_path = output_dir / final_filename
-    with open(final_path, "w", newline="") as fout:
-        writer = csv.writer(fout)
-        header_written = False
+    temp_path = final_path.with_suffix(".tmp")
+    try:
+        with open(temp_path, "w", newline="") as fout:
+            writer = csv.writer(fout)
+            header_written = False
 
-        for shard_path in shard_files:
-            with open(shard_path, newline="") as fin:
-                reader = csv.reader(fin)
-                header = next(reader, None)
-                if not header_written and header:
-                    writer.writerow(header)
-                    header_written = True
+            for shard_path in shard_files:
+                with open(shard_path, newline="") as fin:
+                    reader = csv.reader(fin)
+                    header = next(reader, None)
+                    if not header_written and header:
+                        writer.writerow(header)
+                        header_written = True
 
-                for row in reader:
-                    writer.writerow(row)
+                    for row in reader:
+                        writer.writerow(row)
+
+            fout.flush()
+            os.fsync(fout.fileno())
+
+        temp_path.rename(final_path)
+    except Exception:
+        if temp_path.exists():
+            temp_path.unlink()
+        raise
 
     logger.info(f"Merged {len(shard_files)} shards into {final_path}")
 
@@ -496,8 +521,7 @@ def merge_rich_truth_shards(
             master_data.extend(shard_data)
 
     final_path = output_dir / final_filename
-    with open(final_path, "w") as f:
-        json.dump(master_data, f, indent=2)
+    _write_json_atomic(final_path, master_data)
     logger.info(f"Merged {len(shard_files)} shards into {final_path}")
 
     if cleanup:
@@ -521,8 +545,7 @@ def merge_provenance_shards(
             master_data.update(shard_data)
 
     final_path = output_dir / final_filename
-    with open(final_path, "w") as f:
-        json.dump(master_data, f, indent=2)
+    _write_json_atomic(final_path, master_data)
     logger.info(f"Merged {len(shard_files)} shards into {final_path}")
 
     if cleanup:
