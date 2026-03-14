@@ -84,7 +84,7 @@ class CSVWriter:
             self.output_path.parent.mkdir(parents=True, exist_ok=True)
 
             header = DetectionRecord.csv_header(num_corners, num_keypoints)
-            self._file = open(self.output_path, "w", newline="")
+            self._file = open(self.output_path, "w", newline="")  # noqa: SIM115
             self._writer = csv.writer(self._file)
             self._writer.writerow(header)
             self._file.flush()

@@ -15,7 +15,7 @@ from render_tag.generation.context import GenerationContext
 logger = get_logger(__name__)
 
 # Re-export for backwards compatibility
-__all__ = ["GenerationContext", "PipelineStage", "GenerationPipeline"]
+__all__ = ["GenerationContext", "GenerationPipeline", "PipelineStage"]
 
 
 class PipelineStage(ABC):

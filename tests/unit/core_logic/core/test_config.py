@@ -131,7 +131,7 @@ class TestTagFamily:
         assert TagFamily.TAG36H11.is_aruco is False
 
     def test_config_and_schema_share_same_tagfamily(self) -> None:
-        """Ensure config.TagFamily and schema.TagFamily are the same class (not divergent copies)."""
+        """Ensure config and schema TagFamily are the same class."""
         from render_tag.core.schema.base import TagFamily as SchemaTagFamily
 
         assert TagFamily is SchemaTagFamily

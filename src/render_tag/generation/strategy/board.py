@@ -13,8 +13,8 @@ from render_tag.generation.texture_factory import TextureFactory
 from .base import SubjectStrategy
 
 if TYPE_CHECKING:
-    from render_tag.generation.context import GenerationContext
     from render_tag.core.schema.subject import BoardSubjectConfig
+    from render_tag.generation.context import GenerationContext
 
 
 class BoardStrategy(SubjectStrategy):
