@@ -8,7 +8,6 @@ import hashlib
 import json
 import os
 import queue
-import random
 import re
 import shutil
 import signal
@@ -175,11 +174,12 @@ class UnifiedWorkerOrchestrator:
             if self.running:
                 return
 
-            seed_str = f"{shard_id}-{os.getpid()}-{random.random()}"
+            seed_str = f"{shard_id}-{os.getpid()}-{os.urandom(8).hex()}"
             port_offset = (
                 int(hashlib.md5(seed_str.encode(), usedforsecurity=False).hexdigest(), 16) % 10000
             )
-            current_base_port = self.base_port + port_offset + random.randint(0, 50) * 10
+            jitter = int.from_bytes(os.urandom(2), "big") % 50 * 10
+            current_base_port = self.base_port + port_offset + jitter
             # Calculate memory budget per worker
             effective_memory_limit = calculate_worker_memory_budget(
                 num_workers=self.num_workers, explicit_limit_mb=self.memory_limit_mb
