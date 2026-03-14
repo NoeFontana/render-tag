@@ -81,9 +81,14 @@ class OrchestratorConfig:
     memory_limit_mb: int | None = None
 
     def __post_init__(self):
-        """Handle default path for blender_script if not provided."""
+        """Resolve defaults for blender_script and blender_executable."""
         if self.blender_script is None:
-            pass
+            default = Path(__file__).resolve().parents[3] / "scripts" / "worker_bootstrap.py"
+            object.__setattr__(self, "blender_script", default)
+        mock = self.mock or (os.environ.get("RENDER_TAG_FORCE_MOCK") == "1")
+        if self.blender_executable is None:
+            exe = sys.executable if mock else "blenderproc"
+            object.__setattr__(self, "blender_executable", exe)
 
 
 class UnifiedWorkerOrchestrator:
@@ -98,13 +103,8 @@ class UnifiedWorkerOrchestrator:
         self.config = config
 
         self.mock = self.config.mock or (os.environ.get("RENDER_TAG_FORCE_MOCK") == "1")
-        self.blender_script = (
-            self.config.blender_script
-            or Path(__file__).resolve().parents[3] / "scripts" / "worker_bootstrap.py"
-        )
-        self.blender_executable = self.config.blender_executable or (
-            sys.executable if self.mock else "blenderproc"
-        )
+        self.blender_script = self.config.blender_script
+        self.blender_executable = self.config.blender_executable
 
         self.job_id = str(uuid.uuid4())
         self.context = zmq.Context() if zmq else None
