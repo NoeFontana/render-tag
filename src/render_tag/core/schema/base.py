@@ -13,8 +13,12 @@ from pydantic import BaseModel, Field, field_validator
 
 
 class TagFamily(str, Enum):
-    """Fiducial tag families."""
+    """Supported fiducial marker families.
 
+    Includes both AprilTag families and ArUco dictionaries.
+    """
+
+    # AprilTag families
     TAG36H11 = "tag36h11"
     TAG36H10 = "tag36h10"
     TAG25H9 = "tag25h9"
@@ -24,15 +28,35 @@ class TagFamily(str, Enum):
     TAGCUSTOM48H12 = "tagCustom48h12"
     TAGSTANDARD41H12 = "tagStandard41h12"
     TAGSTANDARD52H13 = "tagStandard52h13"
-    DICT_4X4_50 = "DICT_4X4_50"
-    DICT_4X4_100 = "DICT_4X4_100"
-    DICT_4X4_250 = "DICT_4X4_250"
-    DICT_6X6_1000 = "DICT_6X6_1000"
-    DICT_7X7_50 = "DICT_7X7_50"
-    DICT_7X7_100 = "DICT_7X7_100"
-    DICT_7X7_250 = "DICT_7X7_250"
-    DICT_7X7_1000 = "DICT_7X7_1000"
-    DICT_ARUCO_ORIGINAL = "DICT_ARUCO_ORIGINAL"
+
+    # ArUco dictionaries (OpenCV standard)
+    ARUCO_4X4_50 = "DICT_4X4_50"
+    ARUCO_4X4_100 = "DICT_4X4_100"
+    ARUCO_4X4_250 = "DICT_4X4_250"
+    ARUCO_4X4_1000 = "DICT_4X4_1000"
+    ARUCO_5X5_50 = "DICT_5X5_50"
+    ARUCO_5X5_100 = "DICT_5X5_100"
+    ARUCO_5X5_250 = "DICT_5X5_250"
+    ARUCO_5X5_1000 = "DICT_5X5_1000"
+    ARUCO_6X6_50 = "DICT_6X6_50"
+    ARUCO_6X6_100 = "DICT_6X6_100"
+    ARUCO_6X6_250 = "DICT_6X6_250"
+    ARUCO_6X6_1000 = "DICT_6X6_1000"
+    ARUCO_7X7_50 = "DICT_7X7_50"
+    ARUCO_7X7_100 = "DICT_7X7_100"
+    ARUCO_7X7_250 = "DICT_7X7_250"
+    ARUCO_7X7_1000 = "DICT_7X7_1000"
+    ARUCO_ORIGINAL = "DICT_ARUCO_ORIGINAL"
+
+    @property
+    def is_apriltag(self) -> bool:
+        """Check if this is an AprilTag family."""
+        return self.value.startswith("tag")
+
+    @property
+    def is_aruco(self) -> bool:
+        """Check if this is an ArUco dictionary."""
+        return self.value.startswith("DICT_")
 
 
 class ObjectType(str, Enum):
