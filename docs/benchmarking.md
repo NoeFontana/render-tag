@@ -39,28 +39,40 @@ uv run render-tag hub push-dataset \
 ```
 
 
-## Performance Tracking
+## Dataset Auditing & Quality Gates
 
-`render-tag` uses a built-in Telemetry system to monitor worker health and performance (VRAM, CPU, and throughput).
+After a benchmark generation completes, use the `audit` command to verify quality and check for statistical drift.
 
-### Telemetry Collection
+### 1. Run Audit
+Generates a comprehensive quality report, including geometric coverage and integrity checks.
+```bash
+uv run render-tag audit run --dir output/locus_pose_v1
+```
+
+### 2. Compare Datasets (Drift Detection)
+Compare two datasets to detect performance regressions or distribution shifts.
+```bash
+uv run render-tag audit diff --base output/baseline --experimental output/variant_a
+```
+
+## Performance Tracking & Telemetry
+
+`render-tag` includes a built-in telemetry system that monitors worker health and rendering throughput in real-time.
+
+### Automated Collection
 The `UnifiedWorkerOrchestrator` automatically collects telemetry from all active workers. This data is used for:
-- **Resource Guarding:** Restarting workers if VRAM exceeds thresholds.
+- **Resource Guarding:** Automatically restarting workers if VRAM exceeds thresholds.
 - **Throughput Analysis:** Measuring renders-per-second and total execution time.
 
-### Analyzing Telemetry
-After a generation or experiment run, you can use the `TelemetryAuditor` to analyze the collected metrics.
+### Analysis
+Telemetry is typically saved as `telemetry.csv` in the dataset output directory. You can analyze this data using the `TelemetryAuditor` or by inspecting the summary in the `audit` command output.
 
 ```python
 from render_tag.audit.auditor import TelemetryAuditor
 
-# Telemetry is typically saved to 'telemetry.csv' in the output directory
 auditor = TelemetryAuditor()
 # ... (Orchestrator adds entries during run) ...
 auditor.save_csv(Path("output/dataset_01/telemetry.csv"))
-
-report = auditor.analyze_throughput()
-print(f"Average VRAM: {report['avg_vram_mb']} MB")
 ```
 
 ## Optimizations
