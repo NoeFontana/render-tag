@@ -69,7 +69,7 @@ class SceneCompiler:
             pass
 
         # Prepare assets for the subject once per compiler instance
-        from render_tag.cli.pipeline import GenerationContext
+        from render_tag.generation.context import GenerationContext
 
         ctx = GenerationContext(
             gen_config=self.config, output_dir=self.output_dir or Path("output")
@@ -150,7 +150,7 @@ class SceneCompiler:
         recipe.world = self._build_world_recipe(scene_id, world_seed)
 
         # 2. Objects (Agnostic Subject Generation)
-        from render_tag.cli.pipeline import GenerationContext
+        from render_tag.generation.context import GenerationContext
 
         ctx = GenerationContext(
             gen_config=self.config, output_dir=self.output_dir or Path("output")

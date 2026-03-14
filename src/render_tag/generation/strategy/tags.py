@@ -19,7 +19,7 @@ from render_tag.generation.layouts import apply_flying_layout, apply_grid_layout
 from .base import SubjectStrategy
 
 if TYPE_CHECKING:
-    from render_tag.cli.pipeline import GenerationContext
+    from render_tag.generation.context import GenerationContext
     from render_tag.core.schema.subject import TagSubjectConfig
 
 
