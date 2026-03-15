@@ -58,6 +58,13 @@ def main():
     )
     server.run(max_renders=args.max_renders)
 
+    # Force immediate process exit after the server loop finishes.
+    # Blender's cleanup (GPU context teardown, etc.) can hang indefinitely after
+    # the Python script exits. os._exit() bypasses all cleanup handlers and
+    # terminates the blender process directly. Data has already been flushed by
+    # _finalize_writers() inside server.run().
+    os._exit(0)
+
 
 if __name__ == "__main__":
     main()

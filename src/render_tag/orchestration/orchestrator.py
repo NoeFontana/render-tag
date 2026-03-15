@@ -352,6 +352,11 @@ class UnifiedWorkerOrchestrator:
         )
         new_worker.start()
 
+        # Register the replacement worker for cleanup. Workers created in start() are
+        # tracked by _resource_stack, but restarted workers are not — leaving their
+        # blender processes as orphans when stop() is called.
+        self._resource_stack.push_resource(new_worker)
+
         # Replace in active workers list
         for idx, w in enumerate(self.workers):
             if w.worker_id == worker.worker_id:
