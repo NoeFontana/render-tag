@@ -160,9 +160,30 @@ class PersistentWorkerProcess:
         self.stop()
         raise WorkerStartupError("Worker timeout")
 
+    def _collect_descendant_pids(self, pid: int) -> list[int]:
+        """Collect all descendant PIDs via /proc before the process tree disappears."""
+        descendants = []
+        try:
+            import psutil
+
+            parent = psutil.Process(pid)
+            for child in parent.children(recursive=True):
+                descendants.append(child.pid)
+        except Exception:
+            pass
+        return descendants
+
     def stop(self):
         """Shut down the worker process and its communication client."""
         self._stop_event.set()
+
+        # Collect all descendant PIDs while the process tree is still alive.
+        # blenderproc spawns blender which may be in a different process group,
+        # so killpg alone won't reach it.
+        descendant_pids: list[int] = []
+        if self.process and self.process.poll() is None:
+            descendant_pids = self._collect_descendant_pids(self.process.pid)
+
         if self.client:
             if self.process and self.process.poll() is None:
                 self.logger.info(f"Sending SHUTDOWN command to worker {self.worker_id}...")
@@ -175,14 +196,19 @@ class PersistentWorkerProcess:
             pid = self.process.pid
             self.logger.info(f"Terminating worker {self.worker_id} (PID: {pid})...")
             try:
-                # Always attempt to kill the entire process group.
-                # This handles cases where the launcher (e.g., blenderproc) exits
-                # but the child (Blender) stays alive.
-                # STAFF ENGINEER: Safety check to avoid killpg(0) or killpg(1).
+                # Safety check to avoid killpg(0) or killpg(1).
                 # Handle MagicMock in tests by forcing to int if possible.
                 actual_pid = int(pid) if not isinstance(pid, (int, float)) else pid
                 if actual_pid > 1:
-                    os.killpg(actual_pid, signal.SIGKILL)
+                    # Kill the process group (covers processes that share the PGID).
+                    with contextlib.suppress(ProcessLookupError, PermissionError):
+                        os.killpg(actual_pid, signal.SIGKILL)
+
+                    # Kill any descendants that escaped the process group
+                    # (e.g., blender spawned by blenderproc with its own PGID).
+                    for cpid in descendant_pids:
+                        with contextlib.suppress(ProcessLookupError, PermissionError):
+                            os.kill(cpid, signal.SIGKILL)
 
                 if self.process.poll() is None:
                     self.process.wait(timeout=2)
