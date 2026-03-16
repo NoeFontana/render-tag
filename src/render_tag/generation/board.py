@@ -189,10 +189,13 @@ def compute_charuco_layout(
                 layout.tag_positions.append(BoardPosition(x, y, z))
 
             # Saddle points (internal corners)
-            # Add saddle point at bottom-right corner if not the last row/col
+            # The intersection between row r/r+1 and col c/c+1 lies one half-cell
+            # to the right (+x) and one half-cell downward in image space.
+            # In Blender local frame Y decreases toward the bottom, so the
+            # downward step is -square_size/2 (not +square_size/2).
             if row < spec.rows - 1 and col < spec.cols - 1:
                 sx = x + spec.square_size / 2
-                sy = y + spec.square_size / 2
+                sy = y - spec.square_size / 2
                 layout.calibration_positions.append(BoardPosition(sx, sy, z))
 
     return layout
