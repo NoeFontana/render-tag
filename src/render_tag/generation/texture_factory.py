@@ -193,8 +193,10 @@ class TextureFactory:
         """Draw an AprilGrid pattern (tags in every cell + corner squares).
 
         Cell boundaries are kept as continuous floats so the tag center
-        coordinates are exact; corner square positions are derived from the
-        same continuous grid and then rounded.
+        coordinates are exact. Corner square sizes are driven by
+        ``config.kalibr_corner_ratio`` (defaulting to 0.1) and their centers
+        are placed at the exact continuous grid intersection, guaranteeing
+        symmetric pixel fills for Harris saddle-point accuracy.
 
         Args:
             img: The target image array.
@@ -227,17 +229,21 @@ class TextureFactory:
                     self._composite_tag_subpixel(img, tag_img, center_x, center_y)
                 tag_id += 1
 
-        # Draw black corner squares (AprilGrid characteristic) at grid intersections
-        corner_px = max(1, round(marker_px_f * 0.1))
+        # Draw black corner squares (AprilGrid characteristic) at grid intersections.
+        # corner_half is kept as a float so the symmetric interval [center-half, center+half]
+        # is rounded identically on both sides, placing the geometric center exactly on the
+        # continuous grid intersection coordinate — critical for Harris saddle-point accuracy.
+        corner_ratio = config.kalibr_corner_ratio if config.kalibr_corner_ratio is not None else 0.1
+        corner_half = max(0.5, marker_px_f * corner_ratio / 2.0)
         for r in range(rows + 1):
             for c in range(cols + 1):
                 y_f = r * square_px_f
                 x_f = c * square_px_f
 
-                cy0 = max(0, round(y_f) - corner_px // 2)
-                cy1 = min(img.shape[0], round(y_f) + (corner_px + 1) // 2)
-                cx0 = max(0, round(x_f) - corner_px // 2)
-                cx1 = min(img.shape[1], round(x_f) + (corner_px + 1) // 2)
+                cy0 = max(0, round(y_f - corner_half))
+                cy1 = min(img.shape[0], round(y_f + corner_half))
+                cx0 = max(0, round(x_f - corner_half))
+                cx1 = min(img.shape[1], round(x_f + corner_half))
 
                 img[cy0:cy1, cx0:cx1] = 0
 
