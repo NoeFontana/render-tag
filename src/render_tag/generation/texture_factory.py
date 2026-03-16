@@ -10,12 +10,15 @@ from .tags import generate_tag_image
 
 
 class TextureFactory:
-    """Bit-perfect calibration target texture synthesizer."""
+    """Sub-pixel accurate calibration target texture synthesizer."""
 
-    def __init__(self, px_per_mm: float = 10.0, cache_dir: Path | None = None):
+    def __init__(self, px_per_mm: float = 50.0, cache_dir: Path | None = None):
         """
         Args:
-            px_per_mm: Resolution of the generated texture (default: 10px/mm)
+            px_per_mm: Resolution of the generated texture (default: 50px/mm).
+                Higher density pushes aliasing artifacts beyond the Nyquist limit
+                of simulated camera sensors, preserving geometrically true gradients
+                at tag corners when projected onto slanted 3D planes.
             cache_dir: Optional directory to cache generated textures
         """
         self.px_per_mm = px_per_mm
@@ -46,7 +49,6 @@ class TextureFactory:
         # 2. Calculate Dimensions
         if config.type == BoardType.APRILGRID:
             # AprilGrid: square_size = marker_size * (1 + spacing_ratio)
-            # Staff Engineer: Ensure spacing_ratio is not None for calculation
             assert config.spacing_ratio is not None
             square_size = config.marker_size * (1.0 + config.spacing_ratio)
         else:
@@ -59,17 +61,19 @@ class TextureFactory:
 
         width_px = round(width_m * self.px_per_m)
         height_px = round(height_m * self.px_per_m)
-        square_px = round(square_size * self.px_per_m)
-        marker_px = round(config.marker_size * self.px_per_m)
+
+        # Keep as continuous floats to preserve sub-pixel placement accuracy
+        square_px_f = square_size * self.px_per_m
+        marker_px_f = config.marker_size * self.px_per_m
 
         # 3. Initialize Image (White background)
         img = np.full((height_px, width_px), 255, dtype=np.uint8)
 
         # 4. Draw Board Content
         if config.type == BoardType.CHARUCO:
-            self._draw_charuco(img, config, square_px, marker_px)
+            self._draw_charuco(img, config, square_px_f, marker_px_f)
         elif config.type == BoardType.APRILGRID:
-            self._draw_aprilgrid(img, config, square_px, marker_px)
+            self._draw_aprilgrid(img, config, square_px_f, marker_px_f)
 
         # 5. Save to Cache
         if cache_path:
@@ -77,34 +81,95 @@ class TextureFactory:
 
         return img
 
-    def _draw_charuco(self, img: np.ndarray, config: BoardConfig, square_px: int, marker_px: int):
+    def _composite_tag_subpixel(
+        self,
+        canvas: np.ndarray,
+        tag_img: np.ndarray,
+        center_x: float,
+        center_y: float,
+        interpolation: int = cv2.INTER_CUBIC,
+    ) -> None:
+        """Composite a tag onto the canvas at a sub-pixel accurate position.
+
+        Builds an affine translation matrix that maps the tag center to the
+        continuous (center_x, center_y) coordinate on the canvas. The affine
+        warp with bicubic interpolation produces smooth sub-pixel gradients at
+        tag edges, which is geometrically faithful for detector refinement tests.
+
+        The result is composited via element-wise minimum so dark tag pixels
+        are never brightened by the white canvas background.
+
+        Args:
+            canvas: Target image array (modified in-place).
+            tag_img: Tag image to composite (grayscale uint8).
+            center_x: Continuous x coordinate of the tag center on the canvas.
+            center_y: Continuous y coordinate of the tag center on the canvas.
+            interpolation: OpenCV interpolation flag for the affine warp.
+        """
+        tag_h, tag_w = tag_img.shape[:2]
+
+        # Translation: map tag center to the target canvas position
+        tx = center_x - tag_w / 2.0
+        ty = center_y - tag_h / 2.0
+
+        M = np.array([[1.0, 0.0, tx], [0.0, 1.0, ty]], dtype=np.float64)
+
+        # Warp tag into a temporary canvas-sized image (white background)
+        warped = cv2.warpAffine(
+            tag_img.astype(np.float32),
+            M,
+            (canvas.shape[1], canvas.shape[0]),
+            flags=interpolation,
+            borderMode=cv2.BORDER_CONSTANT,
+            borderValue=255.0,
+        )
+
+        # Composite: minimum preserves dark tag pixels over the white background
+        np.minimum(canvas, np.round(warped).astype(np.uint8), out=canvas)
+
+    def _draw_charuco(
+        self,
+        img: np.ndarray,
+        config: BoardConfig,
+        square_px_f: float,
+        marker_px_f: float,
+    ) -> None:
         """Draw a ChArUco checkerboard pattern.
+
+        Cell boundaries are kept as continuous floats so the tag center
+        coordinates are exact; only the background square fills are rounded
+        to integer pixel indices.
 
         Args:
             img: The target image array.
             config: The board configuration.
-            square_px: Size of each cell in pixels.
-            marker_px: Size of each tag in pixels.
+            square_px_f: Floating-point cell size in pixels.
+            marker_px_f: Floating-point marker size in pixels.
         """
         rows, cols = config.rows, config.cols
         tag_id = 0
+        marker_px = round(marker_px_f)
 
         for r in range(rows):
             for c in range(cols):
-                # Checkerboard pattern
-                # OpenCV ChArUco: (0,0) is white. (r+c) % 2 == 0 is white.
+                # Checkerboard pattern: (0,0) is white in OpenCV ChArUco convention
                 is_white = (r + c) % 2 == 0
 
-                y0, x0 = r * square_px, c * square_px
-                # Handle potential rounding drift at the edges
-                y1 = (r + 1) * square_px if r < rows - 1 else img.shape[0]
-                x1 = (c + 1) * square_px if c < cols - 1 else img.shape[1]
+                # Continuous floating-point cell boundaries
+                y0_f = r * square_px_f
+                x0_f = c * square_px_f
+                y1_f = (r + 1) * square_px_f
+                x1_f = (c + 1) * square_px_f
+
+                # Integer pixel boundaries for square fills
+                iy0 = round(y0_f)
+                ix0 = round(x0_f)
+                iy1 = round(y1_f) if r < rows - 1 else img.shape[0]
+                ix1 = round(x1_f) if c < cols - 1 else img.shape[1]
 
                 if not is_white:
-                    # Draw black square
-                    img[y0:y1, x0:x1] = 0
+                    img[iy0:iy1, ix0:ix1] = 0
                 else:
-                    # Draw marker in white square
                     tag_img = generate_tag_image(
                         family=config.dictionary,
                         tag_id=tag_id,
@@ -112,33 +177,42 @@ class TextureFactory:
                         border_bits=1,
                     )
                     if tag_img is not None:
-                        tag_h, tag_w = tag_img.shape[:2]
-                        # Center tag in square
-                        dy = (y1 - y0 - tag_h) // 2
-                        dx = (x1 - x0 - tag_w) // 2
-                        img[y0 + dy : y0 + dy + tag_h, x0 + dx : x0 + dx + tag_w] = tag_img
+                        # Sub-pixel accurate center: exact midpoint of the continuous cell
+                        center_x = (x0_f + x1_f) / 2.0
+                        center_y = (y0_f + y1_f) / 2.0
+                        self._composite_tag_subpixel(img, tag_img, center_x, center_y)
                     tag_id += 1
 
-    def _draw_aprilgrid(self, img: np.ndarray, config: BoardConfig, square_px: int, marker_px: int):
+    def _draw_aprilgrid(
+        self,
+        img: np.ndarray,
+        config: BoardConfig,
+        square_px_f: float,
+        marker_px_f: float,
+    ) -> None:
         """Draw an AprilGrid pattern (tags in every cell + corner squares).
+
+        Cell boundaries are kept as continuous floats so the tag center
+        coordinates are exact; corner square positions are derived from the
+        same continuous grid and then rounded.
 
         Args:
             img: The target image array.
             config: The board configuration.
-            square_px: Size of each cell in pixels.
-            marker_px: Size of each tag in pixels.
+            square_px_f: Floating-point cell size in pixels.
+            marker_px_f: Floating-point marker size in pixels.
         """
         rows, cols = config.rows, config.cols
         tag_id = 0
-
-        # AprilGrid: 1 bit border, 1 bit white margin by default in Kalibr?
-        # Specification says: tags in every cell.
+        marker_px = round(marker_px_f)
 
         for r in range(rows):
             for c in range(cols):
-                y0, x0 = r * square_px, c * square_px
-                y1 = (r + 1) * square_px if r < rows - 1 else img.shape[0]
-                x1 = (c + 1) * square_px if c < cols - 1 else img.shape[1]
+                # Continuous floating-point cell boundaries
+                y0_f = r * square_px_f
+                x0_f = c * square_px_f
+                y1_f = (r + 1) * square_px_f
+                x1_f = (c + 1) * square_px_f
 
                 tag_img = generate_tag_image(
                     family=config.dictionary,
@@ -147,27 +221,23 @@ class TextureFactory:
                     border_bits=1,
                 )
                 if tag_img is not None:
-                    tag_h, tag_w = tag_img.shape[:2]
-                    dy = (y1 - y0 - tag_h) // 2
-                    dx = (x1 - x0 - tag_w) // 2
-                    img[y0 + dy : y0 + dy + tag_h, x0 + dx : x0 + dx + tag_w] = tag_img
+                    # Sub-pixel accurate center: exact midpoint of the continuous cell
+                    center_x = (x0_f + x1_f) / 2.0
+                    center_y = (y0_f + y1_f) / 2.0
+                    self._composite_tag_subpixel(img, tag_img, center_x, center_y)
                 tag_id += 1
 
-        # Draw black corner squares (AprilGrid characteristic)
-        # These are at the intersections of the grid
-        corner_px = round(marker_px * 0.1)  # Small fixed ratio for now or parametric?
-        # Specification says "Small black corner squares".
-        # Usually they are quite small, e.g. 2-5% of marker size.
-
+        # Draw black corner squares (AprilGrid characteristic) at grid intersections
+        corner_px = max(1, round(marker_px_f * 0.1))
         for r in range(rows + 1):
             for c in range(cols + 1):
-                y = r * square_px
-                x = c * square_px
+                y_f = r * square_px_f
+                x_f = c * square_px_f
 
-                cy0 = max(0, y - corner_px // 2)
-                cy1 = min(img.shape[0], y + (corner_px + 1) // 2)
-                cx0 = max(0, x - corner_px // 2)
-                cx1 = min(img.shape[1], x + (corner_px + 1) // 2)
+                cy0 = max(0, round(y_f) - corner_px // 2)
+                cy1 = min(img.shape[0], round(y_f) + (corner_px + 1) // 2)
+                cx0 = max(0, round(x_f) - corner_px // 2)
+                cx1 = min(img.shape[1], round(x_f) + (corner_px + 1) // 2)
 
                 img[cy0:cy1, cx0:cx1] = 0
 
