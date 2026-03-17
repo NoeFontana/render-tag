@@ -1,6 +1,6 @@
 from enum import Enum
 
-from pydantic import BaseModel, ConfigDict, PositiveFloat, PositiveInt, model_validator
+from pydantic import BaseModel, ConfigDict, Field, PositiveFloat, PositiveInt, model_validator
 
 
 class BoardType(str, Enum):
@@ -9,7 +9,26 @@ class BoardType(str, Enum):
 
 
 class BoardConfig(BaseModel):
-    """Configuration for a calibration board."""
+    """Configuration for a calibration board.
+
+    Keypoint Contract (Top-Left, Clockwise):
+        All exported keypoints_3d arrays follow OpenCV 4.6+ standard. For each
+        marker, the four corners are serialized in this exact index order:
+
+            Index 0: Top-Left     (-X, +Y in Blender local / min-X, min-Y in image)
+            Index 1: Top-Right    (+X, +Y in Blender local / max-X, min-Y in image)
+            Index 2: Bottom-Right (+X, -Y in Blender local / max-X, max-Y in image)
+            Index 3: Bottom-Left  (-X, -Y in Blender local / min-X, max-Y in image)
+
+        The winding is strictly Clockwise in image-space (Y-down, OpenCV convention),
+        which corresponds to a positive Shoelace signed area. The pipeline MUST NOT
+        re-sort or apply convex-hull algorithms to projected corners; index 0 always
+        maps to Top-Left regardless of camera rotation.
+
+        Calibration points (saddle points / AprilGrid intersections) are serialized
+        left-to-right across each row, top-to-bottom (row 0 first), matching the
+        iterator order of both the texture synthesizer and the layout generator.
+    """
 
     type: BoardType
     rows: PositiveInt
@@ -25,6 +44,9 @@ class BoardConfig(BaseModel):
 
     # ChArUco specific
     square_size: PositiveFloat | None = None
+
+    # Optional quiet zone (white border) around the grid, in meters
+    quiet_zone_m: float = Field(default=0.0, ge=0.0)
 
     # Optional explicit ID mapping
     ids: list[int] | None = None

@@ -48,7 +48,10 @@ def test_texture_factory_charuco():
     factory = TextureFactory(px_per_mm=10)
     img = factory.generate_board_texture(config)
 
-    assert img.shape == (2500, 2500)
+    # DICT_4X4_50 grid_size=6; marker_px_f=400 → snapped up to ceil(400/6)*6=402
+    # effective_px_per_m = 402/0.04 = 10050
+    # width_px = height_px = round(0.25 * 10050) = round(2512.5) = 2512
+    assert img.shape == (2512, 2512)
     # ChArUco has 50% black squares + tags in white squares
     # Mean should be significantly lower than AprilGrid
     assert 40 < np.mean(img) < 100
@@ -118,15 +121,14 @@ def test_kalibr_corner_ratio():
 
 def test_kalibr_corner_symmetry():
     """Verify corner squares are placed symmetrically around grid intersections."""
-    # 1x1 board: intersections at x=0, x=square_px, y=0, y=square_px
-    # px_per_mm=10 -> px_per_m=10000
-    # square_size = 0.1 * (1 + 1.0) = 0.2m -> 2000px
-    # marker_px = 0.1 * 10000 = 1000px
-    # corner_ratio=0.2 -> corner_half = 1000 * 0.2 / 2 = 100px
-    # Interior intersection at (2000, 2000) — outside 1x1 board? No:
-    # rows+1=2, cols+1=2, so intersections at r=0,1 c=0,1
-    # Interior intersection at (2000, 2000) is the bottom-right corner
-    # Use a corner in the middle: rows=2, cols=2 -> interior at (2000, 2000)
+    # tag36h11 grid_size=8; marker_px_f = 0.01*10000 = 100
+    # marker_px = ceil(100/8)*8 = 13*8 = 104
+    # effective_px_per_m = 104/0.01 = 10400
+    # square_size = 0.01*(1+1.0) = 0.02m -> square_px_f = 0.02*10400 = 208px
+    # corner_ratio=0.4 -> corner_px = max(2, int(104*0.4)&~1) = max(2,40) = 40
+    # corner_half = 20px
+    # rows=2, cols=2 -> interior intersection at r=1,c=1: (208, 208)
+    # Corner square: rows [188:228), cols [188:228) -> 40x40 px
     config = BoardConfig(
         type=BoardType.APRILGRID,
         rows=2,
@@ -135,26 +137,155 @@ def test_kalibr_corner_symmetry():
         spacing_ratio=1.0,
         kalibr_corner_ratio=0.4,
     )
-    # px_per_mm=10 -> square_px = 0.01*2 * 10000 = 200px
-    # corner_half = 0.01*10000 * 0.4 / 2 = 20px
-    # Interior intersection at (200, 200)
-    # Expected square: rows [180, 220), cols [180, 220) -> 40x40 px
     factory = TextureFactory(px_per_mm=10)
     img = factory.generate_board_texture(config)
 
     # Extract the interior intersection region and verify it is all black
-    # The square centered at pixel (200, 200) with half=20 spans [180:220, 180:220]
-    region = img[180:220, 180:220]
+    region = img[188:228, 188:228]
     assert np.all(region == 0), "Interior corner square must be fully black"
 
     # Verify symmetry: equal black extent on each side of the intersection
-    row_center = 200
-    col_center = 200
+    row_center = 208
+    col_center = 208
     # Look 1 pixel inside the half-extent boundary on each side
     assert img[row_center - 19, col_center] == 0  # above center
     assert img[row_center + 19, col_center] == 0  # below center
     assert img[row_center, col_center - 19] == 0  # left of center
     assert img[row_center, col_center + 19] == 0  # right of center
+
+
+def test_kalibr_corner_uniform_size():
+    """Verify all interior corner squares have identical pixel dimensions.
+
+    Uses a config where the old float corner_half approach produced a half-integer
+    value (corner_half = 2.5), which caused half-to-even rounding to alternate
+    between 6-pixel and 4-pixel wide squares at successive grid intersections.
+
+    Parameters chosen so that:
+      tag36h11 grid_size=8; marker_px_f = 50.0 → snapped up to ceil(50/8)*8 = 56
+      effective_px_per_m = 56/0.005 = 11200
+      corner_ratio = 0.1 → corner_px = int(56*0.1)&~1 = 5&~1 = 4 (uniform 4-px squares)
+      square_px_f = 0.005*1.1*11200 = 61.6
+    """
+    import math
+
+    config = BoardConfig(
+        type=BoardType.APRILGRID,
+        rows=3,
+        cols=4,
+        marker_size=0.005,  # 5mm -> marker_px_f = 50 at px_per_mm=10; snapped to 56
+        spacing_ratio=0.1,
+        kalibr_corner_ratio=0.1,
+    )
+    factory = TextureFactory(px_per_mm=10)
+    img = factory.generate_board_texture(config)
+
+    # Replicate the factory's snapping to find exact intersection coordinates
+    from render_tag.core.constants import TAG_GRID_SIZES
+
+    grid_size = TAG_GRID_SIZES.get("tag36h11", 8)
+    marker_px = math.ceil(config.marker_size * factory.px_per_m / grid_size) * grid_size
+    effective_px_per_m = marker_px / config.marker_size
+    assert config.spacing_ratio is not None
+    square_size = config.marker_size * (1 + config.spacing_ratio)
+    square_px_f = square_size * effective_px_per_m
+
+    # Collect the black-pixel run-length through each interior grid intersection.
+    # Interior intersections are at r in [1, rows-1], c in [1, cols-1].
+    widths: list[int] = []
+    for r in range(1, config.rows):
+        for c in range(1, config.cols):
+            cy = round(r * square_px_f)
+            cx = round(c * square_px_f)
+            # Horizontal run: count consecutive black pixels centred on cx
+            row = img[cy, :]
+            # find extent of the black run that contains cx
+            left = cx
+            while left > 0 and row[left - 1] == 0:
+                left -= 1
+            right = cx
+            while right < img.shape[1] - 1 and row[right + 1] == 0:
+                right += 1
+            widths.append(right - left + 1)
+
+    assert len(widths) > 0
+    assert all(w == widths[0] for w in widths), (
+        f"Corner squares have inconsistent pixel widths: {widths}"
+    )
+
+
+def test_bit_grid_alignment():
+    """Verify marker_px is snapped to a strict multiple of the tag grid size.
+
+    If marker_px is not divisible by grid_size, generate_tag_image snaps it DOWN
+    internally, producing a tag smaller than the cell and leaving an asymmetric
+    white gap. The factory must snap UP so the requested size == actual size.
+    """
+    import math
+
+    from render_tag.core.constants import TAG_GRID_SIZES
+
+    # DICT_4X4_50 has grid_size=6; at px_per_mm=10 and marker_size=0.04m:
+    #   marker_px_f = 400, which is NOT a multiple of 6 (400/6 = 66.67)
+    #   snapped up: ceil(400/6)*6 = 402
+    config = BoardConfig(
+        type=BoardType.CHARUCO,
+        rows=3,
+        cols=3,
+        marker_size=0.04,
+        square_size=0.05,
+        dictionary="DICT_4X4_50",
+    )
+    factory = TextureFactory(px_per_mm=10)
+    img = factory.generate_board_texture(config)
+
+    grid_size = TAG_GRID_SIZES.get("DICT_4X4_50", 8)
+    marker_px_f_nom = config.marker_size * factory.px_per_m
+    marker_px = math.ceil(marker_px_f_nom / grid_size) * grid_size
+
+    assert marker_px % grid_size == 0, (
+        f"marker_px={marker_px} is not a multiple of grid_size={grid_size}"
+    )
+    # Canvas width must reflect the inflated resolution
+    effective_px_per_m = marker_px / config.marker_size
+    assert config.square_size is not None
+    expected_width = round(config.cols * config.square_size * effective_px_per_m)
+    assert img.shape[1] == expected_width
+
+
+def test_quiet_zone_pads_canvas():
+    """Verify quiet_zone_m inflates the canvas and leaves a white border."""
+    config_no_qz = BoardConfig(
+        type=BoardType.APRILGRID,
+        rows=2,
+        cols=2,
+        marker_size=0.08,
+        spacing_ratio=0.3,
+    )
+    config_with_qz = BoardConfig(
+        type=BoardType.APRILGRID,
+        rows=2,
+        cols=2,
+        marker_size=0.08,
+        spacing_ratio=0.3,
+        quiet_zone_m=0.01,
+    )
+    # px_per_mm=10 -> px_per_m=10000; quiet_zone_px = round(0.01 * 10000) = 100
+    factory = TextureFactory(px_per_mm=10)
+
+    img_no_qz = factory.generate_board_texture(config_no_qz)
+    img_with_qz = factory.generate_board_texture(config_with_qz)
+
+    qz_px = 100
+    # Canvas must be 2*qz_px larger in each dimension
+    assert img_with_qz.shape[0] == img_no_qz.shape[0] + 2 * qz_px
+    assert img_with_qz.shape[1] == img_no_qz.shape[1] + 2 * qz_px
+
+    # Top and left quiet zone strips must be all white
+    assert np.all(img_with_qz[:qz_px, :] == 255), "Top border must be white"
+    assert np.all(img_with_qz[:, :qz_px] == 255), "Left border must be white"
+    assert np.all(img_with_qz[-qz_px:, :] == 255), "Bottom border must be white"
+    assert np.all(img_with_qz[:, -qz_px:] == 255), "Right border must be white"
 
 
 def test_texture_factory_hashing():
