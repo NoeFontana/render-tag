@@ -65,6 +65,9 @@ class BoardSubjectConfig(BaseModel):
     # ChArUco specific
     square_size_mm: PositiveFloat | None = None
 
+    # Optional quiet zone (white border) around the grid
+    quiet_zone_mm: float = Field(default=0.0, ge=0.0)
+
     # Optional explicit ID mapping
     ids: list[int] | None = None
 

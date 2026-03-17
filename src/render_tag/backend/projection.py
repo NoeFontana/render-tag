@@ -490,7 +490,9 @@ def generate_board_records(
     if calib_pts_3d:
         # Project normalized calibration points from the ObjectRecipe
         for pt in calib_pts_3d:
-            # pt is [nx, ny, 0.0] normalized in [-1, 1] range.
+            # pt is [x, y, 0.0] in physical meters relative to the board center.
+            # world_matrix is sanitized (column norms = 1), so this is a pure
+            # rotation + translation into world space.
             # Convert to homogeneous and multiply by world matrix
             local_homo = bridge.np.array([pt[0], pt[1], pt[2], 1.0])
             world_homo = bridge.np.dot(world_matrix, local_homo)

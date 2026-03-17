@@ -53,6 +53,7 @@ class BoardStrategy(SubjectStrategy):
             spacing_ratio=config.spacing_ratio,
             square_size=config.square_size_mm / 1000.0 if config.square_size_mm else None,
             ids=config.ids,
+            quiet_zone_m=config.quiet_zone_mm / 1000.0,
         )
 
     def prepare_assets(self, context: GenerationContext) -> None:
@@ -92,8 +93,9 @@ class BoardStrategy(SubjectStrategy):
                 self.config.square_size_mm / 1000.0 if self.config.square_size_mm else marker_size
             )
 
-        width_m = self.config.cols * square_size
-        height_m = self.config.rows * square_size
+        quiet_zone_m = self.config.quiet_zone_mm / 1000.0
+        width_m = self.config.cols * square_size + 2 * quiet_zone_m
+        height_m = self.config.rows * square_size + 2 * quiet_zone_m
 
         # Generate 3D Keypoints for sub-pixel ground truth
         from render_tag.generation.board import (
@@ -126,28 +128,27 @@ class BoardStrategy(SubjectStrategy):
 
         keypoints_3d = []
         # 1. Tag corners (standardized order)
-        # Normalize keypoints so that they are in the range [-1, 1] relative to the 2x2 base mesh.
-        # The object's transform_matrix will scale them back to physical meters.
+        # Keypoints are in physical meters relative to the board center origin.
+        # The sanitized world_matrix (norms=1) in the projection layer applies only
+        # rotation and translation, so these coordinates must be in metric space.
         for pos in layout.tag_positions:
-            nx = pos.x / (width_m / 2.0)
-            ny = pos.y / (height_m / 2.0)
-            nmx = (marker_size / 2.0) / (width_m / 2.0)
-            nmy = (marker_size / 2.0) / (height_m / 2.0)
+            hm = marker_size / 2.0
+            # Top-Left CW contract: index 0 is always Top-Left, winding is Clockwise
+            # in image space (Y-down). In Blender local space (Y-up):
+            #   TL = (-X, +Y), TR = (+X, +Y), BR = (+X, -Y), BL = (-X, -Y)
             keypoints_3d.extend(
                 [
-                    [nx - nmx, ny + nmy, 0.0],
-                    [nx + nmx, ny + nmy, 0.0],
-                    [nx + nmx, ny - nmy, 0.0],
-                    [nx - nmx, ny - nmy, 0.0],
+                    [pos.x - hm, pos.y + hm, 0.0],  # 0: Top-Left
+                    [pos.x + hm, pos.y + hm, 0.0],  # 1: Top-Right
+                    [pos.x + hm, pos.y - hm, 0.0],  # 2: Bottom-Right
+                    [pos.x - hm, pos.y - hm, 0.0],  # 3: Bottom-Left
                 ]
             )
 
         calibration_points_3d = []
-        # 2. Calibration points (saddle points)
+        # 2. Calibration points (saddle points) — physical meters relative to board center.
         for pos in layout.calibration_positions:
-            nx = pos.x / (width_m / 2.0)
-            ny = pos.y / (height_m / 2.0)
-            calibration_points_3d.append([nx, ny, 0.0])
+            calibration_points_3d.append([pos.x, pos.y, 0.0])
 
         # Apply a small random offset to the board to avoid centering bias
         import numpy as np
@@ -168,7 +169,8 @@ class BoardStrategy(SubjectStrategy):
                 name="CalibrationBoard",
                 location=location,
                 rotation_euler=[0, 0, 0],
-                scale=[width_m, height_m, 1.0],  # Map unit plane to physical meters
+                # Matches set_scale([w/2, h/2, 1]) on 2x2 Blender plane
+                scale=[width_m / 2, height_m / 2, 1.0],
                 texture_path=self._texture_path,
                 board=self._board_config,
                 keypoints_3d=keypoints_3d,
