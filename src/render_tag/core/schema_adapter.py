@@ -147,7 +147,14 @@ class SchemaMigrator:
         return upgraded
 
 def _convert_flat_config(flat: dict) -> dict:
-    """Convert flat config format to nested format for backwards compatibility."""
+    """Convert flat config format to nested format for backwards compatibility.
+    
+    Args:
+        flat: Raw dictionary with top-level fields (e.g., 'resolution').
+        
+    Returns:
+        A nested dictionary structure aligned with v2 schemas.
+    """
     nested: dict = {
         "dataset": {},
         "camera": {},
@@ -190,7 +197,14 @@ def _convert_flat_config(flat: dict) -> dict:
     return nested
 
 def _map_legacy_fields(data: dict[str, Any]) -> dict[str, Any]:
-    """Applies field-level legacy mappings to a nested configuration."""
+    """Applies field-level legacy mappings to a nested configuration.
+    
+    Args:
+        data: Nested configuration dictionary.
+        
+    Returns:
+        The dictionary with legacy fields (e.g., 'intent', 'seed') mapped to modern equivalents.
+    """
     
     # Map 'intent' -> 'evaluation_scopes' (DatasetConfig level)
     dataset = data.get("dataset", {})

@@ -6,13 +6,11 @@ This module handles camera intrinsics and sensor dynamics configuration.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    from render_tag.core.schema.recipe import CameraRecipe, SensorDynamicsRecipe
+from typing import Any
 
 from render_tag.backend.bridge import bridge
 from render_tag.core.logging import get_logger
+from render_tag.core.schema import CameraRecipe, SensorDynamicsRecipe
 
 logger = get_logger(__name__)
 

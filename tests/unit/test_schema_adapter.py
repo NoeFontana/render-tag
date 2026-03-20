@@ -46,9 +46,23 @@ def test_adapt_config_nested_legacy_seed():
 
 def test_adapt_config_flat_layout():
     """Verify flat config conversion."""
-    config = {"resolution": [1280, 720]}
+    config = {
+        "resolution": [1280, 720],
+        "samples": 32,
+        "tag_family": "tag36h11",
+        "lighting": "factory",
+        "output_dir": "test_output",
+        "intent": "calibration",
+        "seed": 999
+    }
     adapted = adapt_config(config)
     assert adapted["camera"]["resolution"] == [1280, 720]
+    assert adapted["camera"]["samples_per_scene"] == 32
+    assert adapted["tag"]["family"] == "tag36h11"
+    assert adapted["scene"]["lighting"] == "factory"
+    assert adapted["dataset"]["output_dir"] == "test_output"
+    assert "CALIBRATION" in adapted["dataset"]["evaluation_scopes"]
+    assert adapted["dataset"]["seeds"]["global_seed"] == 999
 
 def test_adapt_config_legacy_sensor_dynamics():
     """Verify legacy sensor dynamics mapping."""

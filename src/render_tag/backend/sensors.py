@@ -5,14 +5,12 @@ Provides a pluggable Strategy Pattern architecture for applying various
 parametric noise models to rendered images.
 """
 
-from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
-
-if TYPE_CHECKING:
-    from render_tag.core.schema.recipe import SensorNoiseConfig
+from typing import Any, Protocol, runtime_checkable
 
 import numpy as np
 
 from render_tag.core.logging import get_logger
+from render_tag.core.schema import SensorNoiseConfig
 
 logger = get_logger(__name__)
 

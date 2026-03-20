@@ -309,7 +309,6 @@ class RenderFacade:
 
                 tag_objects.append(board_obj)
         return tag_objects
-        return tag_objects
 
     def render_camera(self, camera_recipe: CameraRecipe) -> dict[str, Any]:
         """Configures a camera and renders the image.
