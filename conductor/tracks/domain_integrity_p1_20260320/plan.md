@@ -17,7 +17,7 @@
     - [x] Ensure `configs/archive/locus_bench_p1.yaml` (if available) or other legacy configs pass through correctly.
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Extract ACL' (Protocol in workflow.md) 39ad430
 
-## Phase 2: Eliminate Type Erasure in Rendering Engine
+## Phase 2: Eliminate Type Erasure in Rendering Engine [checkpoint: dccc03a]
 - [x] Task: Refactor `src/render_tag/backend/engine.py` Entry Point b831efb
     - [x] Update `execute_recipe` to strictly accept `SceneRecipe`.
     - [x] Remove `recipe.model_dump()` and all references to `recipe_dict` in `execute_recipe`.
@@ -28,4 +28,4 @@
 - [x] Task: Verify Engine Type Safety and Functionality b931c1a
     - [x] Run `ty` (or `mypy`) and fix all typing errors in the engine.
     - [x] Run integration tests to ensure rendering still works correctly.
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Eliminate Type Erasure' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 2: Eliminate Type Erasure' (Protocol in workflow.md) dccc03a
