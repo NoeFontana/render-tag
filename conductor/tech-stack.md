@@ -18,6 +18,8 @@
 
 ## Data Management & Infrastructure
 - **Pydantic (v2):** Used for strict data validation and settings management. Leverages Discriminated Unions for polymorphic subject configuration and RootModels for flexible scene recipes.
+- **Anti-Corruption Layer (ACL):** Standalone schema adaptation module that translates legacy and flat configuration variants into pure domain models before they cross the system boundary.
+- **Strict End-to-End Typing:** Comprehensive type safety enforced through attribute-based access on Pydantic models (eliminating `model_dump()` dictionary lookups) throughout the rendering engine and its supporting modules.
 - **Subject Strategy Interface (Protocols):** Unified Python protocols for subject-specific generation logic, enabling structural subtyping and clean decoupling of the SceneCompiler from domain logic.
 - **Pure Execution Backend:** Rendering architecture where workers are stateless and receive absolute, rigid instructions, eliminating "Zombie Logic" and ensuring perfect sim-to-sim parity.
 - **Cryptographic Fingerprinting (hashlib):** SHA256-based content addressing for jobs, environment states, and binary assets to ensure data integrity and provenance.
