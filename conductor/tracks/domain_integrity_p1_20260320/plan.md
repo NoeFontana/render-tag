@@ -18,14 +18,14 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Extract ACL' (Protocol in workflow.md) 39ad430
 
 ## Phase 2: Eliminate Type Erasure in Rendering Engine
-- [ ] Task: Refactor `src/render_tag/backend/engine.py` Entry Point
-    - [ ] Update `execute_recipe` to strictly accept `SceneRecipe`.
-    - [ ] Remove `recipe.model_dump()` and all references to `recipe_dict` in `execute_recipe`.
-- [ ] Task: Cascade Strict Typing through Internal Engine Functions
-    - [ ] Refactor `_setup_scene` to use attribute-based access on `SceneRecipe`.
-    - [ ] Refactor `_render_camera_and_save` to use attribute-based access on `SceneRecipe` and its components.
-    - [ ] Refactor `render_camera` to use attribute-based access on its input recipe.
-- [ ] Task: Verify Engine Type Safety and Functionality
-    - [ ] Run `mypy` and fix all typing errors in the engine.
-    - [ ] Run integration tests to ensure rendering still works correctly.
+- [x] Task: Refactor `src/render_tag/backend/engine.py` Entry Point b831efb
+    - [x] Update `execute_recipe` to strictly accept `SceneRecipe`.
+    - [x] Remove `recipe.model_dump()` and all references to `recipe_dict` in `execute_recipe`.
+- [x] Task: Cascade Strict Typing through Internal Engine Functions b931c1a
+    - [x] Refactor `_setup_scene` to use attribute-based access on `SceneRecipe`.
+    - [x] Refactor `_render_camera_and_save` to use attribute-based access on `SceneRecipe` and its components.
+    - [x] Refactor `render_camera` to use attribute-based access on its input recipe.
+- [x] Task: Verify Engine Type Safety and Functionality b931c1a
+    - [x] Run `ty` (or `mypy`) and fix all typing errors in the engine.
+    - [x] Run integration tests to ensure rendering still works correctly.
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Eliminate Type Erasure' (Protocol in workflow.md)
