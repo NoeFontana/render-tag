@@ -1,14 +1,14 @@
 # Track plan.md
 
 ## Phase 1: Extract Anti-Corruption Layer (ACL)
-- [ ] Task: Implement `src/render_tag/core/schema_adapter.py`
-    - [ ] Create basic module structure and export a unified `adapt_config` function.
-    - [ ] Integrate/Merge `src/render_tag/core/migration.py` into `schema_adapter.py` (or rename it).
-    - [ ] Implement `_convert_flat_config` (moved from `config.py`).
-    - [ ] Implement `map_intent_to_scopes` (moved from `config.py`).
-    - [ ] Implement `map_legacy_seed` (moved from `config.py`).
-    - [ ] Implement `map_legacy_sensor_dynamics` (moved from `config.py`).
-    - [ ] Implement `migrate_legacy_layout` (moved from `config.py`).
+- [x] Task: Implement `src/render_tag/core/schema_adapter.py` a7fca0c
+    - [x] Create basic module structure and export a unified `adapt_config` function.
+    - [x] Integrate/Merge `src/render_tag/core/migration.py` into `schema_adapter.py` (or rename it).
+    - [x] Implement `_convert_flat_config` (moved from `config.py`).
+    - [x] Implement `map_intent_to_scopes` (moved from `config.py`).
+    - [x] Implement `map_legacy_seed` (moved from `config.py`).
+    - [x] Implement `map_legacy_sensor_dynamics` (moved from `config.py`).
+    - [x] Implement `migrate_legacy_layout` (moved from `config.py`).
 - [ ] Task: Refactor `src/render_tag/core/config.py`
     - [ ] Remove legacy mapping functions and their Pydantic validators.
     - [ ] Update `load_config_from_yaml` to use `schema_adapter.adapt_config` before validation.
