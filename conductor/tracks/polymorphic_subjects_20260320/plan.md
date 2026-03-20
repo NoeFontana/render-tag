@@ -11,22 +11,23 @@
     - [x] Test the auto-discovery mechanism (decorator).
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Infrastructure & Core Interface' (Protocol in workflow.md) 39c2990
 
-## Phase 2: Refactor Concrete Builders
-- [ ] Task: Implement `TagBuilder`
-    - [ ] Create `src/render_tag/backend/builders/tag_builder.py`.
-    - [ ] Extract logic from `engine.py` to handle `TAG` creation.
-    - [ ] Verify that `TagBuilder` correctly attaches metadata and materials.
-- [ ] Task: Implement `CalibrationBoardBuilder`
-    - [ ] Create `src/render_tag/backend/builders/board_builder.py`.
-    - [ ] Extract logic from `engine.py` to handle `BOARD` creation.
-    - [ ] Verify that `CalibrationBoardBuilder` correctly handles both procedural and single-plane boards.
-- [ ] Task: Implement `NullBuilder`
-    - [ ] Create `src/render_tag/backend/builders/null_builder.py`.
-    - [ ] Implement a builder that returns an empty list or a simple mock object for testing.
-- [ ] Task: Write Tests for Concrete Builders
-    - [ ] Expand `tests/unit/test_asset_builders.py` to cover `TagBuilder` and `CalibrationBoardBuilder`.
-    - [ ] Verify that they produce valid Blender objects (via mocks or integration tests).
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Refactor Concrete Builders' (Protocol in workflow.md)
+## Phase 2: Refactor Concrete Builders [checkpoint: 2639b9f]
+- [x] Task: Implement `TagBuilder` 2639b9f
+    - [x] Create `src/render_tag/backend/builders/tag_builder.py`.
+    - [x] Extract logic from `engine.py` to handle `TAG` creation.
+    - [x] Verify that `TagBuilder` correctly attaches metadata and materials.
+- [x] Task: Implement `CalibrationBoardBuilder` 2639b9f
+    - [x] Create `src/render_tag/backend/builders/board_builder.py`.
+    - [x] Extract logic from `engine.py` to handle `BOARD` creation.
+    - [x] Verify that `CalibrationBoardBuilder` correctly handles both procedural and single-plane boards.
+- [x] Task: Implement `NullBuilder` 2639b9f
+    - [x] Create `src/render_tag/backend/builders/null_builder.py`.
+    - [x] Implement a builder that returns an empty list or a simple mock object for testing.
+- [x] Task: Write Tests for Concrete Builders 2639b9f
+    - [x] Expand `tests/unit/test_asset_builders.py` to cover `TagBuilder` and `CalibrationBoardBuilder`.
+    - [x] Verify that they produce valid Blender objects (via mocks or integration tests).
+- [x] Task: Conductor - User Manual Verification 'Phase 2: Refactor Concrete Builders' (Protocol in workflow.md) 2639b9f
+
 
 ## Phase 3: Engine Integration & Decoupling
 - [ ] Task: Refactor `RenderFacade.spawn_objects`
