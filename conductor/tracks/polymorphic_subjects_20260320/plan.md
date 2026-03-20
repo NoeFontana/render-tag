@@ -1,14 +1,14 @@
 # Implementation Plan: Polymorphic Subject Architecture
 
 ## Phase 1: Infrastructure & Core Interface
-- [ ] Task: Define the `AssetBuilder` Protocol and Registry
-    - [ ] Create `src/render_tag/backend/builders/__init__.py`.
-    - [ ] Define the `AssetBuilder` Protocol in `src/render_tag/backend/builders/interface.py`.
-    - [ ] Implement the `AssetRegistry` and `@register_builder` decorator in `src/render_tag/backend/builders/registry.py`.
-- [ ] Task: Write Tests for `AssetBuilder` and `AssetRegistry`
-    - [ ] Create `tests/unit/test_asset_builders.py`.
-    - [ ] Verify that the registry correctly maps subject types to builders.
-    - [ ] Test the auto-discovery mechanism (decorator).
+- [x] Task: Define the `AssetBuilder` Protocol and Registry 11e3b54
+    - [x] Create `src/render_tag/backend/builders/__init__.py`.
+    - [x] Define the `AssetBuilder` Protocol in `src/render_tag/backend/builders/interface.py`.
+    - [x] Implement the `AssetRegistry` and `@register_builder` decorator in `src/render_tag/backend/builders/registry.py`.
+- [x] Task: Write Tests for `AssetBuilder` and `AssetRegistry` 11e3b54
+    - [x] Create `tests/unit/test_asset_builders.py`.
+    - [x] Verify that the registry correctly maps subject types to builders.
+    - [x] Test the auto-discovery mechanism (decorator).
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Infrastructure & Core Interface' (Protocol in workflow.md)
 
 ## Phase 2: Refactor Concrete Builders
