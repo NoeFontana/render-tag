@@ -5,7 +5,10 @@ Provides a pluggable Strategy Pattern architecture for applying various
 parametric noise models to rendered images.
 """
 
-from typing import Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+
+if TYPE_CHECKING:
+    from render_tag.core.schema.recipe import SensorNoiseConfig
 
 import numpy as np
 
@@ -18,13 +21,13 @@ logger = get_logger(__name__)
 class NoiseStrategy(Protocol):
     """Protocol for noise application strategies."""
 
-    def apply(self, image: np.ndarray, config: dict[str, Any]) -> np.ndarray:
+    def apply(self, image: np.ndarray, config: SensorNoiseConfig) -> np.ndarray:
         """
         Apply a specific noise model to the input image.
 
         Args:
             image: Input RGB image array (float32, 0.0-1.0 preferred for processing).
-            config: Dictionary of parameters for the noise model.
+            config: Configuration for the noise model.
 
         Returns:
             Noisy RGB image array (float32, 0.0-1.0).
@@ -35,10 +38,10 @@ class NoiseStrategy(Protocol):
 class GaussianNoiseStrategy:
     """Applies additive Gaussian noise."""
 
-    def apply(self, image: np.ndarray, config: dict[str, Any]) -> np.ndarray:
-        mean = config.get("mean", 0.0)
-        stddev = config.get("stddev", 0.0)
-        seed = config.get("seed")
+    def apply(self, image: np.ndarray, config: SensorNoiseConfig) -> np.ndarray:
+        mean = config.mean
+        stddev = config.stddev
+        seed = config.seed
         rng = np.random.default_rng(seed)
 
         # Standard Engineer: Use np.asarray to safely handle mocks in test environments
@@ -51,9 +54,11 @@ class GaussianNoiseStrategy:
 class PoissonNoiseStrategy:
     """Applies shot noise using a Poisson distribution."""
 
-    def apply(self, image: np.ndarray, config: dict[str, Any]) -> np.ndarray:
-        scale = config.get("scale", 1000.0)
-        seed = config.get("seed")
+    def apply(self, image: np.ndarray, config: SensorNoiseConfig) -> np.ndarray:
+        # Note: Poisson model currently uses 'amount' as scale or defaults to 1000.0
+        # for historical compatibility if we don't have a dedicated scale field.
+        scale = getattr(config, "amount", 1000.0)
+        seed = config.seed
         rng = np.random.default_rng(seed)
         return rng.poisson(image * scale) / scale
 
@@ -61,10 +66,10 @@ class PoissonNoiseStrategy:
 class SaltAndPepperNoiseStrategy:
     """Applies impulsive salt and pepper noise."""
 
-    def apply(self, image: np.ndarray, config: dict[str, Any]) -> np.ndarray:
-        amount = config.get("amount", 0.0)
-        salt_vs_pepper = config.get("salt_vs_pepper", 0.5)
-        seed = config.get("seed")
+    def apply(self, image: np.ndarray, config: SensorNoiseConfig) -> np.ndarray:
+        amount = config.amount
+        salt_vs_pepper = config.salt_vs_pepper
+        seed = config.seed
         rng = np.random.default_rng(seed)
 
         noisy = image.copy()
@@ -95,9 +100,9 @@ class NoiseEngine:
             "salt_and_pepper": SaltAndPepperNoiseStrategy(),
         }
 
-    def apply_noise(self, image: np.ndarray, config: dict[str, Any]) -> np.ndarray:
+    def apply_noise(self, image: np.ndarray, config: SensorNoiseConfig) -> np.ndarray:
         """Dispatcher that selects and runs the appropriate strategy."""
-        model_type = config.get("model", "gaussian")
+        model_type = config.model
         strategy = self._strategies.get(model_type)
 
         # 1. Convert to float for processing
@@ -118,6 +123,6 @@ class NoiseEngine:
 _engine = NoiseEngine()
 
 
-def apply_parametric_noise(image: np.ndarray, config: dict[str, Any]) -> np.ndarray:
+def apply_parametric_noise(image: np.ndarray, config: SensorNoiseConfig) -> np.ndarray:
     """Legacy entry point that delegates to the NoiseEngine."""
     return _engine.apply_noise(image, config)
