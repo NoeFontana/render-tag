@@ -1,6 +1,6 @@
 # Track plan.md
 
-## Phase 1: Extract Anti-Corruption Layer (ACL)
+## Phase 1: Extract Anti-Corruption Layer (ACL) [checkpoint: 39ad430]
 - [x] Task: Implement `src/render_tag/core/schema_adapter.py` a7fca0c
     - [x] Create basic module structure and export a unified `adapt_config` function.
     - [x] Integrate/Merge `src/render_tag/core/migration.py` into `schema_adapter.py` (or rename it).
@@ -15,7 +15,7 @@
 - [x] Task: Verify ACL Correctness bf269a6
     - [x] Write tests in `tests/unit/test_schema_adapter.py` verifying each transformation.
     - [x] Ensure `configs/archive/locus_bench_p1.yaml` (if available) or other legacy configs pass through correctly.
-- [ ] Task: Conductor - User Manual Verification 'Phase 1: Extract ACL' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 1: Extract ACL' (Protocol in workflow.md) 39ad430
 
 ## Phase 2: Eliminate Type Erasure in Rendering Engine
 - [ ] Task: Refactor `src/render_tag/backend/engine.py` Entry Point
