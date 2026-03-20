@@ -13,7 +13,10 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from render_tag.core.schema.recipe import CameraRecipe
 
 from render_tag.backend.bridge import bridge
 from render_tag.core import TAG_GRID_SIZES
@@ -193,7 +196,7 @@ def compute_geometric_metadata(tag_obj: Any) -> dict[str, Any]:
     }
 
 
-def _extract_physics(cam_recipe: dict[str, Any] | None) -> dict[str, Any]:
+def _extract_physics(cam_recipe: CameraRecipe | None) -> dict[str, Any]:
     """Extract physics and sensor conditions from a camera recipe."""
     physics = {
         "velocity": None,
@@ -203,12 +206,12 @@ def _extract_physics(cam_recipe: dict[str, Any] | None) -> dict[str, Any]:
     }
 
     if cam_recipe:
-        dynamics = cam_recipe.get("sensor_dynamics")
+        dynamics = cam_recipe.sensor_dynamics
         if dynamics:
-            physics["velocity"] = dynamics.get("velocity")
-            physics["shutter_time_ms"] = dynamics.get("shutter_time_ms", 0.0)
-            physics["rolling_shutter_ms"] = dynamics.get("rolling_shutter_duration_ms", 0.0)
-        physics["fstop"] = cam_recipe.get("fstop")
+            physics["velocity"] = dynamics.velocity
+            physics["shutter_time_ms"] = dynamics.shutter_time_ms or 0.0
+            physics["rolling_shutter_ms"] = dynamics.rolling_shutter_duration_ms or 0.0
+        physics["fstop"] = cam_recipe.fstop
 
     return physics
 
@@ -216,7 +219,7 @@ def _extract_physics(cam_recipe: dict[str, Any] | None) -> dict[str, Any]:
 def generate_subject_records(
     obj: Any,
     image_id: str,
-    cam_recipe: dict[str, Any] | None = None,
+    cam_recipe: CameraRecipe | None = None,
     skip_visibility: bool = False,
 ) -> list[DetectionRecord]:
     """Generate detection records for any subject using its 3D keypoints."""
@@ -380,7 +383,7 @@ def generate_subject_records(
 def generate_board_records(
     board_obj: Any,
     image_id: str,
-    cam_recipe: dict[str, Any] | None = None,
+    cam_recipe: CameraRecipe | None = None,
     skip_visibility: bool = False,
 ) -> list[DetectionRecord]:
     """Generate detection records for all tags on a calibration board."""
@@ -620,7 +623,7 @@ def _parse_board_config_and_layout(
 def _get_scene_transformations(
     board_obj: Any,
     spec: BoardSpec,
-    cam_recipe: dict[str, Any] | None = None,
+    cam_recipe: CameraRecipe | None = None,
 ) -> tuple[
     bridge.np.ndarray,
     bridge.np.ndarray,

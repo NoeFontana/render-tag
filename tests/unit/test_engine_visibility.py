@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+import numpy as np
+
 from render_tag.backend.engine import _extract_and_save_ground_truth
+from render_tag.core.schema import CameraIntrinsics, CameraRecipe
 
 
 @patch("render_tag.backend.engine.generate_subject_records")
@@ -29,7 +32,10 @@ def test_extract_and_save_ground_truth_skip_visibility_no_full_screen(mock_subje
     ]
 
     # Minimal camera recipe
-    cam_recipe = {"intrinsics": {"resolution": res}}
+    cam_recipe = CameraRecipe(
+        transform_matrix=np.eye(4).tolist(),
+        intrinsics=CameraIntrinsics(resolution=res, k_matrix=np.eye(3).tolist()),
+    )
 
     _extract_and_save_ground_truth(tag_objects, image_name, 1, res, ctx, scene_logger, cam_recipe)
 

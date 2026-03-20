@@ -10,6 +10,7 @@ from render_tag.backend.bridge import bridge
 from render_tag.backend.engine import RenderContext, execute_recipe
 from render_tag.backend.scene import setup_background
 from render_tag.core.logging import get_logger
+from render_tag.core.schema import SceneRecipe
 from render_tag.core.schema.hot_loop import (
     Command,
     CommandType,
@@ -314,11 +315,17 @@ class ZmqBackendServer:
 
         try:
             p = cmd.payload or {}
-            recipe, output_dir = p.get("recipe"), Path(p.get("output_dir", "."))
+            raw_recipe, output_dir = p.get("recipe"), Path(p.get("output_dir", "."))
             shard_id = p.get("shard_id", self.shard_id)
 
+            # Move-Left: Validate that the incoming recipe matches our rigid schema
+            if not isinstance(raw_recipe, SceneRecipe):
+                recipe = SceneRecipe.model_validate(raw_recipe)
+            else:
+                recipe = raw_recipe
+
             self._setup_writers(output_dir, shard_id)
-            scene_id = recipe.get("scene_id", 0)
+            scene_id = recipe.scene_id
             render_seed = derive_seed(self.seed, "render", scene_id)
 
             ctx = RenderContext(
