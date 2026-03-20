@@ -29,3 +29,6 @@
     - [x] Run `ty` (or `mypy`) and fix all typing errors in the engine.
     - [x] Run integration tests to ensure rendering still works correctly.
 - [x] Task: Conductor - User Manual Verification 'Phase 2: Eliminate Type Erasure' (Protocol in workflow.md) dccc03a
+
+## Phase: Review Fixes
+- [x] Task: Apply review suggestions 1a56026
