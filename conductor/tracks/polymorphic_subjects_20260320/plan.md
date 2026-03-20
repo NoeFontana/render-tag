@@ -11,7 +11,7 @@
     - [x] Test the auto-discovery mechanism (decorator).
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Infrastructure & Core Interface' (Protocol in workflow.md) 39c2990
 
-## Phase 2: Refactor Concrete Builders [checkpoint: 2639b9f]
+## Phase 2: Refactor Concrete Builders [checkpoint: ae14af5]
 - [x] Task: Implement `TagBuilder` 2639b9f
     - [x] Create `src/render_tag/backend/builders/tag_builder.py`.
     - [x] Extract logic from `engine.py` to handle `TAG` creation.
@@ -26,7 +26,7 @@
 - [x] Task: Write Tests for Concrete Builders 2639b9f
     - [x] Expand `tests/unit/test_asset_builders.py` to cover `TagBuilder` and `CalibrationBoardBuilder`.
     - [x] Verify that they produce valid Blender objects (via mocks or integration tests).
-- [x] Task: Conductor - User Manual Verification 'Phase 2: Refactor Concrete Builders' (Protocol in workflow.md) 2639b9f
+- [x] Task: Conductor - User Manual Verification 'Phase 2: Refactor Concrete Builders' (Protocol in workflow.md) ae14af5
 
 
 ## Phase 3: Engine Integration & Decoupling
