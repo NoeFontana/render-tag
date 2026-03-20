@@ -9,9 +9,9 @@
     - [x] Implement `map_legacy_seed` (moved from `config.py`).
     - [x] Implement `map_legacy_sensor_dynamics` (moved from `config.py`).
     - [x] Implement `migrate_legacy_layout` (moved from `config.py`).
-- [ ] Task: Refactor `src/render_tag/core/config.py`
-    - [ ] Remove legacy mapping functions and their Pydantic validators.
-    - [ ] Update `load_config_from_yaml` to use `schema_adapter.adapt_config` before validation.
+- [x] Task: Refactor `src/render_tag/core/config.py` 3df3ad8
+    - [x] Remove legacy mapping functions and their Pydantic validators.
+    - [x] Update `load_config_from_yaml` (refactored as `load_config`) to use `schema_adapter.adapt_config` before validation.
 - [ ] Task: Verify ACL Correctness
     - [ ] Write tests in `tests/unit/test_schema_adapter.py` verifying each transformation.
     - [ ] Ensure `configs/archive/locus_bench_p1.yaml` (if available) or other legacy configs pass through correctly.
