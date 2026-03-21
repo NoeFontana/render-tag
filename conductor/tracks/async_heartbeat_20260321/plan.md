@@ -46,3 +46,6 @@
     - [ ] Simulate worker crashes and verify Watchdog detection.
     - [ ] Verify data integrity of `telemetry.ndjson`.
 - [x] Task: Conductor - User Manual Verification 'Phase 4: Watchdog Protocol and Persistence' (Protocol in workflow.md) b8edb97
+
+## Phase: Review Fixes
+- [x] Task: Apply review suggestions a565254
