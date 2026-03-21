@@ -1,4 +1,3 @@
-
 import json
 import threading
 import time
@@ -83,11 +82,7 @@ class HealthMonitor:
         # We need to iterate over a copy of keys to avoid modification during iteration
         for worker_id in list(self._registry.keys()):
             snapshot = self._registry.get(worker_id)
-            if (
-                snapshot
-                and snapshot.liveness == "HEALTHY"
-                and now - snapshot.last_seen > timeout
-            ):
+            if snapshot and snapshot.liveness == "HEALTHY" and now - snapshot.last_seen > timeout:
                 logger.warning(f"Worker {worker_id} heartbeat lost. Marking UNRESPONSIVE.")
                 # Update snapshot with new liveness
                 # snapshots are immutable (frozen=True), so we must create a new one

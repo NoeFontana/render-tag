@@ -70,7 +70,13 @@ class TagStrategy(SubjectStrategy):
         tag_config = gen_config.tag
         scenario = gen_config.scenario
 
-        num_tags = self.config.tags_per_scene
+        # Resolve number of tags (allow range sampling)
+        num_tags_raw = self.config.tags_per_scene
+        if isinstance(num_tags_raw, (list, tuple)):
+            num_tags = int(rng.integers(num_tags_raw[0], num_tags_raw[1] + 1))
+        else:
+            num_tags = num_tags_raw
+
         tag_size_mm = self.config.size_mm
         tag_size = tag_size_mm / 1000.0  # Convert to meters for renderer
         tag_families = self.config.tag_families

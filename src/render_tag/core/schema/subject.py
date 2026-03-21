@@ -26,7 +26,9 @@ class TagSubjectConfig(BaseModel):
     type: Literal["TAGS"] = "TAGS"
     tag_families: list[str] = Field(default_factory=lambda: ["tag36h11"])
     size_mm: PositiveFloat = 100.0
-    tags_per_scene: PositiveInt = 10
+    tags_per_scene: int | tuple[int, int] = Field(
+        default=10, description="Number of markers to generate per scene (or [min, max] range)."
+    )
     tag_spacing_bits: float = Field(default=2.0, description="Spacing between tags in bits")
 
     model_config = ConfigDict(use_enum_values=True)
