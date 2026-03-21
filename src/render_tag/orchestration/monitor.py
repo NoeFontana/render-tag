@@ -121,7 +121,7 @@ class HealthMonitor:
                 logger.error(f"Error in health monitor loop: {e}")
 
     def start(self):
-        """Starts the ingestion thread."""
+        """Starts the background ingestion and liveness sweep thread."""
         if self.running:
             return
         self.running = True
@@ -129,7 +129,7 @@ class HealthMonitor:
         self._thread.start()
 
     def stop(self):
-        """Stops the ingestion thread and closes socket."""
+        """Stops the ingestion thread and releases ZMQ resources."""
         self.running = False
         if self._thread:
             self._thread.join(timeout=2.0)
@@ -141,12 +141,24 @@ class HealthMonitor:
             pass
 
     def get_snapshot(self, worker_id: str) -> Optional[WorkerSnapshot]:
-        """Returns the latest snapshot for a worker (Lock-Free Read)."""
+        """Returns the latest health snapshot for a worker.
+        
+        This method is lock-free and provides zero-latency access to the latest state.
+        
+        Args:
+            worker_id: The ID of the worker to interrogate.
+            
+        Returns:
+            The WorkerSnapshot if found, else None.
+        """
         return self._registry.get(worker_id)
 
     def get_all_snapshots(self) -> Dict[str, WorkerSnapshot]:
-        """Returns a copy of the current registry (Lock-Free Read)."""
-        # Dictionary iteration is not strictly thread-safe in CPython if another 
-        # thread is adding/removing keys, but dict.copy() or dict() is relatively safe.
-        # Since we only add/update keys, and rarely remove, we'll return a copy.
-        return self._registry.copy()
+        """Returns a snapshot of the current registry.
+        
+        Returns:
+            A dictionary mapping worker_id to its latest WorkerSnapshot.
+        """
+        # Create a copy using keys() list to avoid RuntimeError if the registry
+        # changes size during iteration in CPython.
+        return {k: self._registry[k] for k in list(self._registry.keys())}

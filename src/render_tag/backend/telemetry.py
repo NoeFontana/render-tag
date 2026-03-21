@@ -24,6 +24,14 @@ class TelemetryEmitter:
         interval_ms: int = 1000,
         server_ref: Any = None
     ):
+        """Initializes the telemetry emitter.
+        
+        Args:
+            worker_id: Unique identifier for the worker.
+            port: ZMQ PUB port to bind to.
+            interval_ms: Milliseconds between heartbeat emissions.
+            server_ref: Optional reference to ZmqBackendServer for metrics.
+        """
         self.worker_id = worker_id
         self.port = port
         self.interval_s = interval_ms / 1000.0
@@ -38,12 +46,15 @@ class TelemetryEmitter:
         self._thread = None
 
     def poll_metrics(self) -> Telemetry:
-        """Collects system and Blender-specific metrics."""
+        """Collects system and Blender-specific metrics.
+        
+        Returns:
+            Current Telemetry snapshot.
+        """
         if self.server:
             return self.server.get_telemetry()
 
         # Fallback if no server reference (e.g. standalone tests)
-        import psutil
         process = psutil.Process(os.getpid())
         
         return Telemetry(
