@@ -22,6 +22,8 @@
 - **Strict End-to-End Typing:** Comprehensive type safety enforced through attribute-based access on Pydantic models (eliminating `model_dump()` dictionary lookups) throughout the rendering engine and its supporting modules.
 - **Subject Strategy Interface (Protocols):** Unified Python protocols for subject-specific generation logic, enabling structural subtyping and clean decoupling of the SceneCompiler from domain logic.
 - **AssetBuilder Protocol & Registry:** A decorator-based registration system for polymorphic asset creation. Isolates subject-specific logic (TAG, BOARD) into self-contained builder classes, adhering to the Open/Closed Principle.
+- **OrchestrationResult DTO:** Standardized, Pydantic-based result object for orchestration jobs. Captures success/fail counts, timings, resource metrics (RAM/VRAM), and provenance metadata.
+- **Plug-and-Play Reporters (IoC):** Strategy-based reporting system that decouples execution from presentation. Allows the same orchestrator to report to rich terminals, JSON files, or cloud monitoring systems.
 - **Pure Execution Backend:** Rendering architecture where workers are stateless and receive absolute, rigid instructions, eliminating "Zombie Logic" and ensuring perfect sim-to-sim parity.
 - **Cryptographic Fingerprinting (hashlib):** SHA256-based content addressing for jobs, environment states, and binary assets to ensure data integrity and provenance.
 - **Typer:** Powering the CLI interface, providing a user-friendly and type-safe way to interact with the generation pipeline.
