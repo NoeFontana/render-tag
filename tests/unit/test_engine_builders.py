@@ -1,8 +1,11 @@
 
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
+
 from render_tag.backend.engine import RenderFacade
 from render_tag.core.schema.recipe import ObjectRecipe
+
 
 def test_spawn_objects_uses_registry():
     renderer = RenderFacade()

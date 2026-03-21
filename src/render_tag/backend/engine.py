@@ -17,13 +17,11 @@ from typing import Any, Protocol, runtime_checkable
 from PIL import Image
 
 from render_tag.backend.assets import global_pool
-from render_tag.backend.builders.registry import default_registry
 from render_tag.backend.bridge import bridge
+from render_tag.backend.builders.registry import default_registry
 from render_tag.backend.camera import set_camera_intrinsics, setup_sensor_dynamics
 from render_tag.backend.projection import generate_board_records, generate_subject_records
 from render_tag.backend.scene import (
-    create_board,
-    create_board_plane,
     setup_background,
     setup_floor_material,
     setup_lighting,
@@ -33,7 +31,6 @@ from render_tag.core.logging import get_logger
 from render_tag.core.schema import (
     CameraRecipe,
     DetectionRecord,
-    LightRecipe,
     ObjectRecipe,
     RendererConfig,
     SceneRecipe,

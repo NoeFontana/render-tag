@@ -22,7 +22,9 @@ class CalibrationBoardBuilder:
         # Robustly handle material config
         mat_cfg = recipe.material
         if hasattr(mat_cfg, "model_dump"):
-            mat_cfg = mat_cfg.model_dump()
+            # Use Any to satisfy type checker for dynamic model_dump call
+            from typing import cast
+            mat_cfg = cast(Any, mat_cfg).model_dump()
 
         if texture_path and board_cfg:
             # Generic High-Fidelity Subject Path (Single Plane)
@@ -66,7 +68,9 @@ class CalibrationBoardBuilder:
             board_obj.set_rotation_euler(list(recipe.rotation_euler))
             
         if recipe.keypoints_3d and isinstance(recipe.keypoints_3d, (list, tuple)):
-            board_obj.blender_obj["keypoints_3d"] = [list(kp) for kp in recipe.keypoints_3d if hasattr(kp, "__iter__")]
+            board_obj.blender_obj["keypoints_3d"] = [
+                list(kp) for kp in recipe.keypoints_3d if hasattr(kp, "__iter__")
+            ]
 
         if recipe.forward_axis:
             board_obj.blender_obj["forward_axis"] = list(recipe.forward_axis)

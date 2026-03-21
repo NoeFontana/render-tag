@@ -22,7 +22,9 @@ class TagBuilder:
         # Robustly handle material config
         mat_cfg = recipe.material
         if hasattr(mat_cfg, "model_dump"):
-            mat_cfg = mat_cfg.model_dump()
+            # Use Any to satisfy type checker for dynamic model_dump call
+            from typing import cast
+            mat_cfg = cast(Any, mat_cfg).model_dump()
 
         tag_obj = create_tag_plane(
             props["tag_size"],
@@ -42,7 +44,9 @@ class TagBuilder:
             
         # Attach Metadata
         if recipe.keypoints_3d and isinstance(recipe.keypoints_3d, (list, tuple)):
-            tag_obj.blender_obj["keypoints_3d"] = [list(kp) for kp in recipe.keypoints_3d if hasattr(kp, "__iter__")]
+            tag_obj.blender_obj["keypoints_3d"] = [
+                list(kp) for kp in recipe.keypoints_3d if hasattr(kp, "__iter__")
+            ]
             
         if recipe.forward_axis:
             tag_obj.blender_obj["forward_axis"] = list(recipe.forward_axis)
