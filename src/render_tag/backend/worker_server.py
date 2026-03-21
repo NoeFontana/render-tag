@@ -85,9 +85,7 @@ class ZmqBackendServer:
         # Determine worker_id from shard_id or similar
         self.worker_id = f"worker-{shard_id}"
         self.emitter = TelemetryEmitter(
-            worker_id=self.worker_id,
-            port=self.telemetry_port,
-            server_ref=self
+            worker_id=self.worker_id, port=self.telemetry_port, server_ref=self
         )
 
     def _check_memory(self) -> bool:
@@ -134,10 +132,10 @@ class ZmqBackendServer:
             # Blender specific metrics
             obj_count = 0
             if bridge.bpy:
-                try:
+                import contextlib
+
+                with contextlib.suppress(Exception):
                     obj_count = len(bridge.bpy.data.objects)
-                except Exception:
-                    pass
 
             return Telemetry(
                 status=self.status,
@@ -345,11 +343,15 @@ class ZmqBackendServer:
             p = cmd.payload
             if not isinstance(p, dict):
                 logger.error(f"FATAL: Command payload is not a dict: {type(p)} value={p}")
-                return Response(status=ResponseStatus.FAILURE, request_id=cmd.request_id, message=f"Payload error: {type(p)}")
-            
+                return Response(
+                    status=ResponseStatus.FAILURE,
+                    request_id=cmd.request_id,
+                    message=f"Payload error: {type(p)}",
+                )
+
             raw_recipe, output_dir = p.get("recipe"), Path(p.get("output_dir", "."))
             shard_id = p.get("shard_id", self.shard_id)
-            
+
             logger.error(f"DEBUG: raw_recipe type: {type(raw_recipe)}")
 
             # Move-Left: Validate that the incoming recipe matches our rigid schema
@@ -366,7 +368,7 @@ class ZmqBackendServer:
             scene_id = recipe.scene_id
             with self._lock:
                 self.current_scene_id = scene_id
-            
+
             render_seed = derive_seed(self.seed, "render", scene_id)
 
             ctx = RenderContext(

@@ -15,9 +15,10 @@ import sys
 import threading
 import time
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, ClassVar
+from typing import ClassVar
 
 try:
     import zmq
@@ -36,7 +37,6 @@ from render_tag.core.schema.hot_loop import (
     CommandType,
     Response,
     ResponseStatus,
-    Telemetry,
     WorkerStatus,
 )
 from render_tag.core.schema.job import JobSpec
@@ -102,11 +102,17 @@ class UnifiedWorkerOrchestrator:
 
     _instances: ClassVar[list["UnifiedWorkerOrchestrator"]] = []
 
-    def __init__(self, config: OrchestratorConfig | None = None, **kwargs):
+    def __init__(
+        self,
+        config: OrchestratorConfig | None = None,
+        log_path: Path | None = None,
+        **kwargs,
+    ):
         if config is None:
             # Fallback for backwards compatibility or quick instantiation
             config = OrchestratorConfig(**kwargs)
         self.config = config
+        self.log_path = log_path
 
         self.mock = self.config.mock or (os.environ.get("RENDER_TAG_FORCE_MOCK") == "1")
         self.blender_script = self.config.blender_script
@@ -206,9 +212,10 @@ class UnifiedWorkerOrchestrator:
             with ResourceStack() as attempt_stack:
                 try:
                     # Start Health Monitor
-                    telemetry_ports = [current_base_port + i + 1000 for i in range(self.num_workers)]
-                    log_path = output_dir / "telemetry.ndjson"
-                    self.monitor = HealthMonitor(ports=telemetry_ports, log_path=log_path)
+                    telemetry_ports = [
+                        current_base_port + i + 1000 for i in range(self.num_workers)
+                    ]
+                    self.monitor = HealthMonitor(ports=telemetry_ports, log_path=self.log_path)
                     self.monitor.start()
 
                     for i in range(self.num_workers):
@@ -310,11 +317,16 @@ class UnifiedWorkerOrchestrator:
                 self.auditor.add_entry(worker.worker_id, telemetry)
 
                 # Check for memory or VRAM limits
-                if telemetry.status == WorkerStatus.RESOURCE_LIMIT_EXCEEDED or snapshot.liveness == "UNRESPONSIVE":
-                    limit_exceeded = (telemetry.status == WorkerStatus.RESOURCE_LIMIT_EXCEEDED)
+                if (
+                    telemetry.status == WorkerStatus.RESOURCE_LIMIT_EXCEEDED
+                    or snapshot.liveness == "UNRESPONSIVE"
+                ):
+                    limit_exceeded = telemetry.status == WorkerStatus.RESOURCE_LIMIT_EXCEEDED
                     should_restart = True
                     if snapshot.liveness == "UNRESPONSIVE":
-                        logger.error(f"Worker {worker.worker_id} is UNRESPONSIVE. Triggering restart.")
+                        logger.error(
+                            f"Worker {worker.worker_id} is UNRESPONSIVE. Triggering restart."
+                        )
                 elif (
                     not intentional_exit
                     and self.vram_threshold_mb
@@ -546,7 +558,6 @@ def _run_orchestration_loop(
 
     errors = []
     errors_lock = threading.Lock()
-    total_scenes = 0
     completed_scenes = 0
     count_lock = threading.Lock()
 
@@ -581,9 +592,9 @@ def _run_orchestration_loop(
                             completed_scenes += 1
                             if progress_cb:
                                 # We don't know the exact total yet here without pre-scanning
-                                # so we'll just pass the increment. 
+                                # so we'll just pass the increment.
                                 # Better: caller provides total.
-                                progress_cb(1, 0) 
+                                progress_cb(1, 0)
 
                 logger.debug(f"Worker thread finished batch: {path.name}")
             except queue.Empty:
@@ -642,13 +653,15 @@ def orchestrate(
     signal.signal(signal.SIGTERM, _signal_handler)
 
     output_dir = job_spec.paths.output_dir
-    
+
     # Pre-calculate metadata for provenance
     job_spec_json = job_spec.model_dump_json() if hasattr(job_spec, "model_dump_json") else "{}"
     job_spec_hash = hashlib.sha256(job_spec_json.encode()).hexdigest()
-    env_hash = hashlib.sha256(sys.version.encode()).hexdigest() # Placeholder for real env state
+    env_hash = hashlib.sha256(sys.version.encode()).hexdigest()  # Placeholder for real env state
 
-    batches, total_to_process, total_shards = _prepare_batches(job_spec, workers, batch_size, resume)
+    batches, total_to_process, _total_shards = _prepare_batches(
+        job_spec, workers, batch_size, resume
+    )
 
     if batches is None:
         # All complete
@@ -656,13 +669,13 @@ def orchestrate(
             success_count=0,
             skipped_count=job_spec.shard_size,
             timings=ExecutionTimings(total_duration_s=time.perf_counter() - start_time),
-            metadata=JobMetadata(job_spec_hash=job_spec_hash, env_state_hash=env_hash)
+            metadata=JobMetadata(job_spec_hash=job_spec_hash, env_state_hash=env_hash),
         )
 
     if not batches:
         return OrchestrationResult(
             timings=ExecutionTimings(total_duration_s=time.perf_counter() - start_time),
-            metadata=JobMetadata(job_spec_hash=job_spec_hash, env_state_hash=env_hash)
+            metadata=JobMetadata(job_spec_hash=job_spec_hash, env_state_hash=env_hash),
         )
 
     rm = job_spec.scene_config.renderer.mode if job_spec.scene_config.renderer else "cycles"
@@ -681,12 +694,13 @@ def orchestrate(
     )
 
     errors = []
-    with UnifiedWorkerOrchestrator(config=config) as orchestrator:
+    log_path = output_dir / "telemetry.ndjson"
+    with UnifiedWorkerOrchestrator(config=config, log_path=log_path) as orchestrator:
         # Report total scenes to progress_cb if provided
         # Approximate total for progress bar initialization
         if progress_cb:
             progress_cb(0, total_to_process)
-            
+
         errors = _run_orchestration_loop(
             orchestrator, batches, workers, output_dir, rm, progress_cb=progress_cb
         )
@@ -696,23 +710,23 @@ def orchestrate(
             path.unlink()
 
     total_duration = time.perf_counter() - start_time
-    
+
     # Collect final metrics
     max_ram = 0.0
     max_vram = 0.0
     if orchestrator.auditor.records:
-        max_ram = max((r.get("ram_used_mb", 0.0) for r in orchestrator.auditor.records), default=0.0)
-        max_vram = max((r.get("vram_used_mb", 0.0) for r in orchestrator.auditor.records), default=0.0)
+        max_ram = max(
+            (r.get("ram_used_mb", 0.0) for r in orchestrator.auditor.records), default=0.0
+        )
+        max_vram = max(
+            (r.get("vram_used_mb", 0.0) for r in orchestrator.auditor.records), default=0.0
+        )
 
     return OrchestrationResult(
         success_count=total_to_process - len(errors),
         failed_count=len(errors),
         errors=errors,
-        worker_metrics=WorkerMetrics(
-            worker_id="pool",
-            max_ram_mb=max_ram,
-            max_vram_mb=max_vram
-        ),
+        worker_metrics=WorkerMetrics(worker_id="pool", max_ram_mb=max_ram, max_vram_mb=max_vram),
         timings=ExecutionTimings(total_duration_s=total_duration),
-        metadata=JobMetadata(job_spec_hash=job_spec_hash, env_state_hash=env_hash)
+        metadata=JobMetadata(job_spec_hash=job_spec_hash, env_state_hash=env_hash),
     )

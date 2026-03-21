@@ -6,8 +6,8 @@ import subprocess
 import sys
 
 import typer
+from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn
 
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
 from render_tag.cli.pipeline import GenerationContext, PipelineStage
 from render_tag.cli.reporters import RichTerminalReporter
 from render_tag.cli.tools import check_blenderproc_installed, check_orchestration_installed, console
@@ -29,7 +29,7 @@ class ExecutionStage(PipelineStage):
         # Local Parallel Manager Mode
         if ctx.workers > 1 and ctx.total_shards == 1:
             console.print(f"[bold]Running Local Parallel Manager ({ctx.workers} workers)[/bold]")
-            
+
             with Progress(
                 SpinnerColumn(),
                 TextColumn("[progress.description]{task.description}"),
@@ -38,7 +38,7 @@ class ExecutionStage(PipelineStage):
                 console=console,
             ) as progress:
                 task = progress.add_task("Rendering...", total=None)
-                
+
                 def progress_cb(inc, total):
                     if total:
                         progress.update(task, total=total)
@@ -52,18 +52,18 @@ class ExecutionStage(PipelineStage):
                     resume=ctx.resume,
                     batch_size=ctx.batch_size,
                     verbose=ctx.verbose,
-                    progress_cb=progress_cb
+                    progress_cb=progress_cb,
                 )
-            
+
             # Report results
             reporter = RichTerminalReporter(console=console)
             reporter.report(result)
-            
+
             if result.failed_count > 0:
                 console.print("\n[bold red]✕ Parallel generation failed with errors.[/bold red]")
-                # We don't exit immediately here if we want FinalizationStage to run, 
+                # We don't exit immediately here if we want FinalizationStage to run,
                 # but the protocol says CLI layer executes sys.exit if result indicates failure.
-                # Pipeline.run() might handle the exit? 
+                # Pipeline.run() might handle the exit?
                 # Let's check Pipeline.run()
                 sys.exit(1)
 
@@ -90,11 +90,11 @@ class ExecutionStage(PipelineStage):
                 shard_id=str(ctx.shard_index),
                 verbose=ctx.verbose,
             )
-            
+
             # Report results
             reporter = RichTerminalReporter(console=console)
             reporter.report(result)
-            
+
             if result.failed_count > 0:
                 console.print("\n[bold red]✕ Dataset generation failed with errors.[/bold red]")
                 sys.exit(1)

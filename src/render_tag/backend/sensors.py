@@ -5,7 +5,7 @@ Provides a pluggable Strategy Pattern architecture for applying various
 parametric noise models to rendered images.
 """
 
-from typing import Any, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 import numpy as np
 

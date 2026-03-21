@@ -17,10 +17,11 @@ from render_tag.core.logging import get_logger
 
 logger = get_logger(__name__)
 
+
 def adapt_config(data: dict[str, Any]) -> dict[str, Any]:
     """
     Translates raw legacy dictionaries into modern, v2-compliant dictionaries.
-    
+
     This is the primary entry point for the Anti-Corruption Layer.
     """
     if data is None:
@@ -30,7 +31,7 @@ def adapt_config(data: dict[str, Any]) -> dict[str, Any]:
     # Check if it's flat: look for top-level keys that should be nested
     flat_indicators = {"resolution", "samples", "tag_family", "intent", "seed"}
     is_flat = any(k in data for k in flat_indicators) and "dataset" not in data
-    
+
     if is_flat:
         data = _convert_flat_config(data)
 
@@ -43,6 +44,7 @@ def adapt_config(data: dict[str, Any]) -> dict[str, Any]:
     data = _map_legacy_fields(data)
 
     return data
+
 
 class SchemaMigrator:
     """
@@ -146,12 +148,13 @@ class SchemaMigrator:
 
         return upgraded
 
+
 def _convert_flat_config(flat: dict) -> dict:
     """Convert flat config format to nested format for backwards compatibility.
-    
+
     Args:
         flat: Raw dictionary with top-level fields (e.g., 'resolution').
-        
+
     Returns:
         A nested dictionary structure aligned with v2 schemas.
     """
@@ -180,7 +183,7 @@ def _convert_flat_config(flat: dict) -> dict:
         if flat_key in flat:
             if section not in nested:
                 nested[section] = {}
-            
+
             if nested_key:
                 nested[section][nested_key] = flat[flat_key]
             else:
@@ -196,16 +199,17 @@ def _convert_flat_config(flat: dict) -> dict:
 
     return nested
 
+
 def _map_legacy_fields(data: dict[str, Any]) -> dict[str, Any]:
     """Applies field-level legacy mappings to a nested configuration.
-    
+
     Args:
         data: Nested configuration dictionary.
-        
+
     Returns:
         The dictionary with legacy fields (e.g., 'intent', 'seed') mapped to modern equivalents.
     """
-    
+
     # Map 'intent' -> 'evaluation_scopes' (DatasetConfig level)
     dataset = data.get("dataset", {})
     if isinstance(dataset, dict):
@@ -219,14 +223,14 @@ def _map_legacy_fields(data: dict[str, Any]) -> dict[str, Any]:
                     "POSE_ACCURACY",
                     "CORNER_PRECISION",
                 ]
-        
+
         # Map legacy top-level 'seed' in dataset section
         if "seed" in dataset:
             if "seeds" not in dataset:
                 dataset["seeds"] = {}
             if isinstance(dataset["seeds"], dict) and "global_seed" not in dataset["seeds"]:
                 dataset["seeds"]["global_seed"] = dataset.pop("seed")
-        
+
         data["dataset"] = dataset
 
     # Map legacy sensor dynamics (CameraConfig level)
@@ -253,23 +257,23 @@ def _map_legacy_fields(data: dict[str, Any]) -> dict[str, Any]:
     scenario = data.get("scenario", {})
     if isinstance(scenario, dict) and "subject" not in scenario:
         if "tag_families" in scenario or "tags_per_scene" in scenario:
-             scenario["subject"] = {
+            scenario["subject"] = {
                 "type": "TAGS",
                 "tag_families": scenario.pop("tag_families", ["tag36h11"]),
                 "size_meters": scenario.pop("tag_size", 0.1),
                 "tags_per_scene": scenario.pop("tags_per_scene", 10),
             }
         elif ("layout" in scenario and scenario["layout"] == "board") or "board" in scenario:
-             grid_size = scenario.pop("grid_size", [3, 3])
-             scenario["subject"] = {
+            grid_size = scenario.pop("grid_size", [3, 3])
+            scenario["subject"] = {
                 "type": "BOARD",
                 "rows": grid_size[1],
                 "cols": grid_size[0],
                 "marker_size": scenario.pop("marker_size", 0.08),
                 "dictionary": scenario.pop("tag_family", "tag36h11"),
             }
-             if "square_size" in scenario:
-                 scenario["subject"]["square_size"] = scenario.pop("square_size")
+            if "square_size" in scenario:
+                scenario["subject"]["square_size"] = scenario.pop("square_size")
         data["scenario"] = scenario
 
     return data

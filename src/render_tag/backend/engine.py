@@ -199,10 +199,9 @@ class RenderFacade:
 
         setup_lighting(world_recipe.lights)
 
-
     def spawn_objects(self, object_recipes: list[ObjectRecipe]) -> list[Any]:
         """Creates subjects (tags, boards, etc.) using decoupled AssetBuilders.
-        
+
         This method implements Scene Graph Deduplication: if a BOARD with a
         composite texture is present, it suppresses the generation of individual
         TAG objects that would otherwise cause Z-fighting.

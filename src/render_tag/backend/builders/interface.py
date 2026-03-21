@@ -1,4 +1,3 @@
-
 from typing import Any, Protocol, runtime_checkable
 
 from render_tag.core.schema.recipe import ObjectRecipe
@@ -11,10 +10,10 @@ class AssetBuilder(Protocol):
     def build(self, recipe: ObjectRecipe) -> list[Any]:
         """
         Translates a configuration into a list of Blender assets.
-        
+
         Args:
             recipe: The configuration recipe for the object.
-            
+
         Returns:
             A list of Blender objects/assets (often wrapper objects).
         """

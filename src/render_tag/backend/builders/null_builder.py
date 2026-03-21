@@ -1,4 +1,3 @@
-
 from typing import Any
 
 from render_tag.core.schema.recipe import ObjectRecipe

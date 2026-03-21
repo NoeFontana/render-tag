@@ -1,19 +1,21 @@
-
 """
 Pluggable render executors for render-tag.
 """
 
 import json
 import logging
-import os
-import shutil
 import subprocess
 import time
 from typing import Protocol, runtime_checkable
 
 from render_tag.core.schema.job import JobSpec
 from render_tag.orchestration.orchestrator import orchestrate
-from render_tag.orchestration.result import ExecutionTimings, JobMetadata, OrchestrationResult, WorkerMetrics
+from render_tag.orchestration.result import (
+    ExecutionTimings,
+    JobMetadata,
+    OrchestrationResult,
+    WorkerMetrics,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +47,7 @@ class LocalExecutor:
             workers=getattr(self, "num_workers", 1),
             executor_type="local",
             resume=True,
-            verbose=verbose
+            verbose=verbose,
         )
 
 
@@ -81,10 +83,10 @@ class DockerExecutor:
             str(job_spec.global_seed),
         ]
         subprocess.run(cmd, check=True)
-        
+
         return OrchestrationResult(
             timings=ExecutionTimings(total_duration_s=time.perf_counter() - start),
-            metadata=JobMetadata(job_spec_hash="docker", env_state_hash="docker")
+            metadata=JobMetadata(job_spec_hash="docker", env_state_hash="docker"),
         )
 
 
@@ -99,6 +101,7 @@ class MockExecutor:
     ) -> OrchestrationResult:
         import csv
         import random
+
         start = time.perf_counter()
 
         output_dir = job_spec.paths.output_dir
@@ -114,7 +117,7 @@ class MockExecutor:
             logger.warning(f"MockExecutor: Recipes not found at {recipe_path}")
             return OrchestrationResult(
                 timings=ExecutionTimings(total_duration_s=time.perf_counter() - start),
-                metadata=JobMetadata(job_spec_hash="mock", env_state_hash="mock")
+                metadata=JobMetadata(job_spec_hash="mock", env_state_hash="mock"),
             )
 
         with open(recipe_path) as f:
@@ -192,7 +195,7 @@ class MockExecutor:
             success_count=len(recipes),
             worker_metrics=WorkerMetrics(worker_id="mock", max_ram_mb=0, max_vram_mb=0),
             timings=ExecutionTimings(total_duration_s=time.perf_counter() - start),
-            metadata=JobMetadata(job_spec_hash="mock", env_state_hash="mock")
+            metadata=JobMetadata(job_spec_hash="mock", env_state_hash="mock"),
         )
 
 

@@ -733,7 +733,7 @@ def load_config(path: Path | str) -> GenConfig:
         data = {}
 
     # Anti-Corruption Layer: Translate legacy formats to modern schema
-    from render_tag.core.schema_adapter import adapt_config, SchemaMigrator
+    from render_tag.core.schema_adapter import SchemaMigrator, adapt_config
 
     migrator = SchemaMigrator()
     original_version = migrator.get_version(data)

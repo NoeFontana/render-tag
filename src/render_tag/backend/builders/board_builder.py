@@ -1,4 +1,3 @@
-
 from pathlib import Path
 from typing import Any
 
@@ -18,24 +17,25 @@ class CalibrationBoardBuilder:
         """
         texture_path = recipe.texture_path
         board_cfg = recipe.board
-        
+
         # Robustly handle material config
         mat_cfg = recipe.material
         if hasattr(mat_cfg, "model_dump"):
             # Use Any to satisfy type checker for dynamic model_dump call
             from typing import cast
+
             mat_cfg = cast(Any, mat_cfg).model_dump()
 
         if texture_path and board_cfg:
             # Generic High-Fidelity Subject Path (Single Plane)
             cols, rows = board_cfg.cols, board_cfg.rows
             ms = board_cfg.marker_size
-            
+
             if board_cfg.type == "aprilgrid":
                 sqs = ms * (1.0 + getattr(board_cfg, "spacing_ratio", 0.0))
             else:
                 sqs = getattr(board_cfg, "square_size", ms)
-            
+
             width, height = sqs * cols, sqs * rows
 
             board_obj = create_board_plane(
@@ -66,7 +66,7 @@ class CalibrationBoardBuilder:
         board_obj.set_location(list(recipe.location))
         if recipe.rotation_euler:
             board_obj.set_rotation_euler(list(recipe.rotation_euler))
-            
+
         if recipe.keypoints_3d and isinstance(recipe.keypoints_3d, (list, tuple)):
             board_obj.blender_obj["keypoints_3d"] = [
                 list(kp) for kp in recipe.keypoints_3d if hasattr(kp, "__iter__")
