@@ -39,11 +39,11 @@
     - [x] Run integration tests (`tests/integration/test_integration.py`).
 - [x] Task: Conductor - User Manual Verification 'Phase 3: Engine Integration & Decoupling' (Protocol in workflow.md) 640d263
 
-## Phase 4: Validation & Quality Gates
-- [ ] Task: Verify Auto-Discovery
-    - [ ] Ensure all builders are automatically registered during engine initialization.
-- [ ] Task: Check Code Coverage
-    - [ ] Target >80% coverage for the new `builders/` module.
-- [ ] Task: Lint and Type Check
-    - [ ] Run `ruff` and `ty` (or `mypy`) to ensure code quality.
-- [ ] Task: Conductor - User Manual Verification 'Phase 4: Validation & Quality Gates' (Protocol in workflow.md)
+## Phase 4: Validation & Quality Gates [checkpoint: bd73dee]
+- [x] Task: Verify Auto-Discovery bd73dee
+    - [x] Ensure all builders are automatically registered during engine initialization.
+- [x] Task: Check Code Coverage bd73dee
+    - [x] Target >80% coverage for the new `builders/` module.
+- [x] Task: Lint and Type Check bd73dee
+    - [x] Run `ruff` and `ty` (or `mypy`) to ensure code quality.
+- [x] Task: Conductor - User Manual Verification 'Phase 4: Validation & Quality Gates' (Protocol in workflow.md) bd73dee
