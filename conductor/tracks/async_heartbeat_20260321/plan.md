@@ -13,7 +13,7 @@
     - [ ] Mock ZMQ PUB to ensure the payload format is correct.
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Immutable State Schema and Worker Thread' (Protocol in workflow.md) c05b263
 
-## Phase 2: Health Monitor and Ingestion Logic
+## Phase 2: Health Monitor and Ingestion Logic [checkpoint: 9a11134]
 - [x] Task: Create the `HealthMonitor` Component 4d4191c
     - [ ] Implement `src/render_tag/orchestration/monitor.py`.
     - [ ] Design the lock-free `registry` using atomic dictionary updates.
@@ -23,7 +23,7 @@
 - [x] Task: Write Unit Tests for `HealthMonitor` 9c4f4b9
     - [ ] Verify thread-safe state ingestion under high frequency.
     - [ ] Test the lock-free read path.
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Health Monitor and Ingestion Logic' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 2: Health Monitor and Ingestion Logic' (Protocol in workflow.md) 9a11134
 
 ## Phase 3: Orchestrator Integration and Hot-Loop Decoupling
 - [ ] Task: Decouple `UnifiedWorkerOrchestrator` from Network Health Checks
