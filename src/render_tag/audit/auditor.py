@@ -8,6 +8,7 @@ and worker telemetry analysis using Polars.
 from __future__ import annotations
 
 import json
+from collections import deque
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -122,8 +123,10 @@ class AuditResult(BaseModel):
 class TelemetryAuditor:
     """Collects and analyzes worker telemetry using Polars."""
 
+    MAX_RECORDS = 10_000
+
     def __init__(self):
-        self.records: list[dict[str, Any]] = []
+        self.records: deque[dict[str, Any]] = deque(maxlen=self.MAX_RECORDS)
 
     def add_entry(self, worker_id: str, telemetry: Telemetry, event_type: str = "heartbeat"):
         """Adds a telemetry record."""
@@ -133,6 +136,7 @@ class TelemetryAuditor:
             "event_type": event_type,
             "vram_used_mb": telemetry.vram_used_mb,
             "vram_total_mb": telemetry.vram_total_mb,
+            "ram_used_mb": telemetry.ram_used_mb,
             "cpu_usage": telemetry.cpu_usage_percent,
             "uptime": telemetry.uptime_seconds,
             "state_hash": telemetry.state_hash,

@@ -64,20 +64,26 @@ def test_rolling_shutter_backend_mapping_no_errors(tmp_path, stabilized_bridge):
     output_dir = tmp_path / "out"
     output_dir.mkdir()
 
-    # Minimal recipe with rolling shutter
-    recipe = {
-        "scene_id": 1,
-        "renderer": {"mode": "workbench"},
-        "cameras": [
+    from render_tag.core.schema.recipe import SceneRecipe
+
+    recipe = SceneRecipe(
+        scene_id=1,
+        random_seed=42,
+        renderer={"mode": "workbench"},
+        cameras=[
             {
                 "transform_matrix": [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]],
-                "intrinsics": {"resolution": [32, 32], "fov": 60.0},
+                "intrinsics": {
+                    "resolution": [32, 32],
+                    "k_matrix": [[1, 0, 16], [0, 1, 16], [0, 0, 1]],
+                    "fov": 60.0,
+                },
                 "sensor_dynamics": {"rolling_shutter_duration_ms": 5.0, "shutter_time_ms": 10.0},
             }
         ],
-        "objects": [],
-        "world": {},
-    }
+        objects=[],
+        world={},
+    )
 
     ctx = RenderContext(
         output_dir=output_dir,

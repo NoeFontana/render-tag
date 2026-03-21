@@ -20,6 +20,7 @@ def test_ephemeral_mode(tmp_path):
     output_dir = tmp_path / "ephemeral_output"
     recipe = {
         "scene_id": 1,
+        "random_seed": 42,
         "world": {},
         "objects": [],
         "cameras": [

@@ -181,40 +181,11 @@ class DatasetConfig(BaseModel):
         default_factory=dict, description="Arbitrary metadata for the dataset"
     )
 
-    @model_validator(mode="before")
-    @classmethod
-    def map_intent_to_scopes(cls, data: Any) -> Any:
-        """Map legacy 'intent' field to 'evaluation_scopes'."""
-        if isinstance(data, dict) and "intent" in data and "evaluation_scopes" not in data:
-            # If intent is provided but evaluation_scopes is not, map it
-            intent_val = data["intent"]
-            if intent_val == "calibration":
-                data["evaluation_scopes"] = [EvaluationScope.CALIBRATION]
-            elif "pose" in str(intent_val):
-                data["evaluation_scopes"] = [
-                    EvaluationScope.DETECTION,
-                    EvaluationScope.POSE_ACCURACY,
-                    EvaluationScope.CORNER_PRECISION,
-                ]
-                # Default for other intents is already handled by default_factory
-        return data
-
     # Backwards compatibility property
     @property
     def seed(self) -> int:
         """Alias for global_seed for backwards compatibility."""
         return self.seeds.global_seed
-
-    @model_validator(mode="before")
-    @classmethod
-    def map_legacy_seed(cls, data: Any) -> Any:
-        """Map legacy top-level 'seed' to nested 'seeds.global_seed'."""
-        if isinstance(data, dict) and "seed" in data:
-            if "seeds" not in data:
-                data["seeds"] = {}
-            if isinstance(data["seeds"], dict):
-                data["seeds"]["global_seed"] = data["seed"]
-        return data
 
 
 class CameraIntrinsics(BaseModel):
@@ -364,37 +335,6 @@ class CameraConfig(BaseModel):
 
     # ISO / Gain simulation: Higher gain = more 'salt and pepper' noise
     iso: int = Field(default=100, ge=100, le=6400, description="Camera ISO setting")
-
-    @model_validator(mode="before")
-    @classmethod
-    def map_legacy_sensor_dynamics(cls, data: Any) -> Any:
-        """Map top-level legacy sensor dynamics fields to the nested grouping."""
-        if not isinstance(data, dict):
-            return data
-
-        dynamics = data.get("sensor_dynamics", {})
-        if not isinstance(dynamics, dict):
-            # If it's already an object or invalid, let pydantic handle it
-            return data
-
-        # Map legacy fields if they exist at top level and NOT in sensor_dynamics already
-        legacy_fields = ["velocity_mean", "velocity_std", "shutter_time_ms"]
-        for field in legacy_fields:
-            if field in data and field not in dynamics:
-                dynamics[field] = data.pop(field)
-
-        # Handle 'shutter_speed' alias (seconds) -> shutter_time_ms (milliseconds)
-        if "shutter_speed" in data:
-            dynamics["shutter_time_ms"] = data.pop("shutter_speed") * 1000.0
-
-        # Handle 'rolling_shutter_readout' alias -> rolling_shutter_duration_ms
-        if "rolling_shutter_readout" in data:
-            dynamics["rolling_shutter_duration_ms"] = data.pop("rolling_shutter_readout")
-
-        if dynamics:
-            data["sensor_dynamics"] = dynamics
-
-        return data
 
     # Backwards compatibility properties
     @property
@@ -700,44 +640,6 @@ class ScenarioConfig(BaseModel):
             raise ValueError("Min tags must be <= max tags")
         return v
 
-    @model_validator(mode="before")
-    @classmethod
-    def migrate_legacy_layout(cls, data: Any) -> Any:
-        """Migrate legacy layout fields to the polymorphic subject field."""
-        if not isinstance(data, dict) or "subject" in data:
-            return data
-
-        # Detect legacy Tag config
-        if "tag_families" in data or "tags_per_scene" in data:
-            tag_data = {
-                "type": "TAGS",
-                "tag_families": data.pop("tag_families", ["tag36h11"]),
-                "size_meters": data.pop("tag_size", 0.1),
-                "tags_per_scene": data.pop("tags_per_scene", 10),
-            }
-            # tags_per_scene in legacy was often a tuple (min, max),
-            # but TagSubjectConfig uses PositiveInt
-            if isinstance(tag_data["tags_per_scene"], (list, tuple)):
-                tag_data["tags_per_scene"] = tag_data["tags_per_scene"][1]
-
-            data["subject"] = {"type": "TAGS", **tag_data}
-
-        # Detect legacy Board config
-        elif ("layout" in data and data["layout"] == "board") or "board" in data:
-            board_data = {
-                "type": "BOARD",
-                "rows": data.pop("grid_size", [3, 3])[1],
-                "cols": data.pop("grid_size", [3, 3])[0],
-                "marker_size": data.pop("marker_size", 0.08),
-                "dictionary": data.pop("tag_family", "tag36h11"),
-            }
-            if "square_size" in data:
-                board_data["square_size"] = data.pop("square_size")
-
-            data["subject"] = {"type": "BOARD", **board_data}
-
-        return data
-
 
 class SequenceConfig(BaseModel):
     """Configuration for temporal sequences and motion."""
@@ -830,57 +732,15 @@ def load_config(path: Path | str) -> GenConfig:
     if data is None:
         data = {}
 
-    # Handle flat config format (legacy compatibility)
-    if "resolution" in data and "camera" not in data:
-        data = _convert_flat_config(data)
-
-    # Apply schema migrations
-    from render_tag.core.migration import SchemaMigrator
+    # Anti-Corruption Layer: Translate legacy formats to modern schema
+    from render_tag.core.schema_adapter import SchemaMigrator, adapt_config
 
     migrator = SchemaMigrator()
     original_version = migrator.get_version(data)
-    data = migrator.migrate(data)
+
+    data = adapt_config(data)
 
     if original_version != migrator.target_version:
         migrator.upgrade_file_on_disk(path, data)
 
     return GenConfig.model_validate(data)
-
-
-def _convert_flat_config(flat: dict) -> dict:
-    """Convert flat config format to nested format for backwards compatibility."""
-    nested: dict = {
-        "dataset": {},
-        "camera": {},
-        "tag": {},
-        "scene": {},
-        "physics": {},
-    }
-
-    key_map = {
-        "resolution": ("camera", "resolution"),
-        "samples": ("camera", "samples_per_scene"),
-        "tag_family": ("tag", "family"),
-        "lighting": ("scene", "lighting"),
-        "physics": ("physics", None),  # None means copy whole dict
-        "output_dir": ("dataset", "output_dir"),
-    }
-
-    for flat_key, (section, nested_key) in key_map.items():
-        if flat_key in flat:
-            if nested_key:
-                nested[section][nested_key] = flat[flat_key]
-            else:
-                nested[section] = flat[flat_key]
-
-    if "backgrounds" in flat:
-        bg = flat["backgrounds"]
-        if "hdri_path" in bg:
-            nested["scene"]["background_hdri"] = bg["hdri_path"]
-        if "texture_dir" in bg:
-            nested["scene"]["texture_dir"] = bg["texture_dir"]
-
-    if "seed" in flat:
-        nested["dataset"]["seeds"] = {"global_seed": flat["seed"]}
-
-    return nested

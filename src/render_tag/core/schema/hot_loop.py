@@ -7,7 +7,7 @@ import json
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class CommandType(StrEnum):
@@ -64,6 +64,19 @@ class Telemetry(BaseModel):
     cpu_usage_percent: float
     state_hash: str
     uptime_seconds: float
+    object_count: int = 0
+    active_scene_id: int | None = None
+
+
+class WorkerSnapshot(BaseModel):
+    """Immutable snapshot of a worker's state at a point in time."""
+
+    model_config = ConfigDict(frozen=True)
+
+    worker_id: str
+    telemetry: Telemetry
+    last_seen: float
+    liveness: str = "HEALTHY"  # HEALTHY, DEGRADED, UNRESPONSIVE
 
 
 def calculate_state_hash(assets: list[str], parameters: dict[str, Any]) -> str:

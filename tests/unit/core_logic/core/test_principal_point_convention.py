@@ -79,10 +79,12 @@ def test_camera_fallback_principal_point():
     mock_bridge = MagicMock()
     mock_bridge.np = np
 
-    camera_recipe = {
-        "intrinsics": {"resolution": [1920, 1080]},
-        "fov": 70.0,
-    }
+    from render_tag.core.schema.recipe import CameraRecipe
+
+    camera_recipe = CameraRecipe(
+        transform_matrix=[[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]],
+        intrinsics={"resolution": [1920, 1080], "k_matrix": [], "fov": 70.0},
+    )
 
     with patch("render_tag.backend.camera.bridge", mock_bridge):
         from render_tag.backend.camera import set_camera_intrinsics

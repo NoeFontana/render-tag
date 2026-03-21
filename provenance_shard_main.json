@@ -1,51 +1,99 @@
 {
   "scene_0001_cam_0000": {
-    "git_hash": "2620bd8",
-    "timestamp": "2026-03-17T04:01:27.295538+00:00",
+    "git_hash": "bef9f07",
+    "timestamp": "2026-03-21T02:09:25.359012+00:00",
     "recipe_snapshot": {
       "scene_id": 1,
+      "random_seed": 42,
+      "world": {
+        "background_hdri": null,
+        "hdri_rotation": 0.0,
+        "lights": [],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "texture_rotation": 0.0
+      },
+      "renderer": {
+        "mode": "cycles",
+        "samples": 128,
+        "denoising": true,
+        "noise_threshold": 0.05,
+        "max_samples": 128,
+        "enable_denoising": true,
+        "denoiser_type": "INTEL",
+        "total_bounces": 4,
+        "diffuse_bounces": 2,
+        "glossy_bounces": 4,
+        "transmission_bounces": 0,
+        "transparent_bounces": 4,
+        "enable_caustics": false
+      },
+      "objects": [],
       "cameras": [
         {
+          "transform_matrix": [
+            [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              1.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
           "intrinsics": {
             "resolution": [
               1920,
               1080
             ],
+            "k_matrix": [
+              [
+                1000.0,
+                0.0,
+                960.0
+              ],
+              [
+                0.0,
+                1000.0,
+                540.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ]
+            ],
             "fov": 70.0
           },
-          "transform_matrix": [
-            [
-              1,
-              0,
-              0,
-              0
-            ],
-            [
-              0,
-              1,
-              0,
-              0
-            ],
-            [
-              0,
-              0,
-              1,
-              0
-            ],
-            [
-              0,
-              0,
-              0,
-              1
-            ]
-          ]
+          "sensor_dynamics": null,
+          "fstop": null,
+          "focus_distance": null,
+          "min_tag_pixels": null,
+          "max_tag_pixels": null,
+          "iso_noise": null,
+          "sensor_noise": null
         }
-      ],
-      "objects": []
+      ]
     },
     "seeds": {
       "global_seed": 42,
-      "scene_seed": 0
+      "scene_seed": 42
     }
   }
 }

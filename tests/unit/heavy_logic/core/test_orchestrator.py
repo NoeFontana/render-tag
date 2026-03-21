@@ -36,8 +36,27 @@ def test_unified_orchestrator_ephemeral(mock_worker_cls, tmp_path):
         ephemeral=True,
         max_renders_per_worker=1,
     ) as orchestrator:
+        import time
+
+        from render_tag.core.schema.hot_loop import Telemetry, WorkerSnapshot, WorkerStatus
+
+        telemetry = Telemetry(
+            status=WorkerStatus.IDLE,
+            vram_used_mb=100.0,
+            vram_total_mb=8000.0,
+            cpu_usage_percent=10.0,
+            state_hash="abc",
+            uptime_seconds=10.0,
+            ram_used_mb=0.0,
+            object_count=0,
+        )
+        orchestrator.monitor._registry["worker-0"] = WorkerSnapshot(
+            worker_id="worker-0", telemetry=telemetry, last_seen=time.time(), liveness="HEALTHY"
+        )
+
         recipe = {
             "scene_id": 100,
+            "random_seed": 42,
             "world": {},
             "objects": [],
             "cameras": [
@@ -82,9 +101,28 @@ def test_unified_orchestrator_persistent(mock_worker_cls, tmp_path):
     mock_worker_cls.return_value = mock_worker
 
     with UnifiedWorkerOrchestrator(num_workers=1, mock=True, ephemeral=False) as orchestrator:
+        import time
+
+        from render_tag.core.schema.hot_loop import Telemetry, WorkerSnapshot, WorkerStatus
+
+        telemetry = Telemetry(
+            status=WorkerStatus.IDLE,
+            vram_used_mb=100.0,
+            vram_total_mb=8000.0,
+            cpu_usage_percent=10.0,
+            state_hash="abc",
+            uptime_seconds=10.0,
+            ram_used_mb=0.0,
+            object_count=0,
+        )
+        orchestrator.monitor._registry["worker-0"] = WorkerSnapshot(
+            worker_id="worker-0", telemetry=telemetry, last_seen=time.time(), liveness="HEALTHY"
+        )
+
         for i in range(3):
             recipe = {
                 "scene_id": i,
+                "random_seed": 42,
                 "world": {},
                 "objects": [],
                 "cameras": [

@@ -46,7 +46,7 @@ def test_apply_gaussian_noise():
     img = np.zeros((100, 100, 3), dtype=np.uint8) + 128
     config = SensorNoiseConfig(model=NoiseType.GAUSSIAN, mean=0.0, stddev=0.1)
 
-    noisy = apply_parametric_noise(img, config.model_dump())
+    noisy = apply_parametric_noise(img, config)
 
     # Check that noise was added (variance should increase from 0)
     assert np.var(noisy) > 10.0  # Heuristic check
@@ -62,7 +62,7 @@ def test_apply_salt_and_pepper():
     img = np.zeros((100, 100, 3), dtype=np.uint8) + 128
     config = SensorNoiseConfig(model=NoiseType.SALT_AND_PEPPER, amount=0.1, salt_vs_pepper=0.5)
 
-    noisy = apply_parametric_noise(img, config.model_dump())
+    noisy = apply_parametric_noise(img, config)
 
     # Check for salt (255) and pepper (0)
     # The image was 128, so 0 and 255 must come from noise
@@ -75,7 +75,7 @@ def test_apply_poisson_noise():
     img = np.zeros((100, 100, 3), dtype=np.uint8) + 100
     config = SensorNoiseConfig(model=NoiseType.POISSON)
 
-    noisy = apply_parametric_noise(img, config.model_dump())
+    noisy = apply_parametric_noise(img, config)
 
     # Variance check
     assert np.var(noisy) > 0
@@ -87,7 +87,7 @@ def test_noise_engine_direct():
 
     engine = NoiseEngine()
     img = np.zeros((64, 64, 3), dtype=np.uint8)
-    config = {"model": "gaussian", "stddev": 0.1}
+    config = SensorNoiseConfig(model=NoiseType.GAUSSIAN, stddev=0.1)
 
     result = engine.apply_noise(img, config)
     assert result.shape == (64, 64, 3)

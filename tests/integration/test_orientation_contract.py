@@ -96,14 +96,20 @@ class TestOrientationContract:
             text=True,
             env=env,
         )
+        print("STDOUT:", result.stdout)
+        print("STDERR:", result.stderr)
         assert result.returncode == 0, f"Generation failed: {result.stderr}"
 
         # 2. Check 3D Keypoints from Recipe
-        recipe_path = output_dir / "recipes_shard_0.json"
+        recipe_path = output_dir / "provenance.json"
         with open(recipe_path) as f:
-            recipes = json.load(f)
+            provenance = json.load(f)
 
-        board_obj = next(obj for obj in recipes[0]["objects"] if obj["type"] == "BOARD")
+        # Get the recipe snapshot for the first (and only) image
+        image_id = next(iter(provenance.keys()))
+        recipe_snapshot = provenance[image_id]["recipe_snapshot"]
+
+        board_obj = next(obj for obj in recipe_snapshot["objects"] if obj["type"] == "BOARD")
         kps_3d = board_obj["keypoints_3d"]
 
         # In a 2x7 AprilGrid, we have 14 tags.

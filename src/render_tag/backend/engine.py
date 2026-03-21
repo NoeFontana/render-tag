@@ -16,20 +16,26 @@ from typing import Any, Protocol, runtime_checkable
 
 from PIL import Image
 
-from render_tag.backend.assets import create_tag_plane, global_pool
+from render_tag.backend.assets import global_pool
 from render_tag.backend.bridge import bridge
+from render_tag.backend.builders.registry import default_registry
 from render_tag.backend.camera import set_camera_intrinsics, setup_sensor_dynamics
 from render_tag.backend.projection import generate_board_records, generate_subject_records
 from render_tag.backend.scene import (
-    create_board,
-    create_board_plane,
     setup_background,
     setup_floor_material,
     setup_lighting,
 )
 from render_tag.backend.sensors import apply_parametric_noise
 from render_tag.core.logging import get_logger
-from render_tag.core.schema import DetectionRecord, RendererConfig, SceneRecipe
+from render_tag.core.schema import (
+    CameraRecipe,
+    DetectionRecord,
+    ObjectRecipe,
+    RendererConfig,
+    SceneRecipe,
+    WorldRecipe,
+)
 from render_tag.core.utils import get_git_hash
 from render_tag.data_io.writers import (
     COCOWriter,
@@ -173,28 +179,28 @@ class RenderFacade:
         global_pool.release_all()
         bridge.bproc.utility.reset_keyframes()
 
-    def setup_world(self, world_recipe: dict[str, Any]):
-        """Sets up HDRI, lighting, and environment."""
-        hdri_path = world_recipe.get("background_hdri")
-        if hdri_path and Path(hdri_path).is_file():
+    def setup_world(self, world_recipe: WorldRecipe):
+        """Resolves world parameters and environment state."""
+        hdri_path = world_recipe.background_hdri
+        if hdri_path:
             setup_background(Path(hdri_path))
 
         # Handle Background Texture Plane
-        texture_path = world_recipe.get("texture_path")
-        if texture_path and world_recipe.get("use_nodes", True):
+        texture_path = world_recipe.texture_path
+        if texture_path:
             # Use managed background plane from pool
             bg_plane = global_pool.get_background_plane()
             setup_floor_material(
                 bg_plane,
                 texture_path=texture_path,
-                scale=world_recipe.get("texture_scale", 1.0),
-                rotation=world_recipe.get("texture_rotation", 0.0),
+                scale=world_recipe.texture_scale,
+                rotation=world_recipe.texture_rotation,
             )
 
-        setup_lighting(world_recipe.get("lights", []))
+        setup_lighting(world_recipe.lights)
 
-    def spawn_objects(self, object_recipes: list[dict[str, Any]]):
-        """Creates subjects (tags, boards, etc.) using generic primitives.
+    def spawn_objects(self, object_recipes: list[ObjectRecipe]) -> list[Any]:
+        """Creates subjects (tags, boards, etc.) using decoupled AssetBuilders.
 
         This method implements Scene Graph Deduplication: if a BOARD with a
         composite texture is present, it suppresses the generation of individual
@@ -204,128 +210,47 @@ class RenderFacade:
 
         # Check if any BOARD with a texture exists in the recipe
         has_composite_board = any(
-            obj.get("type") == "BOARD" and obj.get("texture_path") for obj in object_recipes
+            obj.type == "BOARD" and obj.texture_path for obj in object_recipes
         )
 
         for obj_recipe in object_recipes:
-            obj_type = obj_recipe["type"]
-
             # Suppress individual TAGs if a composite BOARD is handling the rendering
-            if obj_type == "TAG" and has_composite_board:
+            if obj_recipe.type == "TAG" and has_composite_board:
                 continue
 
-            location = obj_recipe.get("location", [0, 0, 0])
-            rotation = obj_recipe.get("rotation_euler", [0, 0, 0])
-            scale = obj_recipe.get("scale", [1, 1, 1])
-            texture_path = obj_recipe.get("texture_path")
-            keypoints_3d = obj_recipe.get("keypoints_3d")
-            calibration_points_3d = obj_recipe.get("calibration_points_3d")
-            forward_axis = obj_recipe.get("forward_axis")
+            try:
+                assets = default_registry.build_object(obj_recipe)
+                tag_objects.extend(assets)
+            except KeyError as e:
+                self.logger.critical(f"FATAL: Missing builder for subject type: {obj_recipe.type}")
+                raise e
 
-            if obj_type == "TAG":
-                props = obj_recipe["properties"]
-                tag_obj = create_tag_plane(
-                    props["tag_size"],
-                    Path(texture_path) if texture_path else None,
-                    props["tag_family"],
-                    tag_id=props["tag_id"],
-                    margin_bits=props.get("margin_bits", 0),
-                    material_config=obj_recipe.get("material"),
-                )
-                tag_obj.blender_obj.pass_index = props["tag_id"] + 1
-                tag_obj.set_location(location)
-                tag_obj.set_rotation_euler(rotation)
-
-                # Attach metadata
-                if keypoints_3d:
-                    tag_obj.blender_obj["keypoints_3d"] = keypoints_3d
-                if forward_axis:
-                    tag_obj.blender_obj["forward_axis"] = forward_axis
-                tag_obj.blender_obj["tag_id"] = props["tag_id"]
-                tag_obj.blender_obj["tag_family"] = props["tag_family"]
-                tag_obj.blender_obj["type"] = "TAG"
-
-                tag_objects.append(tag_obj)
-
-            elif obj_type == "BOARD":
-                board_cfg = obj_recipe.get("board")
-                if texture_path and board_cfg:
-                    # Generic High-Fidelity Subject Path (Single Plane)
-                    # We use the board_cfg just to derive the size for legacy create_board_plane,
-                    # but we should ideally just use the scale from recipe if compiler did its job.
-                    width = scale[0]
-                    height = scale[1]
-                    # Note: compiler.py currently sets scale=[1,1,1] and expects create_board_plane
-                    # to handle dimensions via width/height params.
-                    # We'll stick to compiler's logic for now.
-                    if isinstance(board_cfg, dict):
-                        cols, rows = board_cfg.get("cols"), board_cfg.get("rows")
-                        ms = board_cfg.get("marker_size")
-                        if board_cfg.get("type") == "aprilgrid":
-                            sqs = ms * (1.0 + board_cfg.get("spacing_ratio", 0.0))
-                        else:
-                            sqs = board_cfg.get("square_size", ms)
-                        width, height = sqs * cols, sqs * rows
-
-                    board_obj = create_board_plane(
-                        width=width,
-                        height=height,
-                        texture_path=texture_path,
-                        location=location,
-                        rotation_euler=rotation,
-                    )
-                    board_obj.blender_obj["tag_family"] = "calibration_board"
-
-                    board_obj.blender_obj["board"] = json.dumps(board_cfg)
-                    board_obj.blender_obj["type"] = "BOARD"
-                else:
-                    # Legacy or procedural board
-                    props = obj_recipe.get("properties", {})
-                    board_obj = create_board(
-                        props.get("cols", 3),
-                        props.get("rows", 3),
-                        props.get("square_size", 0.1),
-                        props.get("mode", "plain"),
-                        location=location,
-                    )
-                    board_obj.blender_obj["tag_family"] = "legacy_board"
-                    if rotation:
-                        board_obj.set_rotation_euler(rotation)
-
-                if keypoints_3d:
-                    board_obj.blender_obj["keypoints_3d"] = keypoints_3d
-                if calibration_points_3d:
-                    board_obj.blender_obj["calibration_points_3d"] = calibration_points_3d
-                if forward_axis:
-                    board_obj.blender_obj["forward_axis"] = forward_axis
-
-                tag_objects.append(board_obj)
         return tag_objects
 
-    def render_camera(self, camera_recipe: dict[str, Any]) -> dict[str, Any]:
+    def render_camera(self, camera_recipe: CameraRecipe) -> dict[str, Any]:
         """Configures a camera and renders the image.
 
         Args:
-            camera_recipe: Resolved dictionary containing pose, intrinsics, and sensor settings.
+            camera_recipe: Resolved recipe containing pose, intrinsics, and sensor settings.
 
         Returns:
             A dictionary containing the 'img' (ndarray) and 'segmap' (metadata).
         """
-        pose_matrix = bridge.np.array(camera_recipe["transform_matrix"])
+        pose_matrix = bridge.np.array(camera_recipe.transform_matrix)
         bridge.bproc.camera.add_camera_pose(pose_matrix, frame=0)
-        setup_sensor_dynamics(pose_matrix, camera_recipe.get("sensor_dynamics"))
+        setup_sensor_dynamics(pose_matrix, camera_recipe.sensor_dynamics)
 
         # Apply intrinsics (Resolution, FOV, etc.)
         set_camera_intrinsics(camera_recipe)
 
         cam_data = bridge.bpy.context.scene.camera.data
-        fstop = camera_recipe.get("fstop")
+        fstop = camera_recipe.fstop
         if fstop:
             cam_data.dof.use_dof = True
             cam_data.dof.aperture_fstop = fstop
-            focus_dist = camera_recipe.get("focus_distance")
-            if focus_dist:
-                cam_data.dof.focus_distance = focus_dist
+            focus_distance = camera_recipe.focus_distance
+            if focus_distance:
+                cam_data.dof.focus_distance = focus_distance
         else:
             cam_data.dof.use_dof = False
 
@@ -341,14 +266,14 @@ class RenderFacade:
         self.logger.info("BlenderProc render call completed.")
         img = data["colors"][0]
 
-        if camera_recipe.get("sensor_noise"):
-            img = apply_parametric_noise(img, camera_recipe["sensor_noise"])
+        if camera_recipe.sensor_noise:
+            img = apply_parametric_noise(img, camera_recipe.sensor_noise)
 
         return {"img": img, "segmap": data.get("segmentation", [None])[0]}
 
 
 def execute_recipe(
-    recipe: dict[str, Any] | SceneRecipe,
+    recipe: SceneRecipe,
     ctx: RenderContext,
     seed: int | None = None,
 ) -> None:
@@ -359,15 +284,7 @@ def execute_recipe(
         ctx: Execution context (writers, output paths, etc.).
         seed: Optional overrides for reproducibility.
     """
-    # Staff Engineer: Normalize input to dictionary for uniform processing
-    if hasattr(recipe, "model_dump"):
-        # Pydantic model
-        recipe_dict: Any = recipe.model_dump()  # type: ignore
-    else:
-        # Already a dict
-        recipe_dict = recipe  # type: ignore
-
-    scene_idx = recipe_dict["scene_id"]
+    scene_idx = recipe.scene_id
 
     # 1. Setup Context-Aware Logger
     base_logger = ctx.logger or logger
@@ -377,25 +294,25 @@ def execute_recipe(
     scene_logger.info(f"--- Executing Scene {scene_idx} ---")
 
     # 2. Setup Scene
-    renderer, tag_objects = _setup_scene(recipe_dict, ctx, scene_logger)
+    renderer, tag_objects = _setup_scene(recipe, ctx, scene_logger)
 
-    cam_recipes = recipe_dict["cameras"]
-    res = cam_recipes[0]["intrinsics"].get("resolution", [640, 480])
+    cam_recipes = recipe.cameras
+    res = cam_recipes[0].intrinsics.resolution
 
     provenance = {
         "git_hash": get_git_hash(),
         "timestamp": datetime.now(UTC).isoformat(),
-        "recipe_snapshot": recipe_dict,
+        "recipe_snapshot": recipe.model_dump(),
         "seeds": {
             "global_seed": ctx.global_seed,
-            "scene_seed": recipe_dict.get("random_seed", 0),
+            "scene_seed": recipe.random_seed,
         },
     }
 
     # 3. Render Cameras and Save Data
     for cam_idx, cam_recipe in enumerate(cam_recipes):
         coco_img_id, image_name = _render_camera_and_save(
-            renderer, cam_idx, cam_recipe, recipe_dict, ctx, scene_logger, provenance, res
+            renderer, cam_idx, cam_recipe, recipe, ctx, scene_logger, provenance, res
         )
 
         _extract_and_save_ground_truth(
@@ -418,24 +335,20 @@ def execute_recipe(
 
 
 def _setup_scene(
-    recipe: dict[str, Any], ctx: RenderContext, scene_logger: Any
+    recipe: SceneRecipe, ctx: RenderContext, scene_logger: Any
 ) -> tuple[RenderFacade, list[Any]]:
     """Initialize renderer, world, and spawn objects."""
     # All randomness is now resolved on the host side (Compiler).
     bridge.bpy.context.scene.cycles.use_animated_seed = False
 
-    renderer_recipe = recipe.get("renderer", {})
-    if isinstance(renderer_recipe, RendererConfig):
-        renderer_config = renderer_recipe
-    else:
-        renderer_config = RendererConfig(**renderer_recipe)
+    renderer_config = recipe.renderer
 
     renderer = RenderFacade(
         renderer_mode=ctx.renderer_mode, logger=scene_logger, config=renderer_config
     )
     renderer.reset_volatile_state()
-    renderer.setup_world(recipe.get("world", {}))
-    tag_objects = renderer.spawn_objects(recipe.get("objects", []))
+    renderer.setup_world(recipe.world)
+    tag_objects = renderer.spawn_objects(recipe.objects)
 
     for tag in tag_objects:
         family = tag.blender_obj.get("tag_family")
@@ -460,15 +373,15 @@ def _setup_scene(
 def _render_camera_and_save(
     renderer: RenderFacade,
     cam_idx: int,
-    cam_recipe: dict[str, Any],
-    recipe: dict[str, Any],
+    cam_recipe: CameraRecipe,
+    recipe: SceneRecipe,
     ctx: RenderContext,
     scene_logger: Any,
     provenance: dict[str, Any],
     res: list[int],
 ) -> tuple[int, str]:
     """Render a single camera view and save artifacts (image, sidecar)."""
-    scene_idx = int(recipe["scene_id"])
+    scene_idx = recipe.scene_id
 
     # Force subframe update for motion blur / consistency BEFORE render
     bridge.bpy.context.scene.frame_set(0, subframe=0.5)
@@ -512,7 +425,7 @@ def _extract_and_save_ground_truth(
     res: list[int],
     ctx: RenderContext,
     scene_logger: Any,
-    cam_recipe: dict[str, Any],
+    cam_recipe: CameraRecipe,
 ) -> None:
     """Project objects to image space and save detection records."""
     all_detections: list[DetectionRecord] = []

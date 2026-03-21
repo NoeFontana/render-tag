@@ -96,7 +96,7 @@ class JobSpec(BaseModel):
     def from_json(cls, json_str: str) -> "JobSpec":
         """Deserialize and migrate JobSpec from JSON."""
         data = json.loads(json_str)
-        from render_tag.core.migration import SchemaMigrator
+        from render_tag.core.schema_adapter import SchemaMigrator
 
         migrator = SchemaMigrator()
         data = migrator.migrate(data)
@@ -109,7 +109,7 @@ class JobSpec(BaseModel):
         with open(path) as f:
             data = json.load(f)
 
-        from render_tag.core.migration import SchemaMigrator
+        from render_tag.core.schema_adapter import SchemaMigrator
 
         migrator = SchemaMigrator()
         original_version = migrator.get_version(data)

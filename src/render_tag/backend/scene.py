@@ -156,6 +156,7 @@ def create_board(
     square_size: float,
     layout_mode: str = "board",
     location: list[float] | None = None,
+    material_config: dict[str, Any] | None = None,
 ) -> Any:
     """Create a white background board for layouts.
 
@@ -165,6 +166,7 @@ def create_board(
         square_size: Size of each square (cell)
         layout_mode: Layout mode string for naming
         location: Explicit location [x, y, z]
+        material_config: Optional parametric PBR parameters.
 
     Returns:
         The board mesh object
@@ -203,6 +205,7 @@ def create_board_plane(
     texture_path: str,
     location: list[float] | None = None,
     rotation_euler: list[float] | None = None,
+    material_config: dict[str, Any] | None = None,
 ) -> Any:
     """Create a single plane for a calibration board with high-fidelity texture.
 
@@ -214,6 +217,7 @@ def create_board_plane(
         texture_path: Path to the high-resolution generated texture
         location: [x, y, z] location
         rotation_euler: [x, y, z] rotation in radians
+        material_config: Optional parametric PBR parameters.
 
     Returns:
         The board mesh object

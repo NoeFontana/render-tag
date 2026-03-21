@@ -1,6 +1,6 @@
 import pytest
 
-from render_tag.core.migration import SchemaMigrator
+from render_tag.core.schema_adapter import SchemaMigrator
 
 
 def test_migrator_detects_legacy_version():

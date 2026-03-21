@@ -46,9 +46,18 @@ def test_heartbeat_prevents_timeout():
             payload={
                 "recipe": {
                     "scene_id": 1,
+                    "random_seed": 42,
                     "cameras": [
                         {
-                            "intrinsics": {"resolution": [1920, 1080], "fov": 70.0},
+                            "intrinsics": {
+                                "resolution": [1920, 1080],
+                                "fov": 70.0,
+                                "k_matrix": [
+                                    [1000, 0, 960],
+                                    [0, 1000, 540],
+                                    [0, 0, 1],
+                                ],
+                            },
                             "transform_matrix": [
                                 [1, 0, 0, 0],
                                 [0, 1, 0, 0],
@@ -62,6 +71,7 @@ def test_heartbeat_prevents_timeout():
                 "output_dir": ".",
             },
         )
+
         duration = time.time() - start
 
         assert resp.status == ResponseStatus.SUCCESS

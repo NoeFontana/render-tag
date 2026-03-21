@@ -30,8 +30,9 @@ def test_render_camera_subframe_synchronization(mock_bridge):
     ctx.output_dir = MagicMock()
     provenance = {}
     res = [640, 480]
-    cam_recipe = {}
-    recipe = {"scene_id": 0}
+    cam_recipe = MagicMock()
+    recipe = MagicMock()
+    recipe.scene_id = 0
     scene_logger = MagicMock()
 
     # ACT

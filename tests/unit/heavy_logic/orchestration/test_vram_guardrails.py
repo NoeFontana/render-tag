@@ -46,6 +46,25 @@ def test_vram_guardrail_restart(mock_worker_cls, tmp_path):
         worker = pool.get_worker()
         assert worker is m1
 
+        # Inject telemetry into monitor's registry to simulate a heavy VRAM state
+        import time
+
+        from render_tag.core.schema.hot_loop import Telemetry, WorkerSnapshot, WorkerStatus
+
+        telemetry = Telemetry(
+            status=WorkerStatus.IDLE,
+            vram_used_mb=2000.0,
+            vram_total_mb=8000.0,
+            cpu_usage_percent=50.0,
+            state_hash="mock_hash",
+            uptime_seconds=123.4,
+            ram_used_mb=0.0,
+            object_count=0,
+        )
+        pool.monitor._registry["worker-0"] = WorkerSnapshot(
+            worker_id="worker-0", telemetry=telemetry, last_seen=time.time(), liveness="HEALTHY"
+        )
+
         # Releasing should trigger VRAM check -> STATUS command -> High VRAM -> Restart
         pool.release_worker(worker)
 

@@ -1,19 +1,20 @@
-# Locus Bench Phase 1: Calibration & Ground Truth
-# This experiment runs multiple calibration scenarios with deterministic seeds.
-
 output_dir: output/locus_bench_v1/01_calibration
-
 experiments:
-  - name: 01_checkerboard
-    config: configs/presets/calibration/01_checkerboard.yaml
-    overrides:
-      dataset:
-        seed: 42
-        evaluation_scopes: ["calibration"]
-
-  - name: 02_aprilgrid
-    config: configs/presets/calibration/02_aprilgrid.yaml
-    overrides:
-      dataset:
-        seed: 1337
-        evaluation_scopes: ["calibration"]
+- name: 01_checkerboard
+  config: configs/presets/calibration/01_checkerboard.yaml
+  overrides:
+    dataset:
+      seed: 42
+      evaluation_scopes:
+      - calibration
+- name: 02_aprilgrid
+  config: configs/presets/calibration/02_aprilgrid.yaml
+  overrides:
+    dataset:
+      seed: 1337
+      evaluation_scopes:
+      - calibration
+version: '0.2'
+dataset: {}
+camera: {}
+scenario: {}

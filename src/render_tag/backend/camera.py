@@ -6,29 +6,28 @@ This module handles camera intrinsics and sensor dynamics configuration.
 
 from __future__ import annotations
 
-from typing import Any
-
 from render_tag.backend.bridge import bridge
 from render_tag.core.logging import get_logger
+from render_tag.core.schema import CameraRecipe, SensorDynamicsRecipe
 
 logger = get_logger(__name__)
 
 
-def set_camera_intrinsics(camera_recipe: dict) -> None:
+def set_camera_intrinsics(camera_recipe: CameraRecipe) -> None:
     """Set camera intrinsics from configuration.
 
     Args:
-        camera_recipe: Camera configuration dictionary (CameraRecipe format)
+        camera_recipe: Camera recipe (CameraRecipe format)
     """
-    intrinsics = camera_recipe["intrinsics"]
-    res = intrinsics["resolution"]
-    k_matrix = intrinsics.get("k_matrix")
+    intrinsics = camera_recipe.intrinsics
+    res = intrinsics.resolution
+    k_matrix = intrinsics.k_matrix
 
     if not k_matrix:
         # Emergency fallback for legacy or minimal test recipes
         import math
 
-        fov = camera_recipe.get("fov", 60.0)
+        fov = intrinsics.fov or 60.0
         fx = fy = res[0] / (2.0 * math.tan(math.radians(fov / 2.0)))
         cx, cy = res[0] / 2.0, res[1] / 2.0
         k_matrix = [[float(fx), 0.0, float(cx)], [0.0, float(fy), float(cy)], [0.0, 0.0, 1.0]]
@@ -60,21 +59,21 @@ def set_camera_intrinsics(camera_recipe: dict) -> None:
 
 def setup_sensor_dynamics(
     pose_matrix: bridge.np.ndarray | list[list[float]],
-    dynamics_recipe: dict[str, Any] | None,
+    dynamics_recipe: SensorDynamicsRecipe | None,
 ) -> None:
     """Setup motion blur and rolling shutter artifacts.
 
     Args:
         pose_matrix: 4x4 camera-to-world transformation matrix at t=0
-        dynamics_recipe: Dictionary containing velocity, shutter_time_ms,
+        dynamics_recipe: Recipe containing velocity, shutter_time_ms,
                         and rolling_shutter_duration_ms.
     """
     if not dynamics_recipe:
         return
 
-    velocity = dynamics_recipe.get("velocity")
-    shutter_time_ms = dynamics_recipe.get("shutter_time_ms") or 0.0
-    rolling_shutter_ms = dynamics_recipe.get("rolling_shutter_duration_ms") or 0.0
+    velocity = dynamics_recipe.velocity
+    shutter_time_ms = dynamics_recipe.shutter_time_ms or 0.0
+    rolling_shutter_ms = dynamics_recipe.rolling_shutter_duration_ms or 0.0
 
     # 1. Handle Motion Blur (Keyframing)
     if velocity and shutter_time_ms > 0:
