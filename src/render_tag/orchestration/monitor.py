@@ -56,11 +56,29 @@ class HealthMonitor:
         except Exception as e:
             logger.error(f"Unexpected error processing telemetry: {e}")
 
+    def _check_liveness(self):
+        """Sweeps the registry and flags unresponsive workers."""
+        now = time.time()
+        timeout = 10.0 # Heartbeat loss threshold
+        
+        # We need to iterate over a copy of keys to avoid modification during iteration
+        for worker_id in list(self._registry.keys()):
+            snapshot = self._registry.get(worker_id)
+            if snapshot and snapshot.liveness == "HEALTHY":
+                if now - snapshot.last_seen > timeout:
+                    logger.warning(f"Worker {worker_id} heartbeat lost. Marking UNRESPONSIVE.")
+                    # Update snapshot with new liveness
+                    # snapshots are immutable (frozen=True), so we must create a new one
+                    updated_snapshot = snapshot.model_copy(update={"liveness": "UNRESPONSIVE"})
+                    self._registry[worker_id] = updated_snapshot
+
     def _loop(self):
         """Internal ingestion loop."""
         logger.info(f"Health monitor ingestion loop started on ports: {self.ports}")
         poller = zmq.Poller()
         poller.register(self.socket, zmq.POLLIN)
+        
+        last_sweep = time.time()
         
         while self.running:
             try:
@@ -69,6 +87,12 @@ class HealthMonitor:
                 if self.socket in socks:
                     topic, payload = self.socket.recv_multipart()
                     self._process_message(topic, payload)
+                
+                # Periodic liveness sweep (every 2 seconds)
+                now = time.time()
+                if now - last_sweep > 2.0:
+                    self._check_liveness()
+                    last_sweep = now
             except (zmq.ZMQError, zmq.ContextTerminated):
                 break
             except Exception as e:

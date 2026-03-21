@@ -44,3 +44,31 @@ def test_orchestrator_uses_monitor():
     from render_tag.core.schema.hot_loop import CommandType
     for call in worker.send_command.call_args_list:
         assert call[0][0] != CommandType.STATUS
+
+def test_orchestrator_restarts_unresponsive():
+    """Verify that _check_worker_health triggers restart if monitor flags UNRESPONSIVE."""
+    config = OrchestratorConfig(mock=True)
+    orchestrator = UnifiedWorkerOrchestrator(config=config)
+    monitor = MagicMock(spec=HealthMonitor)
+    orchestrator.monitor = monitor
+    
+    worker = MagicMock()
+    worker.worker_id = "worker-stalled"
+    worker.client = MagicMock()
+    
+    telemetry = Telemetry(
+        status=WorkerStatus.IDLE,
+        vram_used_mb=0, vram_total_mb=0, ram_used_mb=0,
+        cpu_usage_percent=0, state_hash="h", uptime_seconds=0
+    )
+    monitor.get_snapshot.return_value = WorkerSnapshot(
+        worker_id="worker-stalled",
+        telemetry=telemetry,
+        last_seen=100.0,
+        liveness="UNRESPONSIVE"
+    )
+    
+    should_restart, limit_exceeded = orchestrator._check_worker_health(worker, False)
+    
+    assert should_restart is True
+    assert limit_exceeded is False # Stalled, not resource limit

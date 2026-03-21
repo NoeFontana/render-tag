@@ -309,9 +309,11 @@ class UnifiedWorkerOrchestrator:
                 self.auditor.add_entry(worker.worker_id, telemetry)
 
                 # Check for memory or VRAM limits
-                if telemetry.status == WorkerStatus.RESOURCE_LIMIT_EXCEEDED:
-                    limit_exceeded = True
+                if telemetry.status == WorkerStatus.RESOURCE_LIMIT_EXCEEDED or snapshot.liveness == "UNRESPONSIVE":
+                    limit_exceeded = (telemetry.status == WorkerStatus.RESOURCE_LIMIT_EXCEEDED)
                     should_restart = True
+                    if snapshot.liveness == "UNRESPONSIVE":
+                        logger.error(f"Worker {worker.worker_id} is UNRESPONSIVE. Triggering restart.")
                 elif (
                     not intentional_exit
                     and self.vram_threshold_mb
