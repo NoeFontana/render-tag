@@ -1,6 +1,6 @@
 # Implementation Plan: Asynchronous Heartbeat Mechanism
 
-## Phase 1: Immutable State Schema and Worker Thread
+## Phase 1: Immutable State Schema and Worker Thread [checkpoint: c05b263]
 - [x] Task: Define the `WorkerSnapshot` Immutable Schema fb3eb4b
     - [ ] Create a frozen dataclass or Pydantic model for `WorkerSnapshot`.
     - [ ] Update `Telemetry` schema to support the new metrics (Object Count, CPU).
@@ -11,7 +11,7 @@
 - [x] Task: Write Tests for Telemetry Emission 0231672
     - [ ] Verify that heartbeats are emitted at the correct interval.
     - [ ] Mock ZMQ PUB to ensure the payload format is correct.
-- [ ] Task: Conductor - User Manual Verification 'Phase 1: Immutable State Schema and Worker Thread' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 1: Immutable State Schema and Worker Thread' (Protocol in workflow.md) c05b263
 
 ## Phase 2: Health Monitor and Ingestion Logic
 - [ ] Task: Create the `HealthMonitor` Component
