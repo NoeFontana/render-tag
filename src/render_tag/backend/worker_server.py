@@ -9,6 +9,7 @@ from render_tag.backend.assets import global_pool
 from render_tag.backend.bridge import bridge
 from render_tag.backend.engine import RenderContext, execute_recipe
 from render_tag.backend.scene import setup_background
+from render_tag.backend.telemetry import TelemetryEmitter
 from render_tag.core.logging import get_logger
 from render_tag.core.schema import SceneRecipe
 from render_tag.core.schema.hot_loop import (
@@ -73,10 +74,21 @@ class ZmqBackendServer:
         # Shared State (Protected by self._lock)
         self.status = WorkerStatus.IDLE
         self.renders_completed = 0
+        self.current_scene_id = None
         self.start_time = time.time()
         self.assets_loaded, self.parameters = [], {}
         self.current_output_dir, self.writers = None, {}
         self.bproc_initialized = False
+
+        # 3. Telemetry Emitter (PUB) - Async heartbeats
+        self.telemetry_port = self.mgmt_port + 1000
+        # Determine worker_id from shard_id or similar
+        self.worker_id = f"worker-{shard_id}"
+        self.emitter = TelemetryEmitter(
+            worker_id=self.worker_id,
+            port=self.telemetry_port,
+            server_ref=self
+        )
 
     def _check_memory(self) -> bool:
         """Checks current memory usage and triggers shutdown if limit exceeded.
@@ -119,6 +131,14 @@ class ZmqBackendServer:
         process = psutil.Process(os.getpid())
 
         with self._lock:
+            # Blender specific metrics
+            obj_count = 0
+            if bridge.bpy:
+                try:
+                    obj_count = len(bridge.bpy.data.objects)
+                except Exception:
+                    pass
+
             return Telemetry(
                 status=self.status,
                 vram_used_mb=0.0,  # Placeholder for GPU VRAM
@@ -127,6 +147,8 @@ class ZmqBackendServer:
                 state_hash=calculate_state_hash(self.assets_loaded, self.parameters),
                 uptime_seconds=time.time() - self.start_time,
                 ram_used_mb=process.memory_info().rss / (1024 * 1024),
+                object_count=obj_count,
+                active_scene_id=self.current_scene_id,
             )
 
     def _setup_writers(self, output_dir: Path, shard_id: str):
@@ -163,6 +185,8 @@ class ZmqBackendServer:
     def stop(self):
         """Stops the server loop and closes sockets."""
         self.running = False
+        if hasattr(self, "emitter"):
+            self.emitter.stop()
         try:
             if hasattr(self, "task_socket") and self.task_socket:
                 self.task_socket.close(linger=0)
@@ -213,6 +237,9 @@ class ZmqBackendServer:
         # Start management thread
         mgmt_thread = threading.Thread(target=self._mgmt_loop, daemon=True)
         mgmt_thread.start()
+
+        # Start async telemetry emitter
+        self.emitter.start()
 
         while self.running:
             try:
@@ -337,6 +364,9 @@ class ZmqBackendServer:
 
             self._setup_writers(output_dir, shard_id)
             scene_id = recipe.scene_id
+            with self._lock:
+                self.current_scene_id = scene_id
+            
             render_seed = derive_seed(self.seed, "render", scene_id)
 
             ctx = RenderContext(
