@@ -13,12 +13,11 @@ import shutil
 import signal
 import sys
 import threading
+import time
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import ClassVar
-
-from rich.console import Console
+from typing import Any, Callable, ClassVar
 
 try:
     import zmq
@@ -42,10 +41,16 @@ from render_tag.core.schema.hot_loop import (
 )
 from render_tag.core.schema.job import JobSpec
 from render_tag.core.utils import is_port_in_use
+from render_tag.orchestration.result import (
+    ErrorRecord,
+    ExecutionTimings,
+    JobMetadata,
+    OrchestrationResult,
+    WorkerMetrics,
+)
 from render_tag.orchestration.worker import PersistentWorkerProcess
 
 logger = get_logger(__name__)
-console = Console()
 
 
 @dataclass(frozen=True)
@@ -498,6 +503,7 @@ def _prepare_batches(job_spec: JobSpec, workers: int, batch_size: int, resume: b
     if not missing_shard_indices:
         return None, actual_batch_size, total_shards
 
+    total_scenes_to_process = 0
     batches = []
     for shard_idx in missing_shard_indices:
         # Generate recipes for this shard
@@ -510,8 +516,9 @@ def _prepare_batches(job_spec: JobSpec, workers: int, batch_size: int, resume: b
         if recipes:
             batch_path = gen.save_recipe_json(recipes, f"recipes_shard_{shard_idx}.json")
             batches.append(batch_path)
+            total_scenes_to_process += len(recipes)
 
-    return batches, actual_batch_size, total_shards
+    return batches, total_scenes_to_process, total_shards
 
 
 def _run_orchestration_loop(
@@ -520,17 +527,29 @@ def _run_orchestration_loop(
     workers: int,
     output_dir: Path,
     rm: str,
-) -> bool:
-    """Run the parallel orchestration loop using a worker pool."""
+    progress_cb: Callable[[int, int], None] | None = None,
+) -> list[ErrorRecord]:
+    """Run the parallel orchestration loop using a worker pool.
+
+    Returns:
+        A list of ErrorRecord objects for any failed renders.
+    """
     logger.info(f"Starting orchestration loop with {len(batches)} batches and {workers} workers.")
     q = queue.Queue()
     for path in batches:
         q.put(path)
 
-    any_failed = False
+    errors = []
+    errors_lock = threading.Lock()
+    total_scenes = 0
+    completed_scenes = 0
+    count_lock = threading.Lock()
+
+    # Pre-calculate total scenes if possible, or just track progress by batches
+    # For simplicity, we'll track progress by successful execute_recipe calls.
 
     def worker_thread():
-        nonlocal any_failed
+        nonlocal completed_scenes
         while not q.empty():
             try:
                 path = q.get_nowait()
@@ -544,15 +563,35 @@ def _run_orchestration_loop(
 
                     resp = orchestrator.execute_recipe(recipe, output_dir, rm, sid=shard_idx_str)
                     if resp.status != ResponseStatus.SUCCESS:
-                        console.print(f"[red]Render failed: {resp.message}[/red]")
-                        any_failed = True
+                        with errors_lock:
+                            errors.append(
+                                ErrorRecord(
+                                    scene_id=recipe.get("scene_id", -1),
+                                    error_message=resp.message or "Unknown error",
+                                    traceback=resp.data.get("traceback") if resp.data else None,
+                                )
+                            )
+                    else:
+                        with count_lock:
+                            completed_scenes += 1
+                            if progress_cb:
+                                # We don't know the exact total yet here without pre-scanning
+                                # so we'll just pass the increment. 
+                                # Better: caller provides total.
+                                progress_cb(1, 0) 
+
                 logger.debug(f"Worker thread finished batch: {path.name}")
             except queue.Empty:
                 break
             except Exception as e:
-                console.print(f"[red]Batch processing failed: {e}[/red]")
                 logger.error(f"Batch processing failed: {e}", exc_info=True)
-                any_failed = True
+                with errors_lock:
+                    errors.append(
+                        ErrorRecord(
+                            scene_id=-1,
+                            error_message=str(e),
+                        )
+                    )
             finally:
                 q.task_done()
 
@@ -565,7 +604,7 @@ def _run_orchestration_loop(
         t.join()
 
     logger.info("Orchestration loop completed.")
-    return any_failed
+    return errors
 
 
 def orchestrate(
@@ -575,7 +614,8 @@ def orchestrate(
     resume: bool = False,
     batch_size: int = 5,
     verbose: bool = False,
-) -> None:
+    progress_cb: Callable[[int, int], None] | None = None,
+) -> OrchestrationResult:
     """Main orchestration loop for executing a JobSpec.
 
     Handles sharding, resumption, and parallel execution of render tasks.
@@ -587,24 +627,38 @@ def orchestrate(
         resume: If True, skips already completed scenes.
         batch_size: Number of recipes per worker batch.
         verbose: If True, enables debug logging.
+        progress_cb: Optional callback(increment, total) for progress reporting.
 
-    Raises:
-        typer.Exit: With code 1 if any render tasks failed.
+    Returns:
+        OrchestrationResult containing detailed execution metrics.
     """
-    import typer
-
+    start_time = time.perf_counter()
     signal.signal(signal.SIGINT, _signal_handler)
     signal.signal(signal.SIGTERM, _signal_handler)
 
     output_dir = job_spec.paths.output_dir
-    batches, _, _ = _prepare_batches(job_spec, workers, batch_size, resume)
+    
+    # Pre-calculate metadata for provenance
+    job_spec_json = job_spec.model_dump_json() if hasattr(job_spec, "model_dump_json") else "{}"
+    job_spec_hash = hashlib.sha256(job_spec_json.encode()).hexdigest()
+    env_hash = hashlib.sha256(sys.version.encode()).hexdigest() # Placeholder for real env state
+
+    batches, total_to_process, total_shards = _prepare_batches(job_spec, workers, batch_size, resume)
 
     if batches is None:
-        console.print("[green]All shards are already complete. Skipping orchestration.[/green]")
-        return
+        # All complete
+        return OrchestrationResult(
+            success_count=0,
+            skipped_count=job_spec.shard_size,
+            timings=ExecutionTimings(total_duration_s=time.perf_counter() - start_time),
+            metadata=JobMetadata(job_spec_hash=job_spec_hash, env_state_hash=env_hash)
+        )
 
     if not batches:
-        return
+        return OrchestrationResult(
+            timings=ExecutionTimings(total_duration_s=time.perf_counter() - start_time),
+            metadata=JobMetadata(job_spec_hash=job_spec_hash, env_state_hash=env_hash)
+        )
 
     rm = job_spec.scene_config.renderer.mode if job_spec.scene_config.renderer else "cycles"
     force_mock = (os.environ.get("RENDER_TAG_FORCE_MOCK") == "1") or (
@@ -621,12 +675,39 @@ def orchestrate(
         memory_limit_mb=job_spec.infrastructure.max_memory_mb,
     )
 
+    errors = []
     with UnifiedWorkerOrchestrator(config=config) as orchestrator:
-        any_failed = _run_orchestration_loop(orchestrator, batches, workers, output_dir, rm)
+        # Report total scenes to progress_cb if provided
+        # Approximate total for progress bar initialization
+        if progress_cb:
+            progress_cb(0, total_to_process)
+            
+        errors = _run_orchestration_loop(
+            orchestrator, batches, workers, output_dir, rm, progress_cb=progress_cb
+        )
 
     for path in batches:
         if path.exists():
             path.unlink()
 
-    if any_failed:
-        raise typer.Exit(code=1)
+    total_duration = time.perf_counter() - start_time
+    
+    # Collect final metrics
+    max_ram = 0.0
+    max_vram = 0.0
+    if orchestrator.auditor.records:
+        max_ram = max((r.get("ram_used_mb", 0.0) for r in orchestrator.auditor.records), default=0.0)
+        max_vram = max((r.get("vram_used_mb", 0.0) for r in orchestrator.auditor.records), default=0.0)
+
+    return OrchestrationResult(
+        success_count=total_to_process - len(errors),
+        failed_count=len(errors),
+        errors=errors,
+        worker_metrics=WorkerMetrics(
+            worker_id="pool",
+            max_ram_mb=max_ram,
+            max_vram_mb=max_vram
+        ),
+        timings=ExecutionTimings(total_duration_s=total_duration),
+        metadata=JobMetadata(job_spec_hash=job_spec_hash, env_state_hash=env_hash)
+    )

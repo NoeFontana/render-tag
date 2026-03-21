@@ -133,6 +133,7 @@ class TelemetryAuditor:
             "event_type": event_type,
             "vram_used_mb": telemetry.vram_used_mb,
             "vram_total_mb": telemetry.vram_total_mb,
+            "ram_used_mb": telemetry.ram_used_mb,
             "cpu_usage": telemetry.cpu_usage_percent,
             "uptime": telemetry.uptime_seconds,
             "state_hash": telemetry.state_hash,
