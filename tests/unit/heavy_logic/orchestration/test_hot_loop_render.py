@@ -28,10 +28,12 @@ def test_hot_loop_render_command(tmp_path, port_generator, stabilized_bridge):
     # Minimal mock recipe
     recipe = {
         "scene_id": 42,
+        "random_seed": 42,
         "world": {},
         "objects": [
             {
                 "type": "TAG",
+                "name": "Tag_0",
                 "location": [0, 0, 0],
                 "rotation_euler": [0, 0, 0],
                 "properties": {"tag_family": "test_fam", "tag_id": 1, "tag_size": 0.1},
@@ -40,7 +42,10 @@ def test_hot_loop_render_command(tmp_path, port_generator, stabilized_bridge):
         "cameras": [
             {
                 "transform_matrix": [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 2], [0, 0, 0, 1]],
-                "intrinsics": {"resolution": [100, 100]},
+                "intrinsics": {
+                    "resolution": [100, 100],
+                    "k_matrix": [[1, 0, 50], [0, 1, 50], [0, 0, 1]],
+                },
             }
         ],
     }

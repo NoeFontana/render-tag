@@ -14,18 +14,25 @@ def test_provenance_manifest_generated(tmp_path, stabilized_bridge):
     output_dir.mkdir()
 
     # Minimal recipe
-    recipe = {
-        "scene_id": 0,
-        "renderer": {"mode": "workbench"},
-        "cameras": [
+    from render_tag.core.schema.recipe import SceneRecipe
+
+    recipe = SceneRecipe(
+        scene_id=0,
+        random_seed=42,
+        renderer={"mode": "workbench"},
+        cameras=[
             {
                 "transform_matrix": [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]],
-                "intrinsics": {"resolution": [128, 128], "fov": 60.0},
+                "intrinsics": {
+                    "resolution": [128, 128],
+                    "k_matrix": [[1, 0, 64], [0, 1, 64], [0, 0, 1]],
+                    "fov": 60.0,
+                },
             }
         ],
-        "objects": [],
-        "world": {},
-    }
+        objects=[],
+        world={},
+    )
 
     # Mock writers
     provenance_writer = ProvenanceWriter(output_dir / "provenance_shard_0.json")

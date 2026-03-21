@@ -80,13 +80,11 @@ class ZmqBackendServer:
         self.current_output_dir, self.writers = None, {}
         self.bproc_initialized = False
 
-        # 3. Telemetry Emitter (PUB) - Async heartbeats
+        # 3. Telemetry Emitter (PUB) - Created lazily in run() to avoid
+        #    binding ZMQ sockets that may never be used (e.g. in tests).
         self.telemetry_port = self.mgmt_port + 1000
-        # Determine worker_id from shard_id or similar
         self.worker_id = f"worker-{shard_id}"
-        self.emitter = TelemetryEmitter(
-            worker_id=self.worker_id, port=self.telemetry_port, server_ref=self
-        )
+        self.emitter: TelemetryEmitter | None = None
 
     def _check_memory(self) -> bool:
         """Checks current memory usage and triggers shutdown if limit exceeded.
@@ -183,7 +181,7 @@ class ZmqBackendServer:
     def stop(self):
         """Stops the server loop and closes sockets."""
         self.running = False
-        if hasattr(self, "emitter"):
+        if hasattr(self, "emitter") and self.emitter is not None:
             self.emitter.stop()
         try:
             if hasattr(self, "task_socket") and self.task_socket:
@@ -237,6 +235,9 @@ class ZmqBackendServer:
         mgmt_thread.start()
 
         # Start async telemetry emitter
+        self.emitter = TelemetryEmitter(
+            worker_id=self.worker_id, port=self.telemetry_port, server_ref=self
+        )
         self.emitter.start()
 
         while self.running:

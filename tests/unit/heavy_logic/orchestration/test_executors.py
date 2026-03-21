@@ -32,14 +32,10 @@ def test_executor_factory_returns_correct_types():
         ExecutorFactory.get_executor("invalid")
 
 
-@patch("render_tag.orchestration.executors.UnifiedWorkerOrchestrator")
-def test_local_executor_handoff_to_orchestrator(mock_orch, tmp_path):
+@patch("render_tag.orchestration.executors.orchestrate")
+def test_local_executor_handoff_to_orchestrator(mock_orchestrate, tmp_path):
     """Verify that LocalExecutor correctly initializes the orchestrator."""
     from render_tag.orchestration import LocalExecutor
-
-    # Setup mock orchestrator context manager
-    mock_instance = mock_orch.return_value
-    mock_instance.__enter__.return_value = mock_instance
 
     executor = LocalExecutor()
     job_spec = create_dummy_job_spec(tmp_path)
@@ -62,11 +58,10 @@ def test_local_executor_handoff_to_orchestrator(mock_orch, tmp_path):
         )
 
     # Verify orchestrator was called with correct args
-    assert mock_orch.called
-    _, kwargs = mock_orch.call_args
-    assert kwargs["num_workers"] == 1
-    assert kwargs["ephemeral"] is True
-    assert kwargs["seed"] == 42
+    assert mock_orchestrate.called
+    _, kwargs = mock_orchestrate.call_args
+    assert kwargs["job_spec"] == job_spec
+    assert kwargs["executor_type"] == "local"
 
 
 @patch("subprocess.run")

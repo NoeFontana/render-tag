@@ -46,18 +46,21 @@ def test_execute_recipe_passes_config():
     mock_renderer = MagicMock()
     bridge.bproc.renderer = mock_renderer
 
-    recipe = {
-        "scene_id": 1,
-        "renderer": {
+    from render_tag.core.schema.recipe import SceneRecipe
+
+    recipe = SceneRecipe(
+        scene_id=1,
+        random_seed=42,
+        renderer={
             "noise_threshold": 0.03,
             "max_samples": 32,
             "enable_denoising": True,
             "denoiser_type": "INTEL",
         },
-        "world": {},
-        "objects": [],
-        "cameras": [],
-    }
+        world={},
+        objects=[],
+        cameras=[],
+    )
 
     ctx = RenderContext(
         output_dir=Path("/tmp"),

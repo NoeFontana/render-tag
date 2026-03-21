@@ -73,15 +73,20 @@ class PersistentWorkerProcess:
         self.process, self.client = None, None
         self.renders_completed = 0
         self._stop_event = threading.Event()
+        self._log_thread: threading.Thread | None = None
         self._startup_logs = []
         self.logger = get_logger(f"worker.{worker_id}").bind(worker_id=worker_id, job_id=job_id)
 
     def _log_router(self):
         if not self.process or not self.process.stdout:
             return
-        for line_bytes in iter(self.process.stdout.readline, b""):
-            if self._stop_event.is_set():
-                break
+        while not self._stop_event.is_set():
+            try:
+                line_bytes = self.process.stdout.readline()
+            except (ValueError, OSError):
+                break  # stdout was closed
+            if not isinstance(line_bytes, bytes) or line_bytes == b"":
+                break  # EOF or non-bytes (mock)
             line = line_bytes.decode("utf-8").rstrip()
             if not line:
                 continue
@@ -134,7 +139,8 @@ class PersistentWorkerProcess:
             start_new_session=True,
             preexec_fn=set_worker_priority,
         )
-        threading.Thread(target=self._log_router, daemon=True).start()
+        self._log_thread = threading.Thread(target=self._log_router, daemon=True)
+        self._log_thread.start()
         self.client = ZmqHostClient(port=self.port, mgmt_port=self.mgmt_port, context=self.context)
         self.client.connect()
 
@@ -189,6 +195,14 @@ class PersistentWorkerProcess:
                 self.logger.info(f"Sending SHUTDOWN command to worker {self.worker_id}...")
                 with contextlib.suppress(Exception):
                     self.client.send_command(CommandType.SHUTDOWN, timeout_ms=500)
+
+                # Give the worker a chance to finalize writers gracefully
+                try:
+                    self.process.wait(timeout=2.0)
+                except subprocess.TimeoutExpired:
+                    self.logger.warning(
+                        f"Worker {self.worker_id} did not exit gracefully, forcing kill."
+                    )
             self.client.disconnect()
             self.client = None
 
@@ -221,7 +235,19 @@ class PersistentWorkerProcess:
                 TypeError,
             ):
                 self.logger.debug(f"Process cleanup issues for {self.worker_id}, ignoring.")
+
+            # Close stdout so _log_router's readline() returns b"" and exits.
+            # Must happen after kill — closing before kill risks losing final output.
+            with contextlib.suppress(Exception):
+                if self.process.stdout:
+                    self.process.stdout.close()
+
             self.process = None
+
+        # Join the log thread to prevent daemon thread accumulation across tests.
+        if self._log_thread is not None:
+            self._log_thread.join(timeout=2.0)
+            self._log_thread = None
 
     @retry_with_backoff(retries=2, initial_delay=0.1, exceptions=(Exception,))
     def is_healthy(self) -> bool:

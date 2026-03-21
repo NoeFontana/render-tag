@@ -28,7 +28,10 @@ def test_setup_scene_coco_registration_boards(mock_bridge, mock_facade_class):
     ctx.coco_writer = MagicMock()
     ctx.renderer_mode = "cycles"
 
-    recipe = {"scene_id": 0, "objects": [{"type": "BOARD", "board": {"dictionary": "tag36h11"}}]}
+    recipe = MagicMock()
+    recipe.scene_id = 0
+    recipe.renderer = MagicMock(mode="cycles")
+    recipe.objects = [{"type": "BOARD", "board": {"dictionary": "tag36h11"}}]
 
     scene_logger = MagicMock()
 

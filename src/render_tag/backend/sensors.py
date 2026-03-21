@@ -56,6 +56,8 @@ class PoissonNoiseStrategy:
         # Note: Poisson model currently uses 'amount' as scale or defaults to 1000.0
         # for historical compatibility if we don't have a dedicated scale field.
         scale = getattr(config, "amount", 1000.0)
+        if scale == 0:
+            scale = 1000.0
         seed = config.seed
         rng = np.random.default_rng(seed)
         return rng.poisson(image * scale) / scale

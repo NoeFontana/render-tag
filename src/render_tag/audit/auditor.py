@@ -8,6 +8,7 @@ and worker telemetry analysis using Polars.
 from __future__ import annotations
 
 import json
+from collections import deque
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -122,8 +123,10 @@ class AuditResult(BaseModel):
 class TelemetryAuditor:
     """Collects and analyzes worker telemetry using Polars."""
 
+    MAX_RECORDS = 10_000
+
     def __init__(self):
-        self.records: list[dict[str, Any]] = []
+        self.records: deque[dict[str, Any]] = deque(maxlen=self.MAX_RECORDS)
 
     def add_entry(self, worker_id: str, telemetry: Telemetry, event_type: str = "heartbeat"):
         """Adds a telemetry record."""

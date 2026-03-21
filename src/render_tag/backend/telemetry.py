@@ -89,9 +89,24 @@ class TelemetryEmitter:
         self.running = False
         if self._thread:
             self._thread.join(timeout=2.0)
+            self._thread = None
 
+        self._close_zmq()
+
+    def _close_zmq(self):
+        """Close socket and terminate context. Safe to call multiple times."""
         try:
-            self.socket.close()
-            self.context.term()
+            if self.socket and not self.socket.closed:
+                self.socket.close(linger=0)
         except Exception:
             pass
+        try:
+            if self.context and not self.context.closed:
+                self.context.term()
+        except Exception:
+            pass
+
+    def __del__(self):
+        # Prevent zmq.Context.__del__ from blocking on term() when the
+        # socket is still open (e.g. server GC'd without calling stop()).
+        self._close_zmq()

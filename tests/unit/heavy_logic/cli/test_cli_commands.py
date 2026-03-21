@@ -86,9 +86,19 @@ class TestCLIInfoCommand:
 
 @pytest.fixture
 def mock_executor_factory():
-    """Mocks the ExecutorFactory to return a mock executor."""
+    """Mocks ExecutorFactory to prevent real orchestration."""
     with patch("render_tag.cli.stages.execution_stage.ExecutorFactory") as mock_factory:
         mock_executor = MagicMock()
+        from render_tag.orchestration.result import (
+            ExecutionTimings,
+            JobMetadata,
+            OrchestrationResult,
+        )
+
+        mock_executor.execute.return_value = OrchestrationResult(
+            timings=ExecutionTimings(total_duration_s=1.23),
+            metadata=JobMetadata(job_spec_hash="hash", env_state_hash="env_hash"),
+        )
         mock_factory.get_executor.return_value = mock_executor
         yield mock_factory, mock_executor
 

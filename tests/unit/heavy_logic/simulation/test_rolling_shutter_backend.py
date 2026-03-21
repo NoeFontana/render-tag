@@ -17,11 +17,13 @@ def test_setup_sensor_dynamics_rolling_shutter():
     mock_bproc = MagicMock()
 
     pose_matrix = np.eye(4)
-    dynamics_recipe = {
-        "velocity": [1.0, 0.0, 0.0],
-        "shutter_time_ms": 10.0,
-        "rolling_shutter_duration_ms": 5.0,
-    }
+    from render_tag.core.schema.recipe import SensorDynamicsRecipe
+
+    dynamics_recipe = SensorDynamicsRecipe(
+        velocity=[1.0, 0.0, 0.0],
+        shutter_time_ms=10.0,
+        rolling_shutter_duration_ms=5.0,
+    )
 
     with (
         patch("render_tag.backend.bridge.bridge.bpy", mock_bpy),
@@ -41,7 +43,9 @@ def test_setup_sensor_dynamics_eevee_warning():
     mock_bpy.context.scene.render.engine = "BLENDER_EEVEE"
 
     pose_matrix = np.eye(4)
-    dynamics_recipe = {"rolling_shutter_duration_ms": 5.0}
+    from render_tag.core.schema.recipe import SensorDynamicsRecipe
+
+    dynamics_recipe = SensorDynamicsRecipe(rolling_shutter_duration_ms=5.0)
 
     with (
         patch("render_tag.backend.bridge.bridge.bpy", mock_bpy),
