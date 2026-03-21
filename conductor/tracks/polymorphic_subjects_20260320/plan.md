@@ -29,15 +29,15 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 2: Refactor Concrete Builders' (Protocol in workflow.md) ae14af5
 
 
-## Phase 3: Engine Integration & Decoupling
-- [ ] Task: Refactor `RenderFacade.spawn_objects`
-    - [ ] Modify `src/render_tag/backend/engine.py` to use the `AssetRegistry`.
-    - [ ] Replace the monolithic loop with a lookup and `.build()` call.
-    - [ ] Ensure that \"Fail Hard\" behavior is implemented for missing builders.
-- [ ] Task: Verify Integration
-    - [ ] Run full scene generation to ensure objects are still spawned correctly.
-    - [ ] Run integration tests (`tests/integration/test_integration.py`).
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: Engine Integration & Decoupling' (Protocol in workflow.md)
+## Phase 3: Engine Integration & Decoupling [checkpoint: 640d263]
+- [x] Task: Refactor `RenderFacade.spawn_objects` 640d263
+    - [x] Modify `src/render_tag/backend/engine.py` to use the `AssetRegistry`.
+    - [x] Replace the monolithic loop with a lookup and `.build()` call.
+    - [x] Ensure that \"Fail Hard\" behavior is implemented for missing builders.
+- [x] Task: Verify Integration 640d263
+    - [x] Run full scene generation to ensure objects are still spawned correctly.
+    - [x] Run integration tests (`tests/integration/test_integration.py`).
+- [x] Task: Conductor - User Manual Verification 'Phase 3: Engine Integration & Decoupling' (Protocol in workflow.md) 640d263
 
 ## Phase 4: Validation & Quality Gates
 - [ ] Task: Verify Auto-Discovery
