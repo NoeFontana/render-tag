@@ -1,7 +1,7 @@
 # Implementation Plan: Asynchronous Heartbeat Mechanism
 
 ## Phase 1: Immutable State Schema and Worker Thread
-- [ ] Task: Define the `WorkerSnapshot` Immutable Schema
+- [x] Task: Define the `WorkerSnapshot` Immutable Schema fb3eb4b
     - [ ] Create a frozen dataclass or Pydantic model for `WorkerSnapshot`.
     - [ ] Update `Telemetry` schema to support the new metrics (Object Count, CPU).
 - [ ] Task: Implement the Telemetry Emission Thread
