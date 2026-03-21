@@ -14,13 +14,13 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Immutable State Schema and Worker Thread' (Protocol in workflow.md) c05b263
 
 ## Phase 2: Health Monitor and Ingestion Logic
-- [ ] Task: Create the `HealthMonitor` Component
+- [x] Task: Create the `HealthMonitor` Component 4d4191c
     - [ ] Implement `src/render_tag/orchestration/monitor.py`.
     - [ ] Design the lock-free `registry` using atomic dictionary updates.
-- [ ] Task: Implement the ZMQ SUB Ingestion Loop
+- [x] Task: Implement the ZMQ SUB Ingestion Loop 4d4191c
     - [ ] Create a background ingestion thread that updates the registry on $O(1)$ lookup.
     - [ ] Ensure the `SUB` socket correctly handles the multi-worker topic tagging.
-- [ ] Task: Write Unit Tests for `HealthMonitor`
+- [x] Task: Write Unit Tests for `HealthMonitor` 9c4f4b9
     - [ ] Verify thread-safe state ingestion under high frequency.
     - [ ] Test the lock-free read path.
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Health Monitor and Ingestion Logic' (Protocol in workflow.md)
