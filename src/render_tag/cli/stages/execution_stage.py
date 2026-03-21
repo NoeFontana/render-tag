@@ -3,6 +3,7 @@ Execution stage for the generation pipeline.
 """
 
 import subprocess
+import sys
 
 import typer
 
@@ -64,7 +65,6 @@ class ExecutionStage(PipelineStage):
                 # but the protocol says CLI layer executes sys.exit if result indicates failure.
                 # Pipeline.run() might handle the exit? 
                 # Let's check Pipeline.run()
-                import sys
                 sys.exit(1)
 
             console.print("\n[bold green]✓ Parallel generation complete![/bold green]")
@@ -97,7 +97,6 @@ class ExecutionStage(PipelineStage):
             
             if result.failed_count > 0:
                 console.print("\n[bold red]✕ Dataset generation failed with errors.[/bold red]")
-                import sys
                 sys.exit(1)
 
             console.print("\n[bold green]✓ Dataset generated successfully![/bold green]")
