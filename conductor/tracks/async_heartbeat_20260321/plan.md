@@ -26,11 +26,11 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 2: Health Monitor and Ingestion Logic' (Protocol in workflow.md) 9a11134
 
 ## Phase 3: Orchestrator Integration and Hot-Loop Decoupling
-- [ ] Task: Decouple `UnifiedWorkerOrchestrator` from Network Health Checks
+- [x] Task: Decouple `UnifiedWorkerOrchestrator` from Network Health Checks d5ea916
     - [ ] Inject `HealthMonitor` into `UnifiedWorkerOrchestrator`.
     - [ ] Refactor `_check_worker_health` to use the local registry.
     - [ ] Remove synchronous `CommandType.STATUS` calls from the critical path.
-- [ ] Task: Write Integration Tests for Decoupled Hot Loop
+- [x] Task: Write Integration Tests for Decoupled Hot Loop 0ced4cb
     - [ ] Benchmark `_check_worker_health` latency.
     - [ ] Ensure workers are correctly released and returned to the queue based on local state.
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: Orchestrator Integration and Hot-Loop Decoupling' (Protocol in workflow.md)
