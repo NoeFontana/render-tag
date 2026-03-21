@@ -38,8 +38,8 @@
     - [ ] Ensure that a failed run returns a non-zero exit code to the shell.
 - [x] Task: Conductor - User Manual Verification 'Phase 3: Push Side-Effects to the Outer Shell (CLI)' (Protocol in workflow.md) 4f3dc30
 
-## Phase 4: Final Validation and Quality Gates
-- [ ] Task: Verify End-to-End Metrics and Type Safety
-    - [ ] Run a full generation job and verify the accuracy of the reported metrics.
-    - [ ] Perform a final type check using `ty check` on the modified modules.
-- [ ] Task: Conductor - User Manual Verification 'Phase 4: Final Validation and Quality Gates' (Protocol in workflow.md)
+## Phase 4: Final Validation and Quality Gates [checkpoint: 4f3dc30]
+- [x] Task: Verify End-to-End Metrics and Type Safety 4f3dc30
+    - [x] Run a full generation job and verify the accuracy of the reported metrics.
+    - [x] Perform a final type check using `ty check` on the modified modules.
+- [x] Task: Conductor - User Manual Verification 'Phase 4: Final Validation and Quality Gates' (Protocol in workflow.md) 4f3dc30
