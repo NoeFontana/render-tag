@@ -30,6 +30,7 @@ Procedural 3D data generation for AprilTag training (Offline).
 - **Automated Auditor ("Watchdog"):** Programmatic tagging of anomalous samples (e.g., out-of-bounds, overlapping tags, scale drift) to ensure dataset integrity before model training.
 - **Parametric Resolution Benchmarking:** CLI overrides and CI/CD pipelines enable generating dynamic benchmark datasets across standard hardware resolutions (VGA, 720p, 1080p, 4K) to systematically evaluate optical and tracking algorithms.
 - **Managed Assets:** Single Source of Truth (SSoT) for HDRIs, textures, and models via Hugging Face, ensuring zero-config onboarding and deterministic results across environments.
+- **Asynchronous Health Monitoring & Observability:** Decoupled worker telemetry via a dedicated PUB/SUB plane, eliminating pipeline stalls during health checks. Provides a high-fidelity NDJSON time-series of RAM, VRAM, and CPU metrics for every active worker, enabling deep post-mortem performance analysis.
 
 ## Supported Environments
 - **Controlled Indoor:** Lab and office settings with consistent lighting for baseline testing.
