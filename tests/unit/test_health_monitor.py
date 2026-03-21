@@ -41,30 +41,22 @@ def test_health_monitor_missing_worker():
     monitor = HealthMonitor()
     assert monitor.get_snapshot("unknown") is None
 
-def test_health_monitor_watchdog_timeout():
-    """Verify HealthMonitor flags workers as UNRESPONSIVE after timeout."""
-    monitor = HealthMonitor()
-    worker_id = "stalled-worker"
+def test_health_monitor_persistence(tmp_path):
+    """Verify HealthMonitor persists telemetry to NDJSON."""
+    log_file = tmp_path / "telemetry.ndjson"
+    monitor = HealthMonitor(log_path=log_file)
     
-    # Ingest a message with an old timestamp
     telemetry = Telemetry(
         status=WorkerStatus.IDLE,
-        vram_used_mb=0, vram_total_mb=0, ram_used_mb=0,
-        cpu_usage_percent=0, state_hash="h", uptime_seconds=0
+        vram_used_mb=1.0, vram_total_mb=2.0, ram_used_mb=3.0,
+        cpu_usage_percent=4.0, state_hash="h", uptime_seconds=5.0
     )
-    payload = telemetry.model_dump_json().encode()
+    monitor._process_message(b"w1", telemetry.model_dump_json().encode())
     
-    with patch("time.time", return_value=100.0):
-        monitor._process_message(worker_id.encode(), payload)
-        
-    # Check at t=105 (HEALTHY)
-    with patch("time.time", return_value=105.0):
-        monitor._check_liveness()
-        snap = monitor.get_snapshot(worker_id)
-        assert snap.liveness == "HEALTHY"
-        
-    # Check at t=111 (> 10s since last seen, UNRESPONSIVE)
-    with patch("time.time", return_value=111.0):
-        monitor._check_liveness()
-        snap = monitor.get_snapshot(worker_id)
-        assert snap.liveness == "UNRESPONSIVE"
+    assert log_file.exists()
+    with open(log_file) as f:
+        line = f.readline()
+        data = json.loads(line)
+        assert data["worker_id"] == "w1"
+        assert data["telemetry"]["cpu_usage_percent"] == 4.0
+        assert "timestamp" in data

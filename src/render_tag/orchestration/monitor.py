@@ -1,6 +1,8 @@
 
+import json
 import threading
 import time
+from pathlib import Path
 from typing import Dict, Optional
 
 import zmq
@@ -19,8 +21,9 @@ class HealthMonitor:
     atomic dictionary updates for lock-free reads.
     """
 
-    def __init__(self, ports: Optional[list[int]] = None):
+    def __init__(self, ports: Optional[list[int]] = None, log_path: Optional[Path] = None):
         self.ports = ports or []
+        self.log_path = log_path
         self._registry: Dict[str, WorkerSnapshot] = {}
         self._lock = threading.Lock() # Only used for structural changes to the monitor itself
         
@@ -35,6 +38,22 @@ class HealthMonitor:
         
         # Subscribe to all topics
         self.socket.subscribe(b"")
+
+    def _persist_telemetry(self, worker_id: str, telemetry: Telemetry):
+        """Writes telemetry to NDJSON log file."""
+        if not self.log_path:
+            return
+            
+        try:
+            entry = {
+                "timestamp": time.time(),
+                "worker_id": worker_id,
+                "telemetry": telemetry.model_dump()
+            }
+            with open(self.log_path, "a") as f:
+                f.write(json.dumps(entry) + "\n")
+        except Exception as e:
+            logger.error(f"Failed to persist telemetry: {e}")
 
     def _process_message(self, topic: bytes, payload: bytes):
         """Processes a single telemetry message and updates the registry."""
@@ -51,6 +70,9 @@ class HealthMonitor:
             
             # Atomic dictionary update in CPython
             self._registry[worker_id] = snapshot
+            
+            # Persist to log file
+            self._persist_telemetry(worker_id, telemetry)
         except (ValidationError, UnicodeDecodeError) as e:
             logger.error(f"Failed to parse telemetry from {topic!r}: {e}")
         except Exception as e:

@@ -207,7 +207,8 @@ class UnifiedWorkerOrchestrator:
                 try:
                     # Start Health Monitor
                     telemetry_ports = [current_base_port + i + 1000 for i in range(self.num_workers)]
-                    self.monitor = HealthMonitor(ports=telemetry_ports)
+                    log_path = output_dir / "telemetry.ndjson"
+                    self.monitor = HealthMonitor(ports=telemetry_ports, log_path=log_path)
                     self.monitor.start()
 
                     for i in range(self.num_workers):
