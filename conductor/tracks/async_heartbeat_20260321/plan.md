@@ -36,13 +36,13 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 3: Orchestrator Integration and Hot-Loop Decoupling' (Protocol in workflow.md) 4def28a
 
 ## Phase 4: Watchdog Protocol and Persistence
-- [ ] Task: Implement the Watchdog Sweep
+- [x] Task: Implement the Watchdog Sweep bf9e209
     - [ ] Add a periodic sweep to `HealthMonitor` to flag `UNRESPONSIVE` workers.
     - [ ] Integrate with the orchestrator's reaper logic.
-- [ ] Task: Implement Telemetry Persistence
+- [x] Task: Implement Telemetry Persistence e417b10
     - [ ] Add NDJSON logging to the `HealthMonitor`.
     - [ ] Ensure logs are written to the job output directory.
-- [ ] Task: Write Regression and Stress Tests
+- [x] Task: Write Regression and Stress Tests f7ae365
     - [ ] Simulate worker crashes and verify Watchdog detection.
     - [ ] Verify data integrity of `telemetry.ndjson`.
 - [ ] Task: Conductor - User Manual Verification 'Phase 4: Watchdog Protocol and Persistence' (Protocol in workflow.md)
