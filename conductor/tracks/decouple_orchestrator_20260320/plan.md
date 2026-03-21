@@ -24,7 +24,7 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 2: Excise Presentation Logic from Orchestrator' (Protocol in workflow.md) 10c04af
 
 ## Phase 3: Push Side-Effects to the Outer Shell (CLI)
-- [ ] Task: Implement Plug-and-Play Reporter Strategy
+- [x] Task: Implement Plug-and-Play Reporter Strategy ea1567e
     - [ ] Create `src/render_tag/cli/reporters.py`.
     - [ ] Define a `BaseReporter` interface (Protocol).
     - [ ] Implement `RichTerminalReporter` using existing `rich` logic.
