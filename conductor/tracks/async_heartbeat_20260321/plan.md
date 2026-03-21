@@ -8,7 +8,7 @@
     - [ ] Create `src/render_tag/backend/telemetry.py` containing the emission logic.
     - [ ] Implement the `poll_metrics()` function using `psutil` and Blender APIs.
     - [ ] Update `scripts/worker_bootstrap.py` to spawn the daemon thread.
-- [ ] Task: Write Tests for Telemetry Emission
+- [x] Task: Write Tests for Telemetry Emission 0231672
     - [ ] Verify that heartbeats are emitted at the correct interval.
     - [ ] Mock ZMQ PUB to ensure the payload format is correct.
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Immutable State Schema and Worker Thread' (Protocol in workflow.md)
