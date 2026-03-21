@@ -1,8 +1,0 @@
-{
-  "track_id": "polymorphic_subjects_20260320",
-  "type": "feature",
-  "status": "new",
-  "created_at": "2026-03-20T10:00:00Z",
-  "updated_at": "2026-03-20T10:00:00Z",
-  "description": "Polymorphic Subject Architecture: Refactor engine to use decoupled AssetBuilders for TAGs, BOARDs, etc."
-}
