@@ -21,7 +21,7 @@ class TagBuilder:
         
         # Robustly handle material config
         mat_cfg = recipe.material
-        if hasattr(mat_cfg, "model_dump"):
+        if mat_cfg and hasattr(mat_cfg, "model_dump"):
             # Use Any to satisfy type checker for dynamic model_dump call
             from typing import cast
             mat_cfg = cast(Any, mat_cfg).model_dump()

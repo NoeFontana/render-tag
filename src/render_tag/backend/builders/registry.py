@@ -12,10 +12,16 @@ class AssetRegistry:
     """Registry for AssetBuilders, mapping subject types to their builders."""
     
     def __init__(self):
+        """Initializes an empty registry of builders."""
         self._builders: dict[str, AssetBuilder] = {}
 
     def register(self, object_type: str, builder: AssetBuilder) -> None:
-        """Explicitly register a builder instance for a type."""
+        """Explicitly register a builder instance for a type.
+        
+        Args:
+            object_type: The subject type identifier (e.g., 'TAG').
+            builder: An instance implementing the AssetBuilder protocol.
+        """
         self._builders[object_type.upper()] = builder
 
     def get_builder(self, object_type: str) -> AssetBuilder:
@@ -34,7 +40,15 @@ class AssetRegistry:
 default_registry = AssetRegistry()
 
 def register_builder(object_type: str, registry: AssetRegistry | None = None) -> Callable[[T], T]:
-    """Decorator to automatically register a builder class."""
+    """Decorator to automatically register a builder class.
+    
+    Args:
+        object_type: The subject type identifier to register (e.g., 'TAG').
+        registry: Optional registry instance to use. Defaults to global registry.
+        
+    Returns:
+        A decorator that instantiates and registers the builder class.
+    """
     target_registry = registry or default_registry
 
     def decorator(cls: T) -> T:
