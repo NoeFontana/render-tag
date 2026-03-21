@@ -4,7 +4,7 @@
 - [x] Task: Define the `WorkerSnapshot` Immutable Schema fb3eb4b
     - [ ] Create a frozen dataclass or Pydantic model for `WorkerSnapshot`.
     - [ ] Update `Telemetry` schema to support the new metrics (Object Count, CPU).
-- [ ] Task: Implement the Telemetry Emission Thread
+- [x] Task: Implement the Telemetry Emission Thread a449dee
     - [ ] Create `src/render_tag/backend/telemetry.py` containing the emission logic.
     - [ ] Implement the `poll_metrics()` function using `psutil` and Blender APIs.
     - [ ] Update `scripts/worker_bootstrap.py` to spawn the daemon thread.
