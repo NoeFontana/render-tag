@@ -6,7 +6,9 @@ import subprocess
 
 import typer
 
+from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
 from render_tag.cli.pipeline import GenerationContext, PipelineStage
+from render_tag.cli.reporters import RichTerminalReporter
 from render_tag.cli.tools import check_blenderproc_installed, check_orchestration_installed, console
 from render_tag.orchestration import ExecutorFactory, orchestrate
 
@@ -26,14 +28,45 @@ class ExecutionStage(PipelineStage):
         # Local Parallel Manager Mode
         if ctx.workers > 1 and ctx.total_shards == 1:
             console.print(f"[bold]Running Local Parallel Manager ({ctx.workers} workers)[/bold]")
-            orchestrate(
-                job_spec=ctx.job_spec,
-                workers=ctx.workers,
-                executor_type=ctx.executor_type,
-                resume=ctx.resume,
-                batch_size=ctx.batch_size,
-                verbose=ctx.verbose,
-            )
+            
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                BarColumn(),
+                TaskProgressColumn(),
+                console=console,
+            ) as progress:
+                task = progress.add_task("Rendering...", total=None)
+                
+                def progress_cb(inc, total):
+                    if total:
+                        progress.update(task, total=total)
+                    if inc:
+                        progress.advance(task, inc)
+
+                result = orchestrate(
+                    job_spec=ctx.job_spec,
+                    workers=ctx.workers,
+                    executor_type=ctx.executor_type,
+                    resume=ctx.resume,
+                    batch_size=ctx.batch_size,
+                    verbose=ctx.verbose,
+                    progress_cb=progress_cb
+                )
+            
+            # Report results
+            reporter = RichTerminalReporter(console=console)
+            reporter.report(result)
+            
+            if result.failed_count > 0:
+                console.print("\n[bold red]✕ Parallel generation failed with errors.[/bold red]")
+                # We don't exit immediately here if we want FinalizationStage to run, 
+                # but the protocol says CLI layer executes sys.exit if result indicates failure.
+                # Pipeline.run() might handle the exit? 
+                # Let's check Pipeline.run()
+                import sys
+                sys.exit(1)
+
             console.print("\n[bold green]✓ Parallel generation complete![/bold green]")
             return
 
@@ -52,11 +85,21 @@ class ExecutionStage(PipelineStage):
         # Standard Sharded Execution
         try:
             executor = ExecutorFactory.get_executor(ctx.executor_type)
-            executor.execute(
+            result = executor.execute(
                 job_spec=ctx.job_spec,
                 shard_id=str(ctx.shard_index),
                 verbose=ctx.verbose,
             )
+            
+            # Report results
+            reporter = RichTerminalReporter(console=console)
+            reporter.report(result)
+            
+            if result.failed_count > 0:
+                console.print("\n[bold red]✕ Dataset generation failed with errors.[/bold red]")
+                import sys
+                sys.exit(1)
+
             console.print("\n[bold green]✓ Dataset generated successfully![/bold green]")
             self._finalize_results(ctx)
 
