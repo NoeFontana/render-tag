@@ -25,16 +25,16 @@
 
 ## Phase 3: Push Side-Effects to the Outer Shell (CLI)
 - [x] Task: Implement Plug-and-Play Reporter Strategy ea1567e
-    - [ ] Create `src/render_tag/cli/reporters.py`.
-    - [ ] Define a `BaseReporter` interface (Protocol).
-    - [ ] Implement `RichTerminalReporter` using existing `rich` logic.
-    - [ ] Implement `JsonFileReporter` for headless environments.
-- [ ] Task: Refactor CLI Entry Points
-    - [ ] Update `src/render_tag/cli/main.py` (or relevant commands) to invoke the orchestrator.
-    - [ ] Pass a reporter instance to the orchestrator (or handle progress via callbacks).
-    - [ ] Execute `sys.exit(1)` at the CLI layer only if the result indicates critical failure.
-- [ ] Task: Write Integration Tests for CLI and Orchestrator
-    - [ ] Verify that the CLI correctly presents results from a successful and failed run.
+    - [x] Create `src/render_tag/cli/reporters.py`.
+    - [x] Define a `BaseReporter` interface (Protocol).
+    - [x] Implement `RichTerminalReporter` using existing `rich` logic.
+    - [x] Implement `JsonFileReporter` for headless environments.
+- [x] Task: Refactor CLI Entry Points df740c8
+    - [x] Update `src/render_tag/cli/main.py` (or relevant commands) to invoke the orchestrator.
+    - [x] Pass a reporter instance to the orchestrator (or handle progress via callbacks).
+    - [x] Execute `sys.exit(1)` at the CLI layer only if the result indicates critical failure.
+- [x] Task: Write Integration Tests for CLI and Orchestrator df740c8
+    - [x] Verify that the CLI correctly presents results from a successful and failed run.
     - [ ] Ensure that a failed run returns a non-zero exit code to the shell.
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: Push Side-Effects to the Outer Shell (CLI)' (Protocol in workflow.md)
 
