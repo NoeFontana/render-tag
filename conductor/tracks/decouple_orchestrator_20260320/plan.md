@@ -23,7 +23,7 @@
     - [x] Verify that `orchestrate()` returns a complete result object without process side-effects.
 - [x] Task: Conductor - User Manual Verification 'Phase 2: Excise Presentation Logic from Orchestrator' (Protocol in workflow.md) 10c04af
 
-## Phase 3: Push Side-Effects to the Outer Shell (CLI)
+## Phase 3: Push Side-Effects to the Outer Shell (CLI) [checkpoint: 4f3dc30]
 - [x] Task: Implement Plug-and-Play Reporter Strategy ea1567e
     - [x] Create `src/render_tag/cli/reporters.py`.
     - [x] Define a `BaseReporter` interface (Protocol).
@@ -36,7 +36,7 @@
 - [x] Task: Write Integration Tests for CLI and Orchestrator df740c8
     - [x] Verify that the CLI correctly presents results from a successful and failed run.
     - [ ] Ensure that a failed run returns a non-zero exit code to the shell.
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: Push Side-Effects to the Outer Shell (CLI)' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 3: Push Side-Effects to the Outer Shell (CLI)' (Protocol in workflow.md) 4f3dc30
 
 ## Phase 4: Final Validation and Quality Gates
 - [ ] Task: Verify End-to-End Metrics and Type Safety
