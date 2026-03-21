@@ -35,7 +35,7 @@
     - [ ] Ensure workers are correctly released and returned to the queue based on local state.
 - [x] Task: Conductor - User Manual Verification 'Phase 3: Orchestrator Integration and Hot-Loop Decoupling' (Protocol in workflow.md) 4def28a
 
-## Phase 4: Watchdog Protocol and Persistence
+## Phase 4: Watchdog Protocol and Persistence [checkpoint: b8edb97]
 - [x] Task: Implement the Watchdog Sweep bf9e209
     - [ ] Add a periodic sweep to `HealthMonitor` to flag `UNRESPONSIVE` workers.
     - [ ] Integrate with the orchestrator's reaper logic.
@@ -45,4 +45,4 @@
 - [x] Task: Write Regression and Stress Tests f7ae365
     - [ ] Simulate worker crashes and verify Watchdog detection.
     - [ ] Verify data integrity of `telemetry.ndjson`.
-- [ ] Task: Conductor - User Manual Verification 'Phase 4: Watchdog Protocol and Persistence' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 4: Watchdog Protocol and Persistence' (Protocol in workflow.md) b8edb97
