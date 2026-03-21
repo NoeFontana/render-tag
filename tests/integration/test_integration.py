@@ -99,8 +99,6 @@ physics:
         )
 
         # 1. Check command succeeded
-        if result.returncode != 0:
-            print(result.stdout)
         assert result.returncode == 0, f"Generation failed: {result.stderr}"
 
         # 2. Check output structure

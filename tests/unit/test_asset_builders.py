@@ -77,7 +77,8 @@ def test_tag_builder_integration():
     )
     
     mock_tag_obj = MagicMock()
-    mock_tag_obj.blender_obj = {}
+    # Mock blender_obj to support attribute access for pass_index
+    mock_tag_obj.blender_obj = MagicMock()
     
     patch_path = "render_tag.backend.builders.tag_builder.create_tag_plane"
     with patch(patch_path, return_value=mock_tag_obj) as mock_create:
@@ -95,9 +96,10 @@ def test_tag_builder_integration():
         # Verify object setup
         mock_tag_obj.set_location.assert_called_once_with([1.0, 2.0, 3.0])
         mock_tag_obj.set_rotation_euler.assert_called_once_with([0.1, 0.2, 0.3])
-        assert mock_tag_obj.blender_obj["pass_index"] == 43
-        assert mock_tag_obj.blender_obj["keypoints_3d"] == [[0,0,0]]
-        assert mock_tag_obj.blender_obj["forward_axis"] == [0,0,1,0]
+        assert mock_tag_obj.blender_obj.pass_index == 43
+        # Check dict access for metadata
+        mock_tag_obj.blender_obj.__setitem__.assert_any_call("keypoints_3d", [[0,0,0]])
+        mock_tag_obj.blender_obj.__setitem__.assert_any_call("forward_axis", [0,0,1,0])
         assert assets == [mock_tag_obj]
 
 def test_board_builder_hi_fi():
@@ -152,7 +154,12 @@ def test_board_builder_legacy():
         assets = builder.build(recipe)
         
         mock_create.assert_called_once_with(
-            3, 3, 0.08, "tag36h11", None, material_config=None
+            cols=3,
+            rows=3,
+            square_size=0.1,
+            layout_mode="tag36h11",
+            location=[0.0, 0.0, 0.0],
+            material_config=None
         )
         assert assets == [mock_board_obj]
 

@@ -16,7 +16,8 @@ from typing import Any, Protocol, runtime_checkable
 
 from PIL import Image
 
-from render_tag.backend.assets import create_tag_plane, global_pool
+from render_tag.backend.assets import global_pool
+from render_tag.backend.builders.registry import default_registry
 from render_tag.backend.bridge import bridge
 from render_tag.backend.camera import set_camera_intrinsics, setup_sensor_dynamics
 from render_tag.backend.projection import generate_board_records, generate_subject_records
@@ -202,9 +203,9 @@ class RenderFacade:
         setup_lighting(world_recipe.lights)
 
 
-    def spawn_objects(self, object_recipes: list[ObjectRecipe]):
-        """Creates subjects (tags, boards, etc.) using generic primitives.
-
+    def spawn_objects(self, object_recipes: list[ObjectRecipe]) -> list[Any]:
+        """Creates subjects (tags, boards, etc.) using decoupled AssetBuilders.
+        
         This method implements Scene Graph Deduplication: if a BOARD with a
         composite texture is present, it suppresses the generation of individual
         TAG objects that would otherwise cause Z-fighting.
@@ -217,97 +218,17 @@ class RenderFacade:
         )
 
         for obj_recipe in object_recipes:
-            obj_type = obj_recipe.type
-
             # Suppress individual TAGs if a composite BOARD is handling the rendering
-            if obj_type == "TAG" and has_composite_board:
+            if obj_recipe.type == "TAG" and has_composite_board:
                 continue
 
-            location = obj_recipe.location
-            rotation = obj_recipe.rotation_euler
-            scale = obj_recipe.scale
-            texture_path = obj_recipe.texture_path
-            keypoints_3d = obj_recipe.keypoints_3d
-            calibration_points_3d = obj_recipe.calibration_points_3d
-            forward_axis = obj_recipe.forward_axis
+            try:
+                assets = default_registry.build_object(obj_recipe)
+                tag_objects.extend(assets)
+            except KeyError as e:
+                self.logger.critical(f"FATAL: Missing builder for subject type: {obj_recipe.type}")
+                raise e
 
-            if obj_type == "TAG":
-                props = obj_recipe.properties
-                tag_obj = create_tag_plane(
-                    props["tag_size"],
-                    Path(texture_path) if texture_path else None,
-                    props["tag_family"],
-                    tag_id=props["tag_id"],
-                    margin_bits=props.get("margin_bits", 0),
-                    material_config=obj_recipe.material,
-                )
-                tag_obj.blender_obj.pass_index = props["tag_id"] + 1
-                tag_obj.set_location(location)
-                if rotation:
-                    tag_obj.set_rotation_euler(rotation)
-
-                # Attach metadata
-                if keypoints_3d:
-                    tag_obj.blender_obj["keypoints_3d"] = keypoints_3d
-                if forward_axis:
-                    tag_obj.blender_obj["forward_axis"] = forward_axis
-                tag_obj.blender_obj["tag_id"] = props["tag_id"]
-                tag_obj.blender_obj["tag_family"] = props["tag_family"]
-                tag_obj.blender_obj["type"] = "TAG"
-
-                tag_objects.append(tag_obj)
-
-            elif obj_type == "BOARD":
-                board_cfg = obj_recipe.board
-                if texture_path and board_cfg:
-                    # Generic High-Fidelity Subject Path (Single Plane)
-                    width = scale[0]
-                    height = scale[1]
-
-                    # Note: compiler.py currently sets scale=[1,1,1] and expects create_board_plane
-                    # to handle dimensions via width/height params.
-                    # We'll stick to compiler's logic for now.
-                    cols, rows = board_cfg.cols, board_cfg.rows
-                    ms = board_cfg.marker_size
-                    if board_cfg.type == "aprilgrid":
-                        sqs = ms * (1.0 + getattr(board_cfg, "spacing_ratio", 0.0))
-                    else:
-                        sqs = getattr(board_cfg, "square_size", ms)
-                    width, height = sqs * cols, sqs * rows
-
-                    board_obj = create_board_plane(
-                        width=width,
-                        height=height,
-                        texture_path=texture_path,
-                        location=location,
-                        rotation_euler=rotation,
-                    )
-                    board_obj.blender_obj["tag_family"] = "calibration_board"
-
-                    board_obj.blender_obj["board"] = board_cfg.model_dump_json()
-                    board_obj.blender_obj["type"] = "BOARD"
-                else:
-                    # Legacy or procedural board
-                    props = obj_recipe.properties
-                    board_obj = create_board(
-                        props.get("cols", 3),
-                        props.get("rows", 3),
-                        props.get("square_size", 0.1),
-                        props.get("mode", "plain"),
-                        location=location,
-                    )
-                    board_obj.blender_obj["tag_family"] = "legacy_board"
-                    if rotation:
-                        board_obj.set_rotation_euler(rotation)
-
-                if keypoints_3d:
-                    board_obj.blender_obj["keypoints_3d"] = keypoints_3d
-                if calibration_points_3d:
-                    board_obj.blender_obj["calibration_points_3d"] = calibration_points_3d
-                if forward_axis:
-                    board_obj.blender_obj["forward_axis"] = forward_axis
-
-                tag_objects.append(board_obj)
         return tag_objects
 
     def render_camera(self, camera_recipe: CameraRecipe) -> dict[str, Any]:
