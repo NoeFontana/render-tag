@@ -41,6 +41,7 @@ from render_tag.core.schema.hot_loop import (
 )
 from render_tag.core.schema.job import JobSpec
 from render_tag.core.utils import is_port_in_use
+from render_tag.orchestration.monitor import HealthMonitor
 from render_tag.orchestration.result import (
     ErrorRecord,
     ExecutionTimings,
@@ -115,6 +116,7 @@ class UnifiedWorkerOrchestrator:
         self.context = zmq.Context() if zmq else None
         self.thread_budget = get_thread_budget(num_workers=self.config.num_workers)
         self.workers, self.worker_queue = [], queue.Queue()
+        self.monitor: HealthMonitor | None = None
         self.auditor = TelemetryAuditor()
         self._lock, self.running = threading.Lock(), False
         self._resource_stack = ResourceStack()
@@ -203,6 +205,11 @@ class UnifiedWorkerOrchestrator:
 
             with ResourceStack() as attempt_stack:
                 try:
+                    # Start Health Monitor
+                    telemetry_ports = [current_base_port + i + 1000 for i in range(self.num_workers)]
+                    self.monitor = HealthMonitor(ports=telemetry_ports)
+                    self.monitor.start()
+
                     for i in range(self.num_workers):
                         unique_shard_id = f"{i}_{uuid.uuid4().hex[:6]}"
                         worker = PersistentWorkerProcess(
@@ -222,15 +229,8 @@ class UnifiedWorkerOrchestrator:
                         )
                         worker.start()
 
-                        # Record initial telemetry
-                        try:
-                            resp = worker.send_command(CommandType.STATUS, timeout_ms=1000)
-                            if resp.status == ResponseStatus.SUCCESS and resp.data:
-                                self.auditor.add_entry(worker.worker_id, Telemetry(**resp.data))
-                        except Exception:
-                            pass
-
                         attempt_stack.push_resource(worker)
+
                         self.workers.append(worker)
                         self.worker_queue.put(worker)
                     self._resource_stack.enter_context(attempt_stack.pop_all())
@@ -245,6 +245,8 @@ class UnifiedWorkerOrchestrator:
                 return
 
             logger.info("Stopping Orchestrator and shutting down workers...")
+            if self.monitor:
+                self.monitor.stop()
             self._resource_stack.close()
             self.workers.clear()
 
@@ -300,26 +302,26 @@ class UnifiedWorkerOrchestrator:
         should_restart = False
         limit_exceeded = False
 
-        if worker.client:
-            try:
-                resp = worker.send_command(CommandType.STATUS, timeout_ms=2500)
-                if resp.status == ResponseStatus.SUCCESS and resp.data:
-                    telemetry = Telemetry(**resp.data)
-                    self.auditor.add_entry(worker.worker_id, telemetry)
+        if self.monitor:
+            snapshot = self.monitor.get_snapshot(worker.worker_id)
+            if snapshot:
+                telemetry = snapshot.telemetry
+                self.auditor.add_entry(worker.worker_id, telemetry)
 
-                    # Check for memory or VRAM limits
-                    if telemetry.status == WorkerStatus.RESOURCE_LIMIT_EXCEEDED:
-                        limit_exceeded = True
-                        should_restart = True
-                    elif (
-                        not intentional_exit
-                        and self.vram_threshold_mb
-                        and telemetry.vram_used_mb > self.vram_threshold_mb
-                    ):
-                        should_restart = True
-            except (WorkerCommunicationError, OSError, ValueError) as e:
-                if not intentional_exit:
-                    logger.error(f"Telemetry check failed for {worker.worker_id}: {e}")
+                # Check for memory or VRAM limits
+                if telemetry.status == WorkerStatus.RESOURCE_LIMIT_EXCEEDED:
+                    limit_exceeded = True
+                    should_restart = True
+                elif (
+                    not intentional_exit
+                    and self.vram_threshold_mb
+                    and telemetry.vram_used_mb > self.vram_threshold_mb
+                ):
+                    should_restart = True
+            elif not intentional_exit:
+                # No snapshot yet, might be starting up or stalled
+                # We'll trust PersistentWorkerProcess.is_healthy() as fallback
+                pass
 
         if (
             not should_restart
