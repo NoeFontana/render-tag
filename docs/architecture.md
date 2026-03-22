@@ -48,8 +48,6 @@ To avoid the significant overhead of starting Blender for every scene, `render-t
 4.  The **Worker Server** receives the recipe, uses the **BlenderBridge** to access APIs, and renders the scene.
 5.  Blender remains ready for the next recipe without quitting.
 
-This "Hot Loop" improves rendering throughput by **2-5x** for small scenes.
-
 This "Hot Loop" can improve rendering throughput by **2-5x** for small scenes.
 
 ## Rendering Performance (CV-Safe)

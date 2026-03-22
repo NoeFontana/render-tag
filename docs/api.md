@@ -9,4 +9,5 @@ Auto-generated documentation for `render-tag` core modules.
 - `render_tag.orchestration.orchestrator`: Worker pool management and parallel execution.
 - `render_tag.audit.auditor`: Dataset auditing, quality gates, and telemetry analysis.
 - `render_tag.data_io.writers`: Dataset exporters (CSV, COCO, Manifests).
+- `render_tag.data_io.readers`: Dataset reader (`RenderTagDataset`, `CalibrationFrame`) for consuming `rich_truth.json`.
 - `render_tag.backend.engine`: Unified rendering driver (runs inside Blender).
