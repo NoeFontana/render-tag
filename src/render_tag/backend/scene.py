@@ -272,8 +272,11 @@ def _create_board_material(name: str, texture_path: str) -> Any:
     except Exception as e:
         logger.error(f"Failed to load calibration texture {texture_path}: {e}")
 
-    # CRITICAL: Use 'Closest' interpolation to avoid sub-pixel blurring at tag edges
-    tex_image.interpolation = "Closest"
+    # Use Linear interpolation: the texture is high-resolution (default 50 px/mm)
+    # with integer-aligned grid edges, so bilinear filtering preserves the true
+    # edge location while providing smooth gradients for sub-pixel corner refinement
+    # at oblique viewing angles. Nearest-neighbor would stair-step the edges.
+    tex_image.interpolation = "Linear"
     tex_image.extension = "EXTEND"
 
     links.new(tex_image.outputs["Color"], emission.inputs["Color"])
