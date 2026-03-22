@@ -122,6 +122,17 @@ def hydrate_detection(detection: fo.Detection, record: dict[str, Any]) -> None:
         if field in record:
             detection[field] = record[field]
 
+    # Hydrate board_definition for BOARD records
+    board_def = record.get("board_definition")
+    if board_def and isinstance(board_def, dict):
+        detection["board_type"] = board_def.get("type")
+        detection["board_rows"] = board_def.get("rows")
+        detection["board_cols"] = board_def.get("cols")
+        detection["square_size_mm"] = board_def.get("square_size_mm")
+        detection["marker_size_mm"] = board_def.get("marker_size_mm")
+        detection["board_dictionary"] = board_def.get("dictionary")
+        detection["total_keypoints"] = board_def.get("total_keypoints")
+
 
 def map_corners_to_keypoints(
     corners: list[list[float]],
@@ -141,6 +152,52 @@ def map_corners_to_keypoints(
         kps.append(fo.Keypoint(label=str(i), points=[[px, py]]))
 
     return fo.Keypoints(keypoints=kps)
+
+
+def _is_sentinel(pt: list[float] | tuple[float, float]) -> bool:
+    """Check if a keypoint is the out-of-frame sentinel (-1, -1)."""
+    return pt[0] == -1.0 and pt[1] == -1.0
+
+
+def map_calibration_keypoints(
+    keypoints: list[list[float] | tuple[float, float]],
+    width: float,
+    height: float,
+) -> list[fo.Keypoint]:
+    """Map calibration keypoints to FiftyOne Keypoints, filtering sentinels.
+
+    Visible keypoints are labeled with their index. Sentinels are excluded
+    so that FiftyOne renders only the in-frame saddle points.
+    """
+    kps = []
+    for i, pt in enumerate(keypoints):
+        if _is_sentinel(pt):
+            continue
+        px = pt[0] / width
+        py = pt[1] / height
+        kps.append(fo.Keypoint(label=str(i), points=[[px, py]]))
+    return kps
+
+
+def build_calibration_skeleton(rows: int, cols: int) -> fo.KeypointSkeleton:
+    """Build a grid skeleton for calibration saddle points.
+
+    For a ChArUco board with R rows and C cols, there are (R-1)*(C-1)
+    saddle points arranged in a grid. The skeleton connects horizontally
+    adjacent and vertically adjacent points.
+    """
+    inner_rows = rows - 1
+    inner_cols = cols - 1
+    labels = [str(i) for i in range(inner_rows * inner_cols)]
+    edges = []
+    for r in range(inner_rows):
+        for c in range(inner_cols):
+            idx = r * inner_cols + c
+            if c + 1 < inner_cols:
+                edges.append([idx, idx + 1])
+            if r + 1 < inner_rows:
+                edges.append([idx, idx + inner_cols])
+    return fo.KeypointSkeleton(labels=labels, edges=edges)
 
 
 def get_polyline_points(
@@ -332,13 +389,16 @@ def audit_dataset(dataset: fo.Dataset) -> None:
             sample.save()
 
 
-def create_error_view(dataset: fo.Dataset) -> None:
-    """
-    Create a saved view for samples with errors.
-    """
+def create_saved_views(dataset: fo.Dataset) -> None:
+    """Create saved views for anomalies and calibration boards."""
     error_tags = ["ERR_OOB", "ERR_OVERLAP", "ERR_SCALE_DRIFT"]
-    view = dataset.match_tags(error_tags)
-    dataset.save_view("Anomalies", view)
+    error_view = dataset.match_tags(error_tags)
+    dataset.save_view("Anomalies", error_view)
+
+    # Calibration view: samples that have calibration_points
+    cal_view = dataset.exists("calibration_points")
+    if len(cal_view) > 0:
+        dataset.save_view("Calibration Boards", cal_view)
 
 
 def find_active_session() -> fo.Session | None:
@@ -357,6 +417,7 @@ def visualize_fiftyone(
     Main entry point for FiftyOne visualization.
     """
     dataset_name = f"render-tag-{dataset_path.name}"
+    calibration_skeleton_dims: tuple[int, int] | None = None
 
     with Progress(
         SpinnerColumn(),
@@ -391,6 +452,7 @@ def visualize_fiftyone(
 
                 detections = sample.detections.detections
                 new_keypoints = []
+                new_calibration_kps = []
                 new_axis_x = []
                 new_axis_y = []
                 new_axis_z = []
@@ -414,39 +476,57 @@ def visualize_fiftyone(
                         record_type = det.attributes["record_type"]
 
                     record = rich_index.get((img_stem, tag_id, record_type))
-                    if record:
-                        hydrate_detection(det, record)
+                    if not record:
+                        continue
 
-                        if "corners" in record:
-                            pts = get_polyline_points(record["corners"], width, height)
-                            det.segmentation = [pts]
+                    hydrate_detection(det, record)
+                    is_board = record.get("record_type") == "BOARD"
 
-                            # Add explicit Polyline to visually verify the CW winding order contract
-                            new_polygons.append(
-                                fo.Polyline(
-                                    label=str(tag_id),
-                                    points=[pts],
-                                    closed=True,
-                                )
+                    # --- Calibration keypoints for BOARD records ---
+                    if is_board and record.get("keypoints"):
+                        cal_kps = map_calibration_keypoints(record["keypoints"], width, height)
+                        new_calibration_kps.extend(cal_kps)
+
+                        # Track board dimensions for skeleton construction
+                        board_def = record.get("board_definition")
+                        if board_def and calibration_skeleton_dims is None:
+                            bd_rows = board_def.get("rows", 0)
+                            bd_cols = board_def.get("cols", 0)
+                            if bd_rows > 1 and bd_cols > 1:
+                                calibration_skeleton_dims = (bd_rows, bd_cols)
+
+                    # --- Tag corners (skip for BOARD — single center point) ---
+                    if "corners" in record and not is_board:
+                        pts = get_polyline_points(record["corners"], width, height)
+                        det.segmentation = [pts]
+
+                        new_polygons.append(
+                            fo.Polyline(
+                                label=str(tag_id),
+                                points=[pts],
+                                closed=True,
                             )
+                        )
 
-                            kps = map_corners_to_keypoints(record["corners"], width, height)
-                            new_keypoints.extend(kps.keypoints)
+                        kps = map_corners_to_keypoints(record["corners"], width, height)
+                        new_keypoints.extend(kps.keypoints)
 
-                            # 3D Axes Overlay
-                            if "k_matrix" in record and "resolution" in record:
-                                axes = project_tag_axes(
-                                    record,
-                                    k_matrix=record["k_matrix"],
-                                    resolution=record["resolution"],
-                                )
-                                if axes:
-                                    new_axis_x.append(axes["axis_x"])
-                                    new_axis_y.append(axes["axis_y"])
-                                    new_axis_z.append(axes["axis_z"])
+                    # --- 3D Axes Overlay (works for both TAGs and BOARDs) ---
+                    if "k_matrix" in record and "resolution" in record:
+                        axes = project_tag_axes(
+                            record,
+                            k_matrix=record["k_matrix"],
+                            resolution=record["resolution"],
+                        )
+                        if axes:
+                            new_axis_x.append(axes["axis_x"])
+                            new_axis_y.append(axes["axis_y"])
+                            new_axis_z.append(axes["axis_z"])
 
                 if new_keypoints:
                     sample["corners"] = fo.Keypoints(keypoints=new_keypoints)
+                if new_calibration_kps:
+                    sample["calibration_points"] = fo.Keypoints(keypoints=new_calibration_kps)
                 if new_polygons:
                     sample["polygons"] = fo.Polylines(polylines=new_polygons)
                 if new_axis_x:
@@ -462,48 +542,55 @@ def visualize_fiftyone(
         progress.update(task_audit, advance=1)
 
         task_views = progress.add_task("Configuring saved views", total=1)
-        create_error_view(dataset)
+        create_saved_views(dataset)
         progress.update(task_views, advance=1)
 
     # Apply color scheme for axes visualization targeting separate fields
+    color_fields = [
+        {"path": "axis_x", "colorByAttribute": "path", "fieldColor": "#FF0000"},
+        {"path": "axis_y", "colorByAttribute": "path", "fieldColor": "#00FF00"},
+        {"path": "axis_z", "colorByAttribute": "path", "fieldColor": "#0000FF"},
+        {
+            "path": "detections",
+            "colorByAttribute": "record_type",
+            "valueColors": [
+                {"value": "TAG", "color": "#00FF00"},
+                {"value": "BOARD", "color": "#FF00FF"},
+                {"value": "CHARUCO_SADDLE", "color": "#00FFFF"},
+            ],
+        },
+        {
+            "path": "corners",
+            "colorByAttribute": "label",
+            "valueColors": [
+                {"value": "0", "color": "#FF00FF"},
+                {"value": "1", "color": "#00FFFF"},
+                {"value": "2", "color": "#FFFF00"},
+                {"value": "3", "color": "#FFFFFF"},
+            ],
+        },
+        {"path": "calibration_points", "fieldColor": "#FF6600"},
+    ]
+
     color_scheme = fo.ColorScheme(
         multicolor_keypoints=True,
         color_pool=["#FF0000", "#00FF00", "#0000FF", "#000000"],
-        fields=[
-            {"path": "axis_x", "colorByAttribute": "path", "fieldColor": "#FF0000"},
-            {"path": "axis_y", "colorByAttribute": "path", "fieldColor": "#00FF00"},
-            {"path": "axis_z", "colorByAttribute": "path", "fieldColor": "#0000FF"},
-            {
-                "path": "detections",
-                "colorByAttribute": "record_type",
-                "valueColors": [
-                    {"value": "TAG", "color": "#00FF00"},
-                    {"value": "BOARD", "color": "#FF00FF"},
-                    {"value": "CHARUCO_SADDLE", "color": "#00FFFF"},
-                ],
-            },
-            {
-                "path": "corners",
-                "colorByAttribute": "label",
-                "valueColors": [
-                    {"value": "0", "color": "#FF00FF"},
-                    {"value": "1", "color": "#00FFFF"},
-                    {"value": "2", "color": "#FFFF00"},
-                    {"value": "3", "color": "#FFFFFF"},
-                ],
-            },
-        ],
+        fields=color_fields,
     )
     dataset.app_config.color_scheme = color_scheme
 
     # Render edges connecting the corners to visualize the Clockwise (CW) winding order
-    dataset.skeletons.update(
-        {
-            "corners": fo.KeypointSkeleton(
-                labels=["0", "1", "2", "3"], edges=[[0, 1], [1, 2], [2, 3], [3, 0]]
-            )
-        }
-    )
+    skeletons = {
+        "corners": fo.KeypointSkeleton(
+            labels=["0", "1", "2", "3"], edges=[[0, 1], [1, 2], [2, 3], [3, 0]]
+        ),
+    }
+
+    # Add calibration grid skeleton if board dimensions were found
+    if calibration_skeleton_dims is not None:
+        skeletons["calibration_points"] = build_calibration_skeleton(*calibration_skeleton_dims)
+
+    dataset.skeletons.update(skeletons)
 
     dataset.save()
 
