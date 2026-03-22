@@ -50,8 +50,10 @@ def test_texture_factory_charuco():
 
     # DICT_4X4_50 grid_size=6; marker_px_f=400 → snapped up to ceil(400/6)*6=402
     # effective_px_per_m = 402/0.04 = 10050
-    # width_px = height_px = round(0.25 * 10050) = round(2512.5) = 2512
-    assert img.shape == (2512, 2512)
+    # square_px_raw = 0.05*10050 = 502.5 → even-snapped to 502
+    # Recomputed effective_px_per_m = 502/0.05 = 10040
+    # width_px = height_px = 5 * 502 = 2510
+    assert img.shape == (2510, 2510)
     # ChArUco has 50% black squares + tags in white squares
     # Mean should be significantly lower than AprilGrid
     assert 40 < np.mean(img) < 100
@@ -85,12 +87,12 @@ def test_texture_factory_id_increment():
     )
     img = factory.generate_board_texture(config)
 
-    # Split image and compare tags
-    # square_px = 0.1 * 1.5 * 1000 = 150
-    # Wait, px_per_mm=1 -> px_per_m=1000
-    # square_px = 150
-    tag_0 = img[:, :150]
-    tag_1 = img[:, 150:]
+    # Split image at the cell boundary.
+    # px_per_mm=1 → px_per_m=1000; marker_px=ceil(100/8)*8=104
+    # effective_px_per_m=104/0.1=1040; square_size=0.15
+    # square_px_raw=156 → even-snapped to 156
+    tag_0 = img[:, :156]
+    tag_1 = img[:, 156:]
 
     assert not np.array_equal(tag_0, tag_1)
 
@@ -160,43 +162,25 @@ def test_kalibr_corner_uniform_size():
     Uses a config where the old float corner_half approach produced a half-integer
     value (corner_half = 2.5), which caused half-to-even rounding to alternate
     between 6-pixel and 4-pixel wide squares at successive grid intersections.
-
-    Parameters chosen so that:
-      tag36h11 grid_size=8; marker_px_f = 50.0 → snapped up to ceil(50/8)*8 = 56
-      effective_px_per_m = 56/0.005 = 11200
-      corner_ratio = 0.1 → corner_px = int(56*0.1)&~1 = 5&~1 = 4 (uniform 4-px squares)
-      square_px_f = 0.005*1.1*11200 = 61.6
     """
-    import math
-
     config = BoardConfig(
         type=BoardType.APRILGRID,
         rows=3,
         cols=4,
-        marker_size=0.005,  # 5mm -> marker_px_f = 50 at px_per_mm=10; snapped to 56
+        marker_size=0.005,
         spacing_ratio=0.1,
         kalibr_corner_ratio=0.1,
     )
     factory = TextureFactory(px_per_mm=10)
     img = factory.generate_board_texture(config)
 
-    # Replicate the factory's snapping to find exact intersection coordinates
-    from render_tag.core.constants import TAG_GRID_SIZES
+    gm = factory.compute_grid_metrics(config)
 
-    grid_size = TAG_GRID_SIZES.get("tag36h11", 8)
-    marker_px = math.ceil(config.marker_size * factory.px_per_m / grid_size) * grid_size
-    effective_px_per_m = marker_px / config.marker_size
-    assert config.spacing_ratio is not None
-    square_size = config.marker_size * (1 + config.spacing_ratio)
-    square_px_f = square_size * effective_px_per_m
-
-    # Collect the black-pixel run-length through each interior grid intersection.
-    # Interior intersections are at r in [1, rows-1], c in [1, cols-1].
     widths: list[int] = []
     for r in range(1, config.rows):
         for c in range(1, config.cols):
-            cy = round(r * square_px_f)
-            cx = round(c * square_px_f)
+            cy = r * gm.square_px
+            cx = c * gm.square_px
             # Horizontal run: count consecutive black pixels centred on cx
             row = img[cy, :]
             # find extent of the black run that contains cx
@@ -221,10 +205,6 @@ def test_bit_grid_alignment():
     internally, producing a tag smaller than the cell and leaving an asymmetric
     white gap. The factory must snap UP so the requested size == actual size.
     """
-    import math
-
-    from render_tag.core.constants import TAG_GRID_SIZES
-
     # DICT_4X4_50 has grid_size=6; at px_per_mm=10 and marker_size=0.04m:
     #   marker_px_f = 400, which is NOT a multiple of 6 (400/6 = 66.67)
     #   snapped up: ceil(400/6)*6 = 402
@@ -239,17 +219,15 @@ def test_bit_grid_alignment():
     factory = TextureFactory(px_per_mm=10)
     img = factory.generate_board_texture(config)
 
-    grid_size = TAG_GRID_SIZES.get("DICT_4X4_50", 8)
-    marker_px_f_nom = config.marker_size * factory.px_per_m
-    marker_px = math.ceil(marker_px_f_nom / grid_size) * grid_size
+    gm = factory.compute_grid_metrics(config)
 
-    assert marker_px % grid_size == 0, (
-        f"marker_px={marker_px} is not a multiple of grid_size={grid_size}"
+    from render_tag.core.constants import TAG_GRID_SIZES
+
+    grid_size = TAG_GRID_SIZES.get("DICT_4X4_50", 8)
+    assert gm.marker_px % grid_size == 0, (
+        f"marker_px={gm.marker_px} is not a multiple of grid_size={grid_size}"
     )
-    # Canvas width must reflect the inflated resolution
-    effective_px_per_m = marker_px / config.marker_size
-    assert config.square_size is not None
-    expected_width = round(config.cols * config.square_size * effective_px_per_m)
+    expected_width = config.cols * gm.square_px
     assert img.shape[1] == expected_width
 
 

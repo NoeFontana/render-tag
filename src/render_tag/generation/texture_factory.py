@@ -2,6 +2,7 @@ import hashlib
 import json
 from math import ceil
 from pathlib import Path
+from typing import NamedTuple
 
 import cv2
 import numpy as np
@@ -9,6 +10,15 @@ import numpy as np
 from ..core.constants import TAG_GRID_SIZES
 from ..core.schema.board import BoardConfig, BoardType
 from .tags import generate_tag_image
+
+
+class GridMetrics(NamedTuple):
+    """Resolution parameters derived from a BoardConfig and px_per_m."""
+
+    square_px: int
+    marker_px: int
+    quiet_zone_px: int
+    effective_px_per_m: float
 
 
 class TextureFactory:
@@ -28,6 +38,53 @@ class TextureFactory:
         self.cache_dir = Path(cache_dir) if cache_dir else None
         if self.cache_dir:
             self.cache_dir.mkdir(parents=True, exist_ok=True)
+
+    def compute_grid_metrics(self, config: BoardConfig) -> GridMetrics:
+        """Derive integer-aligned resolution parameters from a board config.
+
+        The returned ``GridMetrics`` is the single source of truth for all
+        pixel dimensions used during texture synthesis.  Tests should call
+        this method rather than reimplementing the snapping logic.
+
+        Args:
+            config: The board configuration.
+
+        Returns:
+            A ``GridMetrics`` tuple with ``square_px``, ``marker_px``,
+            ``quiet_zone_px``, and ``effective_px_per_m``.
+        """
+        if config.type == BoardType.APRILGRID:
+            assert config.spacing_ratio is not None
+            square_size = config.marker_size * (1.0 + config.spacing_ratio)
+        else:
+            assert config.square_size is not None
+            square_size = config.square_size
+
+        # Snap marker_px UP to the next multiple of the tag grid size so that
+        # every data-bit module occupies an identical number of pixels.
+        grid_size = TAG_GRID_SIZES.get(config.dictionary, 8)
+        marker_px = ceil(config.marker_size * self.px_per_m / grid_size) * grid_size
+
+        effective_px_per_m = marker_px / config.marker_size
+
+        # Integer-align square_px to the nearest EVEN integer so that:
+        # 1) r*square_px is always exact integer → grid intersections on pixel
+        #    boundaries, eliminating the ≤0.5 px quantization from round().
+        # 2) Cell centers at (r+0.5)*square_px are exact half-integers.
+        # 3) With even marker_px, tag top-left corners are integer-aligned →
+        #    zero-interpolation compositing via direct array slicing.
+        square_px = max(2, round(square_size * effective_px_per_m / 2) * 2)
+
+        # Recompute effective resolution from the integer-aligned square so all
+        # downstream dimensions are consistent with the snapped grid.
+        effective_px_per_m = square_px / square_size
+
+        # Re-snap marker_px under the adjusted resolution (still grid-aligned)
+        marker_px = ceil(config.marker_size * effective_px_per_m / grid_size) * grid_size
+
+        quiet_zone_px = round(config.quiet_zone_m * effective_px_per_m)
+
+        return GridMetrics(square_px, marker_px, quiet_zone_px, effective_px_per_m)
 
     def generate_board_texture(self, config: BoardConfig) -> np.ndarray:
         """Generate a high-resolution texture for a calibration board.
@@ -49,47 +106,19 @@ class TextureFactory:
                     return cached
 
         # 2. Calculate Dimensions
-        if config.type == BoardType.APRILGRID:
-            # AprilGrid: square_size = marker_size * (1 + spacing_ratio)
-            assert config.spacing_ratio is not None
-            square_size = config.marker_size * (1.0 + config.spacing_ratio)
-        else:
-            # ChArUco: square_size is explicit
-            assert config.square_size is not None
-            square_size = config.square_size
+        gm = self.compute_grid_metrics(config)
 
-        width_m = config.cols * square_size
-        height_m = config.rows * square_size
-
-        # Snap marker_px UP to the next multiple of the tag grid size so that
-        # every data-bit module occupies an identical number of pixels.
-        # generate_tag_image snaps DOWN internally, so we must align upward here
-        # to guarantee k*N pixels are requested — ensuring zero aliasing in the
-        # internal bit grid before perspective warp.
-        grid_size = TAG_GRID_SIZES.get(config.dictionary, 8)
-        marker_px_f_nom = config.marker_size * self.px_per_m
-        marker_px = ceil(marker_px_f_nom / grid_size) * grid_size
-
-        # Derive an effective resolution from the snapped marker size and scale all
-        # other dimensions proportionally so spatial relationships remain correct.
-        effective_px_per_m = marker_px / config.marker_size
-
-        quiet_zone_px = round(config.quiet_zone_m * effective_px_per_m)
-
-        width_px = round(width_m * effective_px_per_m) + 2 * quiet_zone_px
-        height_px = round(height_m * effective_px_per_m) + 2 * quiet_zone_px
-
-        # Keep as continuous floats to preserve sub-pixel placement accuracy
-        square_px_f = square_size * effective_px_per_m
+        width_px = config.cols * gm.square_px + 2 * gm.quiet_zone_px
+        height_px = config.rows * gm.square_px + 2 * gm.quiet_zone_px
 
         # 3. Initialize Image (White background)
         img = np.full((height_px, width_px), 255, dtype=np.uint8)
 
         # 4. Draw Board Content
         if config.type == BoardType.CHARUCO:
-            self._draw_charuco(img, config, square_px_f, marker_px, quiet_zone_px)
+            self._draw_charuco(img, config, gm.square_px, gm.marker_px, gm.quiet_zone_px)
         elif config.type == BoardType.APRILGRID:
-            self._draw_aprilgrid(img, config, square_px_f, marker_px, quiet_zone_px)
+            self._draw_aprilgrid(img, config, gm.square_px, gm.marker_px, gm.quiet_zone_px)
 
         # 5. Save to Cache
         if cache_path:
@@ -103,14 +132,19 @@ class TextureFactory:
         tag_img: np.ndarray,
         center_x: float,
         center_y: float,
-        interpolation: int = cv2.INTER_CUBIC,
+        interpolation: int = cv2.INTER_LINEAR,
     ) -> None:
         """Composite a tag onto the canvas at a sub-pixel accurate position.
 
-        Builds an affine translation matrix that maps the tag center to the
-        continuous (center_x, center_y) coordinate on the canvas. The affine
-        warp with bicubic interpolation produces smooth sub-pixel gradients at
-        tag edges, which is geometrically faithful for detector refinement tests.
+        When the translation is integer-aligned (the common case with
+        integer-snapped grid resolution), the tag is placed via direct array
+        slicing — zero interpolation, zero ringing, mathematically perfect
+        binary edges.
+
+        For the rare sub-pixel case, an affine warp with bilinear interpolation
+        is used. Bilinear (not bicubic) avoids the Gibbs overshoot/undershoot
+        that cubic interpolation causes on binary step edges, which would
+        displace the effective saddle point for Harris-based sub-pixel refiners.
 
         The result is composited via element-wise minimum so dark tag pixels
         are never brightened by the white canvas background.
@@ -120,7 +154,7 @@ class TextureFactory:
             tag_img: Tag image to composite (grayscale uint8).
             center_x: Continuous x coordinate of the tag center on the canvas.
             center_y: Continuous y coordinate of the tag center on the canvas.
-            interpolation: OpenCV interpolation flag for the affine warp.
+            interpolation: OpenCV interpolation flag for the affine warp fallback.
         """
         tag_h, tag_w = tag_img.shape[:2]
 
@@ -128,9 +162,25 @@ class TextureFactory:
         tx = center_x - tag_w / 2.0
         ty = center_y - tag_h / 2.0
 
+        # Fast path: integer translation → direct array slicing (zero interpolation)
+        tx_r, ty_r = round(tx), round(ty)
+        if abs(tx - tx_r) < 1e-6 and abs(ty - ty_r) < 1e-6:
+            x0 = max(0, tx_r)
+            y0 = max(0, ty_r)
+            x1 = min(canvas.shape[1], tx_r + tag_w)
+            y1 = min(canvas.shape[0], ty_r + tag_h)
+            sx0 = x0 - tx_r
+            sy0 = y0 - ty_r
+            np.minimum(
+                canvas[y0:y1, x0:x1],
+                tag_img[sy0 : sy0 + (y1 - y0), sx0 : sx0 + (x1 - x0)],
+                out=canvas[y0:y1, x0:x1],
+            )
+            return
+
+        # Sub-pixel fallback: bilinear warp (no cubic to avoid Gibbs ringing)
         M = np.array([[1.0, 0.0, tx], [0.0, 1.0, ty]], dtype=np.float64)
 
-        # Warp tag into a temporary canvas-sized image (white background)
         warped = cv2.warpAffine(
             tag_img.astype(np.float32),
             M,
@@ -147,20 +197,16 @@ class TextureFactory:
         self,
         img: np.ndarray,
         config: BoardConfig,
-        square_px_f: float,
+        square_px: int,
         marker_px: int,
         quiet_zone_px: int = 0,
     ) -> None:
         """Draw a ChArUco checkerboard pattern.
 
-        Cell boundaries are kept as continuous floats so the tag center
-        coordinates are exact; only the background square fills are rounded
-        to integer pixel indices.
-
         Args:
             img: The target image array.
             config: The board configuration.
-            square_px_f: Floating-point cell size in pixels.
+            square_px: Integer-aligned cell size in pixels.
             marker_px: Marker size in pixels (pre-snapped to grid_size multiple).
             quiet_zone_px: White border width in pixels around the grid.
         """
@@ -169,23 +215,16 @@ class TextureFactory:
 
         for r in range(rows):
             for c in range(cols):
-                # Checkerboard pattern: (0,0) is white in OpenCV ChArUco convention
                 is_white = (r + c) % 2 == 0
 
-                # Continuous floating-point cell boundaries, offset by quiet zone
-                y0_f = r * square_px_f + quiet_zone_px
-                x0_f = c * square_px_f + quiet_zone_px
-                y1_f = (r + 1) * square_px_f + quiet_zone_px
-                x1_f = (c + 1) * square_px_f + quiet_zone_px
-
-                # Integer pixel boundaries for square fills
-                iy0 = round(y0_f)
-                ix0 = round(x0_f)
-                iy1 = round(y1_f) if (r < rows - 1 or quiet_zone_px > 0) else img.shape[0]
-                ix1 = round(x1_f) if (c < cols - 1 or quiet_zone_px > 0) else img.shape[1]
+                # Cell boundaries are exact integers (no rounding needed)
+                y0 = r * square_px + quiet_zone_px
+                x0 = c * square_px + quiet_zone_px
+                y1 = (r + 1) * square_px + quiet_zone_px
+                x1 = (c + 1) * square_px + quiet_zone_px
 
                 if not is_white:
-                    img[iy0:iy1, ix0:ix1] = 0
+                    img[y0:y1, x0:x1] = 0
                 else:
                     tag_img = generate_tag_image(
                         family=config.dictionary,
@@ -194,9 +233,8 @@ class TextureFactory:
                         border_bits=1,
                     )
                     if tag_img is not None:
-                        # Sub-pixel accurate center: exact midpoint of the continuous cell
-                        center_x = (x0_f + x1_f) / 2.0
-                        center_y = (y0_f + y1_f) / 2.0
+                        center_x = (x0 + x1) / 2.0
+                        center_y = (y0 + y1) / 2.0
                         self._composite_tag_subpixel(img, tag_img, center_x, center_y)
                     tag_id += 1
 
@@ -204,22 +242,16 @@ class TextureFactory:
         self,
         img: np.ndarray,
         config: BoardConfig,
-        square_px_f: float,
+        square_px: int,
         marker_px: int,
         quiet_zone_px: int = 0,
     ) -> None:
         """Draw an AprilGrid pattern (tags in every cell + corner squares).
 
-        Cell boundaries are kept as continuous floats so the tag center
-        coordinates are exact. Corner square sizes are driven by
-        ``config.kalibr_corner_ratio`` (defaulting to 0.1) and their centers
-        are placed at the exact continuous grid intersection, guaranteeing
-        symmetric pixel fills for Harris saddle-point accuracy.
-
         Args:
             img: The target image array.
             config: The board configuration.
-            square_px_f: Floating-point cell size in pixels.
+            square_px: Integer-aligned cell size in pixels.
             marker_px: Marker size in pixels (pre-snapped to grid_size multiple).
             quiet_zone_px: White border width in pixels around the grid.
         """
@@ -228,11 +260,11 @@ class TextureFactory:
 
         for r in range(rows):
             for c in range(cols):
-                # Continuous floating-point cell boundaries, offset by quiet zone
-                y0_f = r * square_px_f + quiet_zone_px
-                x0_f = c * square_px_f + quiet_zone_px
-                y1_f = (r + 1) * square_px_f + quiet_zone_px
-                x1_f = (c + 1) * square_px_f + quiet_zone_px
+                # Cell boundaries are exact integers (no rounding needed)
+                y0 = r * square_px + quiet_zone_px
+                x0 = c * square_px + quiet_zone_px
+                y1 = (r + 1) * square_px + quiet_zone_px
+                x1 = (c + 1) * square_px + quiet_zone_px
 
                 tag_img = generate_tag_image(
                     family=config.dictionary,
@@ -241,27 +273,21 @@ class TextureFactory:
                     border_bits=1,
                 )
                 if tag_img is not None:
-                    # Sub-pixel accurate center: exact midpoint of the continuous cell
-                    center_x = (x0_f + x1_f) / 2.0
-                    center_y = (y0_f + y1_f) / 2.0
+                    center_x = (x0 + x1) / 2.0
+                    center_y = (y0 + y1) / 2.0
                     self._composite_tag_subpixel(img, tag_img, center_x, center_y)
                 tag_id += 1
 
-        # Draw black corner squares (AprilGrid characteristic) at grid intersections.
-        # corner_px is forced to an even integer so that integer offsets from the
-        # rounded center are symmetric on both sides — eliminating the half-to-even
-        # rounding asymmetry that produced inconsistent corner sizes and, at the
-        # extremes, zero-width squares when corner_half == 0.5.
+        # Draw black corner squares at grid intersections.
+        # corner_px is forced to an even integer so that integer offsets from
+        # the center are symmetric on both sides.
         corner_ratio = config.kalibr_corner_ratio if config.kalibr_corner_ratio is not None else 0.1
         corner_px = max(2, int(marker_px * corner_ratio) & ~1)
         corner_half = corner_px // 2
         for r in range(rows + 1):
             for c in range(cols + 1):
-                y_f = r * square_px_f + quiet_zone_px
-                x_f = c * square_px_f + quiet_zone_px
-
-                cy = round(y_f)
-                cx = round(x_f)
+                cy = r * square_px + quiet_zone_px
+                cx = c * square_px + quiet_zone_px
                 cy0 = max(quiet_zone_px, cy - corner_half)
                 cy1 = min(img.shape[0] - quiet_zone_px, cy + corner_half)
                 cx0 = max(quiet_zone_px, cx - corner_half)
