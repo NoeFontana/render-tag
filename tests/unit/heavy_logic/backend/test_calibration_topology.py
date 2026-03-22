@@ -22,8 +22,8 @@ def mock_bridge(monkeypatch):
     # In OpenCV space, (0,0) is Top-Left.
     # To map Cartesian (Y-up) to OpenCV (Y-down), we flip Y.
     def mock_project(pts, cam_world_mat, res, k_matrix):
-        px = pts[:, 0]
-        py = -pts[:, 1]  # Flip Y
+        px = pts[:, 0] * 1000 + 500  # Map to ~[0, 1000] pixel space
+        py = -pts[:, 1] * 1000 + 500  # Flip Y, map to pixel space
         return np.stack([px, py], axis=1)
 
     monkeypatch.setattr("render_tag.backend.projection.project_points", mock_project)
@@ -109,6 +109,10 @@ def test_charuco_indexing_layout(mock_bridge):
     mock_obj.get_location.return_value = [0, 0, 0]
     mock_bridge.np = np
     mock_bridge.bpy.context.scene.camera.location = [0, 0, 10]
+    mock_bridge.bpy.context.scene.camera.matrix_world = np.eye(4)
+    mock_bridge.bpy.context.scene.render.resolution_x = 1000
+    mock_bridge.bpy.context.scene.render.resolution_y = 1000
+    mock_bridge.bproc.camera.get_intrinsics_as_K_matrix.return_value = np.eye(3)
 
     # To test Top-Left in OpenCV space, we need ID 0 to have
     # the minimum X and minimum Y coordinates among all intersections.
@@ -292,7 +296,7 @@ def test_board_scale_independence(mock_bridge):
 
     def mock_project_points(pts, *args):
         projected_pts.extend(pts)
-        return [[float(p[0]), float(-p[1])] for p in pts]
+        return np.array([[float(p[0]) * 1000 + 500, float(-p[1]) * 1000 + 500] for p in pts])
 
     mock_bridge.project_points = mock_project_points
     # Mocking in the module using it:
@@ -300,7 +304,7 @@ def test_board_scale_independence(mock_bridge):
 
     render_tag.backend.projection.project_points = mock_project_points
 
-    records = generate_board_records(mock_obj, "test_scale_img")
+    records = generate_board_records(mock_obj, "test_scale_img", skip_visibility=True)
 
     # We should have two tag records (since charuco 2x2 has 2
     # white squares with tags: (0,0) and (1,1))
@@ -321,3 +325,160 @@ def test_board_scale_independence(mock_bridge):
     width_3d = np.linalg.norm(diff)
 
     assert np.isclose(width_3d, 0.05), f"Expected marker 3D width 0.05, got {width_3d}"
+
+
+def _make_board_obj(board_config, world_matrix=None, calib_pts=None):
+    """Helper to create a mock board object."""
+    mock_obj = MagicMock()
+
+    def side_effect(key, default=None):
+        lookup = {"board": board_config}
+        if calib_pts is not None:
+            lookup["calibration_points_3d"] = calib_pts
+        return lookup.get(key, default)
+
+    mock_obj.blender_obj.get.side_effect = side_effect
+    wm = world_matrix if world_matrix is not None else np.eye(4)
+    mock_obj.get_local2world_mat.return_value = wm
+    mock_obj.get_location.return_value = list(wm[:3, 3])
+    return mock_obj
+
+
+def _setup_bridge(mock_bridge, res_x=1000, res_y=1000):
+    """Configure bridge mock with standard camera settings."""
+    mock_bridge.np = np
+    mock_bridge.bpy.context.scene.camera.location = [0, 0, 10]
+    mock_bridge.bpy.context.scene.camera.matrix_world = np.eye(4)
+    mock_bridge.bpy.context.scene.render.resolution_x = res_x
+    mock_bridge.bpy.context.scene.render.resolution_y = res_y
+    mock_bridge.bproc.camera.get_intrinsics_as_K_matrix.return_value = np.eye(3)
+
+
+def test_board_tags_outside_frustum_are_culled(mock_bridge, monkeypatch):
+    """Tags that project outside the image bounds must be culled."""
+    board_config = {
+        "type": "charuco",
+        "rows": 3,
+        "cols": 3,
+        "marker_size": 0.05,
+        "square_size": 0.08,
+        "dictionary": "tag36h11",
+    }
+    mock_obj = _make_board_obj(board_config)
+    _setup_bridge(mock_bridge, res_x=100, res_y=100)
+
+    # Mock project so that tags on the right side of the board fall outside
+    # the small 100x100 image. Board spans ~[-0.12, 0.12] meters.
+    # Map: x * 400 + 50 → left tags at ~2px, right tags at ~98px.
+    # Tag corners span ±0.025m around center → ±10px.
+    # Right-most tag center at x≈0.08, maps to 82px → TR corner at 92px (in bounds).
+    # Use an offset that pushes right tags out: x * 400 + 80
+    def project_partial_oob(pts, cam_world_mat, res, k_matrix):
+        px = pts[:, 0] * 400 + 80
+        py = -pts[:, 1] * 400 + 50
+        return np.stack([px, py], axis=1)
+
+    monkeypatch.setattr("render_tag.backend.projection.project_points", project_partial_oob)
+
+    records = generate_board_records(mock_obj, "test_img")
+    tag_records = [r for r in records if r.record_type == "TAG"]
+
+    # 3x3 charuco has 5 white squares with tags. Some should be culled.
+    assert len(tag_records) < 5, (
+        f"Expected fewer than 5 TAG records due to frustum culling, got {len(tag_records)}"
+    )
+    assert len(tag_records) > 0, "At least some tags should be in-bounds"
+
+
+def test_saddle_points_outside_bounds_are_filtered(mock_bridge, monkeypatch):
+    """Saddle points projecting outside image bounds must be excluded."""
+    board_config = {
+        "type": "charuco",
+        "rows": 3,
+        "cols": 3,
+        "marker_size": 0.05,
+        "square_size": 0.08,
+        "dictionary": "tag36h11",
+    }
+    mock_obj = _make_board_obj(board_config)
+    _setup_bridge(mock_bridge, res_x=100, res_y=100)
+
+    # Aggressive projection: saddle points at x=0.04 map to 2000*0.04+80=160 > 100.
+    # Saddle points at x=-0.04 map to 2000*(-0.04)+80=0 (on boundary, in-bounds).
+    def project_partial_oob(pts, cam_world_mat, res, k_matrix):
+        px = pts[:, 0] * 2000 + 80
+        py = -pts[:, 1] * 2000 + 50
+        return np.stack([px, py], axis=1)
+
+    monkeypatch.setattr("render_tag.backend.projection.project_points", project_partial_oob)
+
+    records = generate_board_records(mock_obj, "test_img")
+    board_records = [r for r in records if r.record_type == "BOARD"]
+    assert len(board_records) == 1
+
+    # 3x3 board has (3-1)*(3-1) = 4 saddle points total.
+    # With aggressive projection, right-side saddle points fall outside.
+    kps = board_records[0].keypoints
+    max_saddle = 4
+    if kps is not None:
+        assert len(kps) < max_saddle, (
+            f"Expected fewer than {max_saddle} saddle points, got {len(kps)}"
+        )
+
+
+def test_skip_visibility_bypasses_frustum_culling(mock_bridge, monkeypatch):
+    """With skip_visibility=True, all tags and saddle points are emitted."""
+    board_config = {
+        "type": "charuco",
+        "rows": 3,
+        "cols": 3,
+        "marker_size": 0.05,
+        "square_size": 0.08,
+        "dictionary": "tag36h11",
+    }
+    mock_obj = _make_board_obj(board_config)
+    _setup_bridge(mock_bridge, res_x=100, res_y=100)
+
+    # Project everything far outside bounds
+    def project_all_oob(pts, cam_world_mat, res, k_matrix):
+        px = pts[:, 0] * 1000 + 5000  # Way outside [0, 100)
+        py = -pts[:, 1] * 1000 + 5000
+        return np.stack([px, py], axis=1)
+
+    monkeypatch.setattr("render_tag.backend.projection.project_points", project_all_oob)
+
+    records = generate_board_records(mock_obj, "test_img", skip_visibility=True)
+    tag_records = [r for r in records if r.record_type == "TAG"]
+
+    # 3x3 charuco has 5 white squares with tags. All should be emitted.
+    assert len(tag_records) == 5
+
+    board_records = [r for r in records if r.record_type == "BOARD"]
+    assert len(board_records) == 1
+    assert board_records[0].keypoints is not None
+    assert len(board_records[0].keypoints) == 4  # (3-1)*(3-1) saddle points
+
+
+def test_behind_camera_tags_rejected(mock_bridge, monkeypatch):
+    """Tags with behind-camera sentinel coordinates must be culled."""
+    board_config = {
+        "type": "charuco",
+        "rows": 2,
+        "cols": 2,
+        "marker_size": 0.05,
+        "square_size": 0.08,
+        "dictionary": "tag36h11",
+    }
+    mock_obj = _make_board_obj(board_config)
+    _setup_bridge(mock_bridge, res_x=1000, res_y=1000)
+
+    # Return behind-camera sentinel for all points
+    def project_behind_camera(pts, cam_world_mat, res, k_matrix):
+        return np.full((len(pts), 2), -1e6)
+
+    monkeypatch.setattr("render_tag.backend.projection.project_points", project_behind_camera)
+
+    records = generate_board_records(mock_obj, "test_img")
+    tag_records = [r for r in records if r.record_type == "TAG"]
+
+    assert len(tag_records) == 0, "All behind-camera tags should be culled"
