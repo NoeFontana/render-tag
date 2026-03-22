@@ -544,15 +544,15 @@ def test_board_definition_metadata_charuco(mock_bridge):
     board_records = [r for r in records if r.record_type == "BOARD"]
     assert len(board_records) == 1
 
-    bd = board_records[0].metadata.get("board_definition")
-    assert bd is not None, "board_definition metadata missing"
-    assert bd["type"] == "charuco"
-    assert bd["rows"] == 4
-    assert bd["cols"] == 4
-    assert np.isclose(bd["square_size_mm"], 80.0)
-    assert np.isclose(bd["marker_size_mm"], 50.0)
-    assert bd["dictionary"] == "tag36h11"
-    assert bd["total_keypoints"] == 9  # (4-1)*(4-1)
+    bd = board_records[0].board_definition
+    assert bd is not None, "board_definition missing"
+    assert bd.type == "charuco"
+    assert bd.rows == 4
+    assert bd.cols == 4
+    assert np.isclose(bd.square_size_mm, 80.0)
+    assert np.isclose(bd.marker_size_mm, 50.0)
+    assert bd.dictionary == "tag36h11"
+    assert bd.total_keypoints == 9  # (4-1)*(4-1)
 
 
 def test_board_definition_metadata_aprilgrid(mock_bridge):
@@ -572,11 +572,11 @@ def test_board_definition_metadata_aprilgrid(mock_bridge):
     board_records = [r for r in records if r.record_type == "BOARD"]
     assert len(board_records) == 1
 
-    bd = board_records[0].metadata.get("board_definition")
-    assert bd is not None, "board_definition metadata missing"
-    assert bd["type"] == "aprilgrid"
-    assert bd["rows"] == 4
-    assert bd["cols"] == 6
-    assert np.isclose(bd["marker_size_mm"], 50.0)
-    assert bd["dictionary"] == "tag36h11"
-    assert bd["spacing_ratio"] == 0.2
+    bd = board_records[0].board_definition
+    assert bd is not None, "board_definition missing"
+    assert bd.type == "aprilgrid"
+    assert bd.rows == 4
+    assert bd.cols == 6
+    assert np.isclose(bd.marker_size_mm, 50.0)
+    assert bd.dictionary == "tag36h11"
+    assert bd.spacing_ratio == 0.2

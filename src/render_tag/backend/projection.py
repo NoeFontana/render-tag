@@ -22,7 +22,7 @@ from render_tag.backend.bridge import bridge
 from render_tag.core import TAG_GRID_SIZES
 from render_tag.core.schema import DetectionRecord
 from render_tag.core.schema.base import KEYPOINT_SENTINEL
-from render_tag.core.schema.board import BoardConfig
+from render_tag.core.schema.board import BoardConfig, BoardDefinition
 from render_tag.generation.board import (
     BoardLayout,
     BoardSpec,
@@ -545,25 +545,28 @@ def generate_board_records(
     )
 
     if board_center_pixel is not None:
-        # Build board_definition for downstream OpenCV/Kalibr consumers
+        # Build typed board_definition for downstream OpenCV/Kalibr consumers
         total_kp = (
             (rows - 1) * (cols - 1) if b_type == "charuco" else len(layout.calibration_positions)
         )
-        board_definition: dict[str, Any] = {
-            "type": b_type,
-            "rows": rows,
-            "cols": cols,
-            "square_size_mm": round(float(spec.square_size * 1000.0), 4),
-            "marker_size_mm": round(float(marker_size * 1000.0), 4),
-            "dictionary": dictionary,
-            "total_keypoints": total_kp,
-        }
+        sr: float | None = None
         if b_type == "aprilgrid":
             sr = getattr(config, "spacing_ratio", None)
             if sr is None and isinstance(config, dict):
                 sr = config.get("spacing_ratio")
             if sr is not None:
-                board_definition["spacing_ratio"] = float(sr)
+                sr = float(sr)
+
+        board_def = BoardDefinition(
+            type=b_type,
+            rows=rows,
+            cols=cols,
+            square_size_mm=round(float(spec.square_size * 1000.0), 4),
+            marker_size_mm=round(float(marker_size * 1000.0), 4),
+            dictionary=dictionary,
+            total_keypoints=total_kp,
+            spacing_ratio=sr,
+        )
 
         records.append(
             DetectionRecord(
@@ -585,7 +588,7 @@ def generate_board_records(
                 rolling_shutter_ms=physics["rolling_shutter_ms"],
                 fstop=physics["fstop"],
                 is_mirrored=is_mirrored,
-                metadata={"board_definition": board_definition},
+                board_definition=board_def,
             )
         )
 

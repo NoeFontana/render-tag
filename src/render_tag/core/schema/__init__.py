@@ -27,6 +27,9 @@ from .board import (
     BoardConfig as BoardConfig,
 )
 from .board import (
+    BoardDefinition as BoardDefinition,
+)
+from .board import (
     BoardType as BoardType,
 )
 from .hot_loop import (

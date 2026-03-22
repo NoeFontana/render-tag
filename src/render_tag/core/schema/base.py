@@ -6,10 +6,14 @@ This ensures that the "Generator" (Python logic) produces valid, typed data
 that the "Executor" (Blender) or "Shadow Renderer" (Visualization) can consume safely.
 """
 
+from __future__ import annotations
+
 from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
+
+from render_tag.core.schema.board import BoardDefinition
 
 
 class TagFamily(str, Enum):
@@ -207,6 +211,11 @@ class DetectionRecord(BaseModel):
     scene_seed: int | None = Field(default=None, description="Scene-specific derived seed")
 
     metadata: dict[str, Any] = Field(default_factory=dict)
+
+    # --- Board Topology (BOARD records only) ---
+    board_definition: BoardDefinition | None = Field(
+        default=None, description="Resolved board geometry for BOARD records"
+    )
 
     def is_valid(self) -> bool:
         """Check if the detection is valid (has 4 corners)."""
