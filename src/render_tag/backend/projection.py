@@ -21,6 +21,7 @@ if TYPE_CHECKING:
 from render_tag.backend.bridge import bridge
 from render_tag.core import TAG_GRID_SIZES
 from render_tag.core.schema import DetectionRecord
+from render_tag.core.schema.base import KEYPOINT_SENTINEL
 from render_tag.core.schema.board import BoardConfig
 from render_tag.generation.board import (
     BoardLayout,
@@ -509,8 +510,7 @@ def generate_board_records(
                 res,
                 k_matrix.tolist() if hasattr(k_matrix, "tolist") else k_matrix,
             )
-            if pixel is not None:
-                _append_if_in_frame(pixel, res, skip_visibility, calibration_points_2d)
+            calibration_points_2d.append(_project_calibration_point(pixel, res, skip_visibility))
     elif b_type == "charuco":
         # Fallback for old recipes without calibration_points_3d
         start_x = -spec.board_width / 2 + spec.square_size
@@ -533,8 +533,9 @@ def generate_board_records(
                     res,
                     k_matrix.tolist() if hasattr(k_matrix, "tolist") else k_matrix,
                 )
-                if pixel is not None:
-                    _append_if_in_frame(pixel, res, skip_visibility, calibration_points_2d)
+                calibration_points_2d.append(
+                    _project_calibration_point(pixel, res, skip_visibility)
+                )
 
     # 5. Add Board-Level Metadata Record
     distance, angle_deg, board_pose, physics, _, _, is_mirrored = meta
@@ -544,6 +545,26 @@ def generate_board_records(
     )
 
     if board_center_pixel is not None:
+        # Build board_definition for downstream OpenCV/Kalibr consumers
+        total_kp = (
+            (rows - 1) * (cols - 1) if b_type == "charuco" else len(layout.calibration_positions)
+        )
+        board_definition: dict[str, Any] = {
+            "type": b_type,
+            "rows": rows,
+            "cols": cols,
+            "square_size_mm": round(float(spec.square_size * 1000.0), 4),
+            "marker_size_mm": round(float(marker_size * 1000.0), 4),
+            "dictionary": dictionary,
+            "total_keypoints": total_kp,
+        }
+        if b_type == "aprilgrid":
+            sr = getattr(config, "spacing_ratio", None)
+            if sr is None and isinstance(config, dict):
+                sr = config.get("spacing_ratio")
+            if sr is not None:
+                board_definition["spacing_ratio"] = float(sr)
+
         records.append(
             DetectionRecord(
                 image_id=image_id,
@@ -564,6 +585,7 @@ def generate_board_records(
                 rolling_shutter_ms=physics["rolling_shutter_ms"],
                 fstop=physics["fstop"],
                 is_mirrored=is_mirrored,
+                metadata={"board_definition": board_definition},
             )
         )
 
@@ -666,16 +688,22 @@ def _get_scene_transformations(
     )
 
 
-def _append_if_in_frame(
-    pixel: bridge.np.ndarray,
+def _project_calibration_point(
+    pixel: bridge.np.ndarray | None,
     res: list[int],
     skip_visibility: bool,
-    out: list[tuple[float, float]],
-) -> None:
-    """Append a projected calibration point if it falls within the image bounds."""
+) -> tuple[float, float]:
+    """Return projected (u, v) or sentinel (-1, -1) for out-of-frame points.
+
+    Sentinels preserve index alignment so ``keypoints[i]`` always corresponds
+    to ``charuco_id == i`` (or the equivalent AprilGrid corner index).
+    """
+    if pixel is None:
+        return KEYPOINT_SENTINEL
     u, v = float(pixel[0][0]), float(pixel[0][1])
     if skip_visibility or (0 <= u < res[0] and 0 <= v < res[1]):
-        out.append((u, v))
+        return (u, v)
+    return KEYPOINT_SENTINEL
 
 
 def _process_board_tags(
