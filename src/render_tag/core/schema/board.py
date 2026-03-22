@@ -74,3 +74,30 @@ class BoardConfig(BaseModel):
             if self.spacing_ratio is None:
                 raise ValueError("spacing_ratio is required for AprilGrid")
         return self
+
+
+class BoardDefinition(BaseModel):
+    """Output descriptor shipped in BOARD DetectionRecords.
+
+    Unlike BoardConfig (input configuration), this captures the resolved
+    physical parameters needed to instantiate ``cv2.aruco.CharucoBoard`` or
+    a Kalibr AprilGrid downstream without external config.
+    """
+
+    type: BoardType
+    rows: PositiveInt
+    cols: PositiveInt
+    square_size_mm: float = Field(gt=0)
+    marker_size_mm: float = Field(gt=0)
+    dictionary: str
+    total_keypoints: int = Field(ge=0)
+    spacing_ratio: float | None = Field(default=None)
+
+    model_config = ConfigDict(use_enum_values=True, frozen=True)
+
+    @model_validator(mode="after")
+    def validate_aprilgrid_spacing(self) -> "BoardDefinition":
+        """Validate that AprilGrid definitions include spacing_ratio."""
+        if self.type == BoardType.APRILGRID and self.spacing_ratio is None:
+            raise ValueError("spacing_ratio required for AprilGrid board definitions")
+        return self
