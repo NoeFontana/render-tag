@@ -47,7 +47,7 @@ uv run render-tag hub pull-assets
 
 `render-tag` uses a decoupled **Host-Backend** architecture for high-performance rendering:
 
-*   **Host (Python >=3.13)**: Procedural math, recipe generation, and worker orchestration.
+*   **Host (Python >=3.11)**: Procedural math, recipe generation, and worker orchestration.
 *   **Backend (Blender/ZMQ)**: Persistent 3D workers running a **ZMQ-based Hot Loop**. This avoids the massive overhead of Blender startup.
 
 👉 For detailed design notes, see **[Architecture Guide](docs/architecture.md)**.
@@ -88,6 +88,8 @@ Generated datasets include images and standardized annotations:
 
 👉 See **[Coordinate Systems & Data Standards](docs/coordinates.md)** for detailed field definitions.
 
+## Development
+
 ```bash
 # Install dev dependencies
 uv sync --all-groups
@@ -95,8 +97,9 @@ uv sync --all-groups
 # Run tests
 uv run pytest tests/ -v
 
-# Run linting
+# Run linting and type checking
 uv run ruff check src/
+uv run ty check
 ```
 
 ## License

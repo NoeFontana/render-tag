@@ -19,4 +19,3 @@ Welcome to the official documentation for `render-tag`, a high-performance proce
 -   **Sub-pixel Accuracy**: Optimized Cycles rendering configurations ensuring edge and corner integrity.
 -   **Rich Annotations**: Comprehensive ground truth including 6DoF poses, PPM, and visibility metrics.
 -   **Hugging Face Integration**: Native support for managing assets and datasets on the Hub.
- from source code.

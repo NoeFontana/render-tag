@@ -85,6 +85,22 @@ The master manifest for the dataset. It maps every `image_id` to its full `Scene
 - **Ordering:** Row-major, zero-indexed.
 - **Topology:** Continuous numbering starting from the Top-Left corner.
 - **Winding:** All projected 2D corners follow a **Strictly Clockwise (CW)** winding order in the image plane (Y-down).
+- **Sentinel Value:** Out-of-frame or behind-camera keypoints are filled with `(-1.0, -1.0)` to preserve index alignment. Use `is_sentinel_keypoint()` or filter before passing to calibration routines.
+
+### 3.5 Board Definition (BOARD Records)
+`BOARD` detection records carry a typed `board_definition` field (`BoardDefinition` Pydantic model) that fully describes the resolved board geometry:
+
+| Field | Description |
+|-------|-------------|
+| `type` | `charuco` or `aprilgrid` |
+| `rows`, `cols` | Grid dimensions |
+| `square_size_mm` | Checkerboard square edge length (mm) |
+| `marker_size_mm` | Marker edge length (mm) |
+| `dictionary` | Tag family / ArUco dictionary name |
+| `total_keypoints` | Expected number of calibration keypoints |
+| `spacing_ratio` | AprilGrid spacing ratio (required for `aprilgrid`, `null` for `charuco`) |
+
+This makes `rich_truth.json` self-describing — downstream calibration scripts can reconstruct the 3D object points directly from the record without external configuration.
 
 ---
 

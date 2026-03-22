@@ -23,24 +23,6 @@ uv run render-tag generate [OPTIONS]
 
 ---
 
-### Dataset Auditing
-
-The `audit` command group provides tools for analyzing dataset quality and performance.
-
-#### Run Audit
-Analyze a dataset's geometric distribution and integrity.
-```bash
-uv run render-tag audit run --dir output/dataset_01
-```
-
-#### Diff Datasets
-Compare two datasets to detect drift or regressions.
-```bash
-uv run render-tag audit diff --base output/baseline --experimental output/variant_a
-```
-
----
-
 ### Configuration
 
 `render-tag` uses YAML for configuration. The configuration is divided into several sections.
@@ -180,7 +162,7 @@ uv run render-tag validate-config --config configs/default.yaml
 
 To verify your generated data, use the `viz` command:
 
-### 2.D Overlays (Standard)
+### 2D Overlays (Standard)
 Generates static PNGs with bounding box and keypoint overlays.
 
 ```bash
