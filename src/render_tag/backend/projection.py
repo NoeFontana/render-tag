@@ -510,7 +510,7 @@ def generate_board_records(
                 k_matrix.tolist() if hasattr(k_matrix, "tolist") else k_matrix,
             )
             if pixel is not None:
-                calibration_points_2d.append((float(pixel[0][0]), float(pixel[0][1])))
+                _append_if_in_frame(pixel, res, skip_visibility, calibration_points_2d)
     elif b_type == "charuco":
         # Fallback for old recipes without calibration_points_3d
         start_x = -spec.board_width / 2 + spec.square_size
@@ -534,7 +534,7 @@ def generate_board_records(
                     k_matrix.tolist() if hasattr(k_matrix, "tolist") else k_matrix,
                 )
                 if pixel is not None:
-                    calibration_points_2d.append((float(pixel[0][0]), float(pixel[0][1])))
+                    _append_if_in_frame(pixel, res, skip_visibility, calibration_points_2d)
 
     # 5. Add Board-Level Metadata Record
     distance, angle_deg, board_pose, physics, _, _, is_mirrored = meta
@@ -666,6 +666,18 @@ def _get_scene_transformations(
     )
 
 
+def _append_if_in_frame(
+    pixel: bridge.np.ndarray,
+    res: list[int],
+    skip_visibility: bool,
+    out: list[tuple[float, float]],
+) -> None:
+    """Append a projected calibration point if it falls within the image bounds."""
+    u, v = float(pixel[0][0]), float(pixel[0][1])
+    if skip_visibility or (0 <= u < res[0] and 0 <= v < res[1]):
+        out.append((u, v))
+
+
 def _process_board_tags(
     layout: BoardLayout,
     marker_size: float,
@@ -717,8 +729,15 @@ def _process_board_tags(
 
         corners_2d = [(float(p[0]), float(p[1])) for p in corners_2d_raw]
 
-        if not skip_visibility and not is_facing_camera(tag_location, world_normal, cam_location):
-            continue
+        if not skip_visibility:
+            if not is_facing_camera(tag_location, world_normal, cam_location):
+                continue
+            # Frustum bounds check — all 4 corners must be in-frame (detector contract)
+            is_visible, _ = validate_visibility_metrics(
+                corners_2d_raw, res[0], res[1], min_visible_corners=4
+            )
+            if not is_visible:
+                continue
 
         # 3. Calculate Independent Metadata
         # Center-Origin Convention: Pose anchored at the geometric center of the tag.
