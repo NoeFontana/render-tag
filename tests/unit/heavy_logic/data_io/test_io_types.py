@@ -49,3 +49,21 @@ class TestDetectionRecord:
         assert row[6] == 0  # is_mirrored (default)
         assert row[7] == 10.5  # x1
         assert len(row) == 15  # image_id, tag_id, tag_family, type, size, ppm, is_mirrored, x1..y4
+
+    def test_csv_sentinel_passthrough(self) -> None:
+        """Sentinel keypoints (-1, -1) must not be clipped to (0, 0)."""
+        corners = [(10, 10), (100, 10), (100, 100), (10, 100)]
+        detection = DetectionRecord(
+            image_id="img1",
+            tag_id=0,
+            tag_family="tag36h11",
+            corners=corners,
+            keypoints=[(50.0, 50.0), (-1.0, -1.0), (75.0, 75.0)],
+        )
+        row = detection.to_csv_row(width=200, height=200)
+        # 7 header fields + 8 corner coords + 6 keypoint coords = 21
+        assert len(row) == 21
+        # Keypoint 2 (sentinel) should be preserved as -1.0
+        kp_start = 15  # After 7 header + 8 corner coords
+        assert row[kp_start + 2] == -1.0  # sentinel x
+        assert row[kp_start + 3] == -1.0  # sentinel y

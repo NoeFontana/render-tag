@@ -10,6 +10,7 @@ from typing import Any
 
 import numpy as np
 
+from render_tag.core.schema.base import is_sentinel_keypoint
 from render_tag.generation.projection_math import (
     quaternion_wxyz_to_matrix,
     validate_winding_order,
@@ -172,8 +173,9 @@ def format_coco_keypoints(
 
     Args:
         points: (N, 2) array of coordinates.
-        visibility: (N,) boolean array/list. If True, v=2. If False, v=1.
-                    If None, assumes all visible (v=2).
+        visibility: (N,) boolean array/list. If True, v=2. If False and the
+                    point is the sentinel (-1, -1), v=0 with zeroed coords.
+                    If False otherwise, v=1. If None, assumes all visible (v=2).
 
     Returns:
         Flattened list of keypoints.
@@ -187,7 +189,11 @@ def format_coco_keypoints(
 
     keypoints = []
     for (x, y), is_visible in zip(points, visibility, strict=False):
-        v = 2 if is_visible else 1
-        keypoints.extend([float(x), float(y), v])
+        if is_visible:
+            keypoints.extend([float(x), float(y), 2])
+        elif is_sentinel_keypoint(float(x), float(y)):
+            keypoints.extend([0.0, 0.0, 0])  # COCO v=0: not labeled
+        else:
+            keypoints.extend([float(x), float(y), 1])
 
     return keypoints

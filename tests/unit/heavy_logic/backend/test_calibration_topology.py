@@ -390,8 +390,8 @@ def test_board_tags_outside_frustum_are_culled(mock_bridge, monkeypatch):
     assert len(tag_records) > 0, "At least some tags should be in-bounds"
 
 
-def test_saddle_points_outside_bounds_are_filtered(mock_bridge, monkeypatch):
-    """Saddle points projecting outside image bounds must be excluded."""
+def test_saddle_points_outside_bounds_get_sentinel(mock_bridge, monkeypatch):
+    """Saddle points projecting outside image bounds get sentinel (-1, -1)."""
     board_config = {
         "type": "charuco",
         "rows": 3,
@@ -403,11 +403,12 @@ def test_saddle_points_outside_bounds_are_filtered(mock_bridge, monkeypatch):
     mock_obj = _make_board_obj(board_config)
     _setup_bridge(mock_bridge, res_x=100, res_y=100)
 
-    # Aggressive projection: saddle points at x=0.04 map to 2000*0.04+80=160 > 100.
-    # Saddle points at x=-0.04 map to 2000*(-0.04)+80=0 (on boundary, in-bounds).
+    # Saddle points span x in [-0.04, 0.04]. Map so left is in-bounds, right is out.
+    # x=-0.04 → 0.04*800+50=18 (in), x=0.04 → 0.04*800+50=82 (in)... need offset.
+    # Use offset=70: x=-0.04 → -32+70=38 (in), x=0.04 → 32+70=102 (out of 100).
     def project_partial_oob(pts, cam_world_mat, res, k_matrix):
-        px = pts[:, 0] * 2000 + 80
-        py = -pts[:, 1] * 2000 + 50
+        px = pts[:, 0] * 800 + 70
+        py = -pts[:, 1] * 800 + 50
         return np.stack([px, py], axis=1)
 
     monkeypatch.setattr("render_tag.backend.projection.project_points", project_partial_oob)
@@ -417,13 +418,17 @@ def test_saddle_points_outside_bounds_are_filtered(mock_bridge, monkeypatch):
     assert len(board_records) == 1
 
     # 3x3 board has (3-1)*(3-1) = 4 saddle points total.
-    # With aggressive projection, right-side saddle points fall outside.
+    # Index alignment: length must always be 4 regardless of OOB.
     kps = board_records[0].keypoints
-    max_saddle = 4
-    if kps is not None:
-        assert len(kps) < max_saddle, (
-            f"Expected fewer than {max_saddle} saddle points, got {len(kps)}"
-        )
+    assert kps is not None
+    assert len(kps) == 4, f"Expected 4 saddle points (with sentinels), got {len(kps)}"
+
+    # At least one should be the sentinel (-1, -1)
+    sentinels = [p for p in kps if p == (-1.0, -1.0)]
+    assert len(sentinels) > 0, "Expected at least one OOB sentinel"
+    # At least one should be valid
+    valid = [p for p in kps if p != (-1.0, -1.0)]
+    assert len(valid) > 0, "Expected at least one in-bounds saddle point"
 
 
 def test_skip_visibility_bypasses_frustum_culling(mock_bridge, monkeypatch):
@@ -482,3 +487,96 @@ def test_behind_camera_tags_rejected(mock_bridge, monkeypatch):
     tag_records = [r for r in records if r.record_type == "TAG"]
 
     assert len(tag_records) == 0, "All behind-camera tags should be culled"
+
+
+def test_keypoint_sentinel_preserves_index_alignment(mock_bridge, monkeypatch):
+    """Sentinel insertion must preserve keypoints[i] == charuco_id i."""
+    board_config = {
+        "type": "charuco",
+        "rows": 4,
+        "cols": 4,
+        "marker_size": 0.05,
+        "square_size": 0.08,
+        "dictionary": "tag36h11",
+    }
+    mock_obj = _make_board_obj(board_config)
+    _setup_bridge(mock_bridge, res_x=100, res_y=100)
+
+    # Project so left-side points are in-bounds, right-side are out.
+    # Board spans ~[-0.16, 0.16] meters. Saddle grid is 3x3 = 9 points.
+    def project_half_oob(pts, cam_world_mat, res, k_matrix):
+        px = pts[:, 0] * 500 + 30  # Left in, right out
+        py = -pts[:, 1] * 500 + 50
+        return np.stack([px, py], axis=1)
+
+    monkeypatch.setattr("render_tag.backend.projection.project_points", project_half_oob)
+
+    records = generate_board_records(mock_obj, "test_img")
+    board_records = [r for r in records if r.record_type == "BOARD"]
+    assert len(board_records) == 1
+
+    kps = board_records[0].keypoints
+    assert kps is not None
+    # Must always have exactly (rows-1)*(cols-1) = 9 entries
+    assert len(kps) == 9, f"Expected 9 keypoints (with sentinels), got {len(kps)}"
+
+    sentinels = [p for p in kps if p == (-1.0, -1.0)]
+    valid = [p for p in kps if p != (-1.0, -1.0)]
+    assert len(sentinels) > 0, "Some points should be OOB sentinels"
+    assert len(valid) > 0, "Some points should be in-bounds"
+    assert len(sentinels) + len(valid) == 9
+
+
+def test_board_definition_metadata_charuco(mock_bridge):
+    """BOARD record must carry board_definition metadata for ChArUco."""
+    board_config = {
+        "type": "charuco",
+        "rows": 4,
+        "cols": 4,
+        "marker_size": 0.05,
+        "square_size": 0.08,
+        "dictionary": "tag36h11",
+    }
+    mock_obj = _make_board_obj(board_config)
+    _setup_bridge(mock_bridge)
+
+    records = generate_board_records(mock_obj, "test_img")
+    board_records = [r for r in records if r.record_type == "BOARD"]
+    assert len(board_records) == 1
+
+    bd = board_records[0].metadata.get("board_definition")
+    assert bd is not None, "board_definition metadata missing"
+    assert bd["type"] == "charuco"
+    assert bd["rows"] == 4
+    assert bd["cols"] == 4
+    assert np.isclose(bd["square_size_mm"], 80.0)
+    assert np.isclose(bd["marker_size_mm"], 50.0)
+    assert bd["dictionary"] == "tag36h11"
+    assert bd["total_keypoints"] == 9  # (4-1)*(4-1)
+
+
+def test_board_definition_metadata_aprilgrid(mock_bridge):
+    """BOARD record must carry board_definition metadata for AprilGrid."""
+    board_config = {
+        "type": "aprilgrid",
+        "rows": 4,
+        "cols": 6,
+        "marker_size": 0.05,
+        "spacing_ratio": 0.2,
+        "dictionary": "tag36h11",
+    }
+    mock_obj = _make_board_obj(board_config)
+    _setup_bridge(mock_bridge)
+
+    records = generate_board_records(mock_obj, "test_img")
+    board_records = [r for r in records if r.record_type == "BOARD"]
+    assert len(board_records) == 1
+
+    bd = board_records[0].metadata.get("board_definition")
+    assert bd is not None, "board_definition metadata missing"
+    assert bd["type"] == "aprilgrid"
+    assert bd["rows"] == 4
+    assert bd["cols"] == 6
+    assert np.isclose(bd["marker_size_mm"], 50.0)
+    assert bd["dictionary"] == "tag36h11"
+    assert bd["spacing_ratio"] == 0.2

@@ -102,6 +102,18 @@ class SceneProvenance(BaseModel):
 # =============================================================================
 
 
+KEYPOINT_SENTINEL: tuple[float, float] = (-1.0, -1.0)
+"""Sentinel value for out-of-frame or behind-camera calibration keypoints.
+
+Preserves index alignment so ``keypoints[i]`` always maps to ``charuco_id == i``.
+"""
+
+
+def is_sentinel_keypoint(x: float, y: float) -> bool:
+    """Check if a keypoint coordinate pair is the out-of-frame sentinel."""
+    return x == KEYPOINT_SENTINEL[0] and y == KEYPOINT_SENTINEL[1]
+
+
 class Corner(BaseModel):
     """A 2D corner point in image coordinates."""
 
@@ -228,6 +240,9 @@ class DetectionRecord(BaseModel):
         # Append extra keypoints if present
         if self.keypoints:
             for x, y in self.keypoints:
+                if is_sentinel_keypoint(x, y):
+                    row.extend([-1.0, -1.0])
+                    continue
                 if width is not None and x > -999999.0:
                     x = max(0.0, min(float(width), x))
                 if height is not None and y > -999999.0:

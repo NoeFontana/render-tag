@@ -22,6 +22,7 @@ from render_tag.core.schema import (
     DetectionRecord,
     SceneProvenance,
 )
+from render_tag.core.schema.base import KEYPOINT_SENTINEL
 
 # Import pure-Python geometry modules
 try:
@@ -258,9 +259,12 @@ class COCOWriter(AtomicWriter):
             num_keypoints = len(corners)
 
         if detection and detection.keypoints:
-            extra_kp = format_coco_keypoints(np.array(detection.keypoints))
+            kp_array = np.array(detection.keypoints)
+            sentinel_mask = np.all(kp_array == KEYPOINT_SENTINEL, axis=1)
+            vis = ~sentinel_mask
+            extra_kp = format_coco_keypoints(kp_array, visibility=vis)
             keypoints.extend(extra_kp)
-            num_keypoints += len(detection.keypoints)
+            num_keypoints += int(np.sum(vis))  # Only count visible
 
         # Prepare attributes: dynamic dump excludes COCO-native fields
         if detection:
