@@ -336,7 +336,6 @@ class ZmqBackendServer:
 
     def _on_render(self, cmd: Command) -> Response:
         """Handle RENDER command (Execute recipe)."""
-        logger.error(f"DEBUG: Entering _on_render with cmd={cmd}")
         with self._lock:
             self.status = WorkerStatus.BUSY
 
@@ -352,8 +351,6 @@ class ZmqBackendServer:
 
             raw_recipe, output_dir = p.get("recipe"), Path(p.get("output_dir", "."))
             shard_id = p.get("shard_id", self.shard_id)
-
-            logger.error(f"DEBUG: raw_recipe type: {type(raw_recipe)}")
 
             # Move-Left: Validate that the incoming recipe matches our rigid schema
             if not isinstance(raw_recipe, SceneRecipe):
