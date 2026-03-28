@@ -49,14 +49,14 @@ To avoid the significant overhead of starting Blender for every scene, `render-t
 4.  The **Worker Server** receives the recipe, uses the **BlenderBridge** to access APIs, and renders the scene.
 5.  Blender remains ready for the next recipe without quitting.
 
-This "Hot Loop" can improve rendering throughput by $2\text{--}5\times$ for small scenes.
+This "Hot Loop" can improve rendering throughput by \\(2\text{--}5\times\\) for small scenes.
 
 ## Rendering Performance (CV-Safe)
 
 To maximize generation speed while maintaining the high sub-pixel accuracy required for fiducial tag detection, `render-tag` employs several optimization strategies:
 
 ### 1. Adaptive Sampling & Denoising
-We use Cycles' **Adaptive Sampling** with a noise threshold (default $0.05$) rather than a fixed sample count. This is combined with **Intel OpenImageDenoise (OIDN)** guided by Albedo and Normal passes. This "CV-Safe" approach ensures that flat surfaces render nearly instantaneously while high-frequency edges (like tag corners) receive enough samples to remain sharp and accurate.
+We use Cycles' **Adaptive Sampling** with a noise threshold (default \\(0.05\\)) rather than a fixed sample count. This is combined with **Intel OpenImageDenoise (OIDN)** guided by Albedo and Normal passes. This "CV-Safe" approach ensures that flat surfaces render nearly instantaneously while high-frequency edges (like tag corners) receive enough samples to remain sharp and accurate.
 
 ### 2. Light Path Optimization
 
@@ -72,23 +72,27 @@ Standard path tracing bounces light many times to achieve artistic realism. For 
 
 ## Geometric Data Contract (3D-Anchored Orientation)
 
-To ensure synthetic data maintains 6DoF orientation integrity ($\text{roll}, \text{pitch}, \text{yaw}$), `render-tag` follows a strict local-space geometric contract for all point-based subjects (Tags, Boards).
+To ensure synthetic data maintains 6DoF orientation integrity (\\(\text{roll}, \text{pitch}, \text{yaw}\\)), `render-tag` follows a strict local-space geometric contract for all point-based subjects (Tags, Boards).
 
 ### The "Logical Corner 0" Rule
 
 All subject keypoint arrays MUST be ordered such that:
 
-1.  **Index 0**: Represents the **Logical Top-Left** of the subject's local payload/texture, located at local coordinates $(-w/2, -h/2, 0)$.
-2.  **Indices 1, 2, 3**: Follow a strict **Clockwise (CW)** winding in the subject's local $XY$ plane.
-    -   Index 1: Logical Top-Right $(+w/2, -h/2, 0)$
-    -   Index 2: Logical Bottom-Right $(+w/2, +h/2, 0)$
-    -   Index 3: Logical Bottom-Left $(-w/2, +h/2, 0)$
+1.  **Index 0**: Represents the **Logical Top-Left** of the subject's local payload/texture, located at local coordinates \\((-w/2, -h/2, 0)\\).
+2.  **Indices 1, 2, 3**: Follow a strict **Clockwise (CW)** winding in the subject's local \\(XY\\) plane.
+    -   Index 1: Logical Top-Right \\((+w/2, -h/2, 0)\\)
+    -   Index 2: Logical Bottom-Right \\((+w/2, +h/2, 0)\\)
+    -   Index 3: Logical Bottom-Left \\((-w/2, +h/2, 0)\\)
 
 ### Architectural Enforcement
 
 -   **Asset Layer**: `keypoints_3d` are assigned explicitly in local coordinates during mesh generation.
--   **Projection Layer**: Performs a pure mathematical transformation from world space $P_{world}$ to pixel space $p_{pixel}$:
-    $$p_{pixel} = K [R|t] P_{world}$$
+-   **Projection Layer**: Performs a pure mathematical transformation from world space \\(P_{world}\\) to pixel space \\(p_{pixel}\\):
+
+    \\[
+    p_{pixel} = K [R|t] P_{world}
+    \\]
+
     This ensures zero-drift between the 3D asset and its 2D annotations without any visual re-sorting heuristics.
 -   **Annotation Layer**: Preserves the original 3D indices in the 2D output (COCO keypoints, CSV corners).
 
