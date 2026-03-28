@@ -27,11 +27,6 @@ class TagFamily(str, Enum):
     TAG36H10 = "tag36h10"
     TAG25H9 = "tag25h9"
     TAG16H5 = "tag16h5"
-    TAGCIRCLE21H7 = "tagCircle21h7"
-    TAGCIRCLE49H12 = "tagCircle49h12"
-    TAGCUSTOM48H12 = "tagCustom48h12"
-    TAGSTANDARD41H12 = "tagStandard41h12"
-    TAGSTANDARD52H13 = "tagStandard52h13"
 
     # ArUco dictionaries (OpenCV standard)
     ARUCO_4X4_50 = "DICT_4X4_50"

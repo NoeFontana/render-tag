@@ -212,6 +212,7 @@ class TextureFactory:
         """
         rows, cols = config.rows, config.cols
         tag_id = 0
+        tag_ids = config.ids
 
         for r in range(rows):
             for c in range(cols):
@@ -226,16 +227,20 @@ class TextureFactory:
                 if not is_white:
                     img[y0:y1, x0:x1] = 0
                 else:
+                    current_tag_id = tag_ids[tag_id] if tag_ids is not None else tag_id
                     tag_img = generate_tag_image(
                         family=config.dictionary,
-                        tag_id=tag_id,
+                        tag_id=current_tag_id,
                         size_pixels=marker_px,
                         border_bits=1,
                     )
-                    if tag_img is not None:
-                        center_x = (x0 + x1) / 2.0
-                        center_y = (y0 + y1) / 2.0
-                        self._composite_tag_subpixel(img, tag_img, center_x, center_y)
+                    if tag_img is None:
+                        raise ValueError(
+                            f"Unsupported tag dictionary for board rendering: {config.dictionary}"
+                        )
+                    center_x = (x0 + x1) / 2.0
+                    center_y = (y0 + y1) / 2.0
+                    self._composite_tag_subpixel(img, tag_img, center_x, center_y)
                     tag_id += 1
 
     def _draw_aprilgrid(
@@ -257,6 +262,7 @@ class TextureFactory:
         """
         rows, cols = config.rows, config.cols
         tag_id = 0
+        tag_ids = config.ids
 
         for r in range(rows):
             for c in range(cols):
@@ -266,16 +272,20 @@ class TextureFactory:
                 y1 = (r + 1) * square_px + quiet_zone_px
                 x1 = (c + 1) * square_px + quiet_zone_px
 
+                current_tag_id = tag_ids[tag_id] if tag_ids is not None else tag_id
                 tag_img = generate_tag_image(
                     family=config.dictionary,
-                    tag_id=tag_id,
+                    tag_id=current_tag_id,
                     size_pixels=marker_px,
                     border_bits=1,
                 )
-                if tag_img is not None:
-                    center_x = (x0 + x1) / 2.0
-                    center_y = (y0 + y1) / 2.0
-                    self._composite_tag_subpixel(img, tag_img, center_x, center_y)
+                if tag_img is None:
+                    raise ValueError(
+                        f"Unsupported tag dictionary for board rendering: {config.dictionary}"
+                    )
+                center_x = (x0 + x1) / 2.0
+                center_y = (y0 + y1) / 2.0
+                self._composite_tag_subpixel(img, tag_img, center_x, center_y)
                 tag_id += 1
 
         # Draw black corner squares at grid intersections.

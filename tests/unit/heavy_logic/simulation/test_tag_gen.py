@@ -42,3 +42,9 @@ def test_unsupported_family():
     """Verify that unsupported families return None."""
     img = generate_tag_image("invalid_family", 0)
     assert img is None
+
+
+def test_unsupported_apriltag_family_is_not_aliased():
+    """Families OpenCV does not provide must not silently render as tag36h11."""
+    img = generate_tag_image("tagCircle21h7", 0)
+    assert img is None

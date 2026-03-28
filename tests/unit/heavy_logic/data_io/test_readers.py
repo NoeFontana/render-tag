@@ -22,6 +22,19 @@ def _make_board_def():
     )
 
 
+def _make_aprilgrid_def():
+    return BoardDefinition(
+        type="aprilgrid",
+        rows=3,
+        cols=4,
+        square_size_mm=60.0,
+        marker_size_mm=50.0,
+        dictionary="tag36h11",
+        total_keypoints=6,
+        spacing_ratio=0.2,
+    )
+
+
 _UNSET = object()
 
 
@@ -223,6 +236,17 @@ class TestGetValidCalibrationPairs:
         obj_pts, _img_pts, ids = frame.get_valid_calibration_pairs()
         assert obj_pts.shape == (0, 3)
         assert ids.shape == (0,)
+
+    def test_aprilgrid_object_points_reconstructed(self):
+        keypoints = [(100.0 + i * 10, 200.0 + i * 5) for i in range(6)]
+        record = _make_board_record(keypoints=keypoints, board_def=_make_aprilgrid_def())
+        frame = CalibrationFrame("img_0000", record)
+        obj_pts, img_pts, ids = frame.get_valid_calibration_pairs()
+
+        assert obj_pts.shape == (6, 3)
+        assert img_pts.shape == (6, 2)
+        assert np.array_equal(ids, np.arange(6, dtype=np.int32))
+        assert tuple(obj_pts[0]) == pytest.approx((-60.0, 30.0, 0.0))
 
 
 class TestGetAllKeypointsWithVisibility:

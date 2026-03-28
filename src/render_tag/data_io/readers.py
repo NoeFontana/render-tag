@@ -259,18 +259,18 @@ def _compute_object_points_3d(
     board_h = rows * square_mm
 
     if bd.type == BoardType.CHARUCO:
-        # Saddle points at grid intersections: (rows-1) x (cols-1) points
         start_x = -board_w / 2.0 + square_mm / 2.0
         start_y = board_h / 2.0 - square_mm / 2.0
+    elif bd.type == BoardType.APRILGRID:
+        start_x = -board_w / 2.0 + square_mm / 2.0
+        start_y = board_h / 2.0 - square_mm / 2.0
+    else:
+        return ()
 
-        points: list[tuple[float, float, float]] = []
-        for row in range(rows):
-            for col in range(cols):
-                if row < rows - 1 and col < cols - 1:
-                    sx = start_x + col * square_mm + square_mm / 2.0
-                    sy = start_y - row * square_mm - square_mm / 2.0
-                    points.append((sx, sy, 0.0))
-        return tuple(points)
-
-    # AprilGrid 3D reconstruction not yet implemented
-    return ()
+    points: list[tuple[float, float, float]] = []
+    for row in range(rows - 1):
+        for col in range(cols - 1):
+            sx = start_x + col * square_mm + square_mm / 2.0
+            sy = start_y - row * square_mm - square_mm / 2.0
+            points.append((sx, sy, 0.0))
+    return tuple(points)
