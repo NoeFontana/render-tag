@@ -88,11 +88,9 @@ All subject keypoint arrays MUST be ordered such that:
 
 -   **Asset Layer**: `keypoints_3d` are assigned explicitly in local coordinates during mesh generation.
 -   **Projection Layer**: Performs a pure mathematical transformation from world space $P_{world}$ to pixel space $p_{pixel}$:
-
     $$
     p_{pixel} = K [R|t] P_{world}
     $$
-
     This ensures zero-drift between the 3D asset and its 2D annotations without any visual re-sorting heuristics.
 -   **Annotation Layer**: Preserves the original 3D indices in the 2D output (COCO keypoints, CSV corners).
 
