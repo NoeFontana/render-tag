@@ -35,6 +35,12 @@ coco_shard_*.json
 rich_truth_shard_*.json
 tags_shard_*.csv
 recipes_shard_*.json
+provenance_shard_*.json
 board_config.json
 dataset_info.json
 checksums.json
+test_draw.png
+
+# Local/Agent state
+.claude/
+conductor/setup_state.json
