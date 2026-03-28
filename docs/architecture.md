@@ -27,6 +27,7 @@ Pure Python procedural logic. Samples parameters and builds `SceneRecipe` object
 
 ### 3. Backend (`src/render_tag/backend/`)
 The 3D rendering engine.
+
 - **`bootstrap.py`**: Centralized environment stabilization. Handles paths, venv site-packages, and logging.
 - **`bridge.py`**: `BlenderBridge` provides explicit Dependency Injection for Blender/BlenderProc APIs.
 - **`worker_server.py`**: Implementation of the "Hot Loop" ZMQ server.
