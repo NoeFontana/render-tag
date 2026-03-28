@@ -1,3 +1,11 @@
+import os
+
+# Increase OpenCV's internal pixel limit to support high-fidelity calibration targets.
+# The default is 2^30 (approx 1 billion pixels), which is exceeded by large boards
+# at high resolutions.
+# This MUST be set before cv2 is imported.
+os.environ["OPENCV_IO_MAX_IMAGE_PIXELS"] = str(2**33)
+
 import hashlib
 import json
 from math import ceil
@@ -24,13 +32,13 @@ class GridMetrics(NamedTuple):
 class TextureFactory:
     """Sub-pixel accurate calibration target texture synthesizer."""
 
-    def __init__(self, px_per_mm: float = 50.0, cache_dir: Path | None = None):
+    def __init__(self, px_per_mm: float = 40.0, cache_dir: Path | None = None):
         """
         Args:
-            px_per_mm: Resolution of the generated texture (default: 50px/mm).
-                Higher density pushes aliasing artifacts beyond the Nyquist limit
-                of simulated camera sensors, preserving geometrically true gradients
-                at tag corners when projected onto slanted 3D planes.
+            px_per_mm: Resolution of the generated texture (default: 40px/mm).
+                At 40px/mm, a 1m board is 40k pixels wide. This provides
+                extreme oversampling for reference-grade datasets while
+                staying within reasonable memory limits.
             cache_dir: Optional directory to cache generated textures
         """
         self.px_per_mm = px_per_mm
