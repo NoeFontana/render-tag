@@ -26,20 +26,21 @@ When defining the geometry of a calibration board (ChArUco, AprilGrid), we follo
 #### Visual Mapping (Local Space)
 ```mermaid
 graph TD
-    TL["Corner 0: TL (-x, -y)"] --- TR["Corner 1: TR (+x, -y)"]
-    TL --- BL["Corner 3: BL (-x, +y)"]
-    TR --- BR["Corner 2: BR (+x, +y)"]
-    TL -.- O["Origin (0,0,0) = Center"]
-    TR -.- O
-    BR -.- O
-    BL -.- O
+    TL["Corner 0: TL (-x, -y)"] --> TR["Corner 1: TR (+x, -y)"]
+    TR --> BR["Corner 2: BR (+x, +y)"]
+    BR --> BL["Corner 3: BL (-x, +y)"]
+    BL --> TL
 
-    subgraph Board Plane [Local Z=0]
-    direction LR
-    X[+X Right]
-    Y[+Y Down]
+    TL --- O["Origin (0,0,0) = Center"]
+    TR --- O
+    BR --- O
+    BL --- O
+
+    subgraph Axes [Local Plane]
+        X[+X Right]
+        Y[+Y Down]
     end
-    Z[+Z Into Plane] -.-> Board Plane
+    Z[+Z Into Plane] --- Axes
 ```
 
 The board's mathematical layout treats **+Y as pointing downwards** and **+Z as pointing inwards**. With the origin at center:
