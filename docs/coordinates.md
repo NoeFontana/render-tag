@@ -29,28 +29,55 @@ When defining the geometry of a calibration board (ChArUco, AprilGrid), we follo
              Local Coordinate System (Local XY Plane)
              Origin (0,0,0) at Geometric Center
 
-      (-w/2, -h/2)                           (+w/2, -h/2)
-        [Corner 0] _________________________ [Corner 1]
-             |    |                         |    |
-             |    |         -Y (Up)         |    |
-             |    |            ^            |    |
-             |    |            |            |    |
-             |    |    -X <--- O ---> +X    |    |
-             |    |    (Left)  |    (Right) |    |
-             |    |            |            |    |
-             |    |         +Y (Down)       |    |
-             |    |_________________________|    |
-        [Corner 3]                           [Corner 2]
-      (-w/2, +h/2)                           (+w/2, +h/2)
+       (-w/2, -h/2)                          (+w/2, -h/2)
+          [Corner 0] ________________________ [Corner 1]
+               |    |                        |    |
+               |    |        -Y (Up)         |    |
+               |    |           ^            |    |
+               |    |           |            |    |
+               |    |   -X <--- O ---> +X    |    |
+               |    |   (Left)  |   (Right)  |    |
+               |    |           |            |    |
+               |    |        +Y (Down)       |    |
+               |    |________________________|    |
+          [Corner 3]                          [Corner 2]
+       (-w/2, +h/2)                          (+w/2, +h/2)
 
     +Z Axis: Points INTO the board (away from camera).
-    Corners: Represent the outer edge of the BLACK BORDER.
+    Corners: Outer edge of the BLACK BORDER.
 ```
 
 The board's mathematical layout treats **+Y as pointing downwards** and **+Z as pointing inwards**. With the origin at center:
-1. The Top-Left corner is at local coordinates $(-w/2, -h/2, 0)$.
-2. The Bottom-Right corner is at local coordinates $(+w/2, +h/2, 0)$.
+1. The Top-Left corner is at local coordinates \((-w/2, -h/2, 0)\).
+2. The Bottom-Right corner is at local coordinates \((+w/2, +h/2, 0)\).
 3. The surface normal facing the camera represents the **-Z** direction.
+
+### 1.3 Calibration Board Layouts
+For multi-marker arrays like **ChArUco** or **AprilGrid**, the origin remains at the geometric center of the entire board. Markers are indexed in **row-major order** starting from the top-left.
+
+#### Board Indexing & Keypoints
+
+```text
+             Board Layout (Origin at Geometric Center)
+             Example: 2x3 Grid (Rows x Cols)
+
+       Row 0, Col 0      Row 0, Col 1      Row 0, Col 2
+      [ Marker 0 ]      [ Marker 1 ]      [ Marker 2 ]
+          (0,0)             (0,1)             (0,2)
+            |                 |                 |
+       Row 1, Col 0      Row 1, Col 1      Row 1, Col 2
+      [ Marker 3 ]      [ Marker 4 ]      [ Marker 5 ]
+          (1,0)             (1,1)             (1,2)
+
+    Keypoint Indexing:
+    - Within each Marker: 0, 1, 2, 3 (CW winding)
+    - Board Total: Continuous row-major (0 to N-1)
+```
+
+**ChArUco Saddle Points:**
+For ChArUco boards, calibration "saddle points" (checkerboard corners) are interleaved between markers. These are also exported in row-major order.
+-   **Origin (0,0):** Top-left-most internal corner.
+-   **Total Corners:** \((R-1) \times (C-1)\) where \(R, C\) are the number of grid squares.
 
 ## 2. Global Scene Space
 - **World Frame:** Z-Up (Blender default).
@@ -71,7 +98,9 @@ The pose represents the transformation from the **Tag Center** (defined above) t
 ### 3.2 Detection Metadata
 *   **Active Size (`tag_size_mm`):** The physical edge length of the **black border** only (excluding margin/quiet zone) in millimeters.
 *   **PPM (Pixels Per Module):** A metric for visual resolution.
-    $$PPM = \frac{f_{px} \cdot \text{size}_m}{Z_{depth} \cdot \text{grid\_size}}$$
+    \[
+    PPM = \frac{f_{px} \cdot \text{size}_m}{Z_{depth} \cdot \text{grid\_size}}
+    \]
     Where `grid_size` is the number of bits (e.g., 8 for `tag36h11`).
 *   **Physics Conditions:**
     *   `velocity`: Camera velocity vector [vx, vy, vz] in m/s.
@@ -113,4 +142,4 @@ This makes `rich_truth.json` self-describing — downstream calibration scripts 
 *   **`size_meters`**: Defines the **outer edge** of the entire physical asset (including white margin).
 *   **Annotated Corners**: Represent the **outer edge of the black border** only. 
 
-The relationship is determined by `margin_bits`. For a tag with $N$ bits and a margin of $M$ bits, the annotated corners are located at a scale of $N / (N + 2M)$ relative to the physical center.
+The relationship is determined by `margin_bits`. For a tag with \(N\) bits and a margin of \(M\) bits, the annotated corners are located at a scale of \(N / (N + 2M)\) relative to the physical center.
