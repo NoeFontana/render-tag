@@ -8,13 +8,13 @@ The system is divided into **Host** code (Python >=3.11) and **Backend** code (B
 
 ```mermaid
 graph TD
-    A[CLI / Python API] --> B[Generator]
-    B -- SceneRecipe --> C[Unified Orchestrator]
-    C -- ZMQ REQ --> D[ZMQ Server (Blender)]
-    D --> E[Worker Server]
-    E --> F[BlenderBridge]
-    F --> G[BlenderProc / Blender]
-    G --> H[Rendered Images & Metadata]
+    A["CLI / Python API"] --> B["Generator"]
+    B -- "SceneRecipe" --> C["Unified Orchestrator"]
+    C -- "ZMQ REQ" --> D["ZMQ Server (Blender)"]
+    D --> E["Worker Server"]
+    E --> F["BlenderBridge"]
+    F --> G["BlenderProc / Blender"]
+    G --> H["Rendered Images & Metadata"]
 ```
 
 ## Components
