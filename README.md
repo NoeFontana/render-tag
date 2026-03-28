@@ -1,6 +1,6 @@
 # render-tag
 
-Procedural 3D synthetic data generation for fiducial marker (AprilTag/ArUco) detector training.
+Procedural 3D synthetic data generation for fiducial marker (AprilTag/ArUco) and fiducial board ChArUco/AprilGrid detector evaluation or training.
 
 ## Installation
 
