@@ -77,6 +77,7 @@ auditor.save_csv(Path("output/dataset_01/telemetry.csv"))
 ## Optimizations
 
 `render-tag` implements several performance optimizations:
+
 - **ZMQ Hot Loop**: Persistent workers avoid Blender startup overhead.
 - **Mesh Pooling**: Blender objects are reused across scenes.
 - **Lazy Assets**: HDRIs and textures are cached in VRAM.
