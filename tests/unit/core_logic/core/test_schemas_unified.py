@@ -5,7 +5,6 @@ from render_tag.core.schema import (
     BoardConfig,
     RendererConfig,
 )
-from render_tag.core.schema.subject import BoardSubjectConfig, TagSubjectConfig
 from render_tag.core.schema.hot_loop import (
     Command,
     CommandType,
@@ -14,6 +13,7 @@ from render_tag.core.schema.hot_loop import (
     Telemetry,
     calculate_state_hash,
 )
+from render_tag.core.schema.subject import BoardSubjectConfig, TagSubjectConfig
 
 
 def test_renderer_config_defaults():

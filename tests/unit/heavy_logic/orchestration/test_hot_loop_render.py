@@ -1,8 +1,10 @@
+import logging
+
 from render_tag.backend.worker_server import ZmqBackendServer
 from render_tag.core.schema.hot_loop import Command, CommandType, ResponseStatus
 
 
-def test_hot_loop_render_command(tmp_path, port_generator, stabilized_bridge):
+def test_hot_loop_render_command(tmp_path, port_generator, stabilized_bridge, caplog):
     """
     Staff Engineer: Test the hot-loop RENDER logic synchronously.
     Uses port_generator and stabilized_bridge for systematic reliability.
@@ -68,11 +70,14 @@ def test_hot_loop_render_command(tmp_path, port_generator, stabilized_bridge):
     )
 
     # This call is synchronous and uses internal mocks
-    resp = server._handle_command(cmd_render)
+    with caplog.at_level(logging.ERROR, logger="render_tag.backend.worker_server"):
+        resp = server._handle_command(cmd_render)
 
     assert resp.status == ResponseStatus.SUCCESS
     assert resp.message is not None
     assert "Rendered scene 42" in resp.message
+    assert "DEBUG: Entering _on_render" not in caplog.text
+    assert "DEBUG: raw_recipe type" not in caplog.text
 
     # Verify output exists immediately (no race condition)
     assert (output_dir / "images" / "scene_0042_cam_0000.png").exists()

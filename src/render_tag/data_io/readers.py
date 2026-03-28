@@ -258,10 +258,7 @@ def _compute_object_points_3d(
     board_w = cols * square_mm
     board_h = rows * square_mm
 
-    if bd.type == BoardType.CHARUCO:
-        start_x = -board_w / 2.0 + square_mm / 2.0
-        start_y = board_h / 2.0 - square_mm / 2.0
-    elif bd.type == BoardType.APRILGRID:
+    if bd.type == BoardType.CHARUCO or bd.type == BoardType.APRILGRID:
         start_x = -board_w / 2.0 + square_mm / 2.0
         start_y = board_h / 2.0 - square_mm / 2.0
     else:
