@@ -48,6 +48,7 @@ When defining the geometry of a calibration board (ChArUco, AprilGrid), we follo
 ```
 
 The board's mathematical layout treats **+Y as pointing downwards** and **+Z as pointing inwards**. With the origin at center:
+
 1. The Top-Left corner is at local coordinates \\((-w/2, -h/2, 0)\\).
 2. The Bottom-Right corner is at local coordinates \\((+w/2, +h/2, 0)\\).
 3. The surface normal facing the camera represents the **-Z** direction.
@@ -76,6 +77,7 @@ For multi-marker arrays like **ChArUco** or **AprilGrid**, the origin remains at
 
 **ChArUco Saddle Points:**
 For ChArUco boards, calibration "saddle points" (checkerboard corners) are interleaved between markers. These are also exported in row-major order.
+
 -   **Origin (0,0):** Top-left-most internal corner.
 -   **Total Corners:** \\((R-1) \times (C-1)\\) where \\(R, C\\) are the number of grid squares.
 
