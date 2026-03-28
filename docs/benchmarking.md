@@ -8,7 +8,6 @@ The project defines several "Gold Standard" datasets used for cross-version perf
 
 | Dataset Name | Config Path | Focus |
 |--------------|-------------|-------|
-| **Locus Bench Phase 1** | `configs/experiments/locus_bench_p1.yaml` | Calibration accuracy and ground truth consistency. |
 | **Locus Pose Baseline** | `configs/experiments/locus_pose_baseline.yaml` | Pose estimation stability under distance and angle sweeps. |
 
 ## Generating Benchmark Datasets
@@ -18,7 +17,7 @@ Benchmark datasets are defined as experiments and should be run using the `exper
 ### 1. Fast Verification (Workbench)
 Use the `workbench` renderer for rapid logic verification or if you only need bounding boxes without photorealistic noise.
 ```bash
-uv run render-tag experiment run --config configs/experiments/locus_bench_p1.yaml --renderer-mode workbench
+uv run render-tag experiment run --config configs/experiments/locus_pose_baseline.yaml --renderer-mode workbench
 ```
 
 ### 2. Production Baseline (Cycles)

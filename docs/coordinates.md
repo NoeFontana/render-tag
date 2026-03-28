@@ -24,23 +24,27 @@ When defining the geometry of a calibration board (ChArUco, AprilGrid), we follo
 - **+Z Axis:** Points **into the board plane** (away from the viewer), following the standard OpenCV camera convention.
 
 #### Visual Mapping (Local Space)
-```mermaid
-graph TD
-    TL["Corner 0: TL (-x, -y)"] --> TR["Corner 1: TR (+x, -y)"]
-    TR --> BR["Corner 2: BR (+x, +y)"]
-    BR --> BL["Corner 3: BL (-x, +y)"]
-    BL --> TL
 
-    TL --- O["Origin (0,0,0) = Center"]
-    TR --- O
-    BR --- O
-    BL --- O
+```text
+             Local Coordinate System (Local XY Plane)
+             Origin (0,0,0) at Geometric Center
 
-    subgraph Axes [Local Plane]
-        X[+X Right]
-        Y[+Y Down]
-    end
-    Z[+Z Into Plane] --- Axes
+      (-w/2, -h/2)                           (+w/2, -h/2)
+        [Corner 0] _________________________ [Corner 1]
+             |    |                         |    |
+             |    |         -Y (Up)         |    |
+             |    |            ^            |    |
+             |    |            |            |    |
+             |    |    -X <--- O ---> +X    |    |
+             |    |    (Left)  |    (Right) |    |
+             |    |            |            |    |
+             |    |         +Y (Down)       |    |
+             |    |_________________________|    |
+        [Corner 3]                           [Corner 2]
+      (-w/2, +h/2)                           (+w/2, +h/2)
+
+    +Z Axis: Points INTO the board (away from camera).
+    Corners: Represent the outer edge of the BLACK BORDER.
 ```
 
 The board's mathematical layout treats **+Y as pointing downwards** and **+Z as pointing inwards**. With the origin at center:
