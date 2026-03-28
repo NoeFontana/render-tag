@@ -1,8 +1,24 @@
 # render-tag
 
-Procedural 3D synthetic data generation for fiducial marker (AprilTag/ArUco) and fiducial board ChArUco/AprilGrid detector evaluation or training.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/release/python-3110/)
+[![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 
-## Installation
+**render-tag** is a high-performance procedural 3D synthetic data generator for fiducial markers (AprilTag, ArUco) and calibration boards (ChArUco, AprilGrid). It enables robust detector evaluation and high-fidelity training data generation with pixel-perfect ground truth.
+
+---
+
+## 🚀 Key Features
+
+*   **Procedural 3D Scenes**: Fully randomized lighting, materials, HDRI backgrounds, and camera trajectories.
+*   **High-Performance Orchestration**: A decoupled **Host-Backend** architecture using a **ZMQ-based Hot Loop** to eliminate Blender's startup overhead.
+*   **Calibration Grade**: Sub-pixel accurate projections strictly aligned with OpenCV continuous coordinates (no 0.5px bias).
+*   **Rich Annotations**: Automatic generation of COCO JSON, OpenCV CSV, and "Rich Truth" (PPM, depth, poses, lighting).
+*   **Modular CLI**: A unified tool for generation, validation, visualization, and dataset auditing.
+
+---
+
+## 🛠️ Installation
 
 ```bash
 # Clone the repository
@@ -12,86 +28,53 @@ cd render-tag
 # Install with uv (recommended)
 uv sync
 
-# Or with pip
-pip install -e .
+# Install BlenderProc (Required for 3D generation)
+uv run pip install blenderproc
 ```
 
-### BlenderProc (Required for generation)
+---
 
-For actual data generation, you need BlenderProc:
-
-```bash
-pip install blenderproc
-```
-
-## Quick Start
+## ⚡ Quick Start
 
 ```bash
-# Check installation status
-uv run render-tag info
+# 1. Sync assets (HDRIs/textures) from Hugging Face
+uv run render-tag hub pull-assets
 
-# Validate a configuration file
+# 2. Validate your configuration
 uv run render-tag validate-config --config configs/default.yaml
 
-# Generate synthetic data (requires BlenderProc)
-uv run render-tag generate --config configs/default.yaml --output output/dataset_01 --scenes 10
+# 3. Generate a dataset (10 scenes)
+uv run render-tag generate --config configs/default.yaml --output output/sample --scenes 10
 
-# Visualize detection annotations
-uv run render-tag viz dataset --output output/dataset_01
-
-# Synchronize assets from Hugging Face
-uv run render-tag hub pull-assets
+# 4. Visualize the results
+uv run render-tag viz dataset --output output/sample
 ```
 
-## Architecture
+---
 
-`render-tag` uses a decoupled **Host-Backend** architecture for high-performance rendering:
+## 🏗️ Architecture
 
-*   **Host (Python >=3.11)**: Procedural math, recipe generation, and worker orchestration.
-*   **Backend (Blender/ZMQ)**: Persistent 3D workers running a **ZMQ-based Hot Loop**. This avoids the massive overhead of Blender startup.
+`render-tag` is built on a high-concurrency **Host-Backend** model:
 
-👉 For detailed design notes, see **[Architecture Guide](docs/architecture.md)**.
+*   **Host (Python >=3.11)**: Pure Python logic for procedural math, scene recipe generation, and worker orchestration. It NEVER depends on `bpy`.
+*   **Backend (Blender/ZMQ)**: Optimized Blender workers running a persistent execution loop. This architecture allows rendering thousands of scenes without the multi-second overhead of repeated Blender process spawns.
 
-## Usage
+👉 For detailed design notes, see the **[Architecture Guide](https://noefontana.github.io/render-tag/architecture/)**.
 
-### CLI Commands
+---
 
-The primary way to interact with `render-tag` is through its modular CLI.
+## 📖 Documentation
 
-```bash
-# Generate synthetic data
-uv run render-tag generate --config configs/default.yaml --scenes 100
+*   **[User Guide](https://noefontana.github.io/render-tag/guide/)**: CLI commands, configuration, and standard workflows.
+*   **[Coordinate Systems](https://noefontana.github.io/render-tag/coordinates/)**: Standards for poses, image coordinates, and data layout.
+*   **[API Reference](https://noefontana.github.io/render-tag/api/)**: Detailed module documentation for developers.
 
-# Visualize detection annotations
-uv run render-tag viz dataset --output output/dataset_01
+---
 
-# Audit dataset quality
-uv run render-tag audit run --dir output/dataset_01
-```
-
-👉 See the **[User Guide](docs/guide.md)** for a full list of commands and options.
-
-### Configuration
-
-`render-tag` uses YAML for flexible scene definition. Ready-to-use presets are available in `configs/presets/`.
-
-👉 See **[Configuration Details](docs/guide.md#configuration)** and **[Coordinate Standards](docs/coordinates.md)** for data layout info.
-
-## Output Format
-
-Generated datasets include images and standardized annotations:
-
-- `tags.csv`: Merged corner annotations (OpenCV convention).
-- `annotations.json`: Merged COCO format annotations.
-- `rich_truth.json`: Extended metadata (pose, PPM, lighting).
-- `provenance.json`: Master manifest mapping images to their exact `SceneRecipe`.
-
-👉 See **[Coordinate Systems & Data Standards](docs/coordinates.md)** for detailed field definitions.
-
-## Development
+## 🧪 Development
 
 ```bash
-# Install dev dependencies
+# Install all development dependencies
 uv sync --all-groups
 
 # Run tests
@@ -102,6 +85,12 @@ uv run ruff check src/
 uv run ty check
 ```
 
-## License
+---
 
-MIT License
+## 🤝 Contributing
+
+Contributions are welcome! Please see **[CONTRIBUTING.md](CONTRIBUTING.md)** and read the **[Architecture Guide](https://noefontana.github.io/render-tag/architecture/)** before opening a PR.
+
+## 📄 License
+
+MIT License. See **[LICENSE](LICENSE)** for details.
