@@ -1,7 +1,8 @@
 import os
 
 # Increase OpenCV's internal pixel limit to support high-fidelity calibration targets.
-# The default is 2^30 (approx 1 billion pixels), which is exceeded by large boards at high resolutions.
+# The default is 2^30 (approx 1 billion pixels), which is exceeded by large boards
+# at high resolutions.
 # This MUST be set before cv2 is imported.
 os.environ["OPENCV_IO_MAX_IMAGE_PIXELS"] = str(2**33)
 
@@ -35,8 +36,8 @@ class TextureFactory:
         """
         Args:
             px_per_mm: Resolution of the generated texture (default: 40px/mm).
-                At 40px/mm, a 1m board is 40k pixels wide. This provides 
-                extreme oversampling for reference-grade datasets while 
+                At 40px/mm, a 1m board is 40k pixels wide. This provides
+                extreme oversampling for reference-grade datasets while
                 staying within reasonable memory limits.
             cache_dir: Optional directory to cache generated textures
         """
@@ -267,7 +268,7 @@ class TextureFactory:
             marker_px: Marker size in pixels (pre-snapped to grid_size multiple).
             quiet_zone_px: White border width in pixels around the grid.
         """
-        rows, cols = config.rows, cols = config.cols
+        rows, cols = config.rows, config.cols
         tag_id = 0
         tag_ids = config.ids
 
