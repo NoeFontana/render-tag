@@ -245,7 +245,7 @@ def create_board_plane(
     return board
 
 
-def _create_board_material(name: str, texture_path: str) -> Any:
+def _create_board_material(name: str, texture_path: str | Path) -> Any:
     """Create a calibration-grade emission material with sharp texture sampling.
 
     Args:
@@ -267,7 +267,7 @@ def _create_board_material(name: str, texture_path: str) -> Any:
 
     # Load and assign image
     try:
-        image = bridge.bpy.data.images.load(texture_path)
+        image = bridge.bpy.data.images.load(str(texture_path))
         tex_image.image = image
     except Exception as e:
         logger.error(f"Failed to load calibration texture {texture_path}: {e}")
