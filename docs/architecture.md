@@ -58,12 +58,16 @@ To maximize generation speed while maintaining the high sub-pixel accuracy requi
 We use Cycles' **Adaptive Sampling** with a noise threshold (default `0.05`) rather than a fixed sample count. This is combined with **Intel OpenImageDenoise (OIDN)** guided by Albedo and Normal passes. This "CV-Safe" approach ensures that flat surfaces render nearly instantaneously while high-frequency edges (like tag corners) receive enough samples to remain sharp and accurate.
 
 ### 2. Light Path Optimization
-Standard path tracing bounces light many times to achieve artistic realism. For computer vision training, we "min-max" these bounces:
-- **Total Bounces (4):** Diminishing returns for CV after 4.
-- **Diffuse (2):** Enough for realistic indirect lighting.
-- **Glossy (4):** Critical for preserving specular highlights (glare) which are essential for testing detector robustness.
-- **Transmission (0):** Disabled unless glass/refraction is explicitly needed.
-- **Caustics (Off):** Computationally expensive and irrelevant for tag detection.
+
+Standard path tracing bounces light many times to achieve artistic realism. For computer vision training, we "min-max" these bounces to balance fidelity with throughput:
+
+| Parameter | Value | Rationale |
+| :--- | :---: | :--- |
+| **Total Bounces** | 4 | Diminishing returns for CV after 4. |
+| **Diffuse** | 2 | Enough for realistic indirect lighting. |
+| **Glossy** | 4 | Critical for preserving specular highlights (glare). |
+| **Transmission** | 0 | Disabled unless glass/refraction is explicitly needed. |
+| **Caustics** | Off | Computationally expensive and irrelevant for tag detection. |
 
 ## Geometric Data Contract (3D-Anchored Orientation)
 
