@@ -5,6 +5,7 @@ from render_tag.core.schema import (
     BoardConfig,
     RendererConfig,
 )
+from render_tag.core.schema.subject import BoardSubjectConfig, TagSubjectConfig
 from render_tag.core.schema.hot_loop import (
     Command,
     CommandType,
@@ -30,6 +31,33 @@ def test_board_config_validation():
     # Missing required for AprilGrid
     with pytest.raises(ValidationError):
         BoardConfig(type="aprilgrid", cols=5)  # type: ignore
+
+    with pytest.raises(ValidationError, match="Unsupported board dictionary"):
+        BoardConfig(
+            type="aprilgrid",
+            cols=2,
+            rows=2,
+            marker_size=0.03,
+            spacing_ratio=0.2,
+            dictionary="tagCircle21h7",
+        )
+
+
+def test_subject_config_rejects_unsupported_tag_family():
+    with pytest.raises(ValidationError, match="Unsupported tag families"):
+        TagSubjectConfig(tag_families=["tag36h11", "tagCircle21h7"])
+
+
+def test_subject_config_rejects_unsupported_board_dictionary():
+    with pytest.raises(ValidationError, match="Unsupported board dictionary"):
+        BoardSubjectConfig(
+            type="BOARD",
+            cols=2,
+            rows=2,
+            marker_size_mm=30.0,
+            spacing_ratio=0.2,
+            dictionary="tagCircle21h7",
+        )
 
 
 def test_hot_loop_command_validation():

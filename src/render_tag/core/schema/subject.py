@@ -9,8 +9,11 @@ from pydantic import (
     PositiveFloat,
     PositiveInt,
     RootModel,
+    field_validator,
     model_validator,
 )
+
+from render_tag.core.constants import SUPPORTED_OPENCV_TAG_FAMILIES
 
 
 class TagSubjectConfig(BaseModel):
@@ -32,6 +35,15 @@ class TagSubjectConfig(BaseModel):
     tag_spacing_bits: float = Field(default=2.0, description="Spacing between tags in bits")
 
     model_config = ConfigDict(use_enum_values=True)
+
+    @field_validator("tag_families")
+    @classmethod
+    def validate_tag_families(cls, v: list[str]) -> list[str]:
+        """Reject tag families this environment cannot render."""
+        unsupported = [family for family in v if family not in SUPPORTED_OPENCV_TAG_FAMILIES]
+        if unsupported:
+            raise ValueError(f"Unsupported tag families: {unsupported}")
+        return v
 
     @model_validator(mode="before")
     @classmethod
@@ -74,6 +86,14 @@ class BoardSubjectConfig(BaseModel):
     ids: list[int] | None = None
 
     model_config = ConfigDict(use_enum_values=True)
+
+    @field_validator("dictionary")
+    @classmethod
+    def validate_dictionary(cls, v: str) -> str:
+        """Reject board dictionaries this environment cannot render."""
+        if v not in SUPPORTED_OPENCV_TAG_FAMILIES:
+            raise ValueError(f"Unsupported board dictionary: {v}")
+        return v
 
     @model_validator(mode="before")
     @classmethod

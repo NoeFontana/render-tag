@@ -2,6 +2,8 @@ from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field, PositiveFloat, PositiveInt, model_validator
 
+from render_tag.core.constants import SUPPORTED_OPENCV_TAG_FAMILIES
+
 
 class BoardType(str, Enum):
     APRILGRID = "aprilgrid"
@@ -73,6 +75,8 @@ class BoardConfig(BaseModel):
         elif self.type == BoardType.APRILGRID:
             if self.spacing_ratio is None:
                 raise ValueError("spacing_ratio is required for AprilGrid")
+        if self.dictionary not in SUPPORTED_OPENCV_TAG_FAMILIES:
+            raise ValueError(f"Unsupported board dictionary: {self.dictionary}")
         return self
 
 
@@ -100,4 +104,6 @@ class BoardDefinition(BaseModel):
         """Validate that AprilGrid definitions include spacing_ratio."""
         if self.type == BoardType.APRILGRID and self.spacing_ratio is None:
             raise ValueError("spacing_ratio required for AprilGrid board definitions")
+        if self.dictionary not in SUPPORTED_OPENCV_TAG_FAMILIES:
+            raise ValueError(f"Unsupported board dictionary: {self.dictionary}")
         return self

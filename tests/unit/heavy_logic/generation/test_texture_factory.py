@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from render_tag.core.schema.board import BoardConfig, BoardType
 from render_tag.generation.texture_factory import TextureFactory
@@ -95,6 +96,85 @@ def test_texture_factory_id_increment():
     tag_1 = img[:, 156:]
 
     assert not np.array_equal(tag_0, tag_1)
+
+
+def test_texture_factory_charuco_uses_explicit_ids(monkeypatch):
+    """Verify ChArUco textures honor explicit board tag IDs."""
+    seen_ids: list[int] = []
+
+    def fake_generate_tag_image(
+        family: str,
+        tag_id: int,
+        size_pixels: int = 512,
+        border_bits: int = 1,
+        margin_bits: int = 0,
+    ) -> np.ndarray:
+        seen_ids.append(tag_id)
+        return np.full((size_pixels, size_pixels), 255, dtype=np.uint8)
+
+    monkeypatch.setattr(
+        "render_tag.generation.texture_factory.generate_tag_image", fake_generate_tag_image
+    )
+
+    config = BoardConfig(
+        type=BoardType.CHARUCO,
+        rows=2,
+        cols=2,
+        square_size=0.05,
+        marker_size=0.04,
+        dictionary="DICT_4X4_50",
+        ids=[42, 99],
+    )
+
+    TextureFactory(px_per_mm=1).generate_board_texture(config)
+
+    assert seen_ids == [42, 99]
+
+
+def test_texture_factory_aprilgrid_uses_explicit_ids(monkeypatch):
+    """Verify AprilGrid textures honor explicit board tag IDs."""
+    seen_ids: list[int] = []
+
+    def fake_generate_tag_image(
+        family: str,
+        tag_id: int,
+        size_pixels: int = 512,
+        border_bits: int = 1,
+        margin_bits: int = 0,
+    ) -> np.ndarray:
+        seen_ids.append(tag_id)
+        return np.full((size_pixels, size_pixels), 255, dtype=np.uint8)
+
+    monkeypatch.setattr(
+        "render_tag.generation.texture_factory.generate_tag_image", fake_generate_tag_image
+    )
+
+    config = BoardConfig(
+        type=BoardType.APRILGRID,
+        rows=1,
+        cols=3,
+        marker_size=0.04,
+        spacing_ratio=0.3,
+        dictionary="tag36h11",
+        ids=[7, 11, 13],
+    )
+
+    TextureFactory(px_per_mm=1).generate_board_texture(config)
+
+    assert seen_ids == [7, 11, 13]
+
+
+def test_texture_factory_rejects_unsupported_dictionary():
+    """Unsupported board dictionaries should be rejected before rendering."""
+    with pytest.raises(ValueError, match="Unsupported board dictionary"):
+        BoardConfig(
+            type=BoardType.APRILGRID,
+            rows=1,
+            cols=1,
+            marker_size=0.04,
+            spacing_ratio=0.3,
+            dictionary="tagCircle21h7",
+        )
 
 
 def test_kalibr_corner_ratio():

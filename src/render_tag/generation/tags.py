@@ -10,6 +10,8 @@ from pathlib import Path
 import cv2
 import numpy as np
 
+from render_tag.core.constants import SUPPORTED_OPENCV_TAG_FAMILIES
+
 # Map TagFamily enum values/strings to OpenCV ArUco constants
 TAG_DICT_MAP = {
     # AprilTag families (OpenCV 4.x+)
@@ -17,11 +19,6 @@ TAG_DICT_MAP = {
     "tag25h9": cv2.aruco.DICT_APRILTAG_25h9,
     "tag36h10": cv2.aruco.DICT_APRILTAG_36h10,
     "tag36h11": cv2.aruco.DICT_APRILTAG_36h11,
-    "tagCircle21h7": cv2.aruco.DICT_APRILTAG_36h11,  # Fallback or specific mapping if available
-    "tagCircle49h12": cv2.aruco.DICT_APRILTAG_36h11,
-    "tagCustom48h12": cv2.aruco.DICT_APRILTAG_36h11,
-    "tagStandard41h12": cv2.aruco.DICT_APRILTAG_36h11,
-    "tagStandard52h13": cv2.aruco.DICT_APRILTAG_36h11,
     # ArUco dictionaries
     "DICT_4X4_50": cv2.aruco.DICT_4X4_50,
     "DICT_4X4_100": cv2.aruco.DICT_4X4_100,
@@ -63,7 +60,7 @@ def generate_tag_image(
     Returns:
         Numpy array (grayscale image) or None if family not supported
     """
-    if family not in TAG_DICT_MAP:
+    if family not in SUPPORTED_OPENCV_TAG_FAMILIES or family not in TAG_DICT_MAP:
         return None
 
     # 1. Resolve Grid Size (bits across)

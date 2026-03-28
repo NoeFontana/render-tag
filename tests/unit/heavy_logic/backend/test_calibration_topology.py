@@ -580,3 +580,4 @@ def test_board_definition_metadata_aprilgrid(mock_bridge):
     assert np.isclose(bd.marker_size_mm, 50.0)
     assert bd.dictionary == "tag36h11"
     assert bd.spacing_ratio == 0.2
+    assert bd.total_keypoints == 15  # (4-1)*(6-1)

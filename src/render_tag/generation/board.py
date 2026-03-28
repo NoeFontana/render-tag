@@ -259,6 +259,11 @@ def compute_aprilgrid_layout(
             layout.squares.append(square)
             layout.tag_positions.append(BoardPosition(x, y, z))
 
+            if row < spec.rows - 1 and col < spec.cols - 1:
+                sx = x + spec.square_size / 2
+                sy = y - spec.square_size / 2
+                layout.calibration_positions.append(BoardPosition(sx, sy, z))
+
     return layout
 
 

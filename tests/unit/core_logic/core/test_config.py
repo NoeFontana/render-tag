@@ -113,7 +113,7 @@ class TestTagFamily:
     def test_apriltag_families(self) -> None:
         assert TagFamily.TAG36H11.value == "tag36h11"
         assert TagFamily.TAG25H9.value == "tag25h9"
-        assert TagFamily.TAGSTANDARD41H12.value == "tagStandard41h12"
+        assert TagFamily.TAG16H5.value == "tag16h5"
 
     def test_aruco_families(self) -> None:
         assert TagFamily.ARUCO_4X4_50.value == "DICT_4X4_50"
@@ -122,7 +122,7 @@ class TestTagFamily:
 
     def test_is_apriltag_property(self) -> None:
         assert TagFamily.TAG36H11.is_apriltag is True
-        assert TagFamily.TAGCIRCLE21H7.is_apriltag is True
+        assert TagFamily.TAG16H5.is_apriltag is True
         assert TagFamily.ARUCO_4X4_50.is_apriltag is False
 
     def test_is_aruco_property(self) -> None:

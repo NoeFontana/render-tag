@@ -11,11 +11,6 @@ TAG_BIT_COUNTS = {
     "tag36h10": 36,
     "tag25h9": 25,
     "tag16h5": 16,
-    "tagCircle21h7": 21,
-    "tagCircle49h12": 49,
-    "tagCustom48h12": 48,
-    "tagStandard41h12": 41,
-    "tagStandard52h13": 52,
     "DICT_4X4_50": 16,
     "DICT_4X4_100": 16,
     "DICT_4X4_250": 16,
@@ -34,11 +29,6 @@ TAG_GRID_SIZES = {
     "tag36h10": 8,
     "tag25h9": 7,
     "tag16h5": 6,
-    "tagCircle21h7": 9,  # Approximate for circle tags
-    "tagCircle49h12": 11,
-    "tagCustom48h12": 10,
-    "tagStandard41h12": 9,
-    "tagStandard52h13": 10,
     "DICT_4X4_50": 6,
     "DICT_4X4_100": 6,
     "DICT_4X4_250": 6,
@@ -49,6 +39,33 @@ TAG_GRID_SIZES = {
     "DICT_7X7_1000": 9,
     "DICT_ARUCO_ORIGINAL": 7,  # 5x5 data
 }
+
+# Tag families OpenCV can render directly in this environment.
+SUPPORTED_OPENCV_TAG_FAMILIES = frozenset(
+    {
+        "tag16h5",
+        "tag25h9",
+        "tag36h10",
+        "tag36h11",
+        "DICT_4X4_50",
+        "DICT_4X4_100",
+        "DICT_4X4_250",
+        "DICT_4X4_1000",
+        "DICT_5X5_50",
+        "DICT_5X5_100",
+        "DICT_5X5_250",
+        "DICT_5X5_1000",
+        "DICT_6X6_50",
+        "DICT_6X6_100",
+        "DICT_6X6_250",
+        "DICT_6X6_1000",
+        "DICT_7X7_50",
+        "DICT_7X7_100",
+        "DICT_7X7_250",
+        "DICT_7X7_1000",
+        "DICT_ARUCO_ORIGINAL",
+    }
+)
 
 # Schema Versioning
 CURRENT_SCHEMA_VERSION = "0.2"

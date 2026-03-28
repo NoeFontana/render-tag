@@ -69,6 +69,10 @@ class TestBoardDefinitionConstruction:
         with pytest.raises(ValidationError):
             _make_charuco_def(marker_size_mm=0.0)
 
+    def test_invalid_dictionary(self):
+        with pytest.raises(ValidationError, match="Unsupported board dictionary"):
+            _make_aprilgrid_def(dictionary="tagCircle21h7")
+
 
 class TestBoardDefinitionSerialization:
     def test_roundtrip(self):

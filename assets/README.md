@@ -32,7 +32,6 @@ Background and object textures used for domain randomization.
 Reference images for Fiducial Marker families.
 
 - `tag36h11/`: Standard AprilTag 36h11 family.
-- `tagStandard41h12/`: Standard AprilTag 41h12 family.
 
 ## Usage
 
