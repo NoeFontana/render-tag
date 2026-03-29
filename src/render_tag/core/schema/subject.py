@@ -75,6 +75,7 @@ class BoardSubjectConfig(BaseModel):
 
     # AprilGrid specific
     spacing_ratio: PositiveFloat | None = None
+    kalibr_corner_ratio: PositiveFloat | None = None
 
     # ChArUco specific
     square_size_mm: PositiveFloat | None = None

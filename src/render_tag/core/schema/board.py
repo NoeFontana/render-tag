@@ -96,6 +96,7 @@ class BoardDefinition(BaseModel):
     dictionary: str
     total_keypoints: int = Field(ge=0)
     spacing_ratio: float | None = Field(default=None)
+    kalibr_corner_ratio: float | None = Field(default=None)
 
     model_config = ConfigDict(use_enum_values=True, frozen=True)
 
