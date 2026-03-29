@@ -52,9 +52,10 @@ class TestHubManager(unittest.TestCase):
         self.assertEqual(len(records), 1)
         record = records[0]
         self.assertEqual(record["image_id"], "scene_0001_cam_0001")
-        self.assertEqual(record["tag_id"], 42)
-        self.assertEqual(record["tag_family"], "tag36h11")
-        self.assertEqual(float(record["ppm"]), 25.0)
+        # Now returns sequences
+        self.assertEqual(record["tag_id"], [42])
+        self.assertEqual(record["tag_family"], ["tag36h11"])
+        self.assertEqual(float(record["ppm"][0]), 25.0)
 
     def test_render_generator_from_rich_truth(self):
         """Verify that generator yields records from rich_truth.json in new benchmark structure."""
@@ -92,9 +93,10 @@ class TestHubManager(unittest.TestCase):
         self.assertEqual(len(records), 1)
         record = records[0]
         self.assertEqual(record["image_id"], "scene_0001_cam_0001")
-        self.assertEqual(record["tag_id"], 42)
-        self.assertEqual(record["tag_family"], "tag36h11")
-        self.assertEqual(float(record["ppm"]), 25.0)
+        # Now returns sequences
+        self.assertEqual(record["tag_id"], [42])
+        self.assertEqual(record["tag_family"], ["tag36h11"])
+        self.assertEqual(float(record["ppm"][0]), 25.0)
 
     def test_dataset_schema_integrity(self):
         """Verify that our features match the expected schema."""
@@ -128,21 +130,21 @@ class TestHubManager(unittest.TestCase):
         """Verify that download restores local files correctly."""
         from render_tag.cli.hub import pull_dataset
 
-        # Mock record from Hub
+        # Mock record from Hub (Sequence format)
         mock_record = {
             "image": Image.new("RGB", (10, 10)),
             "image_id": "scene_9999_cam_0000",
-            "tag_id": 1,
-            "tag_family": "tag16h5",
-            "corners": [[0, 0], [1, 0], [1, 1], [0, 1]],
-            "distance": 1.0,
-            "angle_of_incidence": 0.0,
-            "pixel_area": 100.0,
-            "occlusion_ratio": 0.0,
-            "ppm": 10.0,
-            "position": [0, 0, 1],
-            "rotation_quaternion": [1, 0, 0, 0],
-            "metadata": "{}",
+            "tag_id": [1],
+            "tag_family": ["tag16h5"],
+            "corners": [[[0, 0], [1, 0], [1, 1], [0, 1]]],
+            "distance": [1.0],
+            "angle_of_incidence": [0.0],
+            "pixel_area": [100.0],
+            "occlusion_ratio": [0.0],
+            "ppm": [10.0],
+            "position": [[0, 0, 1]],
+            "rotation_quaternion": [[1, 0, 0, 0]],
+            "metadata": ["{}"],
         }
         mock_load_dataset.return_value = [mock_record]
 

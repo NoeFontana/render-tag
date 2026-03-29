@@ -87,7 +87,6 @@ def test_aprilgrid_corner_square_symmetry():
         marker_size=0.06,
         spacing_ratio=0.3,
         dictionary="tag36h11",
-        kalibr_corner_ratio=0.2,
     )
     factory = TextureFactory(px_per_mm=10)
     img = factory.generate_board_texture(config)
