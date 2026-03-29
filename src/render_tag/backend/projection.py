@@ -551,6 +551,7 @@ def generate_board_records(
         )
         sr: float | None = None
         if b_type == "aprilgrid":
+            # Extract spacing_ratio
             sr = getattr(config, "spacing_ratio", None)
             if sr is None and isinstance(config, dict):
                 sr = config.get("spacing_ratio")

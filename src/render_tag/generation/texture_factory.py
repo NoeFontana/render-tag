@@ -297,9 +297,10 @@ class TextureFactory:
                 tag_id += 1
 
         # Draw black corner squares at grid intersections.
-        # corner_px is forced to an even integer so that integer offsets from
-        # the center are symmetric on both sides.
-        corner_ratio = config.kalibr_corner_ratio if config.kalibr_corner_ratio is not None else 0.1
+        # By first principles, the corner squares exactly match the gap
+        # between markers (spacing_ratio) to "link" tag corners and create
+        # clean, pixel-accurate saddle points for calibration.
+        corner_ratio = config.spacing_ratio if config.spacing_ratio is not None else 0.1
         corner_px = max(2, int(marker_px * corner_ratio) & ~1)
         corner_half = corner_px // 2
         for r in range(rows + 1):

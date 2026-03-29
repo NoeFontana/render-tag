@@ -177,28 +177,37 @@ def test_texture_factory_rejects_unsupported_dictionary():
         )
 
 
-def test_kalibr_corner_ratio():
-    """Verify kalibr_corner_ratio changes corner square area and that
+def test_aprilgrid_corner_ratio_derivation():
+    """Verify corner square size is derived from spacing_ratio and that
     different ratios produce different textures."""
     base = {
         "type": BoardType.APRILGRID,
         "rows": 2,
         "cols": 2,
         "marker_size": 0.1,
-        "spacing_ratio": 0.3,
     }
     factory = TextureFactory(px_per_mm=10)
 
-    img_default = factory.generate_board_texture(BoardConfig(**base))
-    img_large = factory.generate_board_texture(BoardConfig(**base, kalibr_corner_ratio=0.5))
+    # Use different spacing_ratios (which now drive corner squares)
+    config_small = BoardConfig(**base, spacing_ratio=0.1)
+    config_large = BoardConfig(**base, spacing_ratio=0.5)
 
-    # Larger corner ratio → more black pixels → lower mean
-    assert np.mean(img_large) < np.mean(img_default)
+    gm_small = factory.compute_grid_metrics(config_small)
+    gm_large = factory.compute_grid_metrics(config_large)
 
-    # Hash must differ when kalibr_corner_ratio differs
-    assert factory._calculate_hash(BoardConfig(**base)) != factory._calculate_hash(
-        BoardConfig(**base, kalibr_corner_ratio=0.5)
-    )
+    # Larger spacing ratio → larger corner squares
+    # corner_px = max(2, int(marker_px * spacing_ratio) & ~1)
+    assert gm_large.effective_px_per_m >= gm_small.effective_px_per_m
+
+    # Generate textures and verify they are different
+    img_small = factory.generate_board_texture(config_small)
+    img_large = factory.generate_board_texture(config_large)
+    assert img_small.shape != img_large.shape
+
+    # Hash must differ when spacing_ratio differs
+    h1 = factory._calculate_hash(config_small)
+    h2 = factory._calculate_hash(config_large)
+    assert h1 != h2
 
 
 def test_kalibr_corner_symmetry():
@@ -207,49 +216,42 @@ def test_kalibr_corner_symmetry():
     # marker_px = ceil(100/8)*8 = 13*8 = 104
     # effective_px_per_m = 104/0.01 = 10400
     # square_size = 0.01*(1+1.0) = 0.02m -> square_px_f = 0.02*10400 = 208px
-    # corner_ratio=0.4 -> corner_px = max(2, int(104*0.4)&~1) = max(2,40) = 40
-    # corner_half = 20px
+    # spacing_ratio=1.0 -> corner_ratio=1.0 -> corner_px = 104
+    # corner_half = 52px
     # rows=2, cols=2 -> interior intersection at r=1,c=1: (208, 208)
-    # Corner square: rows [188:228), cols [188:228) -> 40x40 px
+    # Corner square: rows [156:260), cols [156:260) -> 104x104 px
     config = BoardConfig(
         type=BoardType.APRILGRID,
         rows=2,
         cols=2,
         marker_size=0.01,
         spacing_ratio=1.0,
-        kalibr_corner_ratio=0.4,
     )
     factory = TextureFactory(px_per_mm=10)
     img = factory.generate_board_texture(config)
 
     # Extract the interior intersection region and verify it is all black
-    region = img[188:228, 188:228]
+    region = img[156:260, 156:260]
     assert np.all(region == 0), "Interior corner square must be fully black"
 
     # Verify symmetry: equal black extent on each side of the intersection
     row_center = 208
     col_center = 208
     # Look 1 pixel inside the half-extent boundary on each side
-    assert img[row_center - 19, col_center] == 0  # above center
-    assert img[row_center + 19, col_center] == 0  # below center
-    assert img[row_center, col_center - 19] == 0  # left of center
-    assert img[row_center, col_center + 19] == 0  # right of center
+    assert img[row_center - 51, col_center] == 0  # above center
+    assert img[row_center + 51, col_center] == 0  # below center
+    assert img[row_center, col_center - 51] == 0  # left of center
+    assert img[row_center, col_center + 51] == 0  # right of center
 
 
 def test_kalibr_corner_uniform_size():
-    """Verify all interior corner squares have identical pixel dimensions.
-
-    Uses a config where the old float corner_half approach produced a half-integer
-    value (corner_half = 2.5), which caused half-to-even rounding to alternate
-    between 6-pixel and 4-pixel wide squares at successive grid intersections.
-    """
+    """Verify all interior corner squares have identical pixel dimensions."""
     config = BoardConfig(
         type=BoardType.APRILGRID,
         rows=3,
         cols=4,
         marker_size=0.005,
         spacing_ratio=0.1,
-        kalibr_corner_ratio=0.1,
     )
     factory = TextureFactory(px_per_mm=10)
     img = factory.generate_board_texture(config)

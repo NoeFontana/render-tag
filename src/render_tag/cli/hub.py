@@ -3,10 +3,10 @@ Hugging Face Hub management commands.
 """
 
 import json
+from collections import defaultdict
 from collections.abc import Generator
 from pathlib import Path
 from typing import Annotated, Any
-from collections import defaultdict
 
 import typer
 
@@ -38,8 +38,8 @@ def _ensure_hub():
 
 def get_dataset_features() -> Any:
     """Define the Cog-First Dataset Features (Schema).
-    
-    This schema is image-centric. Each row represents one image, 
+
+    This schema is image-centric. Each row represents one image,
     and tag-related metadata fields are Sequences (lists).
     """
     return Features(
@@ -128,7 +128,9 @@ def render_generator(data_dir: Path) -> Generator[dict[str, Any], None, None]:
             "occlusion_ratio": [t.get("occlusion_ratio", 0.0) for t in tags],
             "ppm": [t.get("ppm", 0.0) for t in tags],
             "position": [t.get("position", [0.0, 0.0, 0.0]) for t in tags],
-            "rotation_quaternion": [t.get("rotation_quaternion", [1.0, 0.0, 0.0, 0.0]) for t in tags],
+            "rotation_quaternion": [
+                t.get("rotation_quaternion", [1.0, 0.0, 0.0, 0.0]) for t in tags
+            ],
             "metadata": [json.dumps(t.get("metadata", {})) for t in tags],
         }
 
@@ -157,7 +159,9 @@ def push_dataset(
         render_generator, gen_kwargs={"data_dir": data_dir}, features=get_dataset_features()
     )
 
-    console.print(f"[bold green]📊 Created dataset with {len(ds)} images (deduplicated)[/bold green]")
+    console.print(
+        f"[bold green]📊 Created dataset with {len(ds)} images (deduplicated)[/bold green]"
+    )
 
     if dry_run:
         console.print("[yellow]✨ Dry run complete. No data was uploaded.[/yellow]")
@@ -231,7 +235,7 @@ def pull_dataset(
     for record in ds:
         image_id = record["image_id"]
         img = record["image"]
-        
+
         # Save image
         image_path = images_dir / f"{image_id}.png"
         img.save(image_path)
