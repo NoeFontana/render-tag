@@ -550,7 +550,6 @@ def generate_board_records(
             (rows - 1) * (cols - 1) if b_type == "charuco" else len(layout.calibration_positions)
         )
         sr: float | None = None
-        cr: float | None = None
         if b_type == "aprilgrid":
             # Extract spacing_ratio
             sr = getattr(config, "spacing_ratio", None)
@@ -558,13 +557,6 @@ def generate_board_records(
                 sr = config.get("spacing_ratio")
             if sr is not None:
                 sr = float(sr)
-
-            # Extract kalibr_corner_ratio
-            cr = getattr(config, "kalibr_corner_ratio", None)
-            if cr is None and isinstance(config, dict):
-                cr = config.get("kalibr_corner_ratio")
-            if cr is not None:
-                cr = float(cr)
 
         board_def = BoardDefinition(
             type=b_type,
@@ -575,7 +567,6 @@ def generate_board_records(
             dictionary=dictionary,
             total_keypoints=total_kp,
             spacing_ratio=sr,
-            kalibr_corner_ratio=cr,
         )
 
         records.append(

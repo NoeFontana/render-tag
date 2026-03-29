@@ -51,7 +51,6 @@ class BoardStrategy(SubjectStrategy):
             marker_size=config.marker_size_mm / 1000.0,
             dictionary=config.dictionary,
             spacing_ratio=config.spacing_ratio,
-            kalibr_corner_ratio=config.kalibr_corner_ratio,
             square_size=config.square_size_mm / 1000.0 if config.square_size_mm else None,
             ids=config.ids,
             quiet_zone_m=config.quiet_zone_mm / 1000.0,

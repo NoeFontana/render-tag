@@ -45,7 +45,6 @@ scenario:
     marker_size_mm: 100.0
     dictionary: tag36h11
     spacing_ratio: 0.3  # Standard AprilGrid/Kalibr spacing
-    kalibr_corner_ratio: 0.3  # Matches spacing_ratio to "link" tag corners exactly
   sampling_mode: random
 
 scene:
