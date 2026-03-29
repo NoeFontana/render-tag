@@ -1,0 +1,62 @@
+# AprilGrid Golden Baseline (v1)
+# Focus: Static, high-fidelity reference for pose estimation and localization.
+# Statistical goal: 150 unique scenes with 0.75-1.0 elevation (Golden Zone).
+# Geometric consistency: 1m-10m range with 100mm markers (PPM 2.0+).
+
+dataset:
+  num_scenes: 150
+  seeds:
+    global_seed: 2026
+  evaluation_scopes: [pose_estimation, detection]
+  metadata:
+    benchmark: aprilgrid_golden_v1
+    focus: reference_pose_baseline
+
+camera:
+  resolution: [1920, 1080]
+  fov: 70.0
+  samples_per_scene: 1  # Maximum diversity per image
+  min_distance: 1.0
+  max_distance: 10.0
+  # Golden elevation zone (0 to 41 degrees off-normal)
+  min_elevation: 0.75
+  max_elevation: 1.0
+  # Full rotation invariance
+  min_roll: -180.0
+  max_roll: 180.0
+  # Static sensor (no motion blur)
+  sensor_dynamics:
+    velocity_mean: 0.0
+    velocity_std: 0.0
+  # Range adjusted for 1m-10m distance with a 100mm marker:
+  # At 10m, PPM is ~2.3; at 1m, PPM is ~22.8.
+  ppm_constraint:
+    min: 2.0
+    max: 20.0
+    distribution: uniform
+  tone_mapping: filmic
+  iso: 100
+
+scenario:
+  subject:
+    type: BOARD
+    rows: 6
+    cols: 6
+    marker_size_mm: 100.0
+    dictionary: tag36h11
+    spacing_ratio: 0.3  # Standard AprilGrid/Kalibr spacing
+  sampling_mode: random
+
+scene:
+  lighting_preset: factory
+  texture_dir: assets/textures/background
+  texture_scale_min: 1.0
+  texture_scale_max: 10.0
+
+renderer:
+  mode: cycles
+  noise_threshold: 0.01 # Reference-grade precision
+  max_samples: 512      # Eliminate saddle-point jitter
+  enable_denoising: true
+
+version: '0.2'
