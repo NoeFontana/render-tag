@@ -1,3 +1,27 @@
+# v0.7.0 (2026-03-29)
+
+- Spacing and corners (#60)
+- Refactor to image-centric schema with Sequences to avoid image duplication
+- Add AprilGrid Golden baseline (v1)
+- Add charuco_golden_v1 reference dataset (#58)
+- Remove debug-logs
+- Remove noisy render debug logs
+- Fix board family validation and AprilGrid consistency
+- Add board calibration support to FiftyOne visualization
+- Formalize BoardDefinition and add RenderTagDataset reader
+- Board_definition metadata and keypoint index stability
+- Strict frustum culling for board sub-tags and saddle points
+- Integer-aligned grid resolution and zero-interpolation compositing
+- Chore/maintainability (#44)
+- Enforce Top-Left CW keypoint contract across pipeline (#43)
+- Reprojection sanity checks + ChArUco saddle Y fix
+- Parametrize Kalibr corner ratio with sub-pixel symmetry (#42)
+- Sub-pixel compositing and 5x higher default resolution (#41)
+- Kill orphaned blender processes on shutdown (#40)
+- Cleanup/misc (#39)
+- Documentation Cleanup and Standardization (#38)
+- Standardize on WXYZ (scalar-first) throughout p… (#37)
+
 # v0.6.1 (2026-03-13)
 
 - Fixup! chore(release): v0.6.0
