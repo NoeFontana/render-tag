@@ -94,6 +94,13 @@ class SceneProvenance(BaseModel):
     timestamp: str = Field(description="ISO 8601 timestamp of generation")
     recipe_snapshot: dict[str, Any] = Field(description="Snapshot of the SceneRecipe used")
     seeds: dict[str, int] | None = Field(default=None, description="Random seeds used")
+    sequence: dict[str, Any] | None = Field(
+        default=None,
+        description=(
+            "Optional sequence metadata such as frame index, fps, trajectory style, "
+            "and ground-truth timing semantics"
+        ),
+    )
 
 
 # =============================================================================
@@ -173,10 +180,14 @@ class DetectionRecord(BaseModel):
 
     # --- Phase 2 Pose Baseline: High-Precision Pose ---
     position: list[float] | None = Field(
-        default=None, description="[x, y, z] position in meters (OpenCV Frame)"
+        default=None,
+        description="[x, y, z] position in meters (OpenCV Frame), referenced at exposure midpoint",
     )
     rotation_quaternion: list[float] | None = Field(
-        default=None, description="[w, x, y, z] quaternion (Internal Scalar-First)"
+        default=None,
+        description=(
+            "[w, x, y, z] quaternion (Internal Scalar-First), referenced at exposure midpoint"
+        ),
     )
     axes: dict[str, list[tuple[float, float]]] | None = Field(
         default=None, description="Pre-computed 2D projections of the 3D X, Y, Z axes"
@@ -195,7 +206,10 @@ class DetectionRecord(BaseModel):
     velocity: list[float] | None = Field(
         default=None, description="Camera velocity [vx, vy, vz] in m/s"
     )
-    shutter_time_ms: float = Field(default=0.0, description="Exposure time in milliseconds")
+    shutter_time_ms: float = Field(
+        default=0.0,
+        description="Exposure time in milliseconds; pose/corners are defined at exposure midpoint",
+    )
     rolling_shutter_ms: float = Field(
         default=0.0, description="Rolling shutter scan duration in milliseconds"
     )
