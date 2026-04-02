@@ -1,0 +1,75 @@
+dataset:
+  num_scenes: 50
+  seeds:
+    global_seed: 2026
+  evaluation_scopes:
+  - detection
+  - pose_estimation
+  metadata:
+    benchmark: localization_single_tag_light_motion_blur
+    focus: temporal_localization_with_tag_observations
+
+camera:
+  resolution: [1920, 1080]
+  fov: 70.0
+  samples_per_scene: 1
+  min_distance: 0.6
+  max_distance: 3.0
+  min_elevation: 0.35
+  max_elevation: 0.9
+  min_roll: -10.0
+  max_roll: 10.0
+  tone_mapping: filmic
+  iso: 100
+  min_tag_pixels: 36
+  sensor_dynamics:
+    blur_profile: light
+    shutter_time_ms: 6.0
+    rolling_shutter_duration_ms: 0.0
+
+tag:
+  family: tag36h11
+  margin_bits: 1
+  material:
+    randomize: true
+    roughness_min: 0.35
+    roughness_max: 0.75
+    specular_min: 0.1
+    specular_max: 0.25
+
+scenario:
+  layout: plain
+  sampling_mode: random
+  use_board: false
+  subject:
+    type: TAGS
+    tag_families: [tag36h11]
+    size_mm: 160.0
+    tags_per_scene: 1
+
+scene:
+  lighting:
+    intensity_min: 100
+    intensity_max: 1000
+    radius_min: 0.2
+    radius_max: 0.2
+  texture_dir: assets/textures/background
+  texture_scale_min: 0.1
+  texture_scale_max: 20.0
+
+sequence:
+  enabled: true
+  frames_per_sequence: 8
+  fps: 30
+  trajectory_style: natural_robot
+  max_translation_per_frame_m: 0.02
+  max_yaw_deg_per_frame: 2.0
+
+renderer:
+  mode: cycles
+  noise_threshold: 0.05
+  max_samples: 128
+  enable_denoising: true
+  denoiser_type: INTEL
+
+version: '0.2'

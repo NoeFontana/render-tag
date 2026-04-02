@@ -144,6 +144,10 @@ class SeedConfig(BaseModel):
 class SensorDynamicsConfig(BaseModel):
     """Configuration for dynamic sensor artifacts (Motion Blur, Rolling Shutter)."""
 
+    blur_profile: Literal["off", "light"] = Field(
+        default="off",
+        description="Named blur preset. 'light' enables mild camera-motion blur.",
+    )
     velocity_mean: float = Field(
         default=0.0, ge=0, description="Mean camera velocity (m/s) for motion blur"
     )
@@ -639,8 +643,28 @@ class ScenarioConfig(BaseModel):
 class SequenceConfig(BaseModel):
     """Configuration for temporal sequences and motion."""
 
+    enabled: bool = Field(default=False, description="Generate temporally coherent frame sequences")
+    frames_per_sequence: int = Field(
+        default=8,
+        ge=1,
+        description="Number of ordered frames generated per scene when sequence mode is enabled",
+    )
     # Temporal Baseline: 30 FPS or 60 FPS
     fps: int = Field(default=30, gt=0, description="Frames per second")
+    trajectory_style: Literal["natural_robot"] = Field(
+        default="natural_robot",
+        description="Trajectory family used to synthesize temporally coherent camera motion",
+    )
+    max_translation_per_frame_m: float = Field(
+        default=0.02,
+        ge=0.0,
+        description="Maximum camera translation magnitude between adjacent frames in meters",
+    )
+    max_yaw_deg_per_frame: float = Field(
+        default=2.0,
+        ge=0.0,
+        description="Maximum camera yaw change between adjacent frames in degrees",
+    )
 
     # Motion Continuity: If True, uses Physics to calculate next pose
     continuous_motion: bool = Field(

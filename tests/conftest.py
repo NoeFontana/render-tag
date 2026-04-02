@@ -74,7 +74,9 @@ def pytest_configure(config: Config) -> None:
     # In xdist, workers must have unique temp directories.
     worker_id = os.environ.get("PYTEST_XDIST_WORKER")
     if worker_id is not None:
-        config.option.basetemp = str(test_results_dir / worker_id)
+        worker_temp_dir = test_results_dir / worker_id
+        worker_temp_dir.mkdir(parents=True, exist_ok=True)
+        config.option.basetemp = str(worker_temp_dir)
     else:
         config.option.basetemp = str(test_results_dir)
 

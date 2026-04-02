@@ -27,10 +27,16 @@ class SensorNoiseConfig(BaseModel):
 class SensorDynamicsRecipe(BaseModel):
     """Recipe for dynamic sensor artifacts (Motion Blur, Rolling Shutter)."""
 
+    blur_profile: Literal["off", "light"] = Field(
+        default="off", description="Named blur preset applied during exposure"
+    )
     velocity: list[float] | None = Field(
         default=None, description="[vx, vy, vz] velocity vector in m/s"
     )
-    shutter_time_ms: float | None = None
+    shutter_time_ms: float | None = Field(
+        default=None,
+        description="Exposure duration in milliseconds used to integrate motion blur",
+    )
     rolling_shutter_duration_ms: float | None = None
 
 
@@ -53,6 +59,20 @@ class CameraRecipe(BaseModel):
         description="4x4 Camera-to-World transformation matrix"
     )
     intrinsics: CameraIntrinsics
+    frame_index: int | None = Field(
+        default=None, ge=0, description="Ordered frame index within the scene sequence"
+    )
+    timestamp_s: float | None = Field(
+        default=None,
+        ge=0.0,
+        description="Exposure midpoint timestamp in seconds relative to sequence start",
+    )
+    sequence_pose_delta: list[float] | None = Field(
+        default=None,
+        min_length=3,
+        max_length=3,
+        description="Translation delta [dx, dy, dz] from the previous frame in meters",
+    )
     sensor_dynamics: SensorDynamicsRecipe | None = None
     fstop: float | None = None
     focus_distance: float | None = None

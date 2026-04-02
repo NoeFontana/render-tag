@@ -47,6 +47,17 @@ from render_tag.data_io.writers import (
 logger = get_logger(__name__)
 
 
+def _get_exposure_window(camera_recipe: CameraRecipe) -> tuple[float | None, float | None]:
+    """Return the shutter start/end times in seconds from the midpoint timestamp."""
+    midpoint = camera_recipe.timestamp_s
+    if midpoint is None or camera_recipe.sensor_dynamics is None:
+        return (None, None)
+
+    shutter_time_ms = float(camera_recipe.sensor_dynamics.shutter_time_ms or 0.0)
+    half_exposure_s = shutter_time_ms / 2000.0
+    return (midpoint - half_exposure_s, midpoint + half_exposure_s)
+
+
 @dataclass
 class RenderContext:
     """Groups all necessary state for executing a single render task."""
@@ -307,7 +318,30 @@ def execute_recipe(
             "global_seed": ctx.global_seed,
             "scene_seed": recipe.random_seed,
         },
+        "sequence": {
+            "frames_per_sequence": len(cam_recipes),
+            "fps": None,
+            "trajectory_style": "natural_robot"
+            if any(cam.frame_index is not None for cam in cam_recipes)
+            else None,
+            "blur_profile": (
+                cam_recipes[0].sensor_dynamics.blur_profile
+                if cam_recipes and cam_recipes[0].sensor_dynamics
+                else None
+            ),
+            "ground_truth_pose_time": "mid_exposure",
+            "image_geometry_time": "mid_exposure",
+            "observation_model": "motion_blurred",
+        },
     }
+
+    if len(cam_recipes) > 1:
+        timestamps = [cam.timestamp_s for cam in cam_recipes if cam.timestamp_s is not None]
+        if len(timestamps) >= 2:
+            dt = timestamps[1] - timestamps[0]
+            provenance["sequence"]["fps"] = 1.0 / dt if dt > 0 else None
+    elif not any(cam.frame_index is not None for cam in cam_recipes):
+        provenance["sequence"] = None
 
     # 3. Render Cameras and Save Data
     for cam_idx, cam_recipe in enumerate(cam_recipes):
@@ -412,7 +446,24 @@ def _render_camera_and_save(
     if img_array is not None and bridge.np.asarray(img_array).size > 0:
         Image.fromarray(bridge.np.asarray(img_array).astype(bridge.np.uint8)).save(str(image_path))
 
-    ctx.provenance_writer.add_provenance(image_name, provenance)
+    image_provenance = dict(provenance)
+    if provenance.get("sequence") is not None:
+        sequence_meta = dict(provenance["sequence"])
+        sequence_meta.update(
+            {
+                "frame_index": (
+                    cam_recipe.frame_index if cam_recipe.frame_index is not None else cam_idx
+                ),
+                "timestamp_s": cam_recipe.timestamp_s,
+                "exposure_midpoint_s": cam_recipe.timestamp_s,
+                "exposure_start_s": _get_exposure_window(cam_recipe)[0],
+                "exposure_end_s": _get_exposure_window(cam_recipe)[1],
+                "sequence_pose_delta": cam_recipe.sequence_pose_delta,
+            }
+        )
+        image_provenance["sequence"] = sequence_meta
+
+    ctx.provenance_writer.add_provenance(image_name, image_provenance)
     coco_img_id = ctx.coco_writer.add_image(f"images/{image_path.name}", res[0], res[1])
 
     return coco_img_id, image_name
@@ -445,6 +496,18 @@ def _extract_and_save_ground_truth(
 
     # Save Ground Truth
     for det in all_detections:
+        exposure_start_s, exposure_end_s = _get_exposure_window(cam_recipe)
+        det.metadata.update(
+            {
+                "ground_truth_pose_time": "mid_exposure",
+                "image_geometry_time": "mid_exposure",
+                "observation_model": "motion_blurred",
+                "timestamp_s": cam_recipe.timestamp_s,
+                "exposure_midpoint_s": cam_recipe.timestamp_s,
+                "exposure_start_s": exposure_start_s,
+                "exposure_end_s": exposure_end_s,
+            }
+        )
         ctx.csv_writer.write_detection(det, res[0], res[1])
         ctx.coco_writer.add_annotation(
             image_id=coco_img_id,

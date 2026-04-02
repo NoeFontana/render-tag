@@ -23,6 +23,7 @@ from ..core.schema import (
 from ..core.seeding import derive_seed
 from ..data_io.assets import AssetProvider
 from .camera import sample_camera_pose
+from .math import look_at_rotation, make_transformation_matrix
 from .strategy.factory import get_subject_strategy
 from .visibility import is_facing_camera
 
@@ -363,93 +364,260 @@ class SceneCompiler:
         camera_seed = derive_seed(seed, "camera", 0)
         np_rng = np.random.default_rng(camera_seed)
         camera_config = self.config.camera
-        scenario = self.config.scenario
+        sequence_config = self.config.sequence
 
         # Find potential targets for orientation/sizing constraints
         # Prefer actual TAGs, fallback to any object
         all_tags = [obj for obj in objects if obj.type == "TAG"]
+        if sequence_config.enabled:
+            if not objects:
+                raise ValueError("Sequence mode requires at least one object to track.")
+            sequence_target = all_tags[0] if all_tags else objects[0]
+            return self._sample_sequence_camera_recipes(
+                scene_id=scene_id,
+                camera_seed=camera_seed,
+                np_rng=np_rng,
+                target_tag=sequence_target,
+            )
 
         camera_recipes = []
-
         for cam_idx in range(camera_config.samples_per_scene):
-            # Select target tag for this specific camera sample to maximize diversity
             target_tag = None
             if all_tags:
                 target_tag = np_rng.choice(all_tags)
             elif objects:
                 target_tag = objects[0]
 
-            dist_override = None
-            elev_override = None
-
-            if self.config.dataset.num_scenes > 1:
-                t = scene_id / (self.config.dataset.num_scenes - 1)
-                if scenario.sampling_mode == "distance":
-                    dist_override = camera_config.min_distance + t * (
-                        camera_config.max_distance - camera_config.min_distance
-                    )
-                elif scenario.sampling_mode == "angle":
-                    elev_override = camera_config.min_elevation + t * (
-                        camera_config.max_elevation - camera_config.min_elevation
-                    )
-
-            # PPM constraint only applies if not already in a sweep mode
-            if scenario.sampling_mode == "random" and camera_config.ppm_constraint and target_tag:
-                dist_override = self._calculate_ppm_distance(target_tag, np_rng)
-                # Ensure PPM distance respects configured bounds
-                if dist_override is not None:
-                    dist_override = np.clip(
-                        dist_override, camera_config.min_distance, camera_config.max_distance
-                    )
-
-            pose = self._sample_single_pose(np_rng, dist_override, elev_override, target_tag)
-
-            if not pose:
-                # Proper fix: Raise error if we cannot find a valid iose after rejection sampling.
-                # This ensures we don't generate invalid/incomplete recipes.
-                raise ValueError(
-                    f"Failed to sample a valid camera pose for scene {scene_id} "
-                    f"after 20 attempts with constraints."
-                )
-
-            velocity = None
-            if camera_config.velocity_mean > 0 or camera_config.velocity_std > 0:
-                direction = np_rng.normal(size=3)
-                norm = np.linalg.norm(direction)
-                direction = direction / norm if norm > 1e-6 else np.array([0.0, 0.0, 1.0])
-                magnitude = max(
-                    0.0, np_rng.normal(camera_config.velocity_mean, camera_config.velocity_std)
-                )
-                velocity = (direction * magnitude).tolist()
-
-            if camera_config.sensor_noise:
-                noise_recipe = camera_config.sensor_noise.model_dump()
-                noise_recipe["seed"] = derive_seed(camera_seed, "noise", cam_idx)
-            else:
-                noise_recipe = None
-
+            pose = self._sample_pose_for_index(scene_id, np_rng, target_tag)
             camera_recipes.append(
-                CameraRecipe(
-                    transform_matrix=pose.transform_matrix.tolist(),
-                    intrinsics=CameraIntrinsics(
-                        resolution=list(camera_config.resolution),
-                        k_matrix=camera_config.get_k_matrix(),
-                        fov=camera_config.fov,
-                    ),
-                    sensor_dynamics=SensorDynamicsRecipe(
-                        velocity=velocity,
-                        shutter_time_ms=camera_config.sensor_dynamics.shutter_time_ms,
-                        rolling_shutter_duration_ms=camera_config.sensor_dynamics.rolling_shutter_duration_ms,
-                    ),
-                    fstop=camera_config.fstop,
-                    focus_distance=camera_config.focus_distance,
-                    min_tag_pixels=camera_config.min_tag_pixels,
-                    max_tag_pixels=camera_config.max_tag_pixels,
-                    iso_noise=camera_config.iso_noise,
-                    sensor_noise=noise_recipe,
+                self._build_camera_recipe(
+                    pose=pose,
+                    cam_idx=cam_idx,
+                    camera_seed=camera_seed,
                 )
             )
         return camera_recipes
+
+    def _sample_pose_for_index(self, scene_id: int, np_rng, target_tag):
+        """Sample a valid pose for a camera index using current sweep settings."""
+        camera_config = self.config.camera
+        scenario = self.config.scenario
+
+        dist_override = None
+        elev_override = None
+
+        if self.config.dataset.num_scenes > 1:
+            t = scene_id / (self.config.dataset.num_scenes - 1)
+            if scenario.sampling_mode == "distance":
+                dist_override = camera_config.min_distance + t * (
+                    camera_config.max_distance - camera_config.min_distance
+                )
+            elif scenario.sampling_mode == "angle":
+                elev_override = camera_config.min_elevation + t * (
+                    camera_config.max_elevation - camera_config.min_elevation
+                )
+
+        if scenario.sampling_mode == "random" and camera_config.ppm_constraint and target_tag:
+            dist_override = self._calculate_ppm_distance(target_tag, np_rng)
+            if dist_override is not None:
+                dist_override = np.clip(
+                    dist_override, camera_config.min_distance, camera_config.max_distance
+                )
+
+        pose = self._sample_single_pose(np_rng, dist_override, elev_override, target_tag)
+        if not pose:
+            raise ValueError(
+                f"Failed to sample a valid camera pose for scene {scene_id} "
+                f"after 20 attempts with constraints."
+            )
+        return pose
+
+    def _build_camera_recipe(
+        self,
+        pose,
+        cam_idx: int,
+        camera_seed: int,
+        *,
+        velocity: list[float] | None = None,
+        frame_index: int | None = None,
+        timestamp_s: float | None = None,
+        sequence_pose_delta: list[float] | None = None,
+    ) -> CameraRecipe:
+        """Build a camera recipe with consistent intrinsics and sensor metadata."""
+        camera_config = self.config.camera
+        sensor_config = camera_config.sensor_dynamics
+
+        if velocity is None and (camera_config.velocity_mean > 0 or camera_config.velocity_std > 0):
+            np_rng = np.random.default_rng(derive_seed(camera_seed, "velocity", cam_idx))
+            direction = np_rng.normal(size=3)
+            norm = np.linalg.norm(direction)
+            direction = direction / norm if norm > 1e-6 else np.array([0.0, 0.0, 1.0])
+            magnitude = max(
+                0.0, np_rng.normal(camera_config.velocity_mean, camera_config.velocity_std)
+            )
+            velocity = (direction * magnitude).tolist()
+
+        if camera_config.sensor_noise:
+            noise_recipe = camera_config.sensor_noise.model_dump()
+            noise_recipe["seed"] = derive_seed(camera_seed, "noise", cam_idx)
+        else:
+            noise_recipe = None
+
+        rolling_shutter_ms = sensor_config.rolling_shutter_duration_ms
+        if sensor_config.blur_profile == "light":
+            rolling_shutter_ms = 0.0
+
+        return CameraRecipe(
+            transform_matrix=pose.transform_matrix.tolist(),
+            intrinsics=CameraIntrinsics(
+                resolution=list(camera_config.resolution),
+                k_matrix=camera_config.get_k_matrix(),
+                fov=camera_config.fov,
+            ),
+            frame_index=frame_index,
+            timestamp_s=timestamp_s,
+            sequence_pose_delta=sequence_pose_delta,
+            sensor_dynamics=SensorDynamicsRecipe(
+                blur_profile=sensor_config.blur_profile,
+                velocity=velocity,
+                shutter_time_ms=sensor_config.shutter_time_ms,
+                rolling_shutter_duration_ms=rolling_shutter_ms,
+            ),
+            fstop=camera_config.fstop,
+            focus_distance=camera_config.focus_distance,
+            min_tag_pixels=camera_config.min_tag_pixels,
+            max_tag_pixels=camera_config.max_tag_pixels,
+            iso_noise=camera_config.iso_noise,
+            sensor_noise=noise_recipe,
+        )
+
+    def _sample_sequence_camera_recipes(
+        self,
+        scene_id: int,
+        camera_seed: int,
+        np_rng: np.random.Generator,
+        target_tag,
+    ) -> list[CameraRecipe]:
+        """Generate a temporally coherent sequence of nearby camera poses."""
+        sequence_config = self.config.sequence
+        base_pose = self._sample_pose_for_index(scene_id, np_rng, target_tag)
+        target_location = np.array(
+            target_tag.location if target_tag else [0.0, 0.0, 0.0],
+            dtype=float,
+        )
+
+        locations = self._sample_sequence_locations(
+            base_location=base_pose.location,
+            target_location=target_location,
+            frames_per_sequence=sequence_config.frames_per_sequence,
+            np_rng=np_rng,
+        )
+
+        poses = []
+        for location in locations:
+            forward_vec = target_location - location
+            rotation_matrix = look_at_rotation(forward_vec)
+            transform_matrix = make_transformation_matrix(location, rotation_matrix)
+            pose = type(base_pose)(
+                location=location,
+                rotation_matrix=rotation_matrix,
+                transform_matrix=transform_matrix,
+            )
+            if not self._validate_pose_constraints(pose, target_tag):
+                raise ValueError(
+                    f"Failed to generate a valid sequence pose for scene {scene_id} "
+                    "under the current motion limits."
+                )
+            poses.append(pose)
+
+        camera_recipes: list[CameraRecipe] = []
+        dt = 1.0 / float(sequence_config.fps)
+        shutter_midpoint_offset_s = (
+            float(self.config.camera.sensor_dynamics.shutter_time_ms or 0.0) / 2000.0
+        )
+        for cam_idx, pose in enumerate(poses):
+            if cam_idx == 0:
+                delta = np.zeros(3, dtype=float)
+                velocity = [0.0, 0.0, 0.0]
+            else:
+                delta = pose.location - poses[cam_idx - 1].location
+                velocity = (delta / dt).tolist()
+
+            camera_recipes.append(
+                self._build_camera_recipe(
+                    pose=pose,
+                    cam_idx=cam_idx,
+                    camera_seed=camera_seed,
+                    velocity=velocity,
+                    frame_index=cam_idx,
+                    timestamp_s=(cam_idx * dt) + shutter_midpoint_offset_s,
+                    sequence_pose_delta=delta.tolist(),
+                )
+            )
+        return camera_recipes
+
+    def _sample_sequence_locations(
+        self,
+        base_location: np.ndarray,
+        target_location: np.ndarray,
+        frames_per_sequence: int,
+        np_rng: np.random.Generator,
+    ) -> list[np.ndarray]:
+        """Sample smooth nearby camera locations for a natural-robot trajectory."""
+        sequence_config = self.config.sequence
+        camera_config = self.config.camera
+
+        start_offset = base_location - target_location
+        radius = float(np.linalg.norm(start_offset))
+        if radius < 1e-6:
+            raise ValueError("Sequence mode requires a non-degenerate base camera radius.")
+
+        radial_dir = start_offset / radius
+        world_up = np.array([0.0, 0.0, 1.0], dtype=float)
+        lateral_dir = np.cross(world_up, radial_dir)
+        lateral_norm = np.linalg.norm(lateral_dir)
+        if lateral_norm < 1e-6:
+            lateral_dir = np.array([1.0, 0.0, 0.0], dtype=float)
+        else:
+            lateral_dir /= lateral_norm
+        vertical_dir = np.cross(radial_dir, lateral_dir)
+        vertical_dir /= np.linalg.norm(vertical_dir)
+
+        pattern = np_rng.choice(["straight", "diagonal", "arc"])
+        max_step = min(
+            sequence_config.max_translation_per_frame_m,
+            max(0.0, (camera_config.max_distance - camera_config.min_distance) / 4.0),
+        )
+        step_scale = np_rng.uniform(0.35, 1.0) * max_step
+        if pattern == "straight":
+            motion_dir = lateral_dir if np_rng.random() < 0.5 else vertical_dir
+        elif pattern == "diagonal":
+            motion_dir = lateral_dir + np_rng.choice([-1.0, 1.0]) * 0.5 * vertical_dir
+            motion_dir /= np.linalg.norm(motion_dir)
+        else:
+            motion_dir = lateral_dir
+
+        center = (frames_per_sequence - 1) / 2.0
+        locations = []
+        for frame_idx in range(frames_per_sequence):
+            offset_scalar = (frame_idx - center) * step_scale
+            location = base_location + motion_dir * offset_scalar
+            if pattern == "arc":
+                yaw_total_deg = (frame_idx - center) * sequence_config.max_yaw_deg_per_frame
+                yaw_rad = np.radians(yaw_total_deg)
+                cos_yaw = np.cos(yaw_rad)
+                sin_yaw = np.sin(yaw_rad)
+                rotated_radial = (cos_yaw * radial_dir) + (sin_yaw * lateral_dir)
+                rotated_radial /= np.linalg.norm(rotated_radial)
+                location = (
+                    target_location + rotated_radial * radius + vertical_dir * offset_scalar * 0.25
+                )
+            distance = np.linalg.norm(location - target_location)
+            location = target_location + ((location - target_location) / distance) * np.clip(
+                distance, camera_config.min_distance, camera_config.max_distance
+            )
+            locations.append(location)
+        return locations
 
     def _validate_pose_constraints(self, pose, target_tag) -> bool:
         """Validate orientation and sizing constraints for a sampled pose."""
