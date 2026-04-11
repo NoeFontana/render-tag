@@ -23,11 +23,89 @@ from ..core.schema import (
 from ..core.seeding import derive_seed
 from ..data_io.assets import AssetProvider
 from .camera import sample_camera_pose
+from .projection_math import (
+    has_active_distortion,
+    invert_distortion_brown_conrady,
+    invert_distortion_kannala_brandt,
+)
 from .strategy.factory import get_subject_strategy
 from .visibility import is_facing_camera
 
 if TYPE_CHECKING:
     from .strategy.base import SubjectStrategy
+
+
+def compute_overscan_intrinsics(
+    k_target: list[list[float]],
+    resolution: tuple[int, int],
+    distortion_coeffs: list[float],
+    distortion_model: str = "brown_conrady",
+    n_samples: int = 32,
+) -> tuple[list[list[float]], tuple[int, int]]:
+    """
+    Compute the linear overscan K-matrix and resolution needed to cover all
+    rays sampled by the distorted target image.
+
+    Samples the 4 edges of the target image at n_samples points each and
+    applies iterative inverse distortion to find the maximum undistorted
+    angular extent. The returned overscan K and resolution guarantee that
+    Blender's linear render fully covers the field needed for the post-warp.
+
+    Args:
+        k_target: 3x3 target K-matrix [[fx,0,cx],[0,fy,cy],[0,0,1]].
+        resolution: (width, height) of the target distorted image.
+        distortion_coeffs: Distortion coefficients for the model.
+        distortion_model: 'brown_conrady' or 'kannala_brandt'.
+        n_samples: Number of sample points per edge.
+
+    Returns:
+        (k_linear, (W_lin, H_lin)): Overscan K-matrix and pixel dimensions.
+    """
+    W, H = resolution
+    fx = k_target[0][0]
+    fy = k_target[1][1]
+    cx = k_target[0][2]
+    cy = k_target[1][2]
+
+    # Sample all 4 edges of the target image
+    u_edge = np.linspace(0, W - 1, n_samples)
+    v_edge = np.linspace(0, H - 1, n_samples)
+
+    u_boundary = np.concatenate([u_edge, u_edge, np.zeros(n_samples), np.full(n_samples, W - 1)])
+    v_boundary = np.concatenate([np.zeros(n_samples), np.full(n_samples, H - 1), v_edge, v_edge])
+
+    # Convert boundary pixels to distorted normalized coordinates
+    x_dist = (u_boundary - cx) / fx
+    y_dist = (v_boundary - cy) / fy
+
+    # Invert distortion to get undistorted normalized coordinates
+    if distortion_model == "kannala_brandt":
+        x_undist, y_undist = invert_distortion_kannala_brandt(x_dist, y_dist, distortion_coeffs)
+    else:
+        x_undist, y_undist = invert_distortion_brown_conrady(x_dist, y_dist, distortion_coeffs)
+
+    # Maximum angular extent in each axis
+    max_x = float(np.max(np.abs(x_undist)))
+    max_y = float(np.max(np.abs(y_undist)))
+
+    # Build overscan resolution (rounded up to nearest even for codec compatibility)
+    W_lin = 2 * math.ceil(max_x * fx + 1)
+    H_lin = 2 * math.ceil(max_y * fy + 1)
+
+    # Ensure overscan is at least as large as target
+    W_lin = max(W_lin, W)
+    H_lin = max(H_lin, H)
+
+    cx_lin = W_lin / 2.0
+    cy_lin = H_lin / 2.0
+
+    k_linear: list[list[float]] = [
+        [fx, 0.0, cx_lin],
+        [0.0, fy, cy_lin],
+        [0.0, 0.0, 1.0],
+    ]
+
+    return k_linear, (W_lin, H_lin)
 
 
 class SceneCompiler:
@@ -428,13 +506,30 @@ class SceneCompiler:
             else:
                 noise_recipe = None
 
+            k_matrix = camera_config.get_k_matrix()
+            dist_model = camera_config.intrinsics.distortion_model
+            dist_coeffs = list(camera_config.intrinsics.get_distortion_coeffs())
+            has_dist = has_active_distortion(dist_coeffs)
+
+            k_overscan: list[list[float]] | None = None
+            res_overscan: list[int] | None = None
+            if has_dist:
+                k_overscan, (w_lin, h_lin) = compute_overscan_intrinsics(
+                    k_matrix, camera_config.resolution, dist_coeffs, distortion_model=dist_model
+                )
+                res_overscan = [w_lin, h_lin]
+
             camera_recipes.append(
                 CameraRecipe(
                     transform_matrix=pose.transform_matrix.tolist(),
                     intrinsics=CameraIntrinsics(
                         resolution=list(camera_config.resolution),
-                        k_matrix=camera_config.get_k_matrix(),
+                        k_matrix=k_matrix,
                         fov=camera_config.fov,
+                        distortion_model=dist_model if has_dist else "none",
+                        distortion_coeffs=dist_coeffs if has_dist else [],
+                        k_matrix_overscan=k_overscan,
+                        resolution_overscan=res_overscan,
                     ),
                     sensor_dynamics=SensorDynamicsRecipe(
                         velocity=velocity,
@@ -497,11 +592,14 @@ class SceneCompiler:
 
         corners_local = np.array([[-hw, -hh, 0], [hw, -hh, 0], [hw, hh, 0], [-hw, hh, 0]])
         corners_world = (tag_world_mat @ np.hstack([corners_local, np.ones((4, 1))]).T).T[:, :3]
+        dist_coeffs = list(camera_config.intrinsics.get_distortion_coeffs())
         pixels = project_points(
             corners_world,
             pose.transform_matrix,
             list(camera_config.resolution),
             camera_config.get_k_matrix(),
+            distortion_coeffs=dist_coeffs or None,
+            distortion_model=camera_config.intrinsics.distortion_model,
         )
 
         # Strict boundary check (all corners must be visible)

@@ -299,38 +299,237 @@ def calculate_relative_pose(
     }
 
 
+def has_active_distortion(coeffs: list[float] | None) -> bool:
+    """Return True if any distortion coefficient is meaningfully non-zero."""
+    return bool(coeffs) and any(abs(c) > 1e-10 for c in coeffs)
+
+
+def apply_distortion_brown_conrady(
+    x_norm: np.ndarray,
+    y_norm: np.ndarray,
+    k1: float,
+    k2: float,
+    p1: float,
+    p2: float,
+    k3: float,
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Apply Brown-Conrady (OpenCV plumb_bob) lens distortion to normalized coordinates.
+
+    Implements the standard OpenCV distortion model:
+        r² = x² + y²
+        radial  = 1 + k1·r² + k2·r⁴ + k3·r⁶
+        x_d = x·radial + 2·p1·x·y + p2·(r²+2x²)
+        y_d = y·radial + p1·(r²+2y²) + 2·p2·x·y
+
+    Args:
+        x_norm: (N,) normalized x coordinates (X_cam / Z_cam).
+        y_norm: (N,) normalized y coordinates (Y_cam / Z_cam).
+        k1, k2, k3: Radial distortion coefficients.
+        p1, p2: Tangential distortion coefficients.
+
+    Returns:
+        (x_dist, y_dist): Distorted normalized coordinates, each shape (N,).
+    """
+    r2 = x_norm**2 + y_norm**2
+    r4 = r2 * r2
+    r6 = r2 * r4
+    radial = 1.0 + k1 * r2 + k2 * r4 + k3 * r6
+    x_dist = x_norm * radial + 2.0 * p1 * x_norm * y_norm + p2 * (r2 + 2.0 * x_norm**2)
+    y_dist = y_norm * radial + p1 * (r2 + 2.0 * y_norm**2) + 2.0 * p2 * x_norm * y_norm
+    return x_dist, y_dist
+
+
+def apply_distortion_kannala_brandt(
+    x_norm: np.ndarray,
+    y_norm: np.ndarray,
+    k1: float,
+    k2: float,
+    k3: float,
+    k4: float,
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Apply Kannala-Brandt equidistant fisheye distortion to normalized coordinates.
+
+    Implements the OpenCV fisheye model:
+        r = sqrt(x² + y²)
+        theta = atan2(r, 1)
+        theta_d = theta·(1 + k1·theta² + k2·theta⁴ + k3·theta⁶ + k4·theta⁸)
+        x_d = (theta_d / r)·x   (limit as r→0: x_d = x)
+        y_d = (theta_d / r)·y
+
+    Strictly uses OpenCV +Z-forward convention: theta = atan2(r, 1) = atan(r),
+    where r is the undistorted normalized radius. This matches cv2.fisheye.projectPoints.
+
+    Args:
+        x_norm: (N,) normalized x coordinates (X_cam / Z_cam).
+        y_norm: (N,) normalized y coordinates (Y_cam / Z_cam).
+        k1, k2, k3, k4: Radial distortion coefficients.
+
+    Returns:
+        (x_dist, y_dist): Distorted normalized coordinates, each shape (N,).
+    """
+    r = np.sqrt(x_norm**2 + y_norm**2)
+    theta = np.arctan2(r, 1.0)  # atan(r) — angle from optical axis
+    theta2 = theta * theta
+    theta4 = theta2 * theta2
+    theta6 = theta2 * theta4
+    theta8 = theta4 * theta4
+    theta_d = theta * (1.0 + k1 * theta2 + k2 * theta4 + k3 * theta6 + k4 * theta8)
+    # Avoid division by zero at r=0 (optical center): limit is identity
+    scale = np.where(r > 1e-8, theta_d / r, 1.0)
+    return x_norm * scale, y_norm * scale
+
+
+def invert_distortion_brown_conrady(
+    x_dist: np.ndarray,
+    y_dist: np.ndarray,
+    distortion_coeffs: list[float],
+    n_iters: int = 10,
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Iteratively invert the Brown-Conrady distortion model via fixed-point iteration.
+
+    Given distorted normalized coordinates (x_d, y_d), finds the undistorted
+    normalized coordinates (x, y) such that apply_distortion_brown_conrady(x, y) ≈ (x_d, y_d).
+
+    Convergence: typically <5 iterations for |k1| < 0.8.
+
+    Args:
+        x_dist: (N,) distorted normalized x coordinates.
+        y_dist: (N,) distorted normalized y coordinates.
+        distortion_coeffs: [k1, k2, p1, p2, k3] OpenCV order.
+        n_iters: Number of fixed-point iterations.
+
+    Returns:
+        (x_undist, y_undist): Undistorted normalized coordinates.
+    """
+    k1, k2, p1, p2, k3 = distortion_coeffs
+    x = x_dist.copy()
+    y = y_dist.copy()
+    for _ in range(n_iters):
+        r2 = x**2 + y**2
+        r4 = r2 * r2
+        r6 = r2 * r4
+        radial = 1.0 + k1 * r2 + k2 * r4 + k3 * r6
+        dx = 2.0 * p1 * x * y + p2 * (r2 + 2.0 * x**2)
+        dy = p1 * (r2 + 2.0 * y**2) + 2.0 * p2 * x * y
+        x = (x_dist - dx) / radial
+        y = (y_dist - dy) / radial
+    return x, y
+
+
+def invert_distortion_kannala_brandt(
+    x_dist: np.ndarray,
+    y_dist: np.ndarray,
+    distortion_coeffs: list[float],
+    n_iters: int = 20,
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Iteratively invert the Kannala-Brandt fisheye distortion via Newton-Raphson.
+
+    Given distorted normalized coordinates (x_d, y_d), finds the undistorted
+    normalized coordinates (x, y) via angle-domain inversion:
+        r_d = sqrt(x_d² + y_d²)
+        theta satisfies: theta_d(theta) = r_d
+        r_undist = tan(theta)
+        (x, y) = (r_undist / r_d) * (x_d, y_d)
+
+    Convergence: <5 iterations for typical fisheye coefficients.
+
+    Args:
+        x_dist: (N,) distorted normalized x coordinates.
+        y_dist: (N,) distorted normalized y coordinates.
+        distortion_coeffs: [k1, k2, k3, k4] Kannala-Brandt order.
+        n_iters: Number of Newton-Raphson iterations.
+
+    Returns:
+        (x_undist, y_undist): Undistorted normalized coordinates.
+    """
+    k1, k2, k3, k4 = distortion_coeffs
+    r_d = np.sqrt(x_dist**2 + y_dist**2)
+
+    # Newton-Raphson: solve f(theta) = theta_d(theta) - r_d = 0
+    theta = r_d.copy()
+    for _ in range(n_iters):
+        theta2 = theta * theta
+        theta4 = theta2 * theta2
+        theta6 = theta2 * theta4
+        theta8 = theta4 * theta4
+        f = theta * (1.0 + k1 * theta2 + k2 * theta4 + k3 * theta6 + k4 * theta8) - r_d
+        df = 1.0 + 3.0 * k1 * theta2 + 5.0 * k2 * theta4 + 7.0 * k3 * theta6 + 9.0 * k4 * theta8
+        theta = theta - f / np.where(np.abs(df) > 1e-12, df, 1e-12)
+    # Clamp once after convergence: theta must be in [0, π/2] for valid projections
+    theta = np.clip(theta, 0.0, np.pi / 2.0)
+
+    # Reconstruct undistorted normalized radius: r = tan(theta)
+    r_undist = np.tan(theta)
+    scale = np.where(r_d > 1e-8, r_undist / r_d, 1.0)
+    return x_dist * scale, y_dist * scale
+
+
+def apply_distortion_by_model(
+    x_norm: np.ndarray,
+    y_norm: np.ndarray,
+    distortion_coeffs: list[float],
+    distortion_model: str = "none",
+) -> tuple[np.ndarray, np.ndarray]:
+    """Apply forward distortion based on model type, or return inputs unchanged.
+
+    Single dispatch point used by project_points, compute_distortion_maps, and
+    compute_bbox to avoid repeating the model-selection logic.
+
+    Args:
+        x_norm: (N,) normalized x coordinates.
+        y_norm: (N,) normalized y coordinates.
+        distortion_coeffs: Coefficients for the active model.
+        distortion_model: 'none', 'brown_conrady', or 'kannala_brandt'.
+
+    Returns:
+        (x_dist, y_dist): Distorted (or unchanged) normalized coordinates.
+    """
+    if not has_active_distortion(distortion_coeffs):
+        return x_norm, y_norm
+    if distortion_model == "kannala_brandt":
+        k1, k2, k3, k4 = distortion_coeffs
+        return apply_distortion_kannala_brandt(x_norm, y_norm, k1, k2, k3, k4)
+    k1, k2, p1, p2, k3 = distortion_coeffs
+    return apply_distortion_brown_conrady(x_norm, y_norm, k1, k2, p1, p2, k3)
+
+
 def project_points(
     points_world: np.ndarray,
     cam_world_matrix: Matrix4x4,
     resolution: list[int],
     k_matrix: list[list[float]],
+    distortion_coeffs: list[float] | None = None,
+    distortion_model: str = "none",
 ) -> np.ndarray:
     """
     Projects 3D world points to 2D pixel coordinates using OpenCV convention.
+
+    When distortion_coeffs is provided and non-zero, applies the specified
+    distortion model before final K-matrix projection.
 
     Args:
         points_world: (N, 3) array of 3D points in world space.
         cam_world_matrix: 4x4 Blender Camera-to-World matrix (OpenCV convention).
         resolution: [width, height] of the image.
         k_matrix: 3x3 intrinsic matrix [[fx, 0, cx], [0, fy, cy], [0, 0, 1]].
+        distortion_coeffs: Optional distortion coefficients.
+            brown_conrady: [k1, k2, p1, p2, k3]
+            kannala_brandt: [k1, k2, k3, k4]
+        distortion_model: 'none', 'brown_conrady', or 'kannala_brandt'.
 
     Returns:
         (N, 2) array of pixel coordinates [x, y].
         Points behind the camera (Z <= 0) are set to [-1e6, -1e6].
     """
-    # 1. Transform points to OpenCV Camera space
-    # OpenCV: Z forward, Y down, X right
     opencv_cam_world = get_opencv_camera_matrix(cam_world_matrix)
     world_to_cam = np.linalg.inv(opencv_cam_world)
-
-    # Convert points to homogeneous coordinates (N, 4)
     points_h = np.hstack([points_world, np.ones((len(points_world), 1))])
+    points_cam = (world_to_cam @ points_h.T).T[:, :3]
 
-    # Transform: points_cam = T_world_to_cam * points_world
-    points_cam_h = (world_to_cam @ points_h.T).T
-    points_cam = points_cam_h[:, :3]
-
-    # 2. Projection using K matrix
     fx = k_matrix[0][0]
     fy = k_matrix[1][1]
     cx = k_matrix[0][2]
@@ -338,12 +537,17 @@ def project_points(
 
     pixels = np.zeros((len(points_world), 2))
     z = points_cam[:, 2]
-    mask = z > 1e-6  # Only project points in front of the camera
+    mask = z > 1e-6
 
-    pixels[mask, 0] = (points_cam[mask, 0] * fx / z[mask]) + cx
-    pixels[mask, 1] = (points_cam[mask, 1] * fy / z[mask]) + cy
+    x_norm, y_norm = apply_distortion_by_model(
+        points_cam[mask, 0] / z[mask],
+        points_cam[mask, 1] / z[mask],
+        distortion_coeffs or [],
+        distortion_model,
+    )
 
-    # Mark points behind camera as far outside
+    pixels[mask, 0] = x_norm * fx + cx
+    pixels[mask, 1] = y_norm * fy + cy
     pixels[~mask] = -1e6
 
     return pixels

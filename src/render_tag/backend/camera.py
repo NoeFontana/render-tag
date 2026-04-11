@@ -16,12 +16,26 @@ logger = get_logger(__name__)
 def set_camera_intrinsics(camera_recipe: CameraRecipe) -> None:
     """Set camera intrinsics from configuration.
 
+    When the recipe contains overscan intrinsics (distortion is active), Blender
+    is configured with the expanded linear K-matrix and resolution so that the
+    post-render warp has sufficient source pixels to cover the distorted output.
+
     Args:
         camera_recipe: Camera recipe (CameraRecipe format)
     """
     intrinsics = camera_recipe.intrinsics
-    res = intrinsics.resolution
-    k_matrix = intrinsics.k_matrix
+
+    # Use overscan dimensions when distortion is active
+    if intrinsics.k_matrix_overscan is not None and intrinsics.resolution_overscan is not None:
+        res = intrinsics.resolution_overscan
+        k_matrix = intrinsics.k_matrix_overscan
+        logger.info(
+            f"Distortion active: rendering at overscan resolution {res} "
+            f"(target: {intrinsics.resolution})"
+        )
+    else:
+        res = intrinsics.resolution
+        k_matrix = intrinsics.k_matrix
 
     if not k_matrix:
         # Emergency fallback for legacy or minimal test recipes

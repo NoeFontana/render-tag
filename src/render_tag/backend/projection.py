@@ -217,6 +217,18 @@ def _extract_physics(cam_recipe: CameraRecipe | None) -> dict[str, Any]:
     return physics
 
 
+def _extract_distortion(
+    cam_recipe: CameraRecipe | None,
+) -> tuple[list[float] | None, str]:
+    """Return (distortion_coeffs, distortion_model) from a recipe, or (None, 'none')."""
+    if cam_recipe is not None:
+        return (
+            cam_recipe.intrinsics.distortion_coeffs or None,
+            cam_recipe.intrinsics.distortion_model,
+        )
+    return None, "none"
+
+
 def generate_subject_records(
     obj: Any,
     image_id: str,
@@ -259,11 +271,21 @@ def generate_subject_records(
         )
 
     blender_cam_mat = bridge.np.array(bridge.bpy.context.scene.camera.matrix_world)
-    k_matrix = _get_corrected_k_matrix()
-    res = [
-        bridge.bpy.context.scene.render.resolution_x,
-        bridge.bpy.context.scene.render.resolution_y,
-    ]
+
+    # Prefer recipe intrinsics over Blender state: when distortion is active,
+    # Blender is configured with the overscan K-matrix, so we must use the
+    # target K (and target resolution) for all annotation coordinates.
+    if cam_recipe is not None:
+        k_list: list[list[float]] = cam_recipe.intrinsics.k_matrix
+        res: list[int] = cam_recipe.intrinsics.resolution
+    else:
+        k_raw = _get_corrected_k_matrix()
+        k_list = k_raw.tolist() if hasattr(k_raw, "tolist") else k_raw
+        res = [
+            bridge.bpy.context.scene.render.resolution_x,
+            bridge.bpy.context.scene.render.resolution_y,
+        ]
+    dist_coeffs, dist_model = _extract_distortion(cam_recipe)
 
     # Common metadata
     cam_location = bridge.np.array(bridge.bpy.context.scene.camera.location)
@@ -291,13 +313,12 @@ def generate_subject_records(
         bridge.np.array(world_kps),
         blender_cam_mat,
         res,
-        k_matrix.tolist() if hasattr(k_matrix, "tolist") else k_matrix,
+        k_list,
+        distortion_coeffs=dist_coeffs,
+        distortion_model=dist_model,
     )
     if pixels is None:
         return []
-
-    # Final Intrinsics for Metadata
-    k_list = k_matrix.tolist() if hasattr(k_matrix, "tolist") else k_matrix
 
     tag_id = blender_obj.get("tag_id", 0)
     tag_family = blender_obj.get("tag_family", "unknown")
@@ -333,6 +354,8 @@ def generate_subject_records(
                 tag_size_mm=float(active_size_mm),
                 k_matrix=k_list,
                 resolution=res,
+                distortion_model=dist_model,
+                distortion_coeffs=dist_coeffs or [],
                 velocity=physics["velocity"],
                 shutter_time_ms=physics["shutter_time_ms"],
                 rolling_shutter_ms=physics["rolling_shutter_ms"],
@@ -370,6 +393,8 @@ def generate_subject_records(
                 tag_size_mm=float(active_size_mm),
                 k_matrix=k_list,
                 resolution=res,
+                distortion_model=dist_model,
+                distortion_coeffs=dist_coeffs or [],
                 velocity=physics["velocity"],
                 shutter_time_ms=physics["shutter_time_ms"],
                 rolling_shutter_ms=physics["rolling_shutter_ms"],
@@ -471,6 +496,8 @@ def generate_board_records(
     world_matrix, blender_cam_mat, k_matrix, res, meta = transform_data
     records = []
 
+    dist_coeffs, dist_model = _extract_distortion(cam_recipe)
+
     # 3. Process Tags
     records.extend(
         _process_board_tags(
@@ -484,6 +511,8 @@ def generate_board_records(
             dictionary,
             meta,
             skip_visibility=skip_visibility,
+            dist_coeffs=dist_coeffs,
+            dist_model=dist_model,
         )
     )
 
@@ -509,6 +538,8 @@ def generate_board_records(
                 blender_cam_mat,
                 res,
                 k_matrix.tolist() if hasattr(k_matrix, "tolist") else k_matrix,
+                distortion_coeffs=dist_coeffs,
+                distortion_model=dist_model,
             )
             calibration_points_2d.append(_project_calibration_point(pixel, res, skip_visibility))
     elif b_type == "charuco":
@@ -532,6 +563,8 @@ def generate_board_records(
                     blender_cam_mat,
                     res,
                     k_matrix.tolist() if hasattr(k_matrix, "tolist") else k_matrix,
+                    distortion_coeffs=dist_coeffs,
+                    distortion_model=dist_model,
                 )
                 calibration_points_2d.append(
                     _project_calibration_point(pixel, res, skip_visibility)
@@ -541,7 +574,12 @@ def generate_board_records(
     distance, angle_deg, board_pose, physics, _, _, is_mirrored = meta
     board_center_world = world_matrix[:3, 3]
     board_center_pixel = project_points(
-        bridge.np.array([board_center_world]), blender_cam_mat, res, k_matrix
+        bridge.np.array([board_center_world]),
+        blender_cam_mat,
+        res,
+        k_matrix,
+        distortion_coeffs=dist_coeffs,
+        distortion_model=dist_model,
     )
 
     if board_center_pixel is not None:
@@ -584,6 +622,8 @@ def generate_board_records(
                 tag_size_mm=float(spec.board_width * 1000.0),
                 k_matrix=k_matrix,
                 resolution=res,
+                distortion_model=dist_model,
+                distortion_coeffs=dist_coeffs or [],
                 velocity=physics["velocity"],
                 shutter_time_ms=physics["shutter_time_ms"],
                 rolling_shutter_ms=physics["rolling_shutter_ms"],
@@ -664,11 +704,19 @@ def _get_scene_transformations(
     )
 
     blender_cam_mat = bridge.np.array(bridge.bpy.context.scene.camera.matrix_world)
-    k_matrix = _get_corrected_k_matrix()
-    res = [
-        int(bridge.bpy.context.scene.render.resolution_x),
-        int(bridge.bpy.context.scene.render.resolution_y),
-    ]
+
+    # Prefer recipe intrinsics: when distortion is active, Blender is at overscan
+    # resolution, so we must use the target K and resolution for annotation coords.
+    if cam_recipe is not None:
+        k_list = cam_recipe.intrinsics.k_matrix
+        res = cam_recipe.intrinsics.resolution
+    else:
+        k_raw = _get_corrected_k_matrix()
+        k_list = k_raw.tolist() if hasattr(k_raw, "tolist") else k_raw
+        res = [
+            int(bridge.bpy.context.scene.render.resolution_x),
+            int(bridge.bpy.context.scene.render.resolution_y),
+        ]
 
     cam_location = bridge.np.array(bridge.bpy.context.scene.camera.location)
     board_location = bridge.np.array(board_obj.get_location())
@@ -678,7 +726,6 @@ def _get_scene_transformations(
 
     # Center-Origin Convention: Pose anchored at the geometric center of the board.
     pose = calculate_relative_pose(world_matrix, blender_cam_mat)
-    k_list = k_matrix.tolist() if hasattr(k_matrix, "tolist") else k_matrix
 
     # Physics Metadata
     physics = _extract_physics(cam_recipe)
@@ -723,6 +770,8 @@ def _process_board_tags(
         float, float, dict[str, Any], dict[str, Any], bridge.np.ndarray, bridge.np.ndarray, bool
     ],
     skip_visibility: bool = False,
+    dist_coeffs: list[float] | None = None,
+    dist_model: str = "none",
 ) -> list[DetectionRecord]:
     """Project and create records for all tags in the layout."""
     _, _, _, physics, cam_location, world_normal, is_mirrored = meta
@@ -753,7 +802,12 @@ def _process_board_tags(
         world_corners = [(tag_world_matrix @ p)[:3] for p in tag_local_corners]
 
         corners_2d_raw = project_points(
-            bridge.np.array(world_corners), blender_cam_mat, res, k_matrix
+            bridge.np.array(world_corners),
+            blender_cam_mat,
+            res,
+            k_matrix,
+            distortion_coeffs=dist_coeffs,
+            distortion_model=dist_model,
         )
 
         if corners_2d_raw is None:
@@ -791,6 +845,8 @@ def _process_board_tags(
                 tag_size_mm=float(marker_size * 1000.0),
                 k_matrix=k_matrix,
                 resolution=res,
+                distortion_model=dist_model,
+                distortion_coeffs=dist_coeffs or [],
                 velocity=physics["velocity"],
                 shutter_time_ms=physics["shutter_time_ms"],
                 rolling_shutter_ms=physics["rolling_shutter_ms"],

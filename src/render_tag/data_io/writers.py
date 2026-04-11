@@ -238,7 +238,14 @@ class COCOWriter(AtomicWriter):
         else:
             # Standard Polygon Path
             # 1. Use pure-Python utility for bbox
-            bbox = compute_bbox(np.array(corners), detection=detection)
+            dist_coeffs = getattr(detection, "distortion_coeffs", None) or None
+            dist_model = getattr(detection, "distortion_model", "none") or "none"
+            bbox = compute_bbox(
+                np.array(corners),
+                detection=detection,
+                distortion_coeffs=dist_coeffs,
+                distortion_model=dist_model,
+            )
 
             # 2. Use pure-Python utility for area
             area = compute_polygon_area(np.array(corners))

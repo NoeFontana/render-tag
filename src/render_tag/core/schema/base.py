@@ -190,6 +190,17 @@ class DetectionRecord(BaseModel):
         default=None, description="3x3 Camera Intrinsic Matrix [[fx, 0, cx], ...]"
     )
     resolution: list[int] | None = Field(default=None, description="[width, height] in pixels")
+    distortion_model: str = Field(
+        default="none",
+        description="Lens distortion model: 'none', 'brown_conrady', or 'kannala_brandt'",
+    )
+    distortion_coeffs: list[float] = Field(
+        default_factory=list,
+        description=(
+            "Distortion coefficients: [k1,k2,p1,p2,k3] for brown_conrady;"
+            " [k1,k2,k3,k4] for kannala_brandt"
+        ),
+    )
 
     # --- Unified Data Product: Physics & Sensor Conditions ---
     velocity: list[float] | None = Field(

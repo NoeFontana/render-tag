@@ -53,8 +53,20 @@ class TestCameraIntrinsics:
             CameraIntrinsics(k_matrix=k)
 
     def test_distortion_coeffs(self) -> None:
-        intrinsics = CameraIntrinsics(k1=0.1, k2=0.2, p1=0.01, p2=0.02, k3=0.3)
-        assert intrinsics.get_distortion_coeffs() == (0.1, 0.2, 0.01, 0.02, 0.3)
+        # Brown-Conrady: must set distortion_model to get coefficients
+        bc = CameraIntrinsics(
+            distortion_model="brown_conrady", k1=0.1, k2=0.2, p1=0.01, p2=0.02, k3=0.3
+        )
+        assert bc.get_distortion_coeffs() == (0.1, 0.2, 0.01, 0.02, 0.3)
+
+        # Kannala-Brandt
+        kb = CameraIntrinsics(
+            distortion_model="kannala_brandt", kb1=0.1, kb2=0.05, kb3=0.01, kb4=0.001
+        )
+        assert kb.get_distortion_coeffs() == (0.1, 0.05, 0.01, 0.001)
+
+        # None model returns empty tuple regardless of coefficients set
+        assert CameraIntrinsics(k1=0.1).get_distortion_coeffs() == ()
 
 
 class TestCameraConfig:

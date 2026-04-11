@@ -21,7 +21,7 @@ def mock_bridge(monkeypatch):
     # Mock project_points to simulate OpenCV camera projection.
     # In OpenCV space, (0,0) is Top-Left.
     # To map Cartesian (Y-up) to OpenCV (Y-down), we flip Y.
-    def mock_project(pts, cam_world_mat, res, k_matrix):
+    def mock_project(pts, cam_world_mat, res, k_matrix, **kwargs):
         px = pts[:, 0] * 1000 + 500  # Map to ~[0, 1000] pixel space
         py = -pts[:, 1] * 1000 + 500  # Flip Y, map to pixel space
         return np.stack([px, py], axis=1)
@@ -294,7 +294,7 @@ def test_board_scale_independence(mock_bridge):
     # Capture the projected points
     projected_pts = []
 
-    def mock_project_points(pts, *args):
+    def mock_project_points(pts, *args, **kwargs):
         projected_pts.extend(pts)
         return np.array([[float(p[0]) * 1000 + 500, float(-p[1]) * 1000 + 500] for p in pts])
 
@@ -373,7 +373,7 @@ def test_board_tags_outside_frustum_are_culled(mock_bridge, monkeypatch):
     # Tag corners span ±0.025m around center → ±10px.
     # Right-most tag center at x≈0.08, maps to 82px → TR corner at 92px (in bounds).
     # Use an offset that pushes right tags out: x * 400 + 80
-    def project_partial_oob(pts, cam_world_mat, res, k_matrix):
+    def project_partial_oob(pts, cam_world_mat, res, k_matrix, **kwargs):
         px = pts[:, 0] * 400 + 80
         py = -pts[:, 1] * 400 + 50
         return np.stack([px, py], axis=1)
@@ -406,7 +406,7 @@ def test_saddle_points_outside_bounds_get_sentinel(mock_bridge, monkeypatch):
     # Saddle points span x in [-0.04, 0.04]. Map so left is in-bounds, right is out.
     # x=-0.04 → 0.04*800+50=18 (in), x=0.04 → 0.04*800+50=82 (in)... need offset.
     # Use offset=70: x=-0.04 → -32+70=38 (in), x=0.04 → 32+70=102 (out of 100).
-    def project_partial_oob(pts, cam_world_mat, res, k_matrix):
+    def project_partial_oob(pts, cam_world_mat, res, k_matrix, **kwargs):
         px = pts[:, 0] * 800 + 70
         py = -pts[:, 1] * 800 + 50
         return np.stack([px, py], axis=1)
@@ -445,7 +445,7 @@ def test_skip_visibility_bypasses_frustum_culling(mock_bridge, monkeypatch):
     _setup_bridge(mock_bridge, res_x=100, res_y=100)
 
     # Project everything far outside bounds
-    def project_all_oob(pts, cam_world_mat, res, k_matrix):
+    def project_all_oob(pts, cam_world_mat, res, k_matrix, **kwargs):
         px = pts[:, 0] * 1000 + 5000  # Way outside [0, 100)
         py = -pts[:, 1] * 1000 + 5000
         return np.stack([px, py], axis=1)
@@ -478,7 +478,7 @@ def test_behind_camera_tags_rejected(mock_bridge, monkeypatch):
     _setup_bridge(mock_bridge, res_x=1000, res_y=1000)
 
     # Return behind-camera sentinel for all points
-    def project_behind_camera(pts, cam_world_mat, res, k_matrix):
+    def project_behind_camera(pts, cam_world_mat, res, k_matrix, **kwargs):
         return np.full((len(pts), 2), -1e6)
 
     monkeypatch.setattr("render_tag.backend.projection.project_points", project_behind_camera)
@@ -504,7 +504,7 @@ def test_keypoint_sentinel_preserves_index_alignment(mock_bridge, monkeypatch):
 
     # Project so left-side points are in-bounds, right-side are out.
     # Board spans ~[-0.16, 0.16] meters. Saddle grid is 3x3 = 9 points.
-    def project_half_oob(pts, cam_world_mat, res, k_matrix):
+    def project_half_oob(pts, cam_world_mat, res, k_matrix, **kwargs):
         px = pts[:, 0] * 500 + 30  # Left in, right out
         py = -pts[:, 1] * 500 + 50
         return np.stack([px, py], axis=1)
