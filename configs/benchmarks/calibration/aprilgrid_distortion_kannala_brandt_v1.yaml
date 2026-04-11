@@ -1,0 +1,66 @@
+# AprilGrid Distortion Benchmark — Kannala-Brandt (v1)
+# Focus: Distortion calibration under equidistant fisheye distortion (~170° diagonal FOV).
+# Coefficients model a typical fisheye lens; wide FOV stresses radial warp at image corners.
+# Statistical goal: 150 scenes, full elevation range.
+
+dataset:
+  num_scenes: 150
+  seeds:
+    global_seed: 2028
+  evaluation_scopes: [pose_estimation, detection, calibration]
+  metadata:
+    benchmark: aprilgrid_distortion_kannala_brandt_v1
+    focus: distortion_calibration_kannala_brandt
+
+camera:
+  resolution: [1920, 1080]
+  fov: 170.0  # Wide fisheye FOV
+  samples_per_scene: 1
+  min_distance: 0.5
+  max_distance: 5.0
+  # Full elevation range: fisheye boards visible even at steep angles
+  min_elevation: 0.1
+  max_elevation: 1.0
+  min_roll: -180.0
+  max_roll: 180.0
+  # Static sensor (no motion blur)
+  sensor_dynamics:
+    velocity_mean: 0.0
+    velocity_std: 0.0
+  ppm_constraint:
+    min: 2.0
+    max: 20.0
+    distribution: uniform
+  tone_mapping: filmic
+  iso: 100
+  intrinsics:
+    # Kannala-Brandt (equidistant fisheye) — typical 170° FOV lens
+    distortion_model: kannala_brandt
+    kb1: -0.0035
+    kb2:  0.0015
+    kb3: -0.0003
+    kb4:  0.0001
+
+scenario:
+  subject:
+    type: BOARD
+    rows: 6
+    cols: 6
+    marker_size_mm: 100.0
+    dictionary: tag36h11
+    spacing_ratio: 0.3
+  sampling_mode: random
+
+scene:
+  lighting_preset: factory
+  texture_dir: assets/textures/background
+  texture_scale_min: 1.0
+  texture_scale_max: 10.0
+
+renderer:
+  mode: cycles
+  noise_threshold: 0.01
+  max_samples: 512
+  enable_denoising: true
+
+version: '0.2'
