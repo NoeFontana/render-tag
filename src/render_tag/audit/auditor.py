@@ -23,7 +23,10 @@ except ImportError:
 
 from render_tag.core.logging import get_logger
 from render_tag.core.schema.hot_loop import Telemetry
-from render_tag.generation.projection_math import quaternion_wxyz_to_matrix
+from render_tag.generation.projection_math import (
+    apply_distortion_by_model,
+    quaternion_wxyz_to_matrix,
+)
 
 logger = get_logger(__name__)
 
@@ -382,6 +385,8 @@ class DatasetAuditor:
             quat_wxyz = rec.get("rotation_quaternion")
             k_mat = rec.get("k_matrix")
             tag_size_mm = rec.get("tag_size_mm")
+            dist_model = rec.get("distortion_model", "none")
+            dist_coeffs = rec.get("distortion_coeffs", [])
 
             if (
                 not corners
@@ -406,8 +411,16 @@ class DatasetAuditor:
                 continue  # Behind camera
 
             k = np.array(k_mat, dtype=float)
-            x_proj = k[0, 0] * p_cam[0] / p_cam[2] + k[0, 2]
-            y_proj = k[1, 1] * p_cam[1] / p_cam[2] + k[1, 2]
+
+            # Apply lens distortion if model is specified
+            x_norm = p_cam[0] / p_cam[2]
+            y_norm = p_cam[1] / p_cam[2]
+            xd, yd = apply_distortion_by_model(
+                np.array([x_norm]), np.array([y_norm]), dist_coeffs, dist_model
+            )
+
+            x_proj = k[0, 0] * xd[0] + k[0, 2]
+            y_proj = k[1, 1] * yd[0] + k[1, 2]
 
             c0 = corners[0]
             dist0 = float(np.hypot(x_proj - c0[0], y_proj - c0[1]))

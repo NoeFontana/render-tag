@@ -90,7 +90,7 @@ def test_invert_distortion_round_trip(model: str, coeffs: list[float]) -> None:
     ],
 )
 def test_remap_annotation_consistency(model: str, coeffs: list[float]) -> None:
-    """Annotated pixel in distorted image must map back to the same source as the linear projection."""
+    """Annotated pixel must map back to the same source as the linear projection."""
     pts = _make_point_in_front()
 
     # 1. Annotation pixel: project through K_target with distortion
@@ -100,7 +100,7 @@ def test_remap_annotation_consistency(model: str, coeffs: list[float]) -> None:
     # 2. Remap source pixel: look up the backward map at the annotation pixel
     map_x, map_y = compute_distortion_maps(K_LINEAR, K_TARGET, RESOLUTION, coeffs, model)
     H, W = map_x.shape
-    ui, vi = int(round(u_ann)), int(round(v_ann))
+    ui, vi = round(u_ann), round(v_ann)
     assert 0 <= ui < W and 0 <= vi < H, "Annotation pixel is outside the remap grid"
     u_src = float(map_x[vi, ui])
     v_src = float(map_y[vi, ui])
@@ -111,9 +111,5 @@ def test_remap_annotation_consistency(model: str, coeffs: list[float]) -> None:
 
     # The remap source must agree with the linear projection to within 0.5 px
     # (rounding to the nearest integer pixel introduces at most 0.5 px error).
-    assert abs(u_src - u_lin) < 0.6, (
-        f"{model}: remap source u={u_src:.3f} != linear u={u_lin:.3f}"
-    )
-    assert abs(v_src - v_lin) < 0.6, (
-        f"{model}: remap source v={v_src:.3f} != linear v={v_lin:.3f}"
-    )
+    assert abs(u_src - u_lin) < 0.6, f"{model}: remap source u={u_src:.3f} != linear u={u_lin:.3f}"
+    assert abs(v_src - v_lin) < 0.6, f"{model}: remap source v={v_src:.3f} != linear v={v_lin:.3f}"
