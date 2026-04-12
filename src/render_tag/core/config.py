@@ -227,12 +227,27 @@ class CameraIntrinsics(BaseModel):
         default=None, gt=0, description="Focal length in millimeters"
     )
 
-    # Lens distortion coefficients (OpenCV convention)
-    k1: float = Field(default=0.0, description="Radial distortion coefficient k1")
-    k2: float = Field(default=0.0, description="Radial distortion coefficient k2")
-    k3: float = Field(default=0.0, description="Radial distortion coefficient k3")
-    p1: float = Field(default=0.0, description="Tangential distortion coefficient p1")
-    p2: float = Field(default=0.0, description="Tangential distortion coefficient p2")
+    # Distortion model selection
+    distortion_model: Literal["none", "brown_conrady", "kannala_brandt"] = Field(
+        default="none",
+        description=(
+            "Distortion model: 'none' (pinhole), 'brown_conrady' (5-param radial+tangential),"
+            " or 'kannala_brandt' (4-param equidistant fisheye)"
+        ),
+    )
+
+    # Brown-Conrady (OpenCV plumb_bob) coefficients
+    k1: float = Field(default=0.0, description="Radial distortion k1 (brown_conrady)")
+    k2: float = Field(default=0.0, description="Radial distortion k2 (brown_conrady)")
+    k3: float = Field(default=0.0, description="Radial distortion k3 (brown_conrady)")
+    p1: float = Field(default=0.0, description="Tangential distortion p1 (brown_conrady)")
+    p2: float = Field(default=0.0, description="Tangential distortion p2 (brown_conrady)")
+
+    # Kannala-Brandt (equidistant fisheye) coefficients
+    kb1: float = Field(default=0.0, description="Fisheye distortion k1 (kannala_brandt)")
+    kb2: float = Field(default=0.0, description="Fisheye distortion k2 (kannala_brandt)")
+    kb3: float = Field(default=0.0, description="Fisheye distortion k3 (kannala_brandt)")
+    kb4: float = Field(default=0.0, description="Fisheye distortion k4 (kannala_brandt)")
 
     @field_validator("k_matrix")
     @classmethod
@@ -249,9 +264,19 @@ class CameraIntrinsics(BaseModel):
             raise ValueError("K matrix must have zero skew (K[0][1] = 0)")
         return v
 
-    def get_distortion_coeffs(self) -> tuple[float, float, float, float, float]:
-        """Return distortion coefficients in OpenCV order (k1, k2, p1, p2, k3)."""
-        return (self.k1, self.k2, self.p1, self.p2, self.k3)
+    def get_distortion_coeffs(self) -> tuple[float, ...]:
+        """Return distortion coefficients for the active model.
+
+        Returns:
+            brown_conrady: (k1, k2, p1, p2, k3) — 5 coefficients
+            kannala_brandt: (kb1, kb2, kb3, kb4) — 4 coefficients
+            none: empty tuple
+        """
+        if self.distortion_model == "kannala_brandt":
+            return (self.kb1, self.kb2, self.kb3, self.kb4)
+        if self.distortion_model == "brown_conrady":
+            return (self.k1, self.k2, self.p1, self.p2, self.k3)
+        return ()
 
 
 class CameraConfig(BaseModel):

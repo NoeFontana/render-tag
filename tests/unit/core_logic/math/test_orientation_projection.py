@@ -146,7 +146,7 @@ def test_projection_engine_is_agnostic_to_visual_shuffling(mock_bridge, monkeypa
     # Shuffled CW: TR, BR, BL, TL
     shuffled_coords = np.array([[20.0, 10.0], [20.0, 20.0], [10.0, 20.0], [10.0, 10.0]])
     monkeypatch.setattr(
-        "render_tag.backend.projection.project_points", lambda *args: shuffled_coords
+        "render_tag.backend.projection.project_points", lambda *args, **kwargs: shuffled_coords
     )
 
     mock_obj = MagicMock()

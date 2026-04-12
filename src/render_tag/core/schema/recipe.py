@@ -41,9 +41,41 @@ class CameraIntrinsics(BaseModel):
         min_length=2, max_length=2, description="[width, height] in pixels"
     )
     k_matrix: list[list[float]] = Field(
-        description="3x3 Intrinsic matrix [[fx, 0, cx], [0, fy, cy], [0, 0, 1]]"
+        description=(
+            "3x3 Intrinsic matrix [[fx, 0, cx], [0, fy, cy], [0, 0, 1]] — "
+            "TARGET distorted camera (used by PnP solvers on output images)"
+        )
     )
     fov: float | None = Field(default=None, description="Field of view in degrees")
+
+    # Lens distortion model
+    distortion_model: Literal["none", "brown_conrady", "kannala_brandt"] = Field(
+        default="none",
+        description=(
+            "Distortion model: 'none' (pinhole), 'brown_conrady' (5-param radial+tangential),"
+            " or 'kannala_brandt' (4-param equidistant fisheye)"
+        ),
+    )
+    distortion_coeffs: list[float] = Field(
+        default_factory=list,
+        description=(
+            "Distortion coefficients: [k1,k2,p1,p2,k3] for brown_conrady;"
+            " [k1,k2,k3,k4] for kannala_brandt"
+        ),
+    )
+
+    # Overscan render targets — set by compiler when distortion is active.
+    # None means no distortion; use k_matrix / resolution directly for Blender.
+    k_matrix_overscan: list[list[float]] | None = Field(
+        default=None,
+        description="Expanded K-matrix for linear overscan render passed to Blender",
+    )
+    resolution_overscan: list[int] | None = Field(
+        default=None,
+        min_length=2,
+        max_length=2,
+        description="Expanded [width, height] for linear overscan render passed to Blender",
+    )
 
 
 class CameraRecipe(BaseModel):

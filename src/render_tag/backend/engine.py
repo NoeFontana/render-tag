@@ -20,6 +20,7 @@ from render_tag.backend.assets import global_pool
 from render_tag.backend.bridge import bridge
 from render_tag.backend.builders.registry import default_registry
 from render_tag.backend.camera import set_camera_intrinsics, setup_sensor_dynamics
+from render_tag.backend.distortion import compute_distortion_maps, remap_image
 from render_tag.backend.projection import generate_board_records, generate_subject_records
 from render_tag.backend.scene import (
     setup_background,
@@ -265,11 +266,26 @@ class RenderFacade:
         data = bridge.bproc.renderer.render()
         self.logger.info("BlenderProc render call completed.")
         img = data["colors"][0]
+        segmap = data.get("segmentation", [None])[0]
+
+        intrinsics = camera_recipe.intrinsics
+        if intrinsics.k_matrix_overscan is not None and intrinsics.distortion_coeffs:
+            self.logger.info("Applying post-render lens distortion warp...")
+            warp_maps = compute_distortion_maps(
+                intrinsics.k_matrix_overscan,
+                intrinsics.k_matrix,
+                intrinsics.resolution,
+                intrinsics.distortion_coeffs,
+                intrinsics.distortion_model,
+            )
+            img = remap_image(img, *warp_maps)
+            if segmap is not None:
+                segmap = remap_image(segmap, *warp_maps, nearest_neighbor=True)
 
         if camera_recipe.sensor_noise:
             img = apply_parametric_noise(img, camera_recipe.sensor_noise)
 
-        return {"img": img, "segmap": data.get("segmentation", [None])[0]}
+        return {"img": img, "segmap": segmap}
 
 
 def execute_recipe(

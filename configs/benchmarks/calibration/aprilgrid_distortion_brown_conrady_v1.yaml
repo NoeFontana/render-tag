@@ -1,0 +1,67 @@
+# AprilGrid Distortion Benchmark — Brown-Conrady (v1)
+# Focus: Distortion calibration under moderate radial+tangential (plumb_bob) distortion.
+# Coefficients model a typical wide-angle prime lens (~70° FOV, mild barrel distortion).
+# Statistical goal: 150 scenes, full elevation range to stress corner displacement near borders.
+
+dataset:
+  num_scenes: 150
+  seeds:
+    global_seed: 2027
+  evaluation_scopes: [pose_estimation, detection, calibration]
+  metadata:
+    benchmark: aprilgrid_distortion_brown_conrady_v1
+    focus: distortion_calibration_brown_conrady
+
+camera:
+  resolution: [1920, 1080]
+  fov: 70.0
+  samples_per_scene: 1
+  min_distance: 1.0
+  max_distance: 10.0
+  # Full elevation range: stresses corner displacement at image borders
+  min_elevation: 0.3
+  max_elevation: 1.0
+  min_roll: -180.0
+  max_roll: 180.0
+  # Static sensor (no motion blur)
+  sensor_dynamics:
+    velocity_mean: 0.0
+    velocity_std: 0.0
+  ppm_constraint:
+    min: 2.0
+    max: 20.0
+    distribution: uniform
+  tone_mapping: filmic
+  iso: 100
+  intrinsics:
+    # Brown-Conrady (OpenCV plumb_bob) — moderate barrel distortion
+    distortion_model: brown_conrady
+    k1: -0.28
+    k2:  0.08
+    k3:  0.0
+    p1:  0.0002
+    p2:  0.0001
+
+scenario:
+  subject:
+    type: BOARD
+    rows: 6
+    cols: 6
+    marker_size_mm: 100.0
+    dictionary: tag36h11
+    spacing_ratio: 0.3
+  sampling_mode: random
+
+scene:
+  lighting_preset: factory
+  texture_dir: assets/textures/background
+  texture_scale_min: 1.0
+  texture_scale_max: 10.0
+
+renderer:
+  mode: cycles
+  noise_threshold: 0.01
+  max_samples: 512
+  enable_denoising: true
+
+version: '0.2'
