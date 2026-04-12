@@ -381,93 +381,6 @@ def apply_distortion_kannala_brandt(
     return x_norm * scale, y_norm * scale
 
 
-def invert_distortion_brown_conrady(
-    x_dist: np.ndarray,
-    y_dist: np.ndarray,
-    distortion_coeffs: list[float],
-    n_iters: int = 10,
-) -> tuple[np.ndarray, np.ndarray]:
-    """
-    Iteratively invert the Brown-Conrady distortion model via fixed-point iteration.
-
-    Given distorted normalized coordinates (x_d, y_d), finds the undistorted
-    normalized coordinates (x, y) such that apply_distortion_brown_conrady(x, y) ≈ (x_d, y_d).
-
-    Convergence: typically <5 iterations for |k1| < 0.8.
-
-    Args:
-        x_dist: (N,) distorted normalized x coordinates.
-        y_dist: (N,) distorted normalized y coordinates.
-        distortion_coeffs: [k1, k2, p1, p2, k3] OpenCV order.
-        n_iters: Number of fixed-point iterations.
-
-    Returns:
-        (x_undist, y_undist): Undistorted normalized coordinates.
-    """
-    k1, k2, p1, p2, k3 = distortion_coeffs
-    x = x_dist.copy()
-    y = y_dist.copy()
-    for _ in range(n_iters):
-        r2 = x**2 + y**2
-        r4 = r2 * r2
-        r6 = r2 * r4
-        radial = 1.0 + k1 * r2 + k2 * r4 + k3 * r6
-        dx = 2.0 * p1 * x * y + p2 * (r2 + 2.0 * x**2)
-        dy = p1 * (r2 + 2.0 * y**2) + 2.0 * p2 * x * y
-        x = (x_dist - dx) / radial
-        y = (y_dist - dy) / radial
-    return x, y
-
-
-def invert_distortion_kannala_brandt(
-    x_dist: np.ndarray,
-    y_dist: np.ndarray,
-    distortion_coeffs: list[float],
-    n_iters: int = 20,
-) -> tuple[np.ndarray, np.ndarray]:
-    """
-    Iteratively invert the Kannala-Brandt fisheye distortion via Newton-Raphson.
-
-    Given distorted normalized coordinates (x_d, y_d), finds the undistorted
-    normalized coordinates (x, y) via angle-domain inversion:
-        r_d = sqrt(x_d² + y_d²)
-        theta satisfies: theta_d(theta) = r_d
-        r_undist = tan(theta)
-        (x, y) = (r_undist / r_d) * (x_d, y_d)
-
-    Convergence: <5 iterations for typical fisheye coefficients.
-
-    Args:
-        x_dist: (N,) distorted normalized x coordinates.
-        y_dist: (N,) distorted normalized y coordinates.
-        distortion_coeffs: [k1, k2, k3, k4] Kannala-Brandt order.
-        n_iters: Number of Newton-Raphson iterations.
-
-    Returns:
-        (x_undist, y_undist): Undistorted normalized coordinates.
-    """
-    k1, k2, k3, k4 = distortion_coeffs
-    r_d = np.sqrt(x_dist**2 + y_dist**2)
-
-    # Newton-Raphson: solve f(theta) = theta_d(theta) - r_d = 0
-    theta = r_d.copy()
-    for _ in range(n_iters):
-        theta2 = theta * theta
-        theta4 = theta2 * theta2
-        theta6 = theta2 * theta4
-        theta8 = theta4 * theta4
-        f = theta * (1.0 + k1 * theta2 + k2 * theta4 + k3 * theta6 + k4 * theta8) - r_d
-        df = 1.0 + 3.0 * k1 * theta2 + 5.0 * k2 * theta4 + 7.0 * k3 * theta6 + 9.0 * k4 * theta8
-        theta = theta - f / np.where(np.abs(df) > 1e-12, df, 1e-12)
-    # Clamp once after convergence: theta must be in [0, π/2] for valid projections
-    theta = np.clip(theta, 0.0, np.pi / 2.0)
-
-    # Reconstruct undistorted normalized radius: r = tan(theta)
-    r_undist = np.tan(theta)
-    scale = np.where(r_d > 1e-8, r_undist / r_d, 1.0)
-    return x_dist * scale, y_dist * scale
-
-
 def apply_distortion_by_model(
     x_norm: np.ndarray,
     y_norm: np.ndarray,
@@ -476,8 +389,8 @@ def apply_distortion_by_model(
 ) -> tuple[np.ndarray, np.ndarray]:
     """Apply forward distortion based on model type, or return inputs unchanged.
 
-    Single dispatch point used by project_points, compute_distortion_maps, and
-    compute_bbox to avoid repeating the model-selection logic.
+    Single dispatch point used by project_points, annotations, and viz to
+    avoid repeating the model-selection logic.
 
     Args:
         x_norm: (N,) normalized x coordinates.
@@ -495,38 +408,6 @@ def apply_distortion_by_model(
         return apply_distortion_kannala_brandt(x_norm, y_norm, k1, k2, k3, k4)
     k1, k2, p1, p2, k3 = distortion_coeffs
     return apply_distortion_brown_conrady(x_norm, y_norm, k1, k2, p1, p2, k3)
-
-
-def invert_distortion_by_model(
-    x_dist: np.ndarray,
-    y_dist: np.ndarray,
-    distortion_coeffs: list[float],
-    distortion_model: str = "none",
-) -> tuple[np.ndarray, np.ndarray]:
-    """Invert distortion to recover undistorted normalized coordinates.
-
-    Given distorted normalized coords (x_d, y_d) — i.e. coordinates obtained by
-    unprojecting a distorted-image pixel through K_target — returns the undistorted
-    normalized coords (x_u, y_u) such that apply_distortion_by_model(x_u, y_u) ≈ (x_d, y_d).
-
-    Used by the backward remap in compute_distortion_maps: for each output pixel in the
-    distorted image we need the source coordinate in the linear overscan image, which
-    requires undistorting first.
-
-    Args:
-        x_dist: (N,) distorted normalized x coordinates.
-        y_dist: (N,) distorted normalized y coordinates.
-        distortion_coeffs: Coefficients for the active model.
-        distortion_model: 'none', 'brown_conrady', or 'kannala_brandt'.
-
-    Returns:
-        (x_undist, y_undist): Undistorted normalized coordinates.
-    """
-    if not has_active_distortion(distortion_coeffs):
-        return x_dist, y_dist
-    if distortion_model == "kannala_brandt":
-        return invert_distortion_kannala_brandt(x_dist, y_dist, distortion_coeffs)
-    return invert_distortion_brown_conrady(x_dist, y_dist, distortion_coeffs)
 
 
 def project_points(

@@ -8,9 +8,8 @@ output via a dense forward-distortion pixel map.
 
 from __future__ import annotations
 
+import cv2
 import numpy as np
-
-from render_tag.generation.projection_math import invert_distortion_by_model
 
 
 def compute_distortion_maps(
@@ -23,17 +22,13 @@ def compute_distortion_maps(
     """
     Compute the (map_x, map_y) pixel coordinate arrays for cv2.remap.
 
-    For each output pixel (u, v) in the target distorted image, maps back to
-    the corresponding source coordinate in the linear overscan image.
-
-    cv2.remap is a *backward* map: it samples the source at the coordinates
-    we provide. The path for each destination pixel is:
-      1. Unproject through K_target → distorted normalized coords (x_d, y_d).
-      2. Invert distortion → undistorted normalized coords (x_u, y_u).
-      3. Project through K_linear → source pixel in the overscan image.
-
-    Step 2 must be an *inverse* (not forward) distortion because the overscan
-    image is a linear pinhole render — its pixels live in undistorted space.
+    cv2.remap is a *backward* map: for each destination pixel (u, v) in the
+    distorted output image, (map_x[v,u], map_y[v,u]) gives the source pixel
+    to sample in the linear overscan image. The path is:
+      1. Grid of target pixels → cv2.undistortPoints (or fisheye variant) →
+         undistorted normalized rays.  OpenCV's C++ solver handles the iterative
+         inverse distortion in hardware-accelerated code.
+      2. Undistorted rays → project through K_linear → source overscan pixels.
 
     Separate from apply_lens_distortion_warp so callers can compute the maps
     once and reuse them across multiple images (e.g. RGB + segmap).
@@ -49,34 +44,23 @@ def compute_distortion_maps(
         (map_x, map_y): float32 arrays of shape (H, W), ready for cv2.remap.
     """
     W_tgt, H_tgt = resolution_target
-    fx_t = k_target[0][0]
-    fy_t = k_target[1][1]
-    cx_t = k_target[0][2]
-    cy_t = k_target[1][2]
-    fx_l = k_linear[0][0]
-    fy_l = k_linear[1][1]
-    cx_l = k_linear[0][2]
-    cy_l = k_linear[1][2]
+    K_tgt = np.array(k_target, dtype=np.float64)
+    D = np.array(distortion_coeffs, dtype=np.float64)
 
-    u_tgt, v_tgt = np.meshgrid(
-        np.arange(W_tgt, dtype=np.float32),
-        np.arange(H_tgt, dtype=np.float32),
-    )
-    # Unproject output pixel through K_target → distorted normalized coords.
-    # These are the coords a real distorted camera would produce for this pixel.
-    x_d = (u_tgt - cx_t) / fx_t
-    y_d = (v_tgt - cy_t) / fy_t
+    u_tgt, v_tgt = np.meshgrid(np.arange(W_tgt), np.arange(H_tgt))
+    pts = np.stack([u_tgt, v_tgt], axis=-1).reshape(-1, 1, 2).astype(np.float64)
 
-    # Invert distortion → undistorted normalized coords.
-    # cv2.remap is a backward map: we need the SOURCE coordinate in the linear
-    # overscan image for each DESTINATION pixel in the distorted output. The
-    # overscan image is rendered with a pinhole (undistorted) model, so we must
-    # undo the distortion to find the corresponding ray in the linear image.
-    x_u, y_u = invert_distortion_by_model(x_d, y_d, distortion_coeffs, distortion_model)
+    # Delegate inverse distortion to OpenCV's C++ solver.
+    # undistortPoints / fisheye.undistortPoints apply K^-1 then iteratively
+    # remove the distortion model, returning ideal normalized coordinates.
+    if distortion_model == "kannala_brandt":
+        rays = cv2.fisheye.undistortPoints(pts, K_tgt, D)
+    else:
+        rays = cv2.undistortPoints(pts, K_tgt, D)
 
-    # Project undistorted ray through K_linear → source pixel in overscan image.
-    map_x = (x_u * fx_l + cx_l).astype(np.float32)
-    map_y = (y_u * fy_l + cy_l).astype(np.float32)
+    rays = rays.reshape(H_tgt, W_tgt, 2)
+    map_x = (rays[..., 0] * k_linear[0][0] + k_linear[0][2]).astype(np.float32)
+    map_y = (rays[..., 1] * k_linear[1][1] + k_linear[1][2]).astype(np.float32)
     return map_x, map_y
 
 
@@ -94,14 +78,15 @@ def remap_image(
         map_x: float32 (H, W) x-coordinate map from compute_distortion_maps.
         map_y: float32 (H, W) y-coordinate map from compute_distortion_maps.
         nearest_neighbor: If True, use INTER_NEAREST (for segmentation maps
-            to avoid label bleeding). Defaults to bilinear interpolation.
+            to avoid label bleeding). Defaults to Lanczos4 to preserve
+            high-frequency marker edges for sub-pixel corner detection.
 
     Returns:
         Remapped image at the resolution encoded in map_x/map_y.
     """
     import cv2
 
-    interp = cv2.INTER_NEAREST if nearest_neighbor else cv2.INTER_LINEAR
+    interp = cv2.INTER_NEAREST if nearest_neighbor else cv2.INTER_LANCZOS4
     return cv2.remap(
         img, map_x, map_y, interpolation=interp, borderMode=cv2.BORDER_CONSTANT, borderValue=0
     )

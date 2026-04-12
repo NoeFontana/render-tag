@@ -17,8 +17,6 @@ import pytest
 
 from render_tag.backend.distortion import compute_distortion_maps
 from render_tag.generation.projection_math import (
-    apply_distortion_by_model,
-    invert_distortion_by_model,
     project_points,
 )
 
@@ -43,31 +41,6 @@ CAM_WORLD = np.diag([1.0, -1.0, -1.0, 1.0])
 def _make_point_in_front(x_m: float = 0.05, y_m: float = -0.03, z_m: float = 1.0) -> np.ndarray:
     """Return a single 3D world point visible in front of the camera."""
     return np.array([[x_m, y_m, z_m]])
-
-
-# ---------------------------------------------------------------------------
-# Inverse round-trip: invert_distortion_by_model ∘ apply_distortion_by_model ≈ id
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize(
-    "model, coeffs",
-    [
-        ("brown_conrady", BC_COEFFS),
-        ("kannala_brandt", KB_COEFFS),
-    ],
-)
-def test_invert_distortion_round_trip(model: str, coeffs: list[float]) -> None:
-    """apply then invert must recover the original coords within floating-point tolerance."""
-    rng = np.random.default_rng(42)
-    x = rng.uniform(-0.4, 0.4, 200).astype(np.float64)
-    y = rng.uniform(-0.4, 0.4, 200).astype(np.float64)
-
-    x_d, y_d = apply_distortion_by_model(x, y, coeffs, model)
-    x_r, y_r = invert_distortion_by_model(x_d, y_d, coeffs, model)
-
-    np.testing.assert_allclose(x_r, x, atol=1e-6, err_msg=f"{model}: x round-trip failed")
-    np.testing.assert_allclose(y_r, y, atol=1e-6, err_msg=f"{model}: y round-trip failed")
 
 
 # ---------------------------------------------------------------------------

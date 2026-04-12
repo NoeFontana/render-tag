@@ -9,6 +9,7 @@ import math
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import cv2
 import numpy as np
 
 from ..core.config import GenConfig
@@ -23,11 +24,7 @@ from ..core.schema import (
 from ..core.seeding import derive_seed
 from ..data_io.assets import AssetProvider
 from .camera import sample_camera_pose
-from .projection_math import (
-    has_active_distortion,
-    invert_distortion_brown_conrady,
-    invert_distortion_kannala_brandt,
-)
+from .projection_math import has_active_distortion
 from .strategy.factory import get_subject_strategy
 from .visibility import is_facing_camera
 
@@ -64,8 +61,6 @@ def compute_overscan_intrinsics(
     W, H = resolution
     fx = k_target[0][0]
     fy = k_target[1][1]
-    cx = k_target[0][2]
-    cy = k_target[1][2]
 
     # Sample all 4 edges of the target image
     u_edge = np.linspace(0, W - 1, n_samples)
@@ -74,15 +69,16 @@ def compute_overscan_intrinsics(
     u_boundary = np.concatenate([u_edge, u_edge, np.zeros(n_samples), np.full(n_samples, W - 1)])
     v_boundary = np.concatenate([np.zeros(n_samples), np.full(n_samples, H - 1), v_edge, v_edge])
 
-    # Convert boundary pixels to distorted normalized coordinates
-    x_dist = (u_boundary - cx) / fx
-    y_dist = (v_boundary - cy) / fy
-
-    # Invert distortion to get undistorted normalized coordinates
+    # Delegate inverse distortion to OpenCV's C++ solver, same as compute_distortion_maps.
+    K_tgt = np.array(k_target, dtype=np.float64)
+    D = np.array(distortion_coeffs, dtype=np.float64)
+    pts = np.stack([u_boundary, v_boundary], axis=-1).reshape(-1, 1, 2).astype(np.float64)
     if distortion_model == "kannala_brandt":
-        x_undist, y_undist = invert_distortion_kannala_brandt(x_dist, y_dist, distortion_coeffs)
+        undist = cv2.fisheye.undistortPoints(pts, K_tgt, D)
     else:
-        x_undist, y_undist = invert_distortion_brown_conrady(x_dist, y_dist, distortion_coeffs)
+        undist = cv2.undistortPoints(pts, K_tgt, D)
+    x_undist = undist[:, 0, 0]
+    y_undist = undist[:, 0, 1]
 
     # Maximum angular extent in each axis
     max_x = float(np.max(np.abs(x_undist)))
