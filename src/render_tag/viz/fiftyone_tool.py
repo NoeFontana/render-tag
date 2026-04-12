@@ -17,6 +17,7 @@ from rich.progress import (
 )
 
 from render_tag.generation.projection_math import (
+    apply_distortion_by_model,
     quaternion_wxyz_to_matrix,
 )
 
@@ -240,6 +241,8 @@ def project_tag_axes(
     record: dict[str, Any],
     k_matrix: list[list[float]],
     resolution: list[int],
+    distortion_coeffs: list[float] | None = None,
+    distortion_model: str = "none",
 ) -> dict[str, fo.Polyline] | None:
     """
     Project 3D axes at the tag origin (geometric center) using its pose metadata.
@@ -258,8 +261,11 @@ def project_tag_axes(
 
     width, height = resolution
     k_np = np.array(k_matrix)
+    fx, fy = k_np[0, 0], k_np[1, 1]
+    cx, cy = k_np[0, 2], k_np[1, 2]
     r_mat = quaternion_wxyz_to_matrix(quat)
     t_vec = np.array(pos)
+    coeffs = distortion_coeffs or []
 
     # Local axes points (Origin at geometric center of the black border)
     local_origin = np.array([0.0, 0.0, 0.0])
@@ -273,13 +279,19 @@ def project_tag_axes(
     def to_cam(p_local):
         return t_vec + r_mat @ p_local
 
-    # Project to 2D pixels and normalize to [0, 1] for FiftyOne
+    # Project to 2D pixels and normalize to [0, 1] for FiftyOne.
+    # Apply the distortion model before the K multiply so axis endpoints land
+    # on the correct distorted-image coordinates.
     def project(p_cam):
         if p_cam[2] <= 1e-6:
             return None  # Behind camera
-        p_2d_hom = k_np @ p_cam
-        px = p_2d_hom[0] / p_2d_hom[2]
-        py = p_2d_hom[1] / p_2d_hom[2]
+        x_n = p_cam[0] / p_cam[2]
+        y_n = p_cam[1] / p_cam[2]
+        xd, yd = apply_distortion_by_model(
+            np.array([x_n]), np.array([y_n]), coeffs, distortion_model
+        )
+        px = fx * xd[0] + cx
+        py = fy * yd[0] + cy
         return [float(px / width), float(py / height)]
 
     origin_2d = project(to_cam(local_origin))
@@ -517,6 +529,8 @@ def visualize_fiftyone(
                             record,
                             k_matrix=record["k_matrix"],
                             resolution=record["resolution"],
+                            distortion_coeffs=record.get("distortion_coeffs") or [],
+                            distortion_model=record.get("distortion_model", "none"),
                         )
                         if axes:
                             new_axis_x.append(axes["axis_x"])
