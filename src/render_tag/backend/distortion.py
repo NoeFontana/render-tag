@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from render_tag.generation.projection_math import apply_distortion_by_model
+from render_tag.generation.projection_math import invert_distortion_by_model
 
 
 def compute_distortion_maps(
@@ -24,8 +24,16 @@ def compute_distortion_maps(
     Compute the (map_x, map_y) pixel coordinate arrays for cv2.remap.
 
     For each output pixel (u, v) in the target distorted image, maps back to
-    the corresponding source coordinate in the linear overscan image via the
-    forward distortion model.
+    the corresponding source coordinate in the linear overscan image.
+
+    cv2.remap is a *backward* map: it samples the source at the coordinates
+    we provide. The path for each destination pixel is:
+      1. Unproject through K_target → distorted normalized coords (x_d, y_d).
+      2. Invert distortion → undistorted normalized coords (x_u, y_u).
+      3. Project through K_linear → source pixel in the overscan image.
+
+    Step 2 must be an *inverse* (not forward) distortion because the overscan
+    image is a linear pinhole render — its pixels live in undistorted space.
 
     Separate from apply_lens_distortion_warp so callers can compute the maps
     once and reuse them across multiple images (e.g. RGB + segmap).
@@ -54,12 +62,21 @@ def compute_distortion_maps(
         np.arange(W_tgt, dtype=np.float32),
         np.arange(H_tgt, dtype=np.float32),
     )
-    x_norm = (u_tgt - cx_t) / fx_t
-    y_norm = (v_tgt - cy_t) / fy_t
-    x_d, y_d = apply_distortion_by_model(x_norm, y_norm, distortion_coeffs, distortion_model)
+    # Unproject output pixel through K_target → distorted normalized coords.
+    # These are the coords a real distorted camera would produce for this pixel.
+    x_d = (u_tgt - cx_t) / fx_t
+    y_d = (v_tgt - cy_t) / fy_t
 
-    map_x = (x_d * fx_l + cx_l).astype(np.float32)
-    map_y = (y_d * fy_l + cy_l).astype(np.float32)
+    # Invert distortion → undistorted normalized coords.
+    # cv2.remap is a backward map: we need the SOURCE coordinate in the linear
+    # overscan image for each DESTINATION pixel in the distorted output. The
+    # overscan image is rendered with a pinhole (undistorted) model, so we must
+    # undo the distortion to find the corresponding ray in the linear image.
+    x_u, y_u = invert_distortion_by_model(x_d, y_d, distortion_coeffs, distortion_model)
+
+    # Project undistorted ray through K_linear → source pixel in overscan image.
+    map_x = (x_u * fx_l + cx_l).astype(np.float32)
+    map_y = (y_u * fy_l + cy_l).astype(np.float32)
     return map_x, map_y
 
 

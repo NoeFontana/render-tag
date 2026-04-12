@@ -497,6 +497,38 @@ def apply_distortion_by_model(
     return apply_distortion_brown_conrady(x_norm, y_norm, k1, k2, p1, p2, k3)
 
 
+def invert_distortion_by_model(
+    x_dist: np.ndarray,
+    y_dist: np.ndarray,
+    distortion_coeffs: list[float],
+    distortion_model: str = "none",
+) -> tuple[np.ndarray, np.ndarray]:
+    """Invert distortion to recover undistorted normalized coordinates.
+
+    Given distorted normalized coords (x_d, y_d) — i.e. coordinates obtained by
+    unprojecting a distorted-image pixel through K_target — returns the undistorted
+    normalized coords (x_u, y_u) such that apply_distortion_by_model(x_u, y_u) ≈ (x_d, y_d).
+
+    Used by the backward remap in compute_distortion_maps: for each output pixel in the
+    distorted image we need the source coordinate in the linear overscan image, which
+    requires undistorting first.
+
+    Args:
+        x_dist: (N,) distorted normalized x coordinates.
+        y_dist: (N,) distorted normalized y coordinates.
+        distortion_coeffs: Coefficients for the active model.
+        distortion_model: 'none', 'brown_conrady', or 'kannala_brandt'.
+
+    Returns:
+        (x_undist, y_undist): Undistorted normalized coordinates.
+    """
+    if not has_active_distortion(distortion_coeffs):
+        return x_dist, y_dist
+    if distortion_model == "kannala_brandt":
+        return invert_distortion_kannala_brandt(x_dist, y_dist, distortion_coeffs)
+    return invert_distortion_brown_conrady(x_dist, y_dist, distortion_coeffs)
+
+
 def project_points(
     points_world: np.ndarray,
     cam_world_matrix: Matrix4x4,
