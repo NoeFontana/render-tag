@@ -25,7 +25,7 @@ from render_tag.generation.projection_math import get_opencv_camera_matrix, proj
 # Shared fixtures
 # ---------------------------------------------------------------------------
 
-# Moderate focal length — typical for a fisheye lens on a 640×480 sensor.
+# Moderate focal length — typical for a fisheye lens on a 640x480 sensor.
 K_TARGET = [[300.0, 0.0, 320.0], [0.0, 300.0, 240.0], [0.0, 0.0, 1.0]]
 RESOLUTION = [640, 480]
 
