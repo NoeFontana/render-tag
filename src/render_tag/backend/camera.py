@@ -6,6 +6,8 @@ This module handles camera intrinsics and sensor dynamics configuration.
 
 from __future__ import annotations
 
+import math
+
 from render_tag.backend.bridge import bridge
 from render_tag.core.logging import get_logger
 from render_tag.core.schema import CameraRecipe, SensorDynamicsRecipe
@@ -16,16 +18,40 @@ logger = get_logger(__name__)
 def set_camera_intrinsics(camera_recipe: CameraRecipe) -> None:
     """Set camera intrinsics from configuration.
 
-    When the recipe contains overscan intrinsics (distortion is active), Blender
-    is configured with the expanded linear K-matrix and resolution so that the
-    post-render warp has sufficient source pixels to cover the distorted output.
+    Three render paths are supported, selected by the recipe fields:
+
+    1. **Spherical equidistant** (Kannala-Brandt): ``fov_spherical`` is set.
+       Blender is configured as ``PANO / FISHEYE_EQUIDISTANT`` with the given FOV.
+       No K-matrix is injected — equidistant cameras have no pinhole K-matrix concept.
+
+    2. **Linear overscan** (Brown-Conrady): ``k_matrix_overscan`` is set.
+       Blender renders a larger pinhole image; post-render warp maps it to the
+       distorted output.
+
+    3. **Direct pinhole** (no distortion): Blender renders at target resolution
+       using the target K-matrix directly.
 
     Args:
         camera_recipe: Camera recipe (CameraRecipe format)
     """
     intrinsics = camera_recipe.intrinsics
 
-    # Use overscan dimensions when distortion is active
+    if intrinsics.fov_spherical is not None and intrinsics.resolution_spherical is not None:
+        res = intrinsics.resolution_spherical
+        bridge.bproc.camera.set_resolution(res[0], res[1])
+        cam_data = bridge.bpy.context.scene.camera.data
+        cam_data.type = "PANO"
+        cam_data.panorama_type = "FISHEYE_EQUIDISTANT"
+        cam_data.fisheye_fov = intrinsics.fov_spherical
+        logger.info(
+            f"Spherical equidistant camera: FOV={math.degrees(intrinsics.fov_spherical):.1f}° "
+            f"at {res} (target: {intrinsics.resolution})"
+        )
+        return
+
+    # Ensure camera type is PERSP (resets any prior spherical render in same session).
+    bridge.bpy.context.scene.camera.data.type = "PERSP"
+
     if intrinsics.k_matrix_overscan is not None and intrinsics.resolution_overscan is not None:
         res = intrinsics.resolution_overscan
         k_matrix = intrinsics.k_matrix_overscan
@@ -39,8 +65,6 @@ def set_camera_intrinsics(camera_recipe: CameraRecipe) -> None:
 
     if not k_matrix:
         # Emergency fallback for legacy or minimal test recipes
-        import math
-
         fov = intrinsics.fov or 60.0
         fx = fy = res[0] / (2.0 * math.tan(math.radians(fov / 2.0)))
         cx, cy = res[0] / 2.0, res[1] / 2.0

@@ -77,6 +77,19 @@ class CameraIntrinsics(BaseModel):
         description="Expanded [width, height] for linear overscan render passed to Blender",
     )
 
+    # Spherical overscan render targets — set by compiler for kannala_brandt.
+    # Mutually exclusive with k_matrix_overscan/resolution_overscan (linear path).
+    fov_spherical: float | None = Field(
+        default=None,
+        description="Full FOV in radians for Blender FISHEYE_EQUIDISTANT camera",
+    )
+    resolution_spherical: list[int] | None = Field(
+        default=None,
+        min_length=2,
+        max_length=2,
+        description="[R, R] square resolution for equidistant intermediate render",
+    )
+
 
 class CameraRecipe(BaseModel):
     """Recipe for a camera pose and configuration."""

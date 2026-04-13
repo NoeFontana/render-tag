@@ -20,7 +20,11 @@ from render_tag.backend.assets import global_pool
 from render_tag.backend.bridge import bridge
 from render_tag.backend.builders.registry import default_registry
 from render_tag.backend.camera import set_camera_intrinsics, setup_sensor_dynamics
-from render_tag.backend.distortion import compute_distortion_maps, remap_image
+from render_tag.backend.distortion import (
+    compute_distortion_maps,
+    compute_spherical_distortion_maps,
+    remap_image,
+)
 from render_tag.backend.projection import generate_board_records, generate_subject_records
 from render_tag.backend.scene import (
     setup_background,
@@ -269,7 +273,19 @@ class RenderFacade:
         segmap = data.get("segmentation", [None])[0]
 
         intrinsics = camera_recipe.intrinsics
-        if intrinsics.k_matrix_overscan is not None and intrinsics.distortion_coeffs:
+        if intrinsics.fov_spherical is not None and intrinsics.distortion_coeffs:
+            self.logger.info("Applying post-render spherical equidistant warp...")
+            warp_maps = compute_spherical_distortion_maps(
+                intrinsics.k_matrix,
+                intrinsics.resolution,
+                intrinsics.distortion_coeffs,
+                intrinsics.fov_spherical,
+                intrinsics.resolution_spherical,
+            )
+            img = remap_image(img, *warp_maps)
+            if segmap is not None:
+                segmap = remap_image(segmap, *warp_maps, nearest_neighbor=True)
+        elif intrinsics.k_matrix_overscan is not None and intrinsics.distortion_coeffs:
             self.logger.info("Applying post-render lens distortion warp...")
             warp_maps = compute_distortion_maps(
                 intrinsics.k_matrix_overscan,
