@@ -113,7 +113,7 @@ def compute_spherical_distortion_maps(
     x_u = undist[:, 0, 0]
     y_u = undist[:, 0, 1]
 
-    rho = np.sqrt(x_u ** 2 + y_u ** 2)
+    rho = np.sqrt(x_u**2 + y_u**2)
     theta = np.arctan(rho).reshape(H_tgt, W_tgt)
     phi = np.arctan2(y_u, x_u).reshape(H_tgt, W_tgt)
 

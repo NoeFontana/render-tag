@@ -88,10 +88,10 @@ def _analytic_equidistant_pixel(
 @pytest.mark.parametrize(
     "point",
     [
-        np.array([0.05, -0.03, 1.0]),   # Slight off-axis
-        np.array([0.15, 0.10, 1.0]),    # Moderate off-axis
-        np.array([-0.20, 0.05, 0.8]),   # Off-axis + different depth
-        np.array([0.0, 0.0, 1.0]),      # Optical centre (singularity θ=0)
+        np.array([0.05, -0.03, 1.0]),  # Slight off-axis
+        np.array([0.15, 0.10, 1.0]),  # Moderate off-axis
+        np.array([-0.20, 0.05, 0.8]),  # Off-axis + different depth
+        np.array([0.0, 0.0, 1.0]),  # Optical centre (singularity θ=0)
     ],
 )
 def test_spherical_remap_annotation_consistency(point: np.ndarray) -> None:
@@ -163,7 +163,7 @@ def test_spherical_overscan_params_resolution_density() -> None:
     theta_max_render = fov / 2.0
     assert R_w == R_h, "Intermediate render must be square"
     assert R_w >= 2 * fx * theta_max_render, (
-        f"R={R_w} must be >= 2*fx*θ_max_render={2*fx*theta_max_render:.1f}"
+        f"R={R_w} must be >= 2*fx*θ_max_render={2 * fx * theta_max_render:.1f}"
     )
 
 
