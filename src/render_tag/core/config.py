@@ -5,6 +5,7 @@ This module defines the configuration schema using Pydantic v2, providing
 strict validation and type safety for all generation parameters.
 """
 
+import math
 from enum import Enum
 from pathlib import Path
 from typing import Annotated, Any, Literal
@@ -442,6 +443,19 @@ class CameraConfig(BaseModel):
         if self.intrinsics.principal_point_y is not None:
             self.intrinsics.principal_point_y *= scale_y
 
+    def _focal_length_from_fov(self, distortion_model: str) -> float:
+        """Compute the isotropic focal length (px) from self.fov for a given distortion model.
+
+        Kannala-Brandt uses the equidistant projection r = f·θ anchored to the image diagonal,
+        keeping all corners within θ < 90° where the fisheye solver converges reliably.
+        All other models use the standard pinhole formula.
+        """
+        fov_half_rad = math.radians(self.fov / 2.0)
+        if distortion_model == "kannala_brandt":
+            diag_half = math.sqrt((self.width / 2.0) ** 2 + (self.height / 2.0) ** 2)
+            return diag_half / fov_half_rad
+        return self.width / (2.0 * math.tan(fov_half_rad))
+
     def get_k_matrix(self) -> list[list[float]]:
         """Compute the K matrix from available parameters.
 
@@ -478,9 +492,7 @@ class CameraConfig(BaseModel):
             fx = fy = (intrinsics.focal_length_mm / intrinsics.sensor_width_mm) * self.width
         else:
             # Default: compute from FOV
-            import math
-
-            fx = fy = self.width / (2.0 * math.tan(math.radians(self.fov / 2.0)))
+            fx = fy = self._focal_length_from_fov(intrinsics.distortion_model)
 
         return [[fx, 0.0, cx], [0.0, fy, cy], [0.0, 0.0, 1.0]]
 

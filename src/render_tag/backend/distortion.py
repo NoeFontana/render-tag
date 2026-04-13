@@ -64,6 +64,71 @@ def compute_distortion_maps(
     return map_x, map_y
 
 
+def compute_spherical_distortion_maps(
+    k_target: list[list[float]],
+    resolution_target: list[int],
+    distortion_coeffs: list[float],
+    fov_spherical: float,
+    resolution_spherical: list[int],
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Compute backward remap maps from a Blender FISHEYE_EQUIDISTANT render to the
+    Kannala-Brandt distorted output.
+
+    cv2.remap is a *backward* map: for each destination pixel (u, v) in the distorted
+    output, (map_x[v,u], map_y[v,u]) gives the source pixel in the equidistant render.
+
+    The path for each target pixel is:
+      1. Unproject through K_target + inverse KB → ideal normalised ray (x_u, y_u).
+      2. Incidence angle:  θ = atan(sqrt(x_u² + y_u²))
+         Azimuth:          φ = atan2(y_u, x_u)
+      3. Equidistant radius: r = R_max * θ / θ_max_render
+      4. Source pixel:     (cx_sph + r·cos(φ),  cy_sph + r·sin(φ))
+
+    The singularity at θ = 0 is handled safely: rho = 0 ⟹ r = 0 ⟹ centre pixel.
+    Pixels where θ > θ_max_render are mapped to (-1, -1) so cv2.remap returns black.
+
+    Args:
+        k_target: 3x3 target K-matrix (distorted KB camera, used for PnP).
+        resolution_target: [W, H] of the output distorted image.
+        distortion_coeffs: Kannala-Brandt coefficients [k1, k2, k3, k4].
+        fov_spherical: Full FOV in radians of the equidistant render (= 2 * θ_max_render).
+        resolution_spherical: [R, R] square resolution of the equidistant render.
+
+    Returns:
+        (map_x, map_y): float32 arrays of shape (H, W), ready for cv2.remap.
+    """
+    W_tgt, H_tgt = resolution_target
+    center = resolution_spherical[0] / 2.0  # cx == cy == R_max for a square render
+    theta_max_render = fov_spherical / 2.0
+
+    K_tgt = np.array(k_target, dtype=np.float64)
+    D = np.array(distortion_coeffs, dtype=np.float64)
+
+    u_tgt, v_tgt = np.meshgrid(np.arange(W_tgt), np.arange(H_tgt))
+    pts = np.stack([u_tgt, v_tgt], axis=-1).reshape(-1, 1, 2).astype(np.float64)
+
+    # Inverse KB: distorted pixel → ideal normalised ray via OpenCV's C++ solver.
+    undist = cv2.fisheye.undistortPoints(pts, K_tgt, D)
+    x_u = undist[:, 0, 0]
+    y_u = undist[:, 0, 1]
+
+    rho = np.sqrt(x_u ** 2 + y_u ** 2)
+    theta = np.arctan(rho).reshape(H_tgt, W_tgt)
+    phi = np.arctan2(y_u, x_u).reshape(H_tgt, W_tgt)
+
+    r_pixel = center * theta / theta_max_render
+    # Initialize float32 directly to avoid an extra copy at return time.
+    u_src = (center + r_pixel * np.cos(phi)).astype(np.float32)
+    v_src = (center + r_pixel * np.sin(phi)).astype(np.float32)
+
+    # Pixels beyond the render FOV → invalid coordinate → black border after remap.
+    u_src[theta > theta_max_render] = -1.0
+    v_src[theta > theta_max_render] = -1.0
+
+    return u_src, v_src
+
+
 def remap_image(
     img: np.ndarray,
     map_x: np.ndarray,

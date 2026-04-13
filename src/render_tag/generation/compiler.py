@@ -104,6 +104,58 @@ def compute_overscan_intrinsics(
     return k_linear, (W_lin, H_lin)
 
 
+def compute_spherical_overscan_params(
+    k_target: list[list[float]],
+    resolution: tuple[int, int],
+    distortion_coeffs: list[float],
+    margin_deg: float = 2.0,
+    n_samples: int = 32,
+) -> tuple[float, tuple[int, int]]:
+    """
+    Compute the FOV and square resolution for a Blender FISHEYE_EQUIDISTANT intermediate render.
+
+    In the equidistant model, pixel radius is proportional to incidence angle θ, which
+    stays bounded for any physically realisable lens (unlike tan(θ) in the pinhole model).
+    This makes it the correct intermediate representation for Kannala-Brandt fisheye lenses.
+
+    Samples the 4 edges of the target image, unprojects through the inverse Kannala-Brandt
+    model to ideal normalised rays, converts to incidence angles θ = atan(‖ray‖), and adds
+    a safety margin before computing render parameters.
+
+    Args:
+        k_target: 3x3 target K-matrix [[fx,0,cx],[0,fy,cy],[0,0,1]].
+        resolution: (width, height) of the target distorted image.
+        distortion_coeffs: Kannala-Brandt coefficients [k1, k2, k3, k4].
+        margin_deg: Angular margin in degrees added beyond θ_max (default 2°).
+        n_samples: Number of sample points per edge.
+
+    Returns:
+        (fov_spherical, (R, R)): full FOV in radians and square render resolution.
+    """
+    W, H = resolution
+    fx = k_target[0][0]
+
+    u_edge = np.linspace(0, W - 1, n_samples)
+    v_edge = np.linspace(0, H - 1, n_samples)
+    u_boundary = np.concatenate([u_edge, u_edge, np.zeros(n_samples), np.full(n_samples, W - 1)])
+    v_boundary = np.concatenate([np.zeros(n_samples), np.full(n_samples, H - 1), v_edge, v_edge])
+
+    K_tgt = np.array(k_target, dtype=np.float64)
+    D = np.array(distortion_coeffs, dtype=np.float64)
+    pts = np.stack([u_boundary, v_boundary], axis=-1).reshape(-1, 1, 2).astype(np.float64)
+
+    undist = cv2.fisheye.undistortPoints(pts, K_tgt, D)
+    rho = np.sqrt(undist[:, 0, 0] ** 2 + undist[:, 0, 1] ** 2)
+    theta = np.arctan(rho)  # incidence angle; safe for rho → ∞ (→ π/2)
+
+    theta_max_render = float(np.max(theta)) + math.radians(margin_deg)
+    fov_spherical = 2.0 * theta_max_render
+
+    # Resolution: ensure angular density ≥ fx pixels/radian (same as target image)
+    R = 2 * math.ceil(fx * theta_max_render)
+    return fov_spherical, (R, R)
+
+
 class SceneCompiler:
     """Compiles a high-level JobSpec/GenConfig into a list of rigid SceneRecipes.
 
@@ -509,11 +561,20 @@ class SceneCompiler:
 
             k_overscan: list[list[float]] | None = None
             res_overscan: list[int] | None = None
+            fov_spherical: float | None = None
+            res_spherical: list[int] | None = None
             if has_dist:
-                k_overscan, (w_lin, h_lin) = compute_overscan_intrinsics(
-                    k_matrix, camera_config.resolution, dist_coeffs, distortion_model=dist_model
-                )
-                res_overscan = [w_lin, h_lin]
+                if dist_model == "kannala_brandt":
+                    fov_sph, (r_w, r_h) = compute_spherical_overscan_params(
+                        k_matrix, camera_config.resolution, dist_coeffs
+                    )
+                    fov_spherical = fov_sph
+                    res_spherical = [r_w, r_h]
+                else:
+                    k_overscan, (w_lin, h_lin) = compute_overscan_intrinsics(
+                        k_matrix, camera_config.resolution, dist_coeffs, distortion_model=dist_model
+                    )
+                    res_overscan = [w_lin, h_lin]
 
             camera_recipes.append(
                 CameraRecipe(
@@ -526,6 +587,8 @@ class SceneCompiler:
                         distortion_coeffs=dist_coeffs if has_dist else [],
                         k_matrix_overscan=k_overscan,
                         resolution_overscan=res_overscan,
+                        fov_spherical=fov_spherical,
+                        resolution_spherical=res_spherical,
                     ),
                     sensor_dynamics=SensorDynamicsRecipe(
                         velocity=velocity,
