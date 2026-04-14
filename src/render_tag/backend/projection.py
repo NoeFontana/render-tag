@@ -360,6 +360,7 @@ def generate_subject_records(
                 shutter_time_ms=physics["shutter_time_ms"],
                 rolling_shutter_ms=physics["rolling_shutter_ms"],
                 fstop=physics["fstop"],
+                eval_margin_px=cam_recipe.intrinsics.eval_margin_px if cam_recipe else 0,
                 is_mirrored=is_mirrored,
             )
         )
@@ -399,6 +400,7 @@ def generate_subject_records(
                 shutter_time_ms=physics["shutter_time_ms"],
                 rolling_shutter_ms=physics["rolling_shutter_ms"],
                 fstop=physics["fstop"],
+                eval_margin_px=cam_recipe.intrinsics.eval_margin_px if cam_recipe else 0,
                 is_mirrored=is_mirrored,
             )
         )
@@ -513,6 +515,7 @@ def generate_board_records(
             skip_visibility=skip_visibility,
             dist_coeffs=dist_coeffs,
             dist_model=dist_model,
+            cam_recipe=cam_recipe,
         )
     )
 
@@ -628,6 +631,7 @@ def generate_board_records(
                 shutter_time_ms=physics["shutter_time_ms"],
                 rolling_shutter_ms=physics["rolling_shutter_ms"],
                 fstop=physics["fstop"],
+                eval_margin_px=cam_recipe.intrinsics.eval_margin_px if cam_recipe else 0,
                 is_mirrored=is_mirrored,
                 board_definition=board_def,
             )
@@ -772,6 +776,7 @@ def _process_board_tags(
     skip_visibility: bool = False,
     dist_coeffs: list[float] | None = None,
     dist_model: str = "none",
+    cam_recipe: CameraRecipe | None = None,
 ) -> list[DetectionRecord]:
     """Project and create records for all tags in the layout."""
     _, _, _, physics, cam_location, world_normal, is_mirrored = meta
@@ -851,6 +856,7 @@ def _process_board_tags(
                 shutter_time_ms=physics["shutter_time_ms"],
                 rolling_shutter_ms=physics["rolling_shutter_ms"],
                 fstop=physics["fstop"],
+                eval_margin_px=cam_recipe.intrinsics.eval_margin_px if cam_recipe else 0,
                 is_mirrored=is_mirrored,
             )
         )

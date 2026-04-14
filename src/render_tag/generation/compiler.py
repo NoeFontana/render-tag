@@ -589,6 +589,7 @@ class SceneCompiler:
                         resolution_overscan=res_overscan,
                         fov_spherical=fov_spherical,
                         resolution_spherical=res_spherical,
+                        eval_margin_px=camera_config.eval_margin_px,
                     ),
                     sensor_dynamics=SensorDynamicsRecipe(
                         velocity=velocity,

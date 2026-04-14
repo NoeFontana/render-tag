@@ -267,9 +267,12 @@ class COCOWriter(AtomicWriter):
         # Keypoints:
         if len(corners) == 4 and width is not None and height is not None:
             corners_array = np.array(corners)
-            vis = compute_eval_visibility(
-                corners_array, int(width), int(height), self._eval_margin_px
+            margin = (
+                detection.eval_margin_px
+                if (detection and detection.eval_margin_px > 0)
+                else self._eval_margin_px
             )
+            vis = compute_eval_visibility(corners_array, int(width), int(height), margin)
             keypoints = format_coco_keypoints(corners_array, visibility=vis)
             num_keypoints = int(np.sum(vis))
         elif len(corners) == 4:
@@ -364,28 +367,41 @@ class RichTruthWriter(AtomicWriter):
         """Add a detection record, computing per-point visibility flags."""
         record = detection.model_dump(mode="json")
 
+        # Use margin from record if available, fallback to writer default
+        margin = detection.eval_margin_px if detection.eval_margin_px > 0 else self._eval_margin_px
+
         res = detection.resolution
         if res and len(res) == 2 and GEOMETRY_AVAILABLE:
             w, h = int(res[0]), int(res[1])
             corners_arr = np.array(detection.corners)
             record["corners_visibility"] = compute_eval_visibility_ternary(
-                corners_arr, w, h, self._eval_margin_px
+                corners_arr, w, h, margin
             ).tolist()
 
             if detection.keypoints:
                 kp_arr = np.array(detection.keypoints)
                 record["keypoints_visibility"] = compute_eval_visibility_ternary(
-                    kp_arr, w, h, self._eval_margin_px
+                    kp_arr, w, h, margin
                 ).tolist()
 
         self._detections.append(record)
 
     def save(self) -> Path:
         """Save all detections wrapped in a versioned envelope."""
+        # Staff Engineer: Ensure global photometric_margin matches the actual
+        # margin used for corner visibility tagging in the records.
+        effective_margin = self._eval_margin_px
+        if self._detections:
+            for rec in self._detections:
+                rec_margin = rec.get("eval_margin_px", 0)
+                if rec_margin > 0:
+                    effective_margin = rec_margin
+                    break
+
         payload = {
             "version": self.SCHEMA_VERSION,
             "evaluation_context": {
-                "photometric_margin_px": self._eval_margin_px,
+                "photometric_margin_px": effective_margin,
                 "truncation_policy": self.TRUNCATION_POLICY,
             },
             "records": self._detections,
@@ -569,18 +585,29 @@ def merge_rich_truth_shards(
 
     all_records: list[dict] = []
     eval_ctx: dict = {}
+    max_margin = 0
+
     for shard_path in shard_files:
         with open(shard_path) as f:
             shard = json.load(f)
         if isinstance(shard, dict):
             if not eval_ctx:
-                eval_ctx = shard.get("evaluation_context", {})
+                eval_ctx = shard.get("evaluation_context", {}).copy()
+
             all_records.extend(shard.get("records", []))
+
+            # Track the actual margin used in shards
+            m = shard.get("evaluation_context", {}).get("photometric_margin_px", 0)
+            if m > max_margin:
+                max_margin = m
         else:
             all_records.extend(shard)
 
     payload: dict | list = all_records
     if eval_ctx:
+        if max_margin > 0:
+            eval_ctx["photometric_margin_px"] = max_margin
+
         payload = {
             "version": RichTruthWriter.SCHEMA_VERSION,
             "evaluation_context": eval_ctx,

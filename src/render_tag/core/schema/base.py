@@ -224,6 +224,11 @@ class DetectionRecord(BaseModel):
     )
     fstop: float | None = Field(default=None, description="Aperture f-number")
 
+    # --- Evaluation ---
+    eval_margin_px: int = Field(
+        default=0, description="Pixel-width 'Don't Care' margin along image edges"
+    )
+
     # --- Provenance ---
     global_seed: int | None = Field(default=None, description="Master random seed used")
     scene_seed: int | None = Field(default=None, description="Scene-specific derived seed")

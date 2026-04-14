@@ -262,6 +262,29 @@ class TestRichTruthWriter:
         assert data["evaluation_context"]["photometric_margin_px"] == 15
         assert data["evaluation_context"]["truncation_policy"] == "ternary_visibility"
 
+    def test_margin_propagation_from_record(self, tmp_path: Path):
+        """RichTruthWriter should prefer the margin from the DetectionRecord if provided."""
+        # Initialized with margin 0
+        writer = RichTruthWriter(tmp_path / "rich_truth.json", eval_margin_px=0)
+
+        # Record has margin 21
+        det = self._make_det(
+            corners=[(10, 10), (100, 10), (100, 100), (10, 100)],
+            resolution=(640, 480),
+        )
+        det.eval_margin_px = 21
+
+        writer.add_detection(det)
+        writer.save()
+
+        with open(tmp_path / "rich_truth.json") as f:
+            data = json.load(f)
+
+        # Global header should now reflect the 21px margin from the record
+        assert data["evaluation_context"]["photometric_margin_px"] == 21
+        # Corner visibility should have used 21px (so (10,10) is MARGIN_TRUNCATED)
+        assert data["records"][0]["corners_visibility"][0] == KeypointVisibility.MARGIN_TRUNCATED
+
 
 class TestShardMerge:
     def test_merge_coco_shards_is_atomic(self, tmp_path: Path) -> None:
