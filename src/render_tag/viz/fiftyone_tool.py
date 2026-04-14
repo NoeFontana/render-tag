@@ -140,17 +140,28 @@ def map_corners_to_keypoints(
     width: float = 1.0,
     height: float = 1.0,
     normalized: bool = False,
+    margin_px: int = 0,
 ) -> fo.Keypoints:
     """
     Map ordered corners to FiftyOne Keypoints with indexed labels.
+
+    Corners that fall within the evaluation margin zone (within margin_px pixels
+    of any image edge) are tagged with "margin" so they can be filtered in the
+    FiftyOne UI via ``dataset.filter_labels("corners", F("tags").contains("margin"))``.
     """
     kps = []
     for i, pt in enumerate(corners):
         px, py = pt[0], pt[1]
+        in_margin = margin_px > 0 and not normalized and (
+            px < margin_px
+            or px >= width - margin_px
+            or py < margin_px
+            or py >= height - margin_px
+        )
         if not normalized:
             px /= width
             py /= height
-        kps.append(fo.Keypoint(label=str(i), points=[[px, py]]))
+        kps.append(fo.Keypoint(label=str(i), points=[[px, py]], tags=["margin"] if in_margin else []))
 
     return fo.Keypoints(keypoints=kps)
 
@@ -423,7 +434,11 @@ def find_active_session() -> fo.Session | None:
 
 
 def visualize_fiftyone(
-    dataset_path: Path, address: str = "0.0.0.0", port: int = 5151, remote: bool = False
+    dataset_path: Path,
+    address: str = "0.0.0.0",
+    port: int = 5151,
+    remote: bool = False,
+    eval_margin_px: int = 0,
 ) -> None:
     """
     Main entry point for FiftyOne visualization.
@@ -520,7 +535,9 @@ def visualize_fiftyone(
                             )
                         )
 
-                        kps = map_corners_to_keypoints(record["corners"], width, height)
+                        kps = map_corners_to_keypoints(
+                            record["corners"], width, height, margin_px=eval_margin_px
+                        )
                         new_keypoints.extend(kps.keypoints)
 
                     # --- 3D Axes Overlay (works for both TAGs and BOARDs) ---

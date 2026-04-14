@@ -10,7 +10,7 @@ from typing import Any
 
 import numpy as np
 
-from render_tag.core.schema.base import is_sentinel_keypoint
+from render_tag.core.schema.base import KEYPOINT_SENTINEL, is_sentinel_keypoint
 from render_tag.generation.projection_math import (
     apply_distortion_by_model,
     quaternion_wxyz_to_matrix,
@@ -177,6 +177,41 @@ def verify_corner_order(
         return validate_winding_order(corners)
     else:  # ccw
         return not validate_winding_order(corners)
+
+
+def compute_eval_visibility(
+    points: np.ndarray,
+    width: int,
+    height: int,
+    margin_px: int = 0,
+) -> np.ndarray:
+    """Compute per-keypoint visibility booleans for COCO export with an edge margin.
+
+    A point is True (v=2 candidate) only if it lies strictly inside the inner
+    region [margin_px, W-margin_px) x [margin_px, H-margin_px).  Sentinel points
+    and points outside the image boundary remain False (sentinel → v=0, else → v=1).
+
+    Args:
+        points: (N, 2) pixel coordinates.
+        width: Image width in pixels.
+        height: Image height in pixels.
+        margin_px: Evaluation margin in pixels. 0 means no margin (full image is valid).
+
+    Returns:
+        Boolean array of length N.
+    """
+    pts = np.asarray(points, dtype=float)
+    x, y = pts[:, 0], pts[:, 1]
+    sentinel = (x == KEYPOINT_SENTINEL[0]) & (y == KEYPOINT_SENTINEL[1])
+    if margin_px == 0:
+        return ~sentinel
+    in_inner = (
+        (x >= margin_px)
+        & (x < width - margin_px)
+        & (y >= margin_px)
+        & (y < height - margin_px)
+    )
+    return in_inner & ~sentinel
 
 
 def format_coco_keypoints(

@@ -28,6 +28,7 @@ from render_tag.core.schema.base import KEYPOINT_SENTINEL
 try:
     from render_tag.data_io.annotations import (
         compute_bbox,
+        compute_eval_visibility,
         format_coco_keypoints,
     )
     from render_tag.generation.math import compute_polygon_area
@@ -136,10 +137,16 @@ class CSVWriter:
 class COCOWriter(AtomicWriter):
     """Writer for COCO format annotations."""
 
-    def __init__(self, output_dir: Path, filename: str = "annotations.json") -> None:
+    def __init__(
+        self,
+        output_dir: Path,
+        filename: str = "annotations.json",
+        eval_margin_px: int = 0,
+    ) -> None:
         """Initialize the COCO writer."""
         self.output_dir = output_dir
         self.filename = filename
+        self._eval_margin_px = eval_margin_px
         self.images: list[dict] = []
         self.annotations: list[dict] = []
         self.categories: list[dict] = []
@@ -257,7 +264,14 @@ class COCOWriter(AtomicWriter):
                 segmentation.extend([corner[0], corner[1]])
 
         # Keypoints:
-        if len(corners) == 4:
+        if len(corners) == 4 and width is not None and height is not None:
+            corners_array = np.array(corners)
+            vis = compute_eval_visibility(
+                corners_array, int(width), int(height), self._eval_margin_px
+            )
+            keypoints = format_coco_keypoints(corners_array, visibility=vis)
+            num_keypoints = int(np.sum(vis))
+        elif len(corners) == 4:
             keypoints = format_coco_keypoints(np.array(corners))
             num_keypoints = 4
         else:
