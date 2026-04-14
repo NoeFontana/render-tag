@@ -23,6 +23,7 @@ def test_rich_truth_indexing():
     assert len(index) == 3
     assert eval_ctx == {}
 
+
 def test_rich_truth_indexing_versioned():
     """Test indexing with versioned dict format."""
     from render_tag.viz.fiftyone_tool import index_rich_truth
@@ -30,9 +31,7 @@ def test_rich_truth_indexing_versioned():
     rich_truth_raw = {
         "version": "2.0",
         "evaluation_context": {"photometric_margin_px": 42},
-        "records": [
-            {"image_id": "img1", "tag_id": 1, "distance": 1.0}
-        ]
+        "records": [{"image_id": "img1", "tag_id": 1, "distance": 1.0}],
     }
 
     # ACT

@@ -54,11 +54,11 @@ def test_keypoint_mapping_with_margin():
 
     # W=1000, H=1000, margin=50
     corners = [
-        [10, 500],   # Left margin (v=1)
-        [500, 10],   # Top margin (v=1)
+        [10, 500],  # Left margin (v=1)
+        [500, 10],  # Top margin (v=1)
         [990, 500],  # Right margin (v=1)
         [500, 500],  # Interior (v=2)
-        [-1, -1],    # Sentinel (v=0)
+        [-1, -1],  # Sentinel (v=0)
     ]
 
     # ACT

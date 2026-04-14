@@ -516,6 +516,8 @@ def visualize_fiftyone(
             with open(rich_truth_file) as f:
                 rich_truth_raw = json.load(f)
 
+            rich_index: dict[tuple[str, int, str], dict[str, Any]]
+            eval_ctx: dict[str, Any]
             rich_index, eval_ctx = index_rich_truth(rich_truth_raw)
 
             # Use margin from rich truth if not provided as override
