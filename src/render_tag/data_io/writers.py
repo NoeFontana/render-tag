@@ -353,6 +353,7 @@ class RichTruthWriter(AtomicWriter):
     """Writer for structured JSON 'Data Product' containing all metadata."""
 
     SCHEMA_VERSION = "2.0"
+    TRUNCATION_POLICY = "ternary_visibility"
 
     def __init__(self, output_path: Path, eval_margin_px: int = 0) -> None:
         self.output_path = output_path
@@ -385,7 +386,7 @@ class RichTruthWriter(AtomicWriter):
             "version": self.SCHEMA_VERSION,
             "evaluation_context": {
                 "photometric_margin_px": self._eval_margin_px,
-                "truncation_policy": "ternary_visibility",
+                "truncation_policy": self.TRUNCATION_POLICY,
             },
             "records": self._detections,
         }

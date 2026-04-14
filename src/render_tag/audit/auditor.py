@@ -22,7 +22,9 @@ except ImportError:
     pl = None
 
 from render_tag.core.logging import get_logger
+from render_tag.core.schema.base import KeypointVisibility
 from render_tag.core.schema.hot_loop import Telemetry
+from render_tag.data_io.readers import _unwrap_rich_truth
 from render_tag.generation.projection_math import (
     apply_distortion_by_model,
     quaternion_wxyz_to_matrix,
@@ -198,8 +200,7 @@ class DatasetReader:
             return pl.read_csv(self.tags_csv)
         with open(rich_path) as f:
             raw = json.load(f)
-        records = raw.get("records", raw) if isinstance(raw, dict) else raw
-        return pl.DataFrame(records)
+        return pl.DataFrame(_unwrap_rich_truth(raw))
 
     def load_raw_records(self) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         """Load raw JSON records and the evaluation_context header.
@@ -490,22 +491,21 @@ class DatasetAuditor:
             if not corners or not vis_flags or not resolution or len(resolution) < 2:
                 continue
             w, h = int(resolution[0]), int(resolution[1])
-            for (x, y), v in zip(corners, vis_flags):
-                in_margin = (
-                    x < margin_px
-                    or x >= w - margin_px
-                    or y < margin_px
-                    or y >= h - margin_px
+            rec_violations = sum(
+                1
+                for (x, y), v in zip(corners, vis_flags)
+                if v == KeypointVisibility.VISIBLE
+                and (x < margin_px or x >= w - margin_px or y < margin_px or y >= h - margin_px)
+            )
+            if rec_violations:
+                violations += rec_violations
+                logger.error(
+                    "Margin violation: corners marked VISIBLE inside eval_margin_px zone",
+                    image_id=rec.get("image_id"),
+                    tag_id=rec.get("tag_id"),
+                    violating_corners=rec_violations,
+                    margin_px=margin_px,
                 )
-                if v == 2 and in_margin:
-                    violations += 1
-                    logger.error(
-                        "Margin violation: corner marked VISIBLE inside eval_margin_px zone",
-                        image_id=rec.get("image_id"),
-                        tag_id=rec.get("tag_id"),
-                        corner_xy=(x, y),
-                        margin_px=margin_px,
-                    )
         return violations
 
 

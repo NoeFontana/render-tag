@@ -206,10 +206,7 @@ def compute_eval_visibility(
     if margin_px == 0:
         return ~sentinel
     in_inner = (
-        (x >= margin_px)
-        & (x < width - margin_px)
-        & (y >= margin_px)
-        & (y < height - margin_px)
+        (x >= margin_px) & (x < width - margin_px) & (y >= margin_px) & (y < height - margin_px)
     )
     return in_inner & ~sentinel
 
@@ -241,17 +238,18 @@ def compute_eval_visibility_ternary(
     x, y = pts[:, 0], pts[:, 1]
     sentinel = (x == KEYPOINT_SENTINEL[0]) & (y == KEYPOINT_SENTINEL[1])
 
-    # Default: MARGIN_TRUNCATED (catches out-of-image but non-sentinel points too)
-    result = np.full(len(pts), int(KeypointVisibility.MARGIN_TRUNCATED), dtype=np.int8)
-    result[sentinel] = int(KeypointVisibility.OUT_OF_FRAME)
+    if margin_px == 0:
+        result = np.full(len(pts), KeypointVisibility.VISIBLE, dtype=np.int8)
+        result[sentinel] = KeypointVisibility.OUT_OF_FRAME
+        return result
 
+    # Default to MARGIN_TRUNCATED — covers out-of-image non-sentinel points too
+    result = np.full(len(pts), KeypointVisibility.MARGIN_TRUNCATED, dtype=np.int8)
+    result[sentinel] = KeypointVisibility.OUT_OF_FRAME
     in_inner = (
-        (x >= margin_px)
-        & (x < width - margin_px)
-        & (y >= margin_px)
-        & (y < height - margin_px)
+        (x >= margin_px) & (x < width - margin_px) & (y >= margin_px) & (y < height - margin_px)
     )
-    result[in_inner & ~sentinel] = int(KeypointVisibility.VISIBLE)
+    result[in_inner & ~sentinel] = KeypointVisibility.VISIBLE
     return result
 
 
