@@ -476,6 +476,125 @@ def create_saved_views(dataset: fo.Dataset) -> None:
     dataset.save_view("Strict Geometry", dataset.view())
 
 
+def hydrate_sample(
+    sample: fo.Sample,
+    rich_index: dict[tuple[str, int, str], dict[str, Any]],
+    eval_margin_px: int,
+    calibration_skeleton_dims: tuple[int, int] | None,
+) -> tuple[int, tuple[int, int] | None]:
+    """Hydrate a single FiftyOne sample with rich truth data."""
+    width = sample.metadata.width if sample.metadata else 1.0
+    height = sample.metadata.height if sample.metadata else 1.0
+
+    if not hasattr(sample, "detections") or not sample.detections:
+        return 0, calibration_skeleton_dims
+
+    detections = sample.detections.detections
+    new_keypoints = []
+    new_calibration_kps = []
+    new_axis_x = []
+    new_axis_y = []
+    new_axis_z = []
+    new_polygons = []
+
+    total_margin_truncated = 0
+
+    for det in detections:
+        img_stem = Path(sample.filepath).stem
+        tag_id = det.get_field("tag_id") if hasattr(det, "get_field") else det.get("tag_id")
+
+        if tag_id is None and "tag_id" in det.attributes:
+            tag_id = det.attributes["tag_id"]
+
+        record_type = (
+            det.get_field("record_type") if hasattr(det, "get_field") else det.get("record_type")
+        )
+        if record_type is None and "record_type" in det.attributes:
+            record_type = det.attributes["record_type"]
+
+        record = rich_index.get((img_stem, tag_id, record_type))
+        if not record:
+            continue
+
+        hydrate_detection(det, record)
+        is_board = record.get("record_type") == "BOARD"
+
+        # --- Calibration keypoints for BOARD records ---
+        if is_board and record.get("keypoints"):
+            cal_kps = map_calibration_keypoints(
+                record["keypoints"],
+                width,
+                height,
+                visibility_flags=record.get("keypoints_visibility"),
+            )
+            new_calibration_kps.extend(cal_kps)
+            total_margin_truncated += sum(1 for k in cal_kps if k.visibility == 1)
+
+            # Track board dimensions for skeleton construction
+            board_def = record.get("board_definition")
+            if board_def and calibration_skeleton_dims is None:
+                bd_rows = board_def.get("rows", 0)
+                bd_cols = board_def.get("cols", 0)
+                if bd_rows > 1 and bd_cols > 1:
+                    calibration_skeleton_dims = (bd_rows, bd_cols)
+
+        # --- Tag corners (skip for BOARD — single center point) ---
+        if "corners" in record and not is_board:
+            pts = get_polyline_points(record["corners"], width, height)
+            det.segmentation = [pts]
+
+            new_polygons.append(
+                fo.Polyline(
+                    label=str(tag_id),
+                    points=[pts],
+                    closed=True,
+                )
+            )
+
+            kps = map_corners_to_keypoints(
+                record["corners"],
+                width,
+                height,
+                margin_px=eval_margin_px,
+                visibility_flags=record.get("corners_visibility"),
+            )
+            new_keypoints.extend(kps.keypoints)
+            total_margin_truncated += sum(1 for k in kps.keypoints if k.visibility == 1)
+
+        # --- 3D Axes Overlay (works for both TAGs and BOARDs) ---
+        if "k_matrix" in record and "resolution" in record:
+            axes = project_tag_axes(
+                record,
+                k_matrix=record["k_matrix"],
+                resolution=record["resolution"],
+                distortion_coeffs=record.get("distortion_coeffs") or [],
+                distortion_model=record.get("distortion_model", "none"),
+            )
+            if axes:
+                new_axis_x.append(axes["axis_x"])
+                new_axis_y.append(axes["axis_y"])
+                new_axis_z.append(axes["axis_z"])
+
+    if new_keypoints:
+        sample["corners"] = fo.Keypoints(keypoints=new_keypoints)
+    if new_calibration_kps:
+        sample["calibration_points"] = fo.Keypoints(keypoints=new_calibration_kps)
+    if new_polygons:
+        sample["polygons"] = fo.Polylines(polylines=new_polygons)
+    if new_axis_x:
+        sample["axis_x"] = fo.Polylines(polylines=new_axis_x)
+        sample["axis_y"] = fo.Polylines(polylines=new_axis_y)
+        sample["axis_z"] = fo.Polylines(polylines=new_axis_z)
+
+    sample["margin_truncated_corners"] = total_margin_truncated
+    if total_margin_truncated > 0:
+        sample.tags.append("eval_ignore")
+        sample.tags.append("edge_case")
+
+    sample.save()
+    return total_margin_truncated, calibration_skeleton_dims
+
+
 def find_active_session() -> fo.Session | None:
     """
     Find an active FiftyOne session if one exists.
@@ -531,120 +650,9 @@ def visualize_fiftyone(
 
             task_hydrate = progress.add_task("Hydrating with rich truth", total=len(dataset))
             for sample in dataset:
-                width = sample.metadata.width if sample.metadata else 1.0
-                height = sample.metadata.height if sample.metadata else 1.0
-
-                if not hasattr(sample, "detections") or not sample.detections:
-                    progress.update(task_hydrate, advance=1)
-                    continue
-
-                detections = sample.detections.detections
-                new_keypoints = []
-                new_calibration_kps = []
-                new_axis_x = []
-                new_axis_y = []
-                new_axis_z = []
-                new_polygons = []
-
-                total_margin_truncated = 0
-
-                for det in detections:
-                    img_stem = Path(sample.filepath).stem
-                    tag_id = (
-                        det.get_field("tag_id") if hasattr(det, "get_field") else det.get("tag_id")
-                    )
-
-                    if tag_id is None and "tag_id" in det.attributes:
-                        tag_id = det.attributes["tag_id"]
-
-                    record_type = (
-                        det.get_field("record_type")
-                        if hasattr(det, "get_field")
-                        else det.get("record_type")
-                    )
-                    if record_type is None and "record_type" in det.attributes:
-                        record_type = det.attributes["record_type"]
-
-                    record = rich_index.get((img_stem, tag_id, record_type))
-                    if not record:
-                        continue
-
-                    hydrate_detection(det, record)
-                    is_board = record.get("record_type") == "BOARD"
-
-                    # --- Calibration keypoints for BOARD records ---
-                    if is_board and record.get("keypoints"):
-                        cal_kps = map_calibration_keypoints(
-                            record["keypoints"],
-                            width,
-                            height,
-                            visibility_flags=record.get("keypoints_visibility"),
-                        )
-                        new_calibration_kps.extend(cal_kps)
-                        total_margin_truncated += sum(1 for k in cal_kps if k.visibility == 1)
-
-                        # Track board dimensions for skeleton construction
-                        board_def = record.get("board_definition")
-                        if board_def and calibration_skeleton_dims is None:
-                            bd_rows = board_def.get("rows", 0)
-                            bd_cols = board_def.get("cols", 0)
-                            if bd_rows > 1 and bd_cols > 1:
-                                calibration_skeleton_dims = (bd_rows, bd_cols)
-
-                    # --- Tag corners (skip for BOARD — single center point) ---
-                    if "corners" in record and not is_board:
-                        pts = get_polyline_points(record["corners"], width, height)
-                        det.segmentation = [pts]
-
-                        new_polygons.append(
-                            fo.Polyline(
-                                label=str(tag_id),
-                                points=[pts],
-                                closed=True,
-                            )
-                        )
-
-                        kps = map_corners_to_keypoints(
-                            record["corners"],
-                            width,
-                            height,
-                            margin_px=eval_margin_px,
-                            visibility_flags=record.get("corners_visibility"),
-                        )
-                        new_keypoints.extend(kps.keypoints)
-                        total_margin_truncated += sum(1 for k in kps.keypoints if k.visibility == 1)
-
-                    # --- 3D Axes Overlay (works for both TAGs and BOARDs) ---
-                    if "k_matrix" in record and "resolution" in record:
-                        axes = project_tag_axes(
-                            record,
-                            k_matrix=record["k_matrix"],
-                            resolution=record["resolution"],
-                            distortion_coeffs=record.get("distortion_coeffs") or [],
-                            distortion_model=record.get("distortion_model", "none"),
-                        )
-                        if axes:
-                            new_axis_x.append(axes["axis_x"])
-                            new_axis_y.append(axes["axis_y"])
-                            new_axis_z.append(axes["axis_z"])
-
-                if new_keypoints:
-                    sample["corners"] = fo.Keypoints(keypoints=new_keypoints)
-                if new_calibration_kps:
-                    sample["calibration_points"] = fo.Keypoints(keypoints=new_calibration_kps)
-                if new_polygons:
-                    sample["polygons"] = fo.Polylines(polylines=new_polygons)
-                if new_axis_x:
-                    sample["axis_x"] = fo.Polylines(polylines=new_axis_x)
-                    sample["axis_y"] = fo.Polylines(polylines=new_axis_y)
-                    sample["axis_z"] = fo.Polylines(polylines=new_axis_z)
-
-                sample["margin_truncated_corners"] = total_margin_truncated
-                if total_margin_truncated > 0:
-                    sample.tags.append("eval_ignore")
-                    sample.tags.append("edge_case")
-
-                sample.save()
+                _, calibration_skeleton_dims = hydrate_sample(
+                    sample, rich_index, eval_margin_px, calibration_skeleton_dims
+                )
                 progress.update(task_hydrate, advance=1)
 
         task_audit = progress.add_task("Running automated auditor", total=1)
