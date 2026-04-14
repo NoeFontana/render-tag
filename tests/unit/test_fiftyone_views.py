@@ -27,13 +27,14 @@ def test_saved_views_creation():
     mock_dataset.save_view.assert_any_call("Anomalies", mock_error_view)
 
     # VERIFY — Evaluation Ready view
-    mock_dataset.filter_labels.assert_called()
-    # "Evaluation Ready" view should be saved using the chained return value
-    chained_mock = mock_dataset.filter_labels.return_value.filter_labels.return_value
-    mock_dataset.save_view.assert_any_call("Evaluation Ready", chained_mock)
+    # The first call to filter_labels comes from the view() return if has_sample_field is True.
+    # We haven't mocked has_sample_field, so it evaluates to True.
+    mock_dataset.view.assert_called()
+    view_mock = mock_dataset.view.return_value
+    chained_view = view_mock.filter_labels.return_value.filter_labels.return_value
+    mock_dataset.save_view.assert_any_call("Evaluation Ready", chained_view)
 
     # VERIFY — Strict Geometry view
-    mock_dataset.view.assert_called()
     mock_dataset.save_view.assert_any_call("Strict Geometry", mock_dataset.view.return_value)
 
 
