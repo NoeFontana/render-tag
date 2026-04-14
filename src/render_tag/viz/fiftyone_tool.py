@@ -467,7 +467,9 @@ def create_saved_views(dataset: fo.Dataset) -> None:
     # Evaluation Ready: Filter out margin-truncated keypoints (visibility=1)
     from fiftyone import ViewField as F
 
-    eval_ready_view = dataset.filter_labels("corners", F("visibility") == 2)
+    eval_ready_view = dataset.filter_labels("corners", F("visibility") == 2).filter_labels(
+        "calibration_points", F("visibility") == 2
+    )
     dataset.save_view("Evaluation Ready", eval_ready_view)
 
     # Strict Geometry: show all valid points (default view, but saved for clarity)
