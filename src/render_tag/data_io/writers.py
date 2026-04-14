@@ -29,6 +29,7 @@ try:
     from render_tag.data_io.annotations import (
         compute_bbox,
         compute_eval_visibility,
+        compute_eval_visibility_ternary,
         format_coco_keypoints,
     )
     from render_tag.generation.math import compute_polygon_area
@@ -351,19 +352,45 @@ class COCOWriter(AtomicWriter):
 class RichTruthWriter(AtomicWriter):
     """Writer for structured JSON 'Data Product' containing all metadata."""
 
-    def __init__(self, output_path: Path) -> None:
+    SCHEMA_VERSION = "2.0"
+
+    def __init__(self, output_path: Path, eval_margin_px: int = 0) -> None:
         self.output_path = output_path
+        self._eval_margin_px = eval_margin_px
         self._detections: list[dict] = []
 
     def add_detection(self, detection: DetectionRecord) -> None:
-        """Add a detection record to the output list."""
+        """Add a detection record, computing per-point visibility flags."""
         record = detection.model_dump(mode="json")
+
+        res = detection.resolution
+        if res and len(res) == 2 and GEOMETRY_AVAILABLE:
+            w, h = int(res[0]), int(res[1])
+            corners_arr = np.array(detection.corners)
+            record["corners_visibility"] = compute_eval_visibility_ternary(
+                corners_arr, w, h, self._eval_margin_px
+            ).tolist()
+
+            if detection.keypoints:
+                kp_arr = np.array(detection.keypoints)
+                record["keypoints_visibility"] = compute_eval_visibility_ternary(
+                    kp_arr, w, h, self._eval_margin_px
+                ).tolist()
+
         self._detections.append(record)
 
     def save(self) -> Path:
-        """Save all detections to the JSON file."""
+        """Save all detections wrapped in a versioned envelope."""
+        payload = {
+            "version": self.SCHEMA_VERSION,
+            "evaluation_context": {
+                "photometric_margin_px": self._eval_margin_px,
+                "truncation_policy": "ternary_visibility",
+            },
+            "records": self._detections,
+        }
         self.output_path.parent.mkdir(parents=True, exist_ok=True)
-        self._write_atomic(self.output_path, self._detections)
+        self._write_atomic(self.output_path, payload)
         return self.output_path
 
 

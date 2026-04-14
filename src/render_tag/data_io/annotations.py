@@ -10,7 +10,7 @@ from typing import Any
 
 import numpy as np
 
-from render_tag.core.schema.base import KEYPOINT_SENTINEL, is_sentinel_keypoint
+from render_tag.core.schema.base import KEYPOINT_SENTINEL, KeypointVisibility, is_sentinel_keypoint
 from render_tag.generation.projection_math import (
     apply_distortion_by_model,
     quaternion_wxyz_to_matrix,
@@ -212,6 +212,47 @@ def compute_eval_visibility(
         & (y < height - margin_px)
     )
     return in_inner & ~sentinel
+
+
+def compute_eval_visibility_ternary(
+    points: np.ndarray,
+    width: int,
+    height: int,
+    margin_px: int = 0,
+) -> np.ndarray:
+    """Compute per-keypoint ternary visibility state (0/1/2) for rich_truth serialization.
+
+    Unlike ``compute_eval_visibility`` (which returns booleans for COCO), this
+    function returns the full ``KeypointVisibility`` integer:
+      - ``OUT_OF_FRAME (0)``   — sentinel point (-1, -1)
+      - ``MARGIN_TRUNCATED (1)`` — in image, inside eval_margin_px edge zone
+      - ``VISIBLE (2)``        — inside the inner safe region
+
+    Args:
+        points: (N, 2) pixel coordinates.
+        width: Image width in pixels.
+        height: Image height in pixels.
+        margin_px: Evaluation margin in pixels. 0 means no margin.
+
+    Returns:
+        Integer array of length N with values in {0, 1, 2}.
+    """
+    pts = np.asarray(points, dtype=float)
+    x, y = pts[:, 0], pts[:, 1]
+    sentinel = (x == KEYPOINT_SENTINEL[0]) & (y == KEYPOINT_SENTINEL[1])
+
+    # Default: MARGIN_TRUNCATED (catches out-of-image but non-sentinel points too)
+    result = np.full(len(pts), int(KeypointVisibility.MARGIN_TRUNCATED), dtype=np.int8)
+    result[sentinel] = int(KeypointVisibility.OUT_OF_FRAME)
+
+    in_inner = (
+        (x >= margin_px)
+        & (x < width - margin_px)
+        & (y >= margin_px)
+        & (y < height - margin_px)
+    )
+    result[in_inner & ~sentinel] = int(KeypointVisibility.VISIBLE)
+    return result
 
 
 def format_coco_keypoints(

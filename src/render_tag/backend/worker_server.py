@@ -164,7 +164,14 @@ class ZmqBackendServer:
                     else 0
                 ),
             ),
-            "rich": RichTruthWriter(output_dir / f"rich_truth_shard_{shard_id}.json"),
+            "rich": RichTruthWriter(
+                output_dir / f"rich_truth_shard_{shard_id}.json",
+                eval_margin_px=(
+                    self.job_spec.scene_config.camera.eval_margin_px
+                    if self.job_spec is not None
+                    else 0
+                ),
+            ),
             "provenance": ProvenanceWriter(output_dir / f"provenance_shard_{shard_id}.json"),
         }
         self.writers["csv"]._ensure_initialized()

@@ -81,6 +81,7 @@ class IntegrityAudit(BaseModel):
     chirality_failures: int = 0
     orientation_failures: int = 0
     dictionary_orientation_error: bool = False
+    margin_violations: int = 0
 
 
 class AuditReport(BaseModel):
@@ -196,15 +197,25 @@ class DatasetReader:
                 raise FileNotFoundError(f"tags.csv not found in {self.dataset_path}")
             return pl.read_csv(self.tags_csv)
         with open(rich_path) as f:
-            return pl.DataFrame(json.load(f))
+            raw = json.load(f)
+        records = raw.get("records", raw) if isinstance(raw, dict) else raw
+        return pl.DataFrame(records)
 
-    def load_raw_records(self) -> list[dict[str, Any]]:
-        """Load raw JSON records for structural checks (nested fields intact)."""
+    def load_raw_records(self) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+        """Load raw JSON records and the evaluation_context header.
+
+        Returns:
+            (records, evaluation_context) where evaluation_context is an empty
+            dict for v1 (legacy bare-array) files.
+        """
         rich_path = self.dataset_path / "rich_truth.json"
         if not rich_path.exists():
-            return []
+            return [], {}
         with open(rich_path) as f:
-            return json.load(f)
+            raw = json.load(f)
+        if isinstance(raw, dict):
+            return raw.get("records", []), raw.get("evaluation_context", {})
+        return raw, {}
 
 
 class DatasetAuditor:
@@ -237,7 +248,7 @@ class DatasetAuditor:
             An AuditResult containing the full report and gate status.
         """
         df = self.reader.load_rich_detections()
-        raw_records = self.reader.load_raw_records()
+        raw_records, eval_ctx = self.reader.load_raw_records()
 
         def get_stats(col):
             if col not in df.columns:
@@ -262,6 +273,8 @@ class DatasetAuditor:
 
         chirality_failures = self._run_chirality_check(raw_records)
         orientation_failures, dict_orient_error = self._run_anchor_check(raw_records)
+        margin_px = int(eval_ctx.get("photometric_margin_px", 0))
+        margin_violations = self._run_margin_check(raw_records, margin_px)
 
         integrity = IntegrityAudit(
             impossible_poses=int(df.filter(pl.col("distance") < 0).height)
@@ -270,6 +283,7 @@ class DatasetAuditor:
             chirality_failures=chirality_failures,
             orientation_failures=orientation_failures,
             dictionary_orientation_error=dict_orient_error,
+            margin_violations=margin_violations,
         )
 
         report = AuditReport(
@@ -287,7 +301,7 @@ class DatasetAuditor:
             # Simple gate logic for tests
             pass
 
-        quarantined = chirality_failures > 0 or orientation_failures > 0
+        quarantined = chirality_failures > 0 or orientation_failures > 0 or margin_violations > 0
 
         if chirality_failures > 0:
             gate_failures.append(f"CHIRALITY: {chirality_failures} tag(s) have wrong winding order")
@@ -297,6 +311,12 @@ class DatasetAuditor:
             if dict_orient_error:
                 msg += " [DictionaryOrientationError: texture is 180° out of phase]"
             gate_failures.append(msg)
+            gate_passed = False
+        if margin_violations > 0:
+            gate_failures.append(
+                f"MARGIN: {margin_violations} corner(s) marked VISIBLE inside the "
+                f"{margin_px}px eval margin — projection bug detected"
+            )
             gate_passed = False
 
         return AuditResult(
@@ -448,6 +468,45 @@ class DatasetAuditor:
                         )
 
         return failures, dict_orient_error
+
+    def _run_margin_check(self, records: list[dict[str, Any]], margin_px: int) -> int:
+        """Sanity check: no corner marked VISIBLE (v=2) should be inside the margin zone.
+
+        A v=2 flag on a geometrically marginal corner means the visibility
+        computation diverged from the geometric truth — catching this early
+        prevents corrupted evaluation labels from reaching MLOps teams.
+
+        Returns:
+            Number of corners where the stored v=2 flag contradicts the geometry.
+        """
+        if margin_px == 0:
+            return 0
+
+        violations = 0
+        for rec in records:
+            corners = rec.get("corners")
+            vis_flags = rec.get("corners_visibility")
+            resolution = rec.get("resolution")
+            if not corners or not vis_flags or not resolution or len(resolution) < 2:
+                continue
+            w, h = int(resolution[0]), int(resolution[1])
+            for (x, y), v in zip(corners, vis_flags):
+                in_margin = (
+                    x < margin_px
+                    or x >= w - margin_px
+                    or y < margin_px
+                    or y >= h - margin_px
+                )
+                if v == 2 and in_margin:
+                    violations += 1
+                    logger.error(
+                        "Margin violation: corner marked VISIBLE inside eval_margin_px zone",
+                        image_id=rec.get("image_id"),
+                        tag_id=rec.get("tag_id"),
+                        corner_xy=(x, y),
+                        margin_px=margin_px,
+                    )
+        return violations
 
 
 class AuditDiff:
