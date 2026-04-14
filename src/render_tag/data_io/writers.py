@@ -567,14 +567,28 @@ def merge_rich_truth_shards(
         logger.warning(f"No RichTruth shards found in {output_dir}")
         return
 
-    master_data = []
+    all_records: list[dict] = []
+    eval_ctx: dict = {}
     for shard_path in shard_files:
         with open(shard_path) as f:
-            shard_data = json.load(f)
-            master_data.extend(shard_data)
+            shard = json.load(f)
+        if isinstance(shard, dict):
+            if not eval_ctx:
+                eval_ctx = shard.get("evaluation_context", {})
+            all_records.extend(shard.get("records", []))
+        else:
+            all_records.extend(shard)
+
+    payload: dict | list = all_records
+    if eval_ctx:
+        payload = {
+            "version": RichTruthWriter.SCHEMA_VERSION,
+            "evaluation_context": eval_ctx,
+            "records": all_records,
+        }
 
     final_path = output_dir / final_filename
-    _write_json_atomic(final_path, master_data)
+    _write_json_atomic(final_path, payload)
     logger.info(f"Merged {len(shard_files)} shards into {final_path}")
 
     if cleanup:
