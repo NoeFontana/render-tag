@@ -98,8 +98,8 @@ class TestEvalMargin:
         W, H, M = 1000, 1000, 10
         points = np.array(
             [
-                [5, 500],    # left margin  → False
-                [500, 5],    # top margin   → False
+                [5, 500],  # left margin  → False
+                [500, 5],  # top margin   → False
                 [995, 500],  # right margin → False
                 [500, 995],  # bottom margin → False
                 [500, 500],  # interior     → True

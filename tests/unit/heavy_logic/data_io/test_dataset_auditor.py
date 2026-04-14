@@ -55,9 +55,18 @@ def test_dataset_auditor_wrapped_format(tmp_path):
 
     wrapped = {
         "version": "2.0",
-        "evaluation_context": {"photometric_margin_px": 0, "truncation_policy": "ternary_visibility"},
+        "evaluation_context": {
+            "photometric_margin_px": 0,
+            "truncation_policy": "ternary_visibility",
+        },
         "records": [
-            {"image_id": "img1", "tag_id": 0, "distance": 2.5, "angle_of_incidence": 30.0, "lighting_intensity": 100.0},
+            {
+                "image_id": "img1",
+                "tag_id": 0,
+                "distance": 2.5,
+                "angle_of_incidence": 30.0,
+                "lighting_intensity": 100.0,
+            },
         ],
     }
     with open(dataset_dir / "rich_truth.json", "w") as f:
@@ -140,11 +149,14 @@ def test_load_raw_records_v1_backward_compat(tmp_path):
     dataset_dir = tmp_path / "legacy"
     dataset_dir.mkdir()
 
-    records = [{"image_id": "img1", "tag_id": 0, "corners": [[10, 10], [100, 10], [100, 100], [10, 100]]}]
+    records = [
+        {"image_id": "img1", "tag_id": 0, "corners": [[10, 10], [100, 10], [100, 100], [10, 100]]}
+    ]
     with open(dataset_dir / "rich_truth.json", "w") as f:
         json.dump(records, f)
 
     from render_tag.audit.auditor import DatasetReader
+
     reader = DatasetReader(dataset_dir)
     raw_records, eval_ctx = reader.load_raw_records()
 
@@ -159,13 +171,17 @@ def test_load_raw_records_v2_format(tmp_path):
 
     wrapped = {
         "version": "2.0",
-        "evaluation_context": {"photometric_margin_px": 12, "truncation_policy": "ternary_visibility"},
+        "evaluation_context": {
+            "photometric_margin_px": 12,
+            "truncation_policy": "ternary_visibility",
+        },
         "records": [{"image_id": "img1", "tag_id": 0}],
     }
     with open(dataset_dir / "rich_truth.json", "w") as f:
         json.dump(wrapped, f)
 
     from render_tag.audit.auditor import DatasetReader
+
     reader = DatasetReader(dataset_dir)
     raw_records, eval_ctx = reader.load_raw_records()
 

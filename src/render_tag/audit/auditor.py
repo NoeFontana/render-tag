@@ -493,7 +493,7 @@ class DatasetAuditor:
             w, h = int(resolution[0]), int(resolution[1])
             rec_violations = sum(
                 1
-                for (x, y), v in zip(corners, vis_flags)
+                for (x, y), v in zip(corners, vis_flags, strict=False)
                 if v == KeypointVisibility.VISIBLE
                 and (x < margin_px or x >= w - margin_px or y < margin_px or y >= h - margin_px)
             )

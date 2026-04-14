@@ -152,16 +152,22 @@ def map_corners_to_keypoints(
     kps = []
     for i, pt in enumerate(corners):
         px, py = pt[0], pt[1]
-        in_margin = margin_px > 0 and not normalized and (
-            px < margin_px
-            or px >= width - margin_px
-            or py < margin_px
-            or py >= height - margin_px
+        in_margin = (
+            margin_px > 0
+            and not normalized
+            and (
+                px < margin_px
+                or px >= width - margin_px
+                or py < margin_px
+                or py >= height - margin_px
+            )
         )
         if not normalized:
             px /= width
             py /= height
-        kps.append(fo.Keypoint(label=str(i), points=[[px, py]], tags=["margin"] if in_margin else []))
+        kps.append(
+            fo.Keypoint(label=str(i), points=[[px, py]], tags=["margin"] if in_margin else [])
+        )
 
     return fo.Keypoints(keypoints=kps)
 

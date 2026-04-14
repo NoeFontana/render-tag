@@ -108,9 +108,9 @@ class KeypointVisibility(IntEnum):
     semantic name for the intermediate "Don't Care" margin zone.
     """
 
-    OUT_OF_FRAME = 0       # Behind camera or geometric sentinel — coords zeroed in COCO
-    MARGIN_TRUNCATED = 1   # In image but within eval_margin_px of an edge — ignore in eval
-    VISIBLE = 2            # Inside the inner safe region — fully evaluable
+    OUT_OF_FRAME = 0  # Behind camera or geometric sentinel — coords zeroed in COCO
+    MARGIN_TRUNCATED = 1  # In image but within eval_margin_px of an edge — ignore in eval
+    VISIBLE = 2  # Inside the inner safe region — fully evaluable
 
 
 KEYPOINT_SENTINEL: tuple[float, float] = (-1.0, -1.0)
