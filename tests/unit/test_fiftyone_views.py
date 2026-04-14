@@ -26,6 +26,15 @@ def test_saved_views_creation():
     assert any(tag in args[0] for tag in ["ERR_OOB", "ERR_OVERLAP", "ERR_SCALE_DRIFT"])
     mock_dataset.save_view.assert_any_call("Anomalies", mock_error_view)
 
+    # VERIFY — Evaluation Ready view
+    mock_dataset.filter_labels.assert_called()
+    # "Evaluation Ready" view should be saved
+    mock_dataset.save_view.assert_any_call("Evaluation Ready", mock_dataset.filter_labels.return_value)
+
+    # VERIFY — Strict Geometry view
+    mock_dataset.view.assert_called()
+    mock_dataset.save_view.assert_any_call("Strict Geometry", mock_dataset.view.return_value)
+
 
 def test_saved_views_calibration_when_present():
     """

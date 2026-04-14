@@ -86,19 +86,28 @@ def load_dataset_from_coco(dataset_dir: Path, name: str) -> fo.Dataset:
 
 
 def index_rich_truth(
-    rich_truth_data: list[dict[str, Any]],
-) -> dict[tuple[str, int, str], dict[str, Any]]:
+    rich_truth_data: list[dict[str, Any]] | dict[str, Any],
+) -> tuple[dict[tuple[str, int, str], dict[str, Any]], dict[str, Any]]:
     """
     Index rich truth data by (image_id, tag_id, record_type) for rapid lookup.
+    Also returns the evaluation_context header.
     """
+    records = []
+    eval_ctx = {}
+    if isinstance(rich_truth_data, dict):
+        records = rich_truth_data.get("records", [])
+        eval_ctx = rich_truth_data.get("evaluation_context", {})
+    else:
+        records = rich_truth_data
+
     index = {}
-    for record in rich_truth_data:
+    for record in records:
         image_id = record.get("image_id")
         tag_id = record.get("tag_id")
         record_type = record.get("record_type", "TAG")
         if image_id is not None and tag_id is not None:
             index[(str(image_id), int(tag_id), str(record_type))] = record
-    return index
+    return index, eval_ctx
 
 
 def hydrate_detection(detection: fo.Detection, record: dict[str, Any]) -> None:
@@ -141,33 +150,47 @@ def map_corners_to_keypoints(
     height: float = 1.0,
     normalized: bool = False,
     margin_px: int = 0,
+    visibility_flags: list[int] | None = None,
 ) -> fo.Keypoints:
     """
-    Map ordered corners to FiftyOne Keypoints with indexed labels.
+    Map ordered corners to FiftyOne Keypoints with indexed labels and visibility.
 
     Corners that fall within the evaluation margin zone (within margin_px pixels
-    of any image edge) are tagged with "margin" so they can be filtered in the
-    FiftyOne UI via ``dataset.filter_labels("corners", F("tags").contains("margin"))``.
+    of any image edge) are tagged with "margin" and receive visibility=1.
     """
     kps = []
     for i, pt in enumerate(corners):
         px, py = pt[0], pt[1]
-        in_margin = (
-            margin_px > 0
-            and not normalized
-            and (
-                px < margin_px
-                or px >= width - margin_px
-                or py < margin_px
-                or py >= height - margin_px
+
+        # Use provided flags if available, otherwise compute from margin_px
+        if visibility_flags is not None and i < len(visibility_flags):
+            v = int(visibility_flags[i])
+        else:
+            in_margin = (
+                margin_px > 0
+                and not normalized
+                and (
+                    px < margin_px
+                    or px >= width - margin_px
+                    or py < margin_px
+                    or py >= height - margin_px
+                )
             )
-        )
+            v = 1 if in_margin else 2
+            if _is_sentinel(pt):
+                v = 0
+
         if not normalized:
             px /= width
             py /= height
-        kps.append(
-            fo.Keypoint(label=str(i), points=[[px, py]], tags=["margin"] if in_margin else [])
-        )
+
+        tags = []
+        if v == 1:
+            tags.append("margin")
+        elif v == 0:
+            tags.append("sentinel")
+
+        kps.append(fo.Keypoint(label=str(i), points=[[px, py]], tags=tags, visibility=v))
 
     return fo.Keypoints(keypoints=kps)
 
@@ -181,19 +204,31 @@ def map_calibration_keypoints(
     keypoints: list[list[float] | tuple[float, float]],
     width: float,
     height: float,
+    visibility_flags: list[int] | None = None,
 ) -> list[fo.Keypoint]:
     """Map calibration keypoints to FiftyOne Keypoints, filtering sentinels.
 
-    Visible keypoints are labeled with their index. Sentinels are excluded
-    so that FiftyOne renders only the in-frame saddle points.
+    Visible keypoints are labeled with their index and visibility state.
     """
     kps = []
     for i, pt in enumerate(keypoints):
         if _is_sentinel(pt):
             continue
+
+        if visibility_flags is not None and i < len(visibility_flags):
+            v = int(visibility_flags[i])
+        else:
+            # Fallback: assume VISIBLE if not sentinel (since we filtered sentinels)
+            v = 2
+
         px = pt[0] / width
         py = pt[1] / height
-        kps.append(fo.Keypoint(label=str(i), points=[[px, py]]))
+
+        tags = []
+        if v == 1:
+            tags.append("margin")
+
+        kps.append(fo.Keypoint(label=str(i), points=[[px, py]], tags=tags, visibility=v))
     return kps
 
 
@@ -419,7 +454,7 @@ def audit_dataset(dataset: fo.Dataset) -> None:
 
 
 def create_saved_views(dataset: fo.Dataset) -> None:
-    """Create saved views for anomalies and calibration boards."""
+    """Create saved views for anomalies, calibration boards, and evaluation states."""
     error_tags = ["ERR_OOB", "ERR_OVERLAP", "ERR_SCALE_DRIFT"]
     error_view = dataset.match_tags(error_tags)
     dataset.save_view("Anomalies", error_view)
@@ -428,6 +463,15 @@ def create_saved_views(dataset: fo.Dataset) -> None:
     cal_view = dataset.exists("calibration_points")
     if len(cal_view) > 0:
         dataset.save_view("Calibration Boards", cal_view)
+
+    # Evaluation Ready: Filter out margin-truncated keypoints (visibility=1)
+    from fiftyone import ViewField as F
+
+    eval_ready_view = dataset.filter_labels("corners", F("visibility") == 2)
+    dataset.save_view("Evaluation Ready", eval_ready_view)
+
+    # Strict Geometry: show all valid points (default view, but saved for clarity)
+    dataset.save_view("Strict Geometry", dataset.view())
 
 
 def find_active_session() -> fo.Session | None:
@@ -470,9 +514,16 @@ def visualize_fiftyone(
         rich_truth_file = dataset_path / "rich_truth.json"
         if rich_truth_file.exists():
             with open(rich_truth_file) as f:
-                rich_truth_data = json.load(f)
+                rich_truth_raw = json.load(f)
 
-            rich_index = index_rich_truth(rich_truth_data)
+            rich_index, eval_ctx = index_rich_truth(rich_truth_raw)
+
+            # Use margin from rich truth if not provided as override
+            if eval_margin_px == 0:
+                eval_margin_px = int(eval_ctx.get("photometric_margin_px", 0))
+
+            dataset.info["evaluation_margin_px"] = eval_margin_px
+            dataset.info["truncation_policy"] = eval_ctx.get("truncation_policy", "none")
 
             task_hydrate = progress.add_task("Hydrating with rich truth", total=len(dataset))
             for sample in dataset:
@@ -490,6 +541,8 @@ def visualize_fiftyone(
                 new_axis_y = []
                 new_axis_z = []
                 new_polygons = []
+
+                total_margin_truncated = 0
 
                 for det in detections:
                     img_stem = Path(sample.filepath).stem
@@ -517,8 +570,14 @@ def visualize_fiftyone(
 
                     # --- Calibration keypoints for BOARD records ---
                     if is_board and record.get("keypoints"):
-                        cal_kps = map_calibration_keypoints(record["keypoints"], width, height)
+                        cal_kps = map_calibration_keypoints(
+                            record["keypoints"],
+                            width,
+                            height,
+                            visibility_flags=record.get("keypoints_visibility"),
+                        )
                         new_calibration_kps.extend(cal_kps)
+                        total_margin_truncated += sum(1 for k in cal_kps if k.visibility == 1)
 
                         # Track board dimensions for skeleton construction
                         board_def = record.get("board_definition")
@@ -542,9 +601,14 @@ def visualize_fiftyone(
                         )
 
                         kps = map_corners_to_keypoints(
-                            record["corners"], width, height, margin_px=eval_margin_px
+                            record["corners"],
+                            width,
+                            height,
+                            margin_px=eval_margin_px,
+                            visibility_flags=record.get("corners_visibility"),
                         )
                         new_keypoints.extend(kps.keypoints)
+                        total_margin_truncated += sum(1 for k in kps.keypoints if k.visibility == 1)
 
                     # --- 3D Axes Overlay (works for both TAGs and BOARDs) ---
                     if "k_matrix" in record and "resolution" in record:
@@ -570,6 +634,11 @@ def visualize_fiftyone(
                     sample["axis_x"] = fo.Polylines(polylines=new_axis_x)
                     sample["axis_y"] = fo.Polylines(polylines=new_axis_y)
                     sample["axis_z"] = fo.Polylines(polylines=new_axis_z)
+
+                sample["margin_truncated_corners"] = total_margin_truncated
+                if total_margin_truncated > 0:
+                    sample.tags.append("eval_ignore")
+                    sample.tags.append("edge_case")
 
                 sample.save()
                 progress.update(task_hydrate, advance=1)
@@ -598,15 +667,22 @@ def visualize_fiftyone(
         },
         {
             "path": "corners",
-            "colorByAttribute": "label",
+            "colorByAttribute": "visibility",
             "valueColors": [
-                {"value": "0", "color": "#FF00FF"},
-                {"value": "1", "color": "#00FFFF"},
-                {"value": "2", "color": "#FFFF00"},
-                {"value": "3", "color": "#FFFFFF"},
+                {"value": "2", "color": "#00FF00"},  # VISIBLE -> Green
+                {"value": "1", "color": "#FFA500"},  # MARGIN_TRUNCATED -> Orange
+                {"value": "0", "color": "#000000"},  # OUT_OF_FRAME -> Black
             ],
         },
-        {"path": "calibration_points", "fieldColor": "#FF6600"},
+        {
+            "path": "calibration_points",
+            "colorByAttribute": "visibility",
+            "valueColors": [
+                {"value": "2", "color": "#FF6600"},  # VISIBLE -> Deep Orange
+                {"value": "1", "color": "#FFFF00"},  # MARGIN_TRUNCATED -> Yellow
+                {"value": "0", "color": "#000000"},  # OUT_OF_FRAME -> Black
+            ],
+        },
     ]
 
     color_scheme = fo.ColorScheme(

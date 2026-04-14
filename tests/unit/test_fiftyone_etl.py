@@ -14,13 +14,33 @@ def test_rich_truth_indexing():
     ]
 
     # ACT
-    index = index_rich_truth(rich_truth_data)
+    index, eval_ctx = index_rich_truth(rich_truth_data)
 
     # VERIFY
     assert index[("img1", 42, "TAG")]["distance"] == 5.0
     assert index[("img1", 99, "TAG")]["distance"] == 2.0
     assert index[("img2", 42, "BOARD")]["distance"] == 10.0
     assert len(index) == 3
+    assert eval_ctx == {}
+
+def test_rich_truth_indexing_versioned():
+    """Test indexing with versioned dict format."""
+    from render_tag.viz.fiftyone_tool import index_rich_truth
+
+    rich_truth_raw = {
+        "version": "2.0",
+        "evaluation_context": {"photometric_margin_px": 42},
+        "records": [
+            {"image_id": "img1", "tag_id": 1, "distance": 1.0}
+        ]
+    }
+
+    # ACT
+    index, eval_ctx = index_rich_truth(rich_truth_raw)
+
+    # VERIFY
+    assert index[("img1", 1, "TAG")]["distance"] == 1.0
+    assert eval_ctx["photometric_margin_px"] == 42
 
 
 @patch("fiftyone.dataset_exists", return_value=False)
