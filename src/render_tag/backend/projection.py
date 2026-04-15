@@ -45,6 +45,11 @@ from render_tag.generation.visibility import (
 )
 
 
+def _cam_eval_margin(cam_recipe: Any) -> int:
+    """Return the eval_margin_px from a CameraRecipe, or 0 if unavailable."""
+    return cam_recipe.intrinsics.eval_margin_px if cam_recipe is not None else 0
+
+
 def _get_corrected_k_matrix() -> bridge.np.ndarray:
     """Get the K matrix from BlenderProc and correct its principal point to continuous coords."""
     k = bridge.bproc.camera.get_intrinsics_as_K_matrix()
@@ -360,7 +365,7 @@ def generate_subject_records(
                 shutter_time_ms=physics["shutter_time_ms"],
                 rolling_shutter_ms=physics["rolling_shutter_ms"],
                 fstop=physics["fstop"],
-                eval_margin_px=cam_recipe.intrinsics.eval_margin_px if cam_recipe else 0,
+                eval_margin_px=_cam_eval_margin(cam_recipe),
                 is_mirrored=is_mirrored,
             )
         )
@@ -400,7 +405,7 @@ def generate_subject_records(
                 shutter_time_ms=physics["shutter_time_ms"],
                 rolling_shutter_ms=physics["rolling_shutter_ms"],
                 fstop=physics["fstop"],
-                eval_margin_px=cam_recipe.intrinsics.eval_margin_px if cam_recipe else 0,
+                eval_margin_px=_cam_eval_margin(cam_recipe),
                 is_mirrored=is_mirrored,
             )
         )
@@ -631,7 +636,7 @@ def generate_board_records(
                 shutter_time_ms=physics["shutter_time_ms"],
                 rolling_shutter_ms=physics["rolling_shutter_ms"],
                 fstop=physics["fstop"],
-                eval_margin_px=cam_recipe.intrinsics.eval_margin_px if cam_recipe else 0,
+                eval_margin_px=_cam_eval_margin(cam_recipe),
                 is_mirrored=is_mirrored,
                 board_definition=board_def,
             )
@@ -856,7 +861,7 @@ def _process_board_tags(
                 shutter_time_ms=physics["shutter_time_ms"],
                 rolling_shutter_ms=physics["rolling_shutter_ms"],
                 fstop=physics["fstop"],
-                eval_margin_px=cam_recipe.intrinsics.eval_margin_px if cam_recipe else 0,
+                eval_margin_px=_cam_eval_margin(cam_recipe),
                 is_mirrored=is_mirrored,
             )
         )
