@@ -23,11 +23,13 @@ from render_tag.core.schema import (
     SceneProvenance,
 )
 from render_tag.core.schema.base import KEYPOINT_SENTINEL
+from render_tag.data_io.readers import unwrap_rich_truth
 
 # Import pure-Python geometry modules
 try:
     from render_tag.data_io.annotations import (
         compute_bbox,
+        compute_dense_distorted_polygon,
         compute_eval_visibility,
         compute_eval_visibility_ternary,
         format_coco_keypoints,
@@ -151,10 +153,17 @@ class COCOWriter(AtomicWriter):
         self.images: list[dict] = []
         self.annotations: list[dict] = []
         self.categories: list[dict] = []
+
         self._category_map: dict[str, int] = {}
         self._next_image_id = 1
         self._next_annotation_id = 1
         self._dirty = False
+
+    def _resolve_margin(self, detection: DetectionRecord | None) -> int:
+        """Return the effective eval_margin_px: record beats writer default."""
+        if detection is not None and detection.eval_margin_px > 0:
+            return detection.eval_margin_px
+        return self._eval_margin_px
 
     def add_category(self, name: str, supercategory: str = "fiducial_marker") -> int:
         """Add a category and return its ID."""
@@ -214,21 +223,25 @@ class COCOWriter(AtomicWriter):
         annotation_id = self._next_annotation_id
         self._next_annotation_id += 1
 
-        # Clip corners if dimensions provided
+        # Keep raw projected coordinates for keypoint visibility.
+        # Clip only for the COCO segmentation polygon (COCO compliance).
+        raw_corners = list(corners)
         if width is not None or height is not None:
-            corners = [
+            clipped_corners = [
                 (
                     max(0.0, min(float(width or 1e9), c[0])) if c[0] > -999999.0 else c[0],
                     max(0.0, min(float(height or 1e9), c[1])) if c[1] > -999999.0 else c[1],
                 )
                 for c in corners
             ]
+        else:
+            clipped_corners = raw_corners
 
         # Handle point annotations (e.g. saddle points)
-        if len(corners) < 3:
+        if len(raw_corners) < 3:
             # For 1 or 2 points, bbox is small area around points
-            x_coords = [c[0] for c in corners]
-            y_coords = [c[1] for c in corners]
+            x_coords = [c[0] for c in raw_corners]
+            y_coords = [c[1] for c in raw_corners]
             min_x, max_x = min(x_coords), max(x_coords)
             min_y, max_y = min(y_coords), max(y_coords)
 
@@ -245,51 +258,73 @@ class COCOWriter(AtomicWriter):
             segmentation = []  # COCO polygons require >= 3 points
         else:
             # Standard Polygon Path
-            # 1. Use pure-Python utility for bbox
             dist_coeffs = getattr(detection, "distortion_coeffs", None) or None
             dist_model = getattr(detection, "distortion_model", "none") or "none"
-            bbox = compute_bbox(
-                np.array(corners),
-                detection=detection,
-                distortion_coeffs=dist_coeffs,
-                distortion_model=dist_model,
+
+            # 1. Segmentation polygon — compute first so bbox can reuse it.
+            #    For KB fisheye, edges are curves in distorted space; densely sample
+            #    each edge in 3D camera space before projecting to capture the curved boundary.
+
+            if dist_model == "kannala_brandt" and dist_coeffs:
+                dense_poly = compute_dense_distorted_polygon(detection, dist_coeffs, dist_model)
+            else:
+                dense_poly = None
+
+            if dense_poly is not None:
+                segmentation = [coord for pt in dense_poly for coord in pt]
+            else:
+                segmentation = []
+                for corner in clipped_corners:
+                    segmentation.extend([corner[0], corner[1]])
+
+            # 2. Bbox — for KB fisheye use dense polygon so curved edges are captured;
+            #    for other models fall back to the 3D-reconstruction path in compute_bbox.
+            if dense_poly is not None:
+                dense_arr = np.array(dense_poly)
+                x_min = float(np.min(dense_arr[:, 0]))
+                y_min = float(np.min(dense_arr[:, 1]))
+                x_max = float(np.max(dense_arr[:, 0]))
+                y_max = float(np.max(dense_arr[:, 1]))
+                bbox = [x_min, y_min, x_max - x_min, y_max - y_min]
+            else:
+                bbox = compute_bbox(
+                    np.array(raw_corners),
+                    detection=detection,
+                    distortion_coeffs=dist_coeffs,
+                    distortion_model=dist_model,
+                )
+
+            # 3. Area uses raw corners.
+            area = compute_polygon_area(np.array(raw_corners))
+
+        # Keypoints use raw projected coordinates so out-of-image corners are correctly
+        # classified as v=1 (labeled, not visible) rather than clipped to the boundary.
+        if len(raw_corners) == 4 and width is not None and height is not None:
+            corners_array = np.array(raw_corners)
+            vis = compute_eval_visibility(
+                corners_array, int(width), int(height), self._resolve_margin(detection)
             )
-
-            # 2. Use pure-Python utility for area
-            area = compute_polygon_area(np.array(corners))
-
-            # 3. Serialize corners directly: the 3D asset contract guarantees CW from TL.
-            # Segmentation:
-            segmentation = []
-            for corner in corners:
-                segmentation.extend([corner[0], corner[1]])
-
-        # Keypoints:
-        if len(corners) == 4 and width is not None and height is not None:
-            corners_array = np.array(corners)
-            margin = (
-                detection.eval_margin_px
-                if (detection and detection.eval_margin_px > 0)
-                else self._eval_margin_px
-            )
-            vis = compute_eval_visibility(corners_array, int(width), int(height), margin)
             keypoints = format_coco_keypoints(corners_array, visibility=vis)
             num_keypoints = int(np.sum(vis))
-        elif len(corners) == 4:
-            keypoints = format_coco_keypoints(np.array(corners))
+        elif len(raw_corners) == 4:
+            keypoints = format_coco_keypoints(np.array(raw_corners))
             num_keypoints = 4
         else:
-            # Use raw points as keypoints
-            keypoints = format_coco_keypoints(np.array(corners))
-            num_keypoints = len(corners)
+            keypoints = format_coco_keypoints(np.array(raw_corners))
+            num_keypoints = len(raw_corners)
 
         if detection and detection.keypoints:
             kp_array = np.array(detection.keypoints)
-            sentinel_mask = np.all(kp_array == KEYPOINT_SENTINEL, axis=1)
-            vis = ~sentinel_mask
-            extra_kp = format_coco_keypoints(kp_array, visibility=vis)
+            if width is not None and height is not None:
+                kp_vis = compute_eval_visibility(
+                    kp_array, int(width), int(height), self._resolve_margin(detection)
+                )
+            else:
+                sentinel_mask = np.all(kp_array == KEYPOINT_SENTINEL, axis=1)
+                kp_vis = ~sentinel_mask
+            extra_kp = format_coco_keypoints(kp_array, visibility=kp_vis)
             keypoints.extend(extra_kp)
-            num_keypoints += int(np.sum(vis))  # Only count visible
+            num_keypoints += int(np.sum(kp_vis))
 
         # Prepare attributes: dynamic dump excludes COCO-native fields
         if detection:
@@ -361,6 +396,7 @@ class RichTruthWriter(AtomicWriter):
     def __init__(self, output_path: Path, eval_margin_px: int = 0) -> None:
         self.output_path = output_path
         self._eval_margin_px = eval_margin_px
+        self._effective_margin_px = eval_margin_px
         self._detections: list[dict] = []
 
     def add_detection(self, detection: DetectionRecord) -> None:
@@ -369,6 +405,8 @@ class RichTruthWriter(AtomicWriter):
 
         # Use margin from record if available, fallback to writer default
         margin = detection.eval_margin_px if detection.eval_margin_px > 0 else self._eval_margin_px
+        if margin > self._effective_margin_px:
+            self._effective_margin_px = margin
 
         res = detection.resolution
         if res and len(res) == 2 and GEOMETRY_AVAILABLE:
@@ -387,21 +425,16 @@ class RichTruthWriter(AtomicWriter):
         self._detections.append(record)
 
     def save(self) -> Path:
-        """Save all detections wrapped in a versioned envelope."""
-        # Staff Engineer: Ensure global photometric_margin matches the actual
-        # margin used for corner visibility tagging in the records.
-        effective_margin = self._eval_margin_px
-        if self._detections:
-            for rec in self._detections:
-                rec_margin = rec.get("eval_margin_px", 0)
-                if rec_margin > 0:
-                    effective_margin = rec_margin
-                    break
+        """Save all detections wrapped in a versioned envelope.
 
+        The evaluation_context reflects the actual margin used for visibility tagging.
+        When records carry their own eval_margin_px (per-record beats writer default),
+        _effective_margin_px is kept up-to-date during add_detection() so this is O(1).
+        """
         payload = {
             "version": self.SCHEMA_VERSION,
             "evaluation_context": {
-                "photometric_margin_px": effective_margin,
+                "photometric_margin_px": self._effective_margin_px,
                 "truncation_policy": self.TRUNCATION_POLICY,
             },
             "records": self._detections,
@@ -590,29 +623,25 @@ def merge_rich_truth_shards(
     for shard_path in shard_files:
         with open(shard_path) as f:
             shard = json.load(f)
+        all_records.extend(unwrap_rich_truth(shard))
         if isinstance(shard, dict):
+            shard_ctx = shard.get("evaluation_context", {})
             if not eval_ctx:
-                eval_ctx = shard.get("evaluation_context", {}).copy()
-
-            all_records.extend(shard.get("records", []))
-
-            # Track the actual margin used in shards
-            m = shard.get("evaluation_context", {}).get("photometric_margin_px", 0)
+                eval_ctx = shard_ctx.copy()
+            m = shard_ctx.get("photometric_margin_px", 0)
             if m > max_margin:
                 max_margin = m
-        else:
-            all_records.extend(shard)
 
-    payload: dict | list = all_records
     if eval_ctx:
         if max_margin > 0:
             eval_ctx["photometric_margin_px"] = max_margin
-
-        payload = {
+        payload: dict | list[dict] = {
             "version": RichTruthWriter.SCHEMA_VERSION,
             "evaluation_context": eval_ctx,
             "records": all_records,
         }
+    else:
+        payload = all_records
 
     final_path = output_dir / final_filename
     _write_json_atomic(final_path, payload)

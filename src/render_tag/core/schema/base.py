@@ -236,14 +236,14 @@ class DetectionRecord(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
     # --- Evaluation Visibility (populated by I/O layer, not generation) ---
-    corners_visibility: list[int] | None = Field(
+    corners_visibility: list[KeypointVisibility] | None = Field(
         default=None,
         description=(
             "Per-corner KeypointVisibility flags [0/1/2] computed from eval_margin_px. "
             "None means the dataset was generated without an eval margin."
         ),
     )
-    keypoints_visibility: list[int] | None = Field(
+    keypoints_visibility: list[KeypointVisibility] | None = Field(
         default=None,
         description=(
             "Per-keypoint KeypointVisibility flags [0/1/2] for calibration saddle points. "

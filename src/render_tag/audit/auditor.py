@@ -24,7 +24,7 @@ except ImportError:
 from render_tag.core.logging import get_logger
 from render_tag.core.schema.base import KeypointVisibility
 from render_tag.core.schema.hot_loop import Telemetry
-from render_tag.data_io.readers import _unwrap_rich_truth
+from render_tag.data_io.readers import unwrap_rich_truth
 from render_tag.generation.projection_math import (
     apply_distortion_by_model,
     quaternion_wxyz_to_matrix,
@@ -200,7 +200,7 @@ class DatasetReader:
             return pl.read_csv(self.tags_csv)
         with open(rich_path) as f:
             raw = json.load(f)
-        return pl.DataFrame(_unwrap_rich_truth(raw))
+        return pl.DataFrame(unwrap_rich_truth(raw))
 
     def load_raw_records(self) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         """Load raw JSON records and the evaluation_context header.
@@ -493,7 +493,7 @@ class DatasetAuditor:
             w, h = int(resolution[0]), int(resolution[1])
             rec_violations = sum(
                 1
-                for (x, y), v in zip(corners, vis_flags, strict=False)
+                for (x, y), v in zip(corners, vis_flags, strict=True)
                 if v == KeypointVisibility.VISIBLE
                 and (x < margin_px or x >= w - margin_px or y < margin_px or y >= h - margin_px)
             )

@@ -18,6 +18,28 @@ from render_tag.generation.projection_math import (
 )
 
 
+def _clip_polygon_near_plane(
+    points: np.ndarray,
+    z_near: float = 0.001,
+) -> list[np.ndarray]:
+    """Sutherland-Hodgman clip of a 3D polygon against the near plane Z = z_near."""
+    clipped: list[np.ndarray] = []
+    n = len(points)
+    for i in range(n):
+        p1, p2 = points[i], points[(i + 1) % n]
+        p1_in, p2_in = p1[2] > z_near, p2[2] > z_near
+        if p1_in and p2_in:
+            clipped.append(p2)
+        elif p1_in and not p2_in:
+            t = (z_near - p1[2]) / (p2[2] - p1[2])
+            clipped.append(p1 + t * (p2 - p1))
+        elif not p1_in and p2_in:
+            t = (z_near - p1[2]) / (p2[2] - p1[2])
+            clipped.append(p1 + t * (p2 - p1))
+            clipped.append(p2)
+    return clipped
+
+
 def compute_bbox(
     points: np.ndarray,
     detection: Any | None = None,
@@ -73,27 +95,7 @@ def compute_bbox(
         rot_mat = quaternion_wxyz_to_matrix(rot_quat)
         points_cam = (rot_mat @ local_corners.T).T + pos
 
-        # Sutherland-Hodgman clipping against near plane (Z = 0.001)
-        z_near = 0.001
-        clipped_polygon = []
-
-        for i in range(len(points_cam)):
-            p1 = points_cam[i]
-            p2 = points_cam[(i + 1) % len(points_cam)]
-
-            p1_inside = p1[2] > z_near
-            p2_inside = p2[2] > z_near
-
-            if p1_inside and p2_inside:
-                clipped_polygon.append(p2)
-            elif p1_inside and not p2_inside:
-                t = (z_near - p1[2]) / (p2[2] - p1[2])
-                clipped_polygon.append(p1 + t * (p2 - p1))
-            elif not p1_inside and p2_inside:
-                t = (z_near - p1[2]) / (p2[2] - p1[2])
-                clipped_polygon.append(p1 + t * (p2 - p1))
-                clipped_polygon.append(p2)
-
+        clipped_polygon = _clip_polygon_near_plane(points_cam)
         if len(clipped_polygon) < 3:
             return [0.0, 0.0, 0.0, 0.0]
 
@@ -131,6 +133,83 @@ def compute_bbox(
     x_max, y_max = np.max(valid_points, axis=0)
 
     return [float(x_min), float(y_min), float(x_max - x_min), float(y_max - y_min)]
+
+
+def compute_dense_distorted_polygon(
+    detection: Any,
+    distortion_coeffs: list[float],
+    distortion_model: str,
+    n_samples: int = 10,
+) -> list[tuple[float, float]] | None:
+    """Generate a pixel-tight COCO polygon by densely sampling tag edges in camera space.
+
+    For fisheye (Kannala-Brandt) lenses, tag edges are curves in distorted pixel space.
+    Sampling ``n_samples`` intermediate 3D points per edge before projection captures the
+    true curved boundary. Falls back to ``None`` when 3D pose is unavailable.
+
+    Args:
+        detection: DetectionRecord with position, rotation_quaternion, k_matrix, tag_size_mm.
+        distortion_coeffs: Distortion coefficients for the active model.
+        distortion_model: 'kannala_brandt' or 'brown_conrady'.
+        n_samples: Points sampled per edge (including endpoints). 10 → 36 polygon vertices.
+
+    Returns:
+        List of (x, y) pixel coordinates forming the curved polygon, or None if pose
+        information is unavailable (caller should fall back to the raw 4-corner polygon).
+    """
+    if not (
+        detection is not None
+        and getattr(detection, "position", None) is not None
+        and getattr(detection, "rotation_quaternion", None) is not None
+        and getattr(detection, "k_matrix", None) is not None
+        and getattr(detection, "tag_size_mm", None) is not None
+        and getattr(detection, "record_type", "") == "TAG"
+    ):
+        return None
+
+    pos = np.array(detection.position)
+    rot_mat = quaternion_wxyz_to_matrix(detection.rotation_quaternion)
+    k_matrix = np.array(detection.k_matrix)
+    half = detection.tag_size_mm / 1000.0 / 2.0
+
+    # Center-Origin Convention: +X Right, +Y Down, +Z Into the plane.
+    local_corners = np.array(
+        [
+            [-half, -half, 0.0],  # TL
+            [half, -half, 0.0],  # TR
+            [half, half, 0.0],  # BR
+            [-half, half, 0.0],  # BL
+        ]
+    )
+    points_cam = (rot_mat @ local_corners.T).T + pos
+
+    clipped = _clip_polygon_near_plane(points_cam)
+    if len(clipped) < 3:
+        return None
+
+    # Dense-sample each clipped edge; exclude repeated endpoints between adjacent edges.
+    clipped_arr = np.array(clipped)
+    m = len(clipped_arr)
+    segments: list[np.ndarray] = []
+    for i in range(m):
+        p1, p2 = clipped_arr[i], clipped_arr[(i + 1) % m]
+        ts = np.linspace(0.0, 1.0, n_samples, endpoint=(i == m - 1))[:, None]
+        segments.append(p1 + ts * (p2 - p1))
+    dense_arr = np.concatenate(segments, axis=0)
+    fx, fy = k_matrix[0, 0], k_matrix[1, 1]
+    cx, cy = k_matrix[0, 2], k_matrix[1, 2]
+    z = dense_arr[:, 2]
+    x_norm = dense_arr[:, 0] / z
+    y_norm = dense_arr[:, 1] / z
+
+    x_norm, y_norm = apply_distortion_by_model(
+        x_norm, y_norm, distortion_coeffs or [], distortion_model
+    )
+
+    x_proj = x_norm * fx + cx
+    y_proj = y_norm * fy + cy
+
+    return [(float(x), float(y)) for x, y in zip(x_proj, y_proj, strict=False)]
 
 
 def normalize_corner_order(
@@ -187,9 +266,11 @@ def compute_eval_visibility(
 ) -> np.ndarray:
     """Compute per-keypoint visibility booleans for COCO export with an edge margin.
 
-    A point is True (v=2 candidate) only if it lies strictly inside the inner
+    A point is True (v=2 / VISIBLE) only if it lies strictly inside the inner
     region [margin_px, W-margin_px) x [margin_px, H-margin_px).  Sentinel points
-    and points outside the image boundary remain False (sentinel → v=0, else → v=1).
+    and points outside the image boundary are False (v=0 or v=1).
+
+    Delegates to ``compute_eval_visibility_ternary`` and compares against VISIBLE.
 
     Args:
         points: (N, 2) pixel coordinates.
@@ -200,15 +281,8 @@ def compute_eval_visibility(
     Returns:
         Boolean array of length N.
     """
-    pts = np.asarray(points, dtype=float)
-    x, y = pts[:, 0], pts[:, 1]
-    sentinel = (x == KEYPOINT_SENTINEL[0]) & (y == KEYPOINT_SENTINEL[1])
-    if margin_px == 0:
-        return ~sentinel
-    in_inner = (
-        (x >= margin_px) & (x < width - margin_px) & (y >= margin_px) & (y < height - margin_px)
-    )
-    return in_inner & ~sentinel
+    ternary = compute_eval_visibility_ternary(points, width, height, margin_px)
+    return ternary == KeypointVisibility.VISIBLE
 
 
 def compute_eval_visibility_ternary(
@@ -237,11 +311,6 @@ def compute_eval_visibility_ternary(
     pts = np.asarray(points, dtype=float)
     x, y = pts[:, 0], pts[:, 1]
     sentinel = (x == KEYPOINT_SENTINEL[0]) & (y == KEYPOINT_SENTINEL[1])
-
-    if margin_px == 0:
-        result = np.full(len(pts), KeypointVisibility.VISIBLE, dtype=np.int8)
-        result[sentinel] = KeypointVisibility.OUT_OF_FRAME
-        return result
 
     # Default to MARGIN_TRUNCATED — covers out-of-image non-sentinel points too
     result = np.full(len(pts), KeypointVisibility.MARGIN_TRUNCATED, dtype=np.int8)

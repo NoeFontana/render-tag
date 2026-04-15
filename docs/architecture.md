@@ -97,6 +97,59 @@ All subject keypoint arrays MUST be ordered such that:
 
 -   **Annotation Layer**: Preserves the original 3D indices in the 2D output (COCO keypoints, CSV corners).
 
+## Data Products: `rich_truth.json`
+
+The `rich_truth.json` file is the canonical "Data Product" for a rendered dataset. It exists in two wire formats — the reader layer (`unwrap_rich_truth`) handles both transparently.
+
+### v1 — Legacy (bare array)
+
+```json
+[
+  { "image_id": "frame_0001", "tag_id": 0, "corners": [[x,y], ...], ... },
+  ...
+]
+```
+
+Produced by pipelines without an `eval_margin_px` setting. `corners_visibility` and `keypoints_visibility` are absent (null in `DetectionRecord`).
+
+### v2 — Versioned envelope
+
+```json
+{
+  "version": "2.0",
+  "evaluation_context": {
+    "photometric_margin_px": 21,
+    "truncation_policy": "ternary_visibility"
+  },
+  "records": [
+    {
+      "image_id": "frame_0001",
+      "tag_id": 0,
+      "corners": [[x,y], ...],
+      "corners_visibility": [2, 1, 2, 2],
+      "keypoints_visibility": [2, 2, 1, ...],
+      ...
+    }
+  ]
+}
+```
+
+Produced when `camera.eval_margin_px > 0` in the config. The `evaluation_context` header is informational; the per-record `eval_margin_px` field is the authoritative source for which margin was applied to each detection.
+
+### `KeypointVisibility` Convention
+
+Per-keypoint visibility follows the COCO keypoint convention extended with a semantic "Don't Care" state:
+
+| Value | Name | Meaning | COCO `v` |
+|------:|:-----|:--------|:---------|
+| 0 | `OUT_OF_FRAME` | Sentinel `(-1,-1)` — behind camera or not projected | `v=0` (zeroed coords) |
+| 1 | `MARGIN_TRUNCATED` | Inside image but within `eval_margin_px` of any edge — excluded from evaluation | `v=1` |
+| 2 | `VISIBLE` | Inside the inner safe region — fully evaluable | `v=2` |
+
+`eval_margin_px` is configured per-camera in `camera.eval_margin_px` (YAML) / `CameraConfig.eval_margin_px` (Python). Set to `0` (default) to disable the margin and treat the full image as evaluable.
+
+The **Evaluation Ready** saved view in FiftyOne (`filter_labels(..., F("visibility") == 2)`) shows only the fully-evaluable subset. The **Strict Geometry** view shows all projected points including margin-zone ones.
+
 ## Reproducibility
 
 Correctness in synthetic data requires strict reproducibility. `render-tag` ensures this through:

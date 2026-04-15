@@ -16,6 +16,7 @@ from rich.progress import (
     TextColumn,
 )
 
+from render_tag.data_io.readers import unwrap_rich_truth
 from render_tag.generation.projection_math import (
     apply_distortion_by_model,
     quaternion_wxyz_to_matrix,
@@ -92,13 +93,10 @@ def index_rich_truth(
     Index rich truth data by (image_id, tag_id, record_type) for rapid lookup.
     Also returns the evaluation_context header.
     """
-    records = []
-    eval_ctx = {}
-    if isinstance(rich_truth_data, dict):
-        records = rich_truth_data.get("records", [])
-        eval_ctx = rich_truth_data.get("evaluation_context", {})
-    else:
-        records = rich_truth_data
+    records = unwrap_rich_truth(rich_truth_data)
+    eval_ctx = (
+        rich_truth_data.get("evaluation_context", {}) if isinstance(rich_truth_data, dict) else {}
+    )
 
     index = {}
     for record in records:
@@ -166,19 +164,16 @@ def map_corners_to_keypoints(
         if visibility_flags is not None and i < len(visibility_flags):
             v = int(visibility_flags[i])
         else:
-            in_margin = (
-                margin_px > 0
-                and not normalized
-                and (
-                    px < margin_px
-                    or px >= width - margin_px
-                    or py < margin_px
-                    or py >= height - margin_px
-                )
-            )
-            v = 1 if in_margin else 2
             if _is_sentinel(pt):
                 v = 0
+            elif (
+                margin_px > 0
+                and not normalized
+                and _in_margin_zone(px, py, width, height, margin_px)
+            ):
+                v = 1
+            else:
+                v = 2
 
         if not normalized:
             px /= width
@@ -200,15 +195,23 @@ def _is_sentinel(pt: list[float] | tuple[float, float]) -> bool:
     return pt[0] == -1.0 and pt[1] == -1.0
 
 
+def _in_margin_zone(x: float, y: float, width: float, height: float, margin_px: int) -> bool:
+    """Return True if (x, y) falls within the evaluation margin zone of the image boundary."""
+    return x < margin_px or x >= width - margin_px or y < margin_px or y >= height - margin_px
+
+
 def map_calibration_keypoints(
     keypoints: list[list[float] | tuple[float, float]],
     width: float,
     height: float,
     visibility_flags: list[int] | None = None,
+    margin_px: int = 0,
 ) -> list[fo.Keypoint]:
     """Map calibration keypoints to FiftyOne Keypoints, filtering sentinels.
 
     Visible keypoints are labeled with their index and visibility state.
+    When visibility_flags are absent, margin_px is the fallback so datasets
+    without pre-computed visibility are still correctly visualised.
     """
     kps = []
     for i, pt in enumerate(keypoints):
@@ -218,8 +221,8 @@ def map_calibration_keypoints(
         if visibility_flags is not None and i < len(visibility_flags):
             v = int(visibility_flags[i])
         else:
-            # Fallback: assume VISIBLE if not sentinel (since we filtered sentinels)
-            v = 2
+            in_margin = margin_px > 0 and _in_margin_zone(pt[0], pt[1], width, height, margin_px)
+            v = 1 if in_margin else 2
 
         px = pt[0] / width
         py = pt[1] / height
@@ -528,6 +531,7 @@ def hydrate_sample(
                 width,
                 height,
                 visibility_flags=record.get("keypoints_visibility"),
+                margin_px=eval_margin_px,
             )
             new_calibration_kps.extend(cal_kps)
             total_margin_truncated += sum(1 for k in cal_kps if k.visibility == 1)
@@ -590,8 +594,7 @@ def hydrate_sample(
 
     sample["margin_truncated_corners"] = total_margin_truncated
     if total_margin_truncated > 0:
-        sample.tags.append("eval_ignore")
-        sample.tags.append("edge_case")
+        sample.tags.extend(["eval_ignore", "edge_case"])
 
     sample.save()
     return total_margin_truncated, calibration_skeleton_dims
