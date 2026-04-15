@@ -22,7 +22,7 @@ from render_tag.core.schema import (
     DetectionRecord,
     SceneProvenance,
 )
-from render_tag.core.schema.base import KEYPOINT_SENTINEL
+from render_tag.core.schema.base import KEYPOINT_SENTINEL, KeypointVisibility
 from render_tag.data_io.readers import unwrap_rich_truth
 
 # Import pure-Python geometry modules
@@ -412,15 +412,23 @@ class RichTruthWriter(AtomicWriter):
         if res and len(res) == 2 and GEOMETRY_AVAILABLE:
             w, h = int(res[0]), int(res[1])
             corners_arr = np.array(detection.corners)
-            record["corners_visibility"] = compute_eval_visibility_ternary(
-                corners_arr, w, h, margin
-            ).tolist()
+            corners_vis = compute_eval_visibility_ternary(corners_arr, w, h, margin).tolist()
+            record["corners_visibility"] = corners_vis
 
+            kp_vis = None
             if detection.keypoints:
                 kp_arr = np.array(detection.keypoints)
-                record["keypoints_visibility"] = compute_eval_visibility_ternary(
-                    kp_arr, w, h, margin
-                ).tolist()
+                kp_vis = compute_eval_visibility_ternary(kp_arr, w, h, margin).tolist()
+                record["keypoints_visibility"] = kp_vis
+
+            # A record is eval-complete only when every relevant point is VISIBLE (v=2).
+            # For BOARD records the authoritative set is keypoints (saddle points);
+            # for TAG records it is corners.
+            _VISIBLE = KeypointVisibility.VISIBLE
+            if kp_vis is not None:
+                record["eval_complete"] = all(v == _VISIBLE for v in kp_vis)
+            else:
+                record["eval_complete"] = all(v == _VISIBLE for v in corners_vis)
 
         self._detections.append(record)
 

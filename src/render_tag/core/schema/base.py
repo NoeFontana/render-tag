@@ -250,6 +250,17 @@ class DetectionRecord(BaseModel):
             "Parallel to the `keypoints` list. None if no keypoints or no margin set."
         ),
     )
+    eval_complete: bool = Field(
+        default=True,
+        description=(
+            "True iff every corner (and every calibration keypoint for BOARD records) "
+            "has visibility=2 (VISIBLE). False whenever any point falls inside the "
+            "eval_margin_px zone or outside the image frame. "
+            "Downstream consumers should filter on this field to exclude partial "
+            "detections from evaluation metrics. Defaults to True for datasets "
+            "generated without an eval margin (all points assumed evaluable)."
+        ),
+    )
 
     # --- Board Topology (BOARD records only) ---
     board_definition: BoardDefinition | None = Field(

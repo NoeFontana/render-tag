@@ -319,3 +319,91 @@ class TestShardMerge:
         # IDs should be re-mapped to avoid collisions
         image_ids = [img["id"] for img in merged["images"]]
         assert len(set(image_ids)) == 2  # unique IDs
+
+
+class TestEvalComplete:
+    """eval_complete rolls up per-corner visibility into a single filterable flag."""
+
+    def _make_det(self, corners, resolution=(640, 480), keypoints=None, margin=10):
+        from render_tag.data_io.writers import RichTruthWriter
+
+        det = DetectionRecord(
+            image_id="img1",
+            tag_id=1,
+            tag_family="tag36h11",
+            corners=corners,
+            resolution=list(resolution),
+            keypoints=keypoints,
+        )
+        writer = RichTruthWriter.__new__(RichTruthWriter)
+        writer.output_path = None
+        writer._eval_margin_px = margin
+        writer._effective_margin_px = margin
+        writer._detections = []
+        writer.add_detection(det)
+        return writer._detections[0]
+
+    def test_all_corners_inside_margin_is_false(self):
+        """Tag where every corner falls in the margin zone → eval_complete=False."""
+        # All 4 corners within 10px of image edge
+        rec = self._make_det(
+            corners=[(5, 5), (635, 5), (635, 475), (5, 475)],
+            resolution=(640, 480),
+            margin=10,
+        )
+        assert rec["eval_complete"] is False
+
+    def test_mixed_visibility_is_false(self):
+        """One corner near edge + three well inside → eval_complete=False (the case the user raised)."""
+        rec = self._make_det(
+            # corner[0] at x=5 is inside the 10px margin; the others are well inside
+            corners=[(5, 240), (320, 50), (600, 240), (320, 430)],
+            resolution=(640, 480),
+            margin=10,
+        )
+        assert rec["eval_complete"] is False
+
+    def test_all_corners_interior_is_true(self):
+        """Tag fully inside the safe region → eval_complete=True."""
+        rec = self._make_det(
+            corners=[(50, 50), (590, 50), (590, 430), (50, 430)],
+            resolution=(640, 480),
+            margin=10,
+        )
+        assert rec["eval_complete"] is True
+
+    def test_no_margin_all_true(self):
+        """With margin=0 (default), eval_complete is always True for in-image corners."""
+        rec = self._make_det(
+            corners=[(1, 1), (639, 1), (639, 479), (1, 479)],
+            resolution=(640, 480),
+            margin=0,
+        )
+        assert rec["eval_complete"] is True
+
+    def test_board_record_uses_keypoints_not_corners(self):
+        """For BOARD records, eval_complete is driven by keypoints_visibility, not corners."""
+        det = DetectionRecord(
+            image_id="img1",
+            tag_id=0,
+            tag_family="charuco",
+            record_type="BOARD",
+            # Single center corner — well inside
+            corners=[(320, 240)],
+            # One saddle point in the margin zone
+            keypoints=[(5, 240), (320, 240), (600, 240)],
+            resolution=[640, 480],
+        )
+        from render_tag.data_io.writers import RichTruthWriter
+
+        writer = RichTruthWriter.__new__(RichTruthWriter)
+        writer.output_path = None
+        writer._eval_margin_px = 10
+        writer._effective_margin_px = 10
+        writer._detections = []
+        writer.add_detection(det)
+        rec = writer._detections[0]
+
+        assert rec["eval_complete"] is False, (
+            "BOARD with a margin-zone saddle point must be eval_complete=False"
+        )
