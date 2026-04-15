@@ -184,7 +184,7 @@ def compute_dense_distorted_polygon(
     detection: Any,
     distortion_coeffs: list[float],
     distortion_model: str,
-    max_error_px: float = 0.5,
+    max_error_px: float = 0.1,
 ) -> list[tuple[float, float]] | None:
     """Generate a pixel-tight polygon by adaptively sampling tag edges in camera space.
 
@@ -197,7 +197,7 @@ def compute_dense_distorted_polygon(
         detection: DetectionRecord with position, rotation_quaternion, k_matrix, tag_size_mm.
         distortion_coeffs: Distortion coefficients for the active model.
         distortion_model: 'kannala_brandt' or 'brown_conrady'.
-        max_error_px: Maximum allowed chord-to-arc error in pixels. Default 0.5px.
+        max_error_px: Maximum allowed chord-to-arc error in pixels. Default 0.1px.
 
     Returns:
         List of (x, y) pixel coordinates forming the polygon, or None if pose

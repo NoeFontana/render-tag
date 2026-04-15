@@ -356,7 +356,8 @@ class CameraConfig(BaseModel):
         description=(
             "Pixel-width margin along image edges treated as a 'Don't Care' zone. "
             "Keypoints within this margin receive v=1 (labeled but not visible) in "
-            "COCO export instead of v=2. Set to 0 (default) to disable."
+            "COCO export instead of v=2. Set to 0 (default) to disable. "
+            "Typical value: 5px (half-radius of a standard 11-px Gaussian kernel)."
         ),
     )
 
