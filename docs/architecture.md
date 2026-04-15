@@ -157,14 +157,16 @@ A tag or board where *any* corner/keypoint falls inside `eval_margin_px` (or is 
 usable = [r for r in records if r.get("eval_complete", True)]
 ```
 
-Semantics by record type:
+Only meaningful for **TAG records**. A tag with three corners well inside the safe region and one corner just inside the margin zone will have `eval_complete = false`, even though the majority of its geometry is evaluable.
 
-| Record type | `eval_complete` is governed by |
-|:---|:---|
-| `TAG` | `corners_visibility` — all 4 tag corners must be `VISIBLE` |
-| `BOARD` | `keypoints_visibility` — all saddle points must be `VISIBLE` |
+**BOARD records do not use `eval_complete`.** A board can span dozens of saddle points and may legitimately be partially off-screen; a single boolean rollup is not useful. Use `keypoints_visibility` directly to filter individual saddle points:
 
-This handles the mixed case: a tag with three corners well inside the safe region and one corner just inside the margin zone will have `eval_complete = false`, even though the majority of its geometry is evaluable.
+```python
+usable_saddles = [
+    pt for pt, v in zip(record["keypoints"], record["keypoints_visibility"])
+    if v == 2  # KeypointVisibility.VISIBLE
+]
+```
 
 For datasets generated without `eval_margin_px` (v1 or `eval_margin_px=0`), `eval_complete` defaults to `true` — backward compatible.
 

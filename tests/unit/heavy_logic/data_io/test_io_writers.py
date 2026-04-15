@@ -381,16 +381,19 @@ class TestEvalComplete:
         )
         assert rec["eval_complete"] is True
 
-    def test_board_record_uses_keypoints_not_corners(self):
-        """For BOARD records, eval_complete is driven by keypoints_visibility, not corners."""
+    def test_board_record_eval_complete_not_driven_by_keypoints(self):
+        """BOARD records do not roll up eval_complete.
+
+        eval_complete stays True regardless of saddle visibility.
+        Callers should filter saddle points via keypoints_visibility directly.
+        """
         det = DetectionRecord(
             image_id="img1",
             tag_id=0,
             tag_family="charuco",
             record_type="BOARD",
-            # Single center corner — well inside
             corners=[(320, 240)],
-            # One saddle point in the margin zone
+            # One saddle point well inside the margin zone
             keypoints=[(5, 240), (320, 240), (600, 240)],
             resolution=[640, 480],
         )
@@ -404,6 +407,7 @@ class TestEvalComplete:
         writer.add_detection(det)
         rec = writer._detections[0]
 
-        assert rec["eval_complete"] is False, (
-            "BOARD with a margin-zone saddle point must be eval_complete=False"
-        )
+        # eval_complete is not set by BOARD records — defaults to True
+        assert rec["eval_complete"] is True
+        # keypoints_visibility is still computed so callers can filter individually
+        assert rec.get("keypoints_visibility") is not None

@@ -421,13 +421,11 @@ class RichTruthWriter(AtomicWriter):
                 kp_vis = compute_eval_visibility_ternary(kp_arr, w, h, margin).tolist()
                 record["keypoints_visibility"] = kp_vis
 
-            # A record is eval-complete only when every relevant point is VISIBLE (v=2).
-            # For BOARD records the authoritative set is keypoints (saddle points);
-            # for TAG records it is corners.
-            _VISIBLE = KeypointVisibility.VISIBLE
-            if kp_vis is not None:
-                record["eval_complete"] = all(v == _VISIBLE for v in kp_vis)
-            else:
+            # eval_complete is only meaningful for TAG records (4-corner geometry).
+            # BOARD records carry per-point keypoints_visibility so callers can
+            # filter saddle points individually; a single boolean rollup is not useful.
+            if kp_vis is None:
+                _VISIBLE = KeypointVisibility.VISIBLE
                 record["eval_complete"] = all(v == _VISIBLE for v in corners_vis)
 
         self._detections.append(record)
