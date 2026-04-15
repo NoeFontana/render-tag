@@ -354,7 +354,7 @@ class TestEvalComplete:
         assert rec["eval_complete"] is False
 
     def test_mixed_visibility_is_false(self):
-        """One corner near edge + three well inside → eval_complete=False (the case the user raised)."""
+        """One corner near edge + three well inside → eval_complete=False."""
         rec = self._make_det(
             # corner[0] at x=5 is inside the 10px margin; the others are well inside
             corners=[(5, 240), (320, 50), (600, 240), (320, 430)],

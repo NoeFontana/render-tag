@@ -146,9 +146,36 @@ Per-keypoint visibility follows the COCO keypoint convention extended with a sem
 | 1 | `MARGIN_TRUNCATED` | Inside image but within `eval_margin_px` of any edge — excluded from evaluation | `v=1` |
 | 2 | `VISIBLE` | Inside the inner safe region — fully evaluable | `v=2` |
 
-`eval_margin_px` is configured per-camera in `camera.eval_margin_px` (YAML) / `CameraConfig.eval_margin_px` (Python). Set to `0` (default) to disable the margin and treat the full image as evaluable.
+`eval_margin_px` is configured per-camera in `camera.eval_margin_px` (YAML) / `CameraConfig.eval_margin_px` (Python). Set to `0` (default) to disable. Recommended value: **5 px** (half-radius of a standard 11-px Gaussian kernel, ensuring corner localization doesn't pick up out-of-image signal).
 
-The **Evaluation Ready** saved view in FiftyOne (`filter_labels(..., F("visibility") == 2)`) shows only the fully-evaluable subset. The **Strict Geometry** view shows all projected points including margin-zone ones.
+### `eval_complete` — Partial Detection Filter
+
+A tag or board where *any* corner/keypoint falls inside `eval_margin_px` (or is out-of-frame) sets `eval_complete = false` on the record. This is the canonical field for downstream consumers to exclude partial detections from metrics — no iteration over per-point arrays needed.
+
+```python
+# Example: filter rich_truth records for clean evaluation
+usable = [r for r in records if r.get("eval_complete", True)]
+```
+
+Semantics by record type:
+
+| Record type | `eval_complete` is governed by |
+|:---|:---|
+| `TAG` | `corners_visibility` — all 4 tag corners must be `VISIBLE` |
+| `BOARD` | `keypoints_visibility` — all saddle points must be `VISIBLE` |
+
+This handles the mixed case: a tag with three corners well inside the safe region and one corner just inside the margin zone will have `eval_complete = false`, even though the majority of its geometry is evaluable.
+
+For datasets generated without `eval_margin_px` (v1 or `eval_margin_px=0`), `eval_complete` defaults to `true` — backward compatible.
+
+### FiftyOne Views
+
+| Saved view | Filter |
+|:---|:---|
+| **Evaluation Ready** | `filter_labels(..., F("visibility") == 2)` — per-point; removes individual margin-zone points |
+| **Strict Geometry** | No filter — all projected points including margin-zone ones |
+
+Note: the FiftyOne views filter at the *keypoint* level; `eval_complete` filters at the *record* level. Use the saved views for visual inspection and `eval_complete` for programmatic metric gating.
 
 ## Reproducibility
 
