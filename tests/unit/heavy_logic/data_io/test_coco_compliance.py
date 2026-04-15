@@ -378,8 +378,12 @@ class TestAdaptivePolygon:
         dist_coeffs = [0.3, 0.05, 0.001, 0.0]
         det = self._make_det(tag_size_mm=200.0, z=0.5)
 
-        pts_loose = compute_dense_distorted_polygon(det, dist_coeffs, "kannala_brandt", max_error_px=2.0)
-        pts_tight = compute_dense_distorted_polygon(det, dist_coeffs, "kannala_brandt", max_error_px=0.25)
+        pts_loose = compute_dense_distorted_polygon(
+            det, dist_coeffs, "kannala_brandt", max_error_px=2.0
+        )
+        pts_tight = compute_dense_distorted_polygon(
+            det, dist_coeffs, "kannala_brandt", max_error_px=0.25
+        )
         assert pts_loose is not None and pts_tight is not None
         assert len(pts_tight) >= len(pts_loose), (
             f"tighter threshold ({len(pts_tight)} pts) should produce >= vertices "
@@ -409,6 +413,11 @@ class TestAdaptivePolygon:
         """Returns None when position is missing (caller falls back to 4-corner polygon)."""
         from types import SimpleNamespace
 
-        det = SimpleNamespace(position=None, rotation_quaternion=None, k_matrix=None,
-                              tag_size_mm=100.0, record_type="TAG")
+        det = SimpleNamespace(
+            position=None,
+            rotation_quaternion=None,
+            k_matrix=None,
+            tag_size_mm=100.0,
+            record_type="TAG",
+        )
         assert compute_dense_distorted_polygon(det, [0.1], "kannala_brandt") is None
