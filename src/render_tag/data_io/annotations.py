@@ -135,26 +135,72 @@ def compute_bbox(
     return [float(x_min), float(y_min), float(x_max - x_min), float(y_max - y_min)]
 
 
+def _project_cam_point(
+    p_cam: np.ndarray,
+    fx: float,
+    fy: float,
+    cx: float,
+    cy: float,
+    dist_coeffs: list[float],
+    dist_model: str,
+) -> tuple[float, float]:
+    """Project one camera-space point to distorted pixel coordinates."""
+    x_n = p_cam[0] / p_cam[2]
+    y_n = p_cam[1] / p_cam[2]
+    xd, yd = apply_distortion_by_model(np.array([x_n]), np.array([y_n]), dist_coeffs, dist_model)
+    return float(fx * xd[0] + cx), float(fy * yd[0] + cy)
+
+
+def _adaptive_edge(
+    p1: np.ndarray,
+    p2: np.ndarray,
+    proj1: tuple[float, float],
+    proj2: tuple[float, float],
+    project_fn: Any,
+    max_error_px: float,
+    depth: int,
+    max_depth: int,
+) -> list[tuple[float, float]]:
+    """Recursively bisect edge p1→p2 in camera space until chord error < max_error_px.
+
+    Returns projected points for the half-open interval (p1, p2] so that
+    consecutive edges can be concatenated without duplicating shared vertices.
+    """
+    pmid = (p1 + p2) * 0.5
+    proj_mid = project_fn(pmid)
+    chord_x = (proj1[0] + proj2[0]) * 0.5
+    chord_y = (proj1[1] + proj2[1]) * 0.5
+    err_sq = (proj_mid[0] - chord_x) ** 2 + (proj_mid[1] - chord_y) ** 2
+    if depth >= max_depth or err_sq <= max_error_px * max_error_px:
+        return [proj2]
+    left = _adaptive_edge(p1, pmid, proj1, proj_mid, project_fn, max_error_px, depth + 1, max_depth)
+    right = _adaptive_edge(
+        pmid, p2, proj_mid, proj2, project_fn, max_error_px, depth + 1, max_depth
+    )
+    return left + right
+
+
 def compute_dense_distorted_polygon(
     detection: Any,
     distortion_coeffs: list[float],
     distortion_model: str,
-    n_samples: int = 10,
+    max_error_px: float = 0.5,
 ) -> list[tuple[float, float]] | None:
-    """Generate a pixel-tight COCO polygon by densely sampling tag edges in camera space.
+    """Generate a pixel-tight polygon by adaptively sampling tag edges in camera space.
 
     For fisheye (Kannala-Brandt) lenses, tag edges are curves in distorted pixel space.
-    Sampling ``n_samples`` intermediate 3D points per edge before projection captures the
-    true curved boundary. Falls back to ``None`` when 3D pose is unavailable.
+    Each edge is recursively bisected in 3D camera space until the projected chord error
+    is below ``max_error_px``, guaranteeing sub-pixel polygon accuracy regardless of
+    tag size, distance, or distortion magnitude.
 
     Args:
         detection: DetectionRecord with position, rotation_quaternion, k_matrix, tag_size_mm.
         distortion_coeffs: Distortion coefficients for the active model.
         distortion_model: 'kannala_brandt' or 'brown_conrady'.
-        n_samples: Points sampled per edge (including endpoints). 10 → 36 polygon vertices.
+        max_error_px: Maximum allowed chord-to-arc error in pixels. Default 0.5px.
 
     Returns:
-        List of (x, y) pixel coordinates forming the curved polygon, or None if pose
+        List of (x, y) pixel coordinates forming the polygon, or None if pose
         information is unavailable (caller should fall back to the raw 4-corner polygon).
     """
     if not (
@@ -171,6 +217,8 @@ def compute_dense_distorted_polygon(
     rot_mat = quaternion_wxyz_to_matrix(detection.rotation_quaternion)
     k_matrix = np.array(detection.k_matrix)
     half = detection.tag_size_mm / 1000.0 / 2.0
+    fx, fy = float(k_matrix[0, 0]), float(k_matrix[1, 1])
+    cx, cy = float(k_matrix[0, 2]), float(k_matrix[1, 2])
 
     # Center-Origin Convention: +X Right, +Y Down, +Z Into the plane.
     local_corners = np.array(
@@ -187,29 +235,23 @@ def compute_dense_distorted_polygon(
     if len(clipped) < 3:
         return None
 
-    # Dense-sample each clipped edge; exclude repeated endpoints between adjacent edges.
     clipped_arr = np.array(clipped)
     m = len(clipped_arr)
-    segments: list[np.ndarray] = []
+
+    def project(p: np.ndarray) -> tuple[float, float]:
+        return _project_cam_point(p, fx, fy, cx, cy, distortion_coeffs or [], distortion_model)
+
+    # Build polygon by adaptive subdivision; each call returns (p1, p2] so vertices
+    # are not duplicated at shared corners.
+    result: list[tuple[float, float]] = [project(clipped_arr[0])]
     for i in range(m):
-        p1, p2 = clipped_arr[i], clipped_arr[(i + 1) % m]
-        ts = np.linspace(0.0, 1.0, n_samples, endpoint=(i == m - 1))[:, None]
-        segments.append(p1 + ts * (p2 - p1))
-    dense_arr = np.concatenate(segments, axis=0)
-    fx, fy = k_matrix[0, 0], k_matrix[1, 1]
-    cx, cy = k_matrix[0, 2], k_matrix[1, 2]
-    z = dense_arr[:, 2]
-    x_norm = dense_arr[:, 0] / z
-    y_norm = dense_arr[:, 1] / z
+        p1 = clipped_arr[i]
+        p2 = clipped_arr[(i + 1) % m]
+        proj1 = project(p1)
+        proj2 = project(p2)
+        result.extend(_adaptive_edge(p1, p2, proj1, proj2, project, max_error_px, 0, max_depth=12))
 
-    x_norm, y_norm = apply_distortion_by_model(
-        x_norm, y_norm, distortion_coeffs or [], distortion_model
-    )
-
-    x_proj = x_norm * fx + cx
-    y_proj = y_norm * fy + cy
-
-    return [(float(x), float(y)) for x, y in zip(x_proj, y_proj, strict=False)]
+    return result
 
 
 def normalize_corner_order(

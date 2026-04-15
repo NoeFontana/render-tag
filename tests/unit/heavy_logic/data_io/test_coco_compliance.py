@@ -355,3 +355,60 @@ class TestKBFisheyeAnnotations:
         v_flags = [kp[i * 3 + 2] for i in range(4)]
         assert v_flags[0] == 1, "corner at x=-5 must be v=1 (not visible)"
         assert all(v == 2 for v in v_flags[1:]), "in-image corners must be v=2"
+
+
+class TestAdaptivePolygon:
+    """Tests for compute_dense_distorted_polygon adaptive subdivision."""
+
+    def _make_det(self, tag_size_mm=100.0, z=1.0):
+        """Minimal detection with a KB fisheye camera at z=1m, tag facing camera."""
+        from types import SimpleNamespace
+
+        # Identity rotation, tag centred on optical axis
+        return SimpleNamespace(
+            position=[0.0, 0.0, float(z)],
+            rotation_quaternion=[1.0, 0.0, 0.0, 0.0],  # w,x,y,z
+            k_matrix=[[800.0, 0.0, 320.0], [0.0, 800.0, 240.0], [0.0, 0.0, 1.0]],
+            tag_size_mm=float(tag_size_mm),
+            record_type="TAG",
+        )
+
+    def test_tighter_threshold_yields_more_vertices(self):
+        """A tighter max_error_px must produce >= as many vertices as a looser one."""
+        dist_coeffs = [0.3, 0.05, 0.001, 0.0]
+        det = self._make_det(tag_size_mm=200.0, z=0.5)
+
+        pts_loose = compute_dense_distorted_polygon(det, dist_coeffs, "kannala_brandt", max_error_px=2.0)
+        pts_tight = compute_dense_distorted_polygon(det, dist_coeffs, "kannala_brandt", max_error_px=0.25)
+        assert pts_loose is not None and pts_tight is not None
+        assert len(pts_tight) >= len(pts_loose), (
+            f"tighter threshold ({len(pts_tight)} pts) should produce >= vertices "
+            f"than loose ({len(pts_loose)} pts)"
+        )
+
+    def test_strong_distortion_triggers_subdivision(self):
+        """Strong KB distortion must trigger at least one subdivision per edge (> 5 minimum)."""
+        dist_coeffs = [0.3, 0.05, 0.001, 0.0]  # strong KB
+        det = self._make_det(tag_size_mm=300.0, z=0.4)
+
+        pts = compute_dense_distorted_polygon(det, dist_coeffs, "kannala_brandt", max_error_px=0.5)
+        assert pts is not None
+        # Minimum is 5 (1 initial vertex + 1 endpoint per edge, 4 edges).
+        # Strong distortion must cause at least one edge to subdivide.
+        assert len(pts) > 5, f"expected subdivision for strong distortion, got {len(pts)} points"
+
+    def test_no_distortion_returns_minimal_points(self):
+        """With zero distortion coefficients, edges are already straight — minimal subdivision."""
+        det = self._make_det(tag_size_mm=100.0, z=1.0)
+        pts = compute_dense_distorted_polygon(det, [0.0, 0.0, 0.0, 0.0], "kannala_brandt", 0.5)
+        assert pts is not None
+        # Without curvature each edge needs only 2 points (start + end), so ≤ 4*2 = 8 total
+        assert len(pts) <= 8, f"expected minimal vertices for zero distortion, got {len(pts)}"
+
+    def test_returns_none_without_pose(self):
+        """Returns None when position is missing (caller falls back to 4-corner polygon)."""
+        from types import SimpleNamespace
+
+        det = SimpleNamespace(position=None, rotation_quaternion=None, k_matrix=None,
+                              tag_size_mm=100.0, record_type="TAG")
+        assert compute_dense_distorted_polygon(det, [0.1], "kannala_brandt") is None

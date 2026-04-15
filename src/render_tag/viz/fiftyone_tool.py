@@ -4,6 +4,7 @@ FiftyOne tool for visualizing render-tag datasets.
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import fiftyone as fo
@@ -16,6 +17,7 @@ from rich.progress import (
     TextColumn,
 )
 
+from render_tag.data_io.annotations import compute_dense_distorted_polygon
 from render_tag.data_io.readers import unwrap_rich_truth
 from render_tag.generation.projection_math import (
     apply_distortion_by_model,
@@ -546,8 +548,21 @@ def hydrate_sample(
 
         # --- Tag corners (skip for BOARD — single center point) ---
         if "corners" in record and not is_board:
-            pts = get_polyline_points(record["corners"], width, height)
-            det.segmentation = [pts]
+            # For Kannala-Brandt fisheye, tag edges curve in distorted pixel space.
+            # Re-use the same dense-sampling path as COCOWriter so the polygon overlay
+            # matches the actual projected boundary instead of straight-line segments.
+            dist_model = record.get("distortion_model", "none") or "none"
+            dist_coeffs = record.get("distortion_coeffs") or []
+            dense = None
+            if dist_model == "kannala_brandt" and dist_coeffs:
+                dense = compute_dense_distorted_polygon(
+                    SimpleNamespace(**record), dist_coeffs, dist_model
+                )
+
+            if dense is not None:
+                pts = [[x / width, y / height] for x, y in dense]
+            else:
+                pts = get_polyline_points(record["corners"], width, height)
 
             new_polygons.append(
                 fo.Polyline(
