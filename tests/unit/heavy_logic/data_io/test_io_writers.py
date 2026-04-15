@@ -5,8 +5,8 @@ Unit tests for the writers module.
 import json
 from pathlib import Path
 
-from render_tag.core.schema.base import DetectionRecord
-from render_tag.data_io.writers import COCOWriter, CSVWriter, merge_coco_shards
+from render_tag.core.schema.base import DetectionRecord, KeypointVisibility
+from render_tag.data_io.writers import COCOWriter, CSVWriter, RichTruthWriter, merge_coco_shards
 
 
 class TestCSVWriter:
@@ -152,6 +152,140 @@ class TestCOCOWriter:
         assert bbox[3] == 150  # height (200 - 50)
 
 
+class TestRichTruthWriter:
+    def _make_det(self, corners, resolution=(640, 480), keypoints=None):
+        return DetectionRecord(
+            image_id="img1",
+            tag_id=1,
+            tag_family="tag36h11",
+            corners=corners,
+            resolution=list(resolution),
+            keypoints=keypoints,
+        )
+
+    def test_versioned_envelope(self, tmp_path):
+        """Output is a wrapped object with version and evaluation_context."""
+        writer = RichTruthWriter(tmp_path / "rich_truth.json")
+        writer.add_detection(self._make_det([(10, 10), (100, 10), (100, 100), (10, 100)]))
+        writer.save()
+
+        with open(tmp_path / "rich_truth.json") as f:
+            data = json.load(f)
+
+        assert data["version"] == "2.0"
+        assert "evaluation_context" in data
+        assert data["evaluation_context"]["photometric_margin_px"] == 0
+        assert "records" in data
+        assert len(data["records"]) == 1
+
+    def test_visibility_flags_written_with_margin(self, tmp_path):
+        """Corners inside the margin zone get v=1; interior corners get v=2."""
+        writer = RichTruthWriter(tmp_path / "rich_truth.json", eval_margin_px=20)
+        # corners[0] and [1] are inside the 20px top margin; [2] and [3] are interior
+        det = self._make_det(
+            corners=[(10, 10), (630, 10), (630, 470), (10, 470)],
+            resolution=(640, 480),
+        )
+        writer.add_detection(det)
+        writer.save()
+
+        with open(tmp_path / "rich_truth.json") as f:
+            data = json.load(f)
+
+        rec = data["records"][0]
+        assert "corners_visibility" in rec
+        vis = rec["corners_visibility"]
+        assert len(vis) == 4
+        assert vis[0] == KeypointVisibility.MARGIN_TRUNCATED  # (10,10) — both axes in margin
+        assert vis[1] == KeypointVisibility.MARGIN_TRUNCATED  # (630,10) — top margin
+        assert vis[2] == KeypointVisibility.MARGIN_TRUNCATED  # (630,470) — right+bottom margin
+        assert vis[3] == KeypointVisibility.MARGIN_TRUNCATED  # (10,470) — left+bottom margin
+
+    def test_interior_corners_visible(self, tmp_path):
+        """Corners well inside the image with margin are marked VISIBLE."""
+        writer = RichTruthWriter(tmp_path / "rich_truth.json", eval_margin_px=10)
+        det = self._make_det(
+            corners=[(50, 50), (590, 50), (590, 430), (50, 430)],
+            resolution=(640, 480),
+        )
+        writer.add_detection(det)
+        writer.save()
+
+        with open(tmp_path / "rich_truth.json") as f:
+            data = json.load(f)
+
+        vis = data["records"][0]["corners_visibility"]
+        assert all(v == KeypointVisibility.VISIBLE for v in vis)
+
+    def test_no_margin_all_visible(self, tmp_path):
+        """With eval_margin_px=0 all non-sentinel in-image corners are VISIBLE."""
+        writer = RichTruthWriter(tmp_path / "rich_truth.json", eval_margin_px=0)
+        det = self._make_det(
+            corners=[(1, 1), (639, 1), (639, 479), (1, 479)],
+            resolution=(640, 480),
+        )
+        writer.add_detection(det)
+        writer.save()
+
+        with open(tmp_path / "rich_truth.json") as f:
+            data = json.load(f)
+
+        vis = data["records"][0]["corners_visibility"]
+        assert all(v == KeypointVisibility.VISIBLE for v in vis)
+
+    def test_no_resolution_no_visibility(self, tmp_path):
+        """Records without a resolution field have corners_visibility serialized as null."""
+        writer = RichTruthWriter(tmp_path / "rich_truth.json", eval_margin_px=10)
+        det = DetectionRecord(
+            image_id="img1",
+            tag_id=1,
+            tag_family="tag36h11",
+            corners=[(10, 10), (100, 10), (100, 100), (10, 100)],
+            # resolution intentionally omitted
+        )
+        writer.add_detection(det)
+        writer.save()
+
+        with open(tmp_path / "rich_truth.json") as f:
+            data = json.load(f)
+
+        assert data["records"][0]["corners_visibility"] is None
+
+    def test_evaluation_context_records_margin(self, tmp_path):
+        """eval_margin_px is surfaced in the evaluation_context header."""
+        writer = RichTruthWriter(tmp_path / "rich_truth.json", eval_margin_px=15)
+        writer.save()
+
+        with open(tmp_path / "rich_truth.json") as f:
+            data = json.load(f)
+
+        assert data["evaluation_context"]["photometric_margin_px"] == 15
+        assert data["evaluation_context"]["truncation_policy"] == "ternary_visibility"
+
+    def test_margin_propagation_from_record(self, tmp_path: Path):
+        """RichTruthWriter should prefer the margin from the DetectionRecord if provided."""
+        # Initialized with margin 0
+        writer = RichTruthWriter(tmp_path / "rich_truth.json", eval_margin_px=0)
+
+        # Record has margin 21
+        det = self._make_det(
+            corners=[(10, 10), (100, 10), (100, 100), (10, 100)],
+            resolution=(640, 480),
+        )
+        det.eval_margin_px = 21
+
+        writer.add_detection(det)
+        writer.save()
+
+        with open(tmp_path / "rich_truth.json") as f:
+            data = json.load(f)
+
+        # Global header should now reflect the 21px margin from the record
+        assert data["evaluation_context"]["photometric_margin_px"] == 21
+        # Corner visibility should have used 21px (so (10,10) is MARGIN_TRUNCATED)
+        assert data["records"][0]["corners_visibility"][0] == KeypointVisibility.MARGIN_TRUNCATED
+
+
 class TestShardMerge:
     def test_merge_coco_shards_is_atomic(self, tmp_path: Path) -> None:
         """Merged output must not leave partial files on disk."""
@@ -185,3 +319,95 @@ class TestShardMerge:
         # IDs should be re-mapped to avoid collisions
         image_ids = [img["id"] for img in merged["images"]]
         assert len(set(image_ids)) == 2  # unique IDs
+
+
+class TestEvalComplete:
+    """eval_complete rolls up per-corner visibility into a single filterable flag."""
+
+    def _make_det(self, corners, resolution=(640, 480), keypoints=None, margin=10):
+        from render_tag.data_io.writers import RichTruthWriter
+
+        det = DetectionRecord(
+            image_id="img1",
+            tag_id=1,
+            tag_family="tag36h11",
+            corners=corners,
+            resolution=list(resolution),
+            keypoints=keypoints,
+        )
+        writer = RichTruthWriter.__new__(RichTruthWriter)
+        writer.output_path = None
+        writer._eval_margin_px = margin
+        writer._effective_margin_px = margin
+        writer._detections = []
+        writer.add_detection(det)
+        return writer._detections[0]
+
+    def test_all_corners_inside_margin_is_false(self):
+        """Tag where every corner falls in the margin zone → eval_complete=False."""
+        # All 4 corners within 10px of image edge
+        rec = self._make_det(
+            corners=[(5, 5), (635, 5), (635, 475), (5, 475)],
+            resolution=(640, 480),
+            margin=10,
+        )
+        assert rec["eval_complete"] is False
+
+    def test_mixed_visibility_is_false(self):
+        """One corner near edge + three well inside → eval_complete=False."""
+        rec = self._make_det(
+            # corner[0] at x=5 is inside the 10px margin; the others are well inside
+            corners=[(5, 240), (320, 50), (600, 240), (320, 430)],
+            resolution=(640, 480),
+            margin=10,
+        )
+        assert rec["eval_complete"] is False
+
+    def test_all_corners_interior_is_true(self):
+        """Tag fully inside the safe region → eval_complete=True."""
+        rec = self._make_det(
+            corners=[(50, 50), (590, 50), (590, 430), (50, 430)],
+            resolution=(640, 480),
+            margin=10,
+        )
+        assert rec["eval_complete"] is True
+
+    def test_no_margin_all_true(self):
+        """With margin=0 (default), eval_complete is always True for in-image corners."""
+        rec = self._make_det(
+            corners=[(1, 1), (639, 1), (639, 479), (1, 479)],
+            resolution=(640, 480),
+            margin=0,
+        )
+        assert rec["eval_complete"] is True
+
+    def test_board_record_eval_complete_not_driven_by_keypoints(self):
+        """BOARD records do not roll up eval_complete.
+
+        eval_complete stays True regardless of saddle visibility.
+        Callers should filter saddle points via keypoints_visibility directly.
+        """
+        det = DetectionRecord(
+            image_id="img1",
+            tag_id=0,
+            tag_family="charuco",
+            record_type="BOARD",
+            corners=[(320, 240)],
+            # One saddle point well inside the margin zone
+            keypoints=[(5, 240), (320, 240), (600, 240)],
+            resolution=[640, 480],
+        )
+        from render_tag.data_io.writers import RichTruthWriter
+
+        writer = RichTruthWriter.__new__(RichTruthWriter)
+        writer.output_path = None
+        writer._eval_margin_px = 10
+        writer._effective_margin_px = 10
+        writer._detections = []
+        writer.add_detection(det)
+        rec = writer._detections[0]
+
+        # eval_complete is not set by BOARD records — defaults to True
+        assert rec["eval_complete"] is True
+        # keypoints_visibility is still computed so callers can filter individually
+        assert rec.get("keypoints_visibility") is not None

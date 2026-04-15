@@ -97,6 +97,88 @@ All subject keypoint arrays MUST be ordered such that:
 
 -   **Annotation Layer**: Preserves the original 3D indices in the 2D output (COCO keypoints, CSV corners).
 
+## Data Products: `rich_truth.json`
+
+The `rich_truth.json` file is the canonical "Data Product" for a rendered dataset. It exists in two wire formats — the reader layer (`unwrap_rich_truth`) handles both transparently.
+
+### v1 — Legacy (bare array)
+
+```json
+[
+  { "image_id": "frame_0001", "tag_id": 0, "corners": [[x,y], ...], ... },
+  ...
+]
+```
+
+Produced by pipelines without an `eval_margin_px` setting. `corners_visibility` and `keypoints_visibility` are absent (null in `DetectionRecord`).
+
+### v2 — Versioned envelope
+
+```json
+{
+  "version": "2.0",
+  "evaluation_context": {
+    "photometric_margin_px": 21,
+    "truncation_policy": "ternary_visibility"
+  },
+  "records": [
+    {
+      "image_id": "frame_0001",
+      "tag_id": 0,
+      "corners": [[x,y], ...],
+      "corners_visibility": [2, 1, 2, 2],
+      "keypoints_visibility": [2, 2, 1, ...],
+      ...
+    }
+  ]
+}
+```
+
+Produced when `camera.eval_margin_px > 0` in the config. The `evaluation_context` header is informational; the per-record `eval_margin_px` field is the authoritative source for which margin was applied to each detection.
+
+### `KeypointVisibility` Convention
+
+Per-keypoint visibility follows the COCO keypoint convention extended with a semantic "Don't Care" state:
+
+| Value | Name | Meaning | COCO `v` |
+|------:|:-----|:--------|:---------|
+| 0 | `OUT_OF_FRAME` | Sentinel `(-1,-1)` — behind camera or not projected | `v=0` (zeroed coords) |
+| 1 | `MARGIN_TRUNCATED` | Inside image but within `eval_margin_px` of any edge — excluded from evaluation | `v=1` |
+| 2 | `VISIBLE` | Inside the inner safe region — fully evaluable | `v=2` |
+
+`eval_margin_px` is configured per-camera in `camera.eval_margin_px` (YAML) / `CameraConfig.eval_margin_px` (Python). Set to `0` (default) to disable. Recommended value: **5 px** (half-radius of a standard 11-px Gaussian kernel, ensuring corner localization doesn't pick up out-of-image signal).
+
+### `eval_complete` — Partial Detection Filter
+
+A tag or board where *any* corner/keypoint falls inside `eval_margin_px` (or is out-of-frame) sets `eval_complete = false` on the record. This is the canonical field for downstream consumers to exclude partial detections from metrics — no iteration over per-point arrays needed.
+
+```python
+# Example: filter rich_truth records for clean evaluation
+usable = [r for r in records if r.get("eval_complete", True)]
+```
+
+Only meaningful for **TAG records**. A tag with three corners well inside the safe region and one corner just inside the margin zone will have `eval_complete = false`, even though the majority of its geometry is evaluable.
+
+**BOARD records do not use `eval_complete`.** A board can span dozens of saddle points and may legitimately be partially off-screen; a single boolean rollup is not useful. Use `keypoints_visibility` directly to filter individual saddle points:
+
+```python
+usable_saddles = [
+    pt for pt, v in zip(record["keypoints"], record["keypoints_visibility"])
+    if v == 2  # KeypointVisibility.VISIBLE
+]
+```
+
+For datasets generated without `eval_margin_px` (v1 or `eval_margin_px=0`), `eval_complete` defaults to `true` — backward compatible.
+
+### FiftyOne Views
+
+| Saved view | Filter |
+|:---|:---|
+| **Evaluation Ready** | `filter_labels(..., F("visibility") == 2)` — per-point; removes individual margin-zone points |
+| **Strict Geometry** | No filter — all projected points including margin-zone ones |
+
+Note: the FiftyOne views filter at the *keypoint* level; `eval_complete` filters at the *record* level. Use the saved views for visual inspection and `eval_complete` for programmatic metric gating.
+
 ## Reproducibility
 
 Correctness in synthetic data requires strict reproducibility. `render-tag` ensures this through:

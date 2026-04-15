@@ -10,12 +10,34 @@ from typing import Any
 
 import numpy as np
 
-from render_tag.core.schema.base import is_sentinel_keypoint
+from render_tag.core.schema.base import KEYPOINT_SENTINEL, KeypointVisibility, is_sentinel_keypoint
 from render_tag.generation.projection_math import (
     apply_distortion_by_model,
     quaternion_wxyz_to_matrix,
     validate_winding_order,
 )
+
+
+def _clip_polygon_near_plane(
+    points: np.ndarray,
+    z_near: float = 0.001,
+) -> list[np.ndarray]:
+    """Sutherland-Hodgman clip of a 3D polygon against the near plane Z = z_near."""
+    clipped: list[np.ndarray] = []
+    n = len(points)
+    for i in range(n):
+        p1, p2 = points[i], points[(i + 1) % n]
+        p1_in, p2_in = p1[2] > z_near, p2[2] > z_near
+        if p1_in and p2_in:
+            clipped.append(p2)
+        elif p1_in and not p2_in:
+            t = (z_near - p1[2]) / (p2[2] - p1[2])
+            clipped.append(p1 + t * (p2 - p1))
+        elif not p1_in and p2_in:
+            t = (z_near - p1[2]) / (p2[2] - p1[2])
+            clipped.append(p1 + t * (p2 - p1))
+            clipped.append(p2)
+    return clipped
 
 
 def compute_bbox(
@@ -73,27 +95,7 @@ def compute_bbox(
         rot_mat = quaternion_wxyz_to_matrix(rot_quat)
         points_cam = (rot_mat @ local_corners.T).T + pos
 
-        # Sutherland-Hodgman clipping against near plane (Z = 0.001)
-        z_near = 0.001
-        clipped_polygon = []
-
-        for i in range(len(points_cam)):
-            p1 = points_cam[i]
-            p2 = points_cam[(i + 1) % len(points_cam)]
-
-            p1_inside = p1[2] > z_near
-            p2_inside = p2[2] > z_near
-
-            if p1_inside and p2_inside:
-                clipped_polygon.append(p2)
-            elif p1_inside and not p2_inside:
-                t = (z_near - p1[2]) / (p2[2] - p1[2])
-                clipped_polygon.append(p1 + t * (p2 - p1))
-            elif not p1_inside and p2_inside:
-                t = (z_near - p1[2]) / (p2[2] - p1[2])
-                clipped_polygon.append(p1 + t * (p2 - p1))
-                clipped_polygon.append(p2)
-
+        clipped_polygon = _clip_polygon_near_plane(points_cam)
         if len(clipped_polygon) < 3:
             return [0.0, 0.0, 0.0, 0.0]
 
@@ -131,6 +133,125 @@ def compute_bbox(
     x_max, y_max = np.max(valid_points, axis=0)
 
     return [float(x_min), float(y_min), float(x_max - x_min), float(y_max - y_min)]
+
+
+def _project_cam_point(
+    p_cam: np.ndarray,
+    fx: float,
+    fy: float,
+    cx: float,
+    cy: float,
+    dist_coeffs: list[float],
+    dist_model: str,
+) -> tuple[float, float]:
+    """Project one camera-space point to distorted pixel coordinates."""
+    x_n = p_cam[0] / p_cam[2]
+    y_n = p_cam[1] / p_cam[2]
+    xd, yd = apply_distortion_by_model(np.array([x_n]), np.array([y_n]), dist_coeffs, dist_model)
+    return float(fx * xd[0] + cx), float(fy * yd[0] + cy)
+
+
+def _adaptive_edge(
+    p1: np.ndarray,
+    p2: np.ndarray,
+    proj1: tuple[float, float],
+    proj2: tuple[float, float],
+    project_fn: Any,
+    max_error_px: float,
+    depth: int,
+    max_depth: int,
+) -> list[tuple[float, float]]:
+    """Recursively bisect edge p1→p2 in camera space until chord error < max_error_px.
+
+    Returns projected points for the half-open interval (p1, p2] so that
+    consecutive edges can be concatenated without duplicating shared vertices.
+    """
+    pmid = (p1 + p2) * 0.5
+    proj_mid = project_fn(pmid)
+    chord_x = (proj1[0] + proj2[0]) * 0.5
+    chord_y = (proj1[1] + proj2[1]) * 0.5
+    err_sq = (proj_mid[0] - chord_x) ** 2 + (proj_mid[1] - chord_y) ** 2
+    if depth >= max_depth or err_sq <= max_error_px * max_error_px:
+        return [proj2]
+    left = _adaptive_edge(p1, pmid, proj1, proj_mid, project_fn, max_error_px, depth + 1, max_depth)
+    right = _adaptive_edge(
+        pmid, p2, proj_mid, proj2, project_fn, max_error_px, depth + 1, max_depth
+    )
+    return left + right
+
+
+def compute_dense_distorted_polygon(
+    detection: Any,
+    distortion_coeffs: list[float],
+    distortion_model: str,
+    max_error_px: float = 0.1,
+) -> list[tuple[float, float]] | None:
+    """Generate a pixel-tight polygon by adaptively sampling tag edges in camera space.
+
+    For fisheye (Kannala-Brandt) lenses, tag edges are curves in distorted pixel space.
+    Each edge is recursively bisected in 3D camera space until the projected chord error
+    is below ``max_error_px``, guaranteeing sub-pixel polygon accuracy regardless of
+    tag size, distance, or distortion magnitude.
+
+    Args:
+        detection: DetectionRecord with position, rotation_quaternion, k_matrix, tag_size_mm.
+        distortion_coeffs: Distortion coefficients for the active model.
+        distortion_model: 'kannala_brandt' or 'brown_conrady'.
+        max_error_px: Maximum allowed chord-to-arc error in pixels. Default 0.1px.
+
+    Returns:
+        List of (x, y) pixel coordinates forming the polygon, or None if pose
+        information is unavailable (caller should fall back to the raw 4-corner polygon).
+    """
+    if not (
+        detection is not None
+        and getattr(detection, "position", None) is not None
+        and getattr(detection, "rotation_quaternion", None) is not None
+        and getattr(detection, "k_matrix", None) is not None
+        and getattr(detection, "tag_size_mm", None) is not None
+        and getattr(detection, "record_type", "") == "TAG"
+    ):
+        return None
+
+    pos = np.array(detection.position)
+    rot_mat = quaternion_wxyz_to_matrix(detection.rotation_quaternion)
+    k_matrix = np.array(detection.k_matrix)
+    half = detection.tag_size_mm / 1000.0 / 2.0
+    fx, fy = float(k_matrix[0, 0]), float(k_matrix[1, 1])
+    cx, cy = float(k_matrix[0, 2]), float(k_matrix[1, 2])
+
+    # Center-Origin Convention: +X Right, +Y Down, +Z Into the plane.
+    local_corners = np.array(
+        [
+            [-half, -half, 0.0],  # TL
+            [half, -half, 0.0],  # TR
+            [half, half, 0.0],  # BR
+            [-half, half, 0.0],  # BL
+        ]
+    )
+    points_cam = (rot_mat @ local_corners.T).T + pos
+
+    clipped = _clip_polygon_near_plane(points_cam)
+    if len(clipped) < 3:
+        return None
+
+    clipped_arr = np.array(clipped)
+    m = len(clipped_arr)
+
+    def project(p: np.ndarray) -> tuple[float, float]:
+        return _project_cam_point(p, fx, fy, cx, cy, distortion_coeffs or [], distortion_model)
+
+    # Build polygon by adaptive subdivision; each call returns (p1, p2] so vertices
+    # are not duplicated at shared corners.
+    result: list[tuple[float, float]] = [project(clipped_arr[0])]
+    for i in range(m):
+        p1 = clipped_arr[i]
+        p2 = clipped_arr[(i + 1) % m]
+        proj1 = project(p1)
+        proj2 = project(p2)
+        result.extend(_adaptive_edge(p1, p2, proj1, proj2, project, max_error_px, 0, max_depth=12))
+
+    return result
 
 
 def normalize_corner_order(
@@ -177,6 +298,70 @@ def verify_corner_order(
         return validate_winding_order(corners)
     else:  # ccw
         return not validate_winding_order(corners)
+
+
+def compute_eval_visibility(
+    points: np.ndarray,
+    width: int,
+    height: int,
+    margin_px: int = 0,
+) -> np.ndarray:
+    """Compute per-keypoint visibility booleans for COCO export with an edge margin.
+
+    A point is True (v=2 / VISIBLE) only if it lies strictly inside the inner
+    region [margin_px, W-margin_px) x [margin_px, H-margin_px).  Sentinel points
+    and points outside the image boundary are False (v=0 or v=1).
+
+    Delegates to ``compute_eval_visibility_ternary`` and compares against VISIBLE.
+
+    Args:
+        points: (N, 2) pixel coordinates.
+        width: Image width in pixels.
+        height: Image height in pixels.
+        margin_px: Evaluation margin in pixels. 0 means no margin (full image is valid).
+
+    Returns:
+        Boolean array of length N.
+    """
+    ternary = compute_eval_visibility_ternary(points, width, height, margin_px)
+    return ternary == KeypointVisibility.VISIBLE
+
+
+def compute_eval_visibility_ternary(
+    points: np.ndarray,
+    width: int,
+    height: int,
+    margin_px: int = 0,
+) -> np.ndarray:
+    """Compute per-keypoint ternary visibility state (0/1/2) for rich_truth serialization.
+
+    Unlike ``compute_eval_visibility`` (which returns booleans for COCO), this
+    function returns the full ``KeypointVisibility`` integer:
+      - ``OUT_OF_FRAME (0)``   — sentinel point (-1, -1)
+      - ``MARGIN_TRUNCATED (1)`` — in image, inside eval_margin_px edge zone
+      - ``VISIBLE (2)``        — inside the inner safe region
+
+    Args:
+        points: (N, 2) pixel coordinates.
+        width: Image width in pixels.
+        height: Image height in pixels.
+        margin_px: Evaluation margin in pixels. 0 means no margin.
+
+    Returns:
+        Integer array of length N with values in {0, 1, 2}.
+    """
+    pts = np.asarray(points, dtype=float)
+    x, y = pts[:, 0], pts[:, 1]
+    sentinel = (x == KEYPOINT_SENTINEL[0]) & (y == KEYPOINT_SENTINEL[1])
+
+    # Default to MARGIN_TRUNCATED — covers out-of-image non-sentinel points too
+    result = np.full(len(pts), KeypointVisibility.MARGIN_TRUNCATED, dtype=np.int8)
+    result[sentinel] = KeypointVisibility.OUT_OF_FRAME
+    in_inner = (
+        (x >= margin_px) & (x < width - margin_px) & (y >= margin_px) & (y < height - margin_px)
+    )
+    result[in_inner & ~sentinel] = KeypointVisibility.VISIBLE
+    return result
 
 
 def format_coco_keypoints(

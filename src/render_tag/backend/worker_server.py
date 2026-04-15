@@ -155,8 +155,23 @@ class ZmqBackendServer:
         output_dir.mkdir(parents=True, exist_ok=True)
         self.writers = {
             "csv": CSVWriter(output_dir / f"tags_shard_{shard_id}.csv"),
-            "coco": COCOWriter(output_dir, filename=f"coco_shard_{shard_id}.json"),
-            "rich": RichTruthWriter(output_dir / f"rich_truth_shard_{shard_id}.json"),
+            "coco": COCOWriter(
+                output_dir,
+                filename=f"coco_shard_{shard_id}.json",
+                eval_margin_px=(
+                    self.job_spec.scene_config.camera.eval_margin_px
+                    if self.job_spec is not None
+                    else 0
+                ),
+            ),
+            "rich": RichTruthWriter(
+                output_dir / f"rich_truth_shard_{shard_id}.json",
+                eval_margin_px=(
+                    self.job_spec.scene_config.camera.eval_margin_px
+                    if self.job_spec is not None
+                    else 0
+                ),
+            ),
             "provenance": ProvenanceWriter(output_dir / f"provenance_shard_{shard_id}.json"),
         }
         self.writers["csv"]._ensure_initialized()

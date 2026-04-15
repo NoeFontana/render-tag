@@ -349,6 +349,18 @@ class CameraConfig(BaseModel):
         default=None, description="Maximum area in pixels for a tag to be valid"
     )
 
+    # Evaluation Margin ("Don't Care" Zone)
+    eval_margin_px: int = Field(
+        default=0,
+        ge=0,
+        description=(
+            "Pixel-width margin along image edges treated as a 'Don't Care' zone. "
+            "Keypoints within this margin receive v=1 (labeled but not visible) in "
+            "COCO export instead of v=2. Set to 0 (default) to disable. "
+            "Typical value: 5px (half-radius of a standard 11-px Gaussian kernel)."
+        ),
+    )
+
     # Tone Mapping: 'linear' for raw, 'srgb' for standard, 'filmic' for modern ISP simulation
     tone_mapping: Literal["linear", "srgb", "filmic"] = Field(
         default="filmic", description="Tone mapping operator"

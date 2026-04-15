@@ -26,6 +26,17 @@ def test_saved_views_creation():
     assert any(tag in args[0] for tag in ["ERR_OOB", "ERR_OVERLAP", "ERR_SCALE_DRIFT"])
     mock_dataset.save_view.assert_any_call("Anomalies", mock_error_view)
 
+    # VERIFY — Evaluation Ready view
+    # The first call to filter_labels comes from the view() return if has_sample_field is True.
+    # We haven't mocked has_sample_field, so it evaluates to True.
+    mock_dataset.view.assert_called()
+    view_mock = mock_dataset.view.return_value
+    chained_view = view_mock.filter_labels.return_value.filter_labels.return_value
+    mock_dataset.save_view.assert_any_call("Evaluation Ready", chained_view)
+
+    # VERIFY — Strict Geometry view
+    mock_dataset.save_view.assert_any_call("Strict Geometry", mock_dataset.view.return_value)
+
 
 def test_saved_views_calibration_when_present():
     """

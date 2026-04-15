@@ -28,7 +28,7 @@ def test_metadata_hydration_mapping():
 
 
 def test_keypoint_mapping():
-    """Test that corners are mapped to labeled keypoints correctly."""
+    """Test that corners are mapped to labeled keypoints with visibility correctly."""
     from render_tag.viz.fiftyone_tool import map_corners_to_keypoints
 
     corners = [[100, 100], [200, 100], [200, 200], [100, 200]]
@@ -42,10 +42,56 @@ def test_keypoint_mapping():
     # Check labels
     labels = [kp.label for kp in keypoints.keypoints]
     assert labels == ["0", "1", "2", "3"]
-    # Check points (relative to image size in FiftyOne, but let's assume raw for now
-    # or handle normalization in implementation)
-    points = [kp.points[0] for kp in keypoints.keypoints]
-    assert points[0] == [100, 100]
+    # Check visibility (default 2 for non-sentinel)
+    for kp in keypoints.keypoints:
+        assert kp.visibility == 2
+        assert "margin" not in kp.tags
+
+
+def test_keypoint_mapping_with_margin():
+    """Test that corners in the margin zone are tagged correctly."""
+    from render_tag.viz.fiftyone_tool import map_corners_to_keypoints
+
+    # W=1000, H=1000, margin=50
+    corners = [
+        [10, 500],  # Left margin (v=1)
+        [500, 10],  # Top margin (v=1)
+        [990, 500],  # Right margin (v=1)
+        [500, 500],  # Interior (v=2)
+        [-1, -1],  # Sentinel (v=0)
+    ]
+
+    # ACT
+    keypoints = map_corners_to_keypoints(corners, width=1000, height=1000, margin_px=50)
+
+    # VERIFY
+    kps = keypoints.keypoints
+    assert kps[0].visibility == 1
+    assert "margin" in kps[0].tags
+    assert kps[1].visibility == 1
+    assert "margin" in kps[1].tags
+    assert kps[2].visibility == 1
+    assert "margin" in kps[2].tags
+    assert kps[3].visibility == 2
+    assert "margin" not in kps[3].tags
+    assert kps[4].visibility == 0
+    assert "sentinel" in kps[4].tags
+
+
+def test_keypoint_mapping_explicit_visibility():
+    """Test mapping corners with explicit visibility flags from rich truth."""
+    from render_tag.viz.fiftyone_tool import map_corners_to_keypoints
+
+    corners = [[100, 100], [200, 100]]
+    vis_flags = [2, 1]
+
+    # ACT
+    keypoints = map_corners_to_keypoints(corners, visibility_flags=vis_flags)
+
+    # VERIFY
+    assert keypoints.keypoints[0].visibility == 2
+    assert keypoints.keypoints[1].visibility == 1
+    assert "margin" in keypoints.keypoints[1].tags
 
 
 def test_hydration_includes_board_definition():
@@ -84,19 +130,37 @@ def test_calibration_keypoints_filter_sentinels():
         [100.0, 200.0],
         [-1.0, -1.0],  # sentinel
         [300.0, 400.0],
-        [-1.0, -1.0],  # sentinel
-        [500.0, 600.0],
     ]
 
     result = map_calibration_keypoints(keypoints, width=1000.0, height=1000.0)
 
-    # Only 3 visible keypoints
-    assert len(result) == 3
+    # Only 2 visible keypoints
+    assert len(result) == 2
     labels = [kp.label for kp in result]
-    assert labels == ["0", "2", "4"]  # Preserves original indices
-    # Verify normalization
-    assert result[0].points == [[0.1, 0.2]]
-    assert result[1].points == [[0.3, 0.4]]
+    assert labels == ["0", "2"]  # Preserves original indices
+    # Default visibility is 2
+    for kp in result:
+        assert kp.visibility == 2
+        assert "margin" not in kp.tags
+
+
+def test_calibration_keypoints_with_visibility_flags():
+    """Test calibration mapping with explicit visibility flags (v=1 support)."""
+    from render_tag.viz.fiftyone_tool import map_calibration_keypoints
+
+    keypoints = [
+        [100.0, 200.0],
+        [300.0, 400.0],
+    ]
+    vis_flags = [2, 1]
+
+    result = map_calibration_keypoints(
+        keypoints, width=1000.0, height=1000.0, visibility_flags=vis_flags
+    )
+
+    assert result[0].visibility == 2
+    assert result[1].visibility == 1
+    assert "margin" in result[1].tags
 
 
 def test_calibration_skeleton_grid():

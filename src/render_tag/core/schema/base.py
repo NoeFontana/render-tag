@@ -8,7 +8,7 @@ that the "Executor" (Blender) or "Shadow Renderer" (Visualization) can consume s
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import Enum, IntEnum
 from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
@@ -99,6 +99,18 @@ class SceneProvenance(BaseModel):
 # =============================================================================
 # Export & Detection Types
 # =============================================================================
+
+
+class KeypointVisibility(IntEnum):
+    """Ternary visibility state for 2D projected keypoints.
+
+    Matches the COCO keypoint convention (v=0/1/2) and extends it with a
+    semantic name for the intermediate "Don't Care" margin zone.
+    """
+
+    OUT_OF_FRAME = 0  # Behind camera or geometric sentinel — coords zeroed in COCO
+    MARGIN_TRUNCATED = 1  # In image but within eval_margin_px of an edge — ignore in eval
+    VISIBLE = 2  # Inside the inner safe region — fully evaluable
 
 
 KEYPOINT_SENTINEL: tuple[float, float] = (-1.0, -1.0)
@@ -212,11 +224,44 @@ class DetectionRecord(BaseModel):
     )
     fstop: float | None = Field(default=None, description="Aperture f-number")
 
+    # --- Evaluation ---
+    eval_margin_px: int = Field(
+        default=0, description="Pixel-width 'Don't Care' margin along image edges"
+    )
+
     # --- Provenance ---
     global_seed: int | None = Field(default=None, description="Master random seed used")
     scene_seed: int | None = Field(default=None, description="Scene-specific derived seed")
 
     metadata: dict[str, Any] = Field(default_factory=dict)
+
+    # --- Evaluation Visibility (populated by I/O layer, not generation) ---
+    corners_visibility: list[KeypointVisibility] | None = Field(
+        default=None,
+        description=(
+            "Per-corner KeypointVisibility flags [0/1/2] computed from eval_margin_px. "
+            "None means the dataset was generated without an eval margin."
+        ),
+    )
+    keypoints_visibility: list[KeypointVisibility] | None = Field(
+        default=None,
+        description=(
+            "Per-keypoint KeypointVisibility flags [0/1/2] for calibration saddle points. "
+            "Parallel to the `keypoints` list. None if no keypoints or no margin set."
+        ),
+    )
+    eval_complete: bool = Field(
+        default=True,
+        description=(
+            "TAG records only: True iff all 4 corners have visibility=2 (VISIBLE). "
+            "False whenever any corner falls inside the eval_margin_px zone or outside "
+            "the image frame. Downstream consumers should filter on this field to "
+            "exclude partial detections from evaluation metrics. "
+            "Not set for BOARD records — use keypoints_visibility directly to filter "
+            "individual saddle points. Defaults to True for datasets generated without "
+            "an eval margin (all points assumed evaluable)."
+        ),
+    )
 
     # --- Board Topology (BOARD records only) ---
     board_definition: BoardDefinition | None = Field(

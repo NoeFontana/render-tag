@@ -216,10 +216,21 @@ class RenderTagDataset:
 # ---------------------------------------------------------------------------
 
 
+def unwrap_rich_truth(raw: list | dict) -> list[dict]:
+    """Extract the records list from either format.
+
+    v1 (legacy): bare JSON array  → returned as-is
+    v2+:         ``{"version": "2.0", "records": [...], ...}`` → records extracted
+    """
+    if isinstance(raw, dict):
+        return raw.get("records", [])
+    return raw
+
+
 def _load_records(path: Path) -> list[DetectionRecord]:
     """Load and validate records from a ``rich_truth.json`` file."""
     with open(path) as f:
-        raw_records: list[dict] = json.load(f)
+        raw_records = unwrap_rich_truth(json.load(f))
 
     records: list[DetectionRecord] = []
     for raw in raw_records:
