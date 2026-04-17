@@ -36,6 +36,7 @@ camera:
     distribution: uniform
   tone_mapping: filmic
   iso: 100
+  eval_margin_px: 5
 
 scenario:
   subject:

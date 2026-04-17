@@ -3,6 +3,7 @@ Visualization tools for render-tag datasets and scene recipes.
 """
 
 import csv
+import json
 from pathlib import Path
 from typing import Any
 
@@ -20,6 +21,7 @@ from PIL import Image, ImageDraw
 from rich.console import Console
 
 from render_tag.core.schema import ObjectRecipe, SceneRecipe
+from render_tag.core.schema.base import KeypointVisibility
 
 console = Console()
 
@@ -178,6 +180,14 @@ def visualize_dataset(
             console.print(f"[bold red]Error:[/bold red] {msg}")
             return
 
+    eval_margin_px = 0
+    try:
+        with open(output_dir / "rich_truth.json") as f:
+            rt = json.load(f)
+        eval_margin_px = int(rt.get("evaluation_context", {}).get("photometric_margin_px", 0))
+    except (FileNotFoundError, json.JSONDecodeError, ValueError):
+        pass
+
     if save_viz:
         viz_dir.mkdir(parents=True, exist_ok=True)
 
@@ -193,7 +203,7 @@ def visualize_dataset(
             continue
 
         img = Image.open(img_path).convert("RGB")
-        _draw_overlay_on_image(img, detections[image_id])
+        _draw_overlay_on_image(img, detections[image_id], eval_margin_px=eval_margin_px)
 
         if save_viz:
             out_path = viz_dir / f"{image_id}_viz.png"
@@ -206,8 +216,6 @@ def visualize_dataset(
 
 def _load_detections_from_coco(coco_path: Path) -> dict[str, list[dict]]:
     """Load and format detections from COCO JSON."""
-    import json
-
     detections = {}
     with open(coco_path) as f:
         coco = json.load(f)
@@ -223,16 +231,20 @@ def _load_detections_from_coco(coco_path: Path) -> dict[str, list[dict]]:
         if img_id_str not in detections:
             detections[img_id_str] = []
 
-        # Extract corners from keypoints [x, y, v, x, y, v...]
         kp = ann.get("keypoints", [])
         corners = []
         if kp:
-            for i in range(0, len(kp), 3):
-                corners.append((float(kp[i]), float(kp[i + 1])))
+            for i in range(0, min(12, len(kp)), 3):  # 12 = 4 corners x 3 fields
+                v = int(kp[i + 2]) if i + 2 < len(kp) else KeypointVisibility.VISIBLE
+                corners.append((float(kp[i]), float(kp[i + 1]), v))
         else:
-            # Fallback to bbox if no keypoints (approximation)
             x, y, w, h = ann["bbox"]
-            corners = [(x, y), (x + w, y), (x + w, y + h), (x, y + h)]
+            corners = [
+                (x, y, KeypointVisibility.VISIBLE),
+                (x + w, y, KeypointVisibility.VISIBLE),
+                (x + w, y + h, KeypointVisibility.VISIBLE),
+                (x, y + h, KeypointVisibility.VISIBLE),
+            ]
 
         detections[img_id_str].append(
             {"tag_id": ann.get("attributes", {}).get("tag_id", "?"), "corners": corners}
@@ -253,57 +265,66 @@ def _load_detections_from_csv(csv_path: Path) -> dict[str, list[dict]]:
                 {
                     "tag_id": int(row["tag_id"]),
                     "corners": [
-                        (float(row["x1"]), float(row["y1"])),
-                        (float(row["x2"]), float(row["y2"])),
-                        (float(row["x3"]), float(row["y3"])),
-                        (float(row["x4"]), float(row["y4"])),
+                        (float(row["x1"]), float(row["y1"]), KeypointVisibility.VISIBLE),
+                        (float(row["x2"]), float(row["y2"]), KeypointVisibility.VISIBLE),
+                        (float(row["x3"]), float(row["y3"]), KeypointVisibility.VISIBLE),
+                        (float(row["x4"]), float(row["y4"]), KeypointVisibility.VISIBLE),
                     ],
                 }
             )
     return detections
 
 
-def _draw_overlay_on_image(img: Image.Image, detections: list[dict]):
-    """Draw lime edges, red crosshairs, corner indices and winding arrows."""
+def _draw_overlay_on_image(
+    img: Image.Image, detections: list[dict], eval_margin_px: int = 0
+) -> None:
+    """Draw lime edges, crosshairs, winding arrows, and eval margin border.
+
+    Crosshair colour: red = VISIBLE, orange = MARGIN_TRUNCATED. Sentinels skipped.
+    """
     from PIL import ImageFont
 
     draw = ImageDraw.Draw(img)
 
-    # Try to load a font, fallback to default
     try:
         font = ImageFont.load_default()
     except Exception:
         font = None
 
+    if eval_margin_px > 0:
+        m = eval_margin_px
+        w, h = img.size
+        draw.rectangle(
+            [(m, m), (w - m - 1, h - m - 1)],
+            outline="orange",
+            width=1,
+        )
+
     for det in detections:
-        corners = det["corners"]
-        # Draw edges and winding arrows
-        if len(corners) == 4:
+        raw_corners = det["corners"]
+        corners_xy = [(c[0], c[1]) for c in raw_corners]
+        corner_vis = [c[2] if len(c) > 2 else KeypointVisibility.VISIBLE for c in raw_corners]
+
+        if len(corners_xy) == 4:
             for i in range(4):
-                p1 = corners[i]
-                p2 = corners[(i + 1) % 4]
-                # Edge
+                p1 = corners_xy[i]
+                p2 = corners_xy[(i + 1) % 4]
                 draw.line([p1, p2], fill="lime", width=2)
 
-                # Winding arrow (cyan) at midpoint
                 mid_x = (p1[0] + p2[0]) / 2
                 mid_y = (p1[1] + p2[1]) / 2
-                # Small directional tick
                 v_x = p2[0] - p1[0]
                 v_y = p2[1] - p1[1]
                 v_len = (v_x**2 + v_y**2) ** 0.5
                 if v_len > 1e-6:
                     v_x /= v_len
                     v_y /= v_len
-                    # Arrow head
                     ah_len = 5
-                    ah_angle = 0.5  # radians
-                    # Back vectors
+                    ah_angle = 0.5
                     b1_x = -v_x * np.cos(ah_angle) + v_y * np.sin(ah_angle)
                     b1_y = -v_x * np.sin(ah_angle) - v_y * np.cos(ah_angle)
                     b2_x = -v_x * np.cos(ah_angle) - v_y * np.sin(ah_angle)
                     b2_y = v_x * np.sin(ah_angle) - v_y * np.cos(ah_angle)
-
                     draw.line(
                         [(mid_x, mid_y), (mid_x + b1_x * ah_len, mid_y + b1_y * ah_len)],
                         fill="cyan",
@@ -315,15 +336,15 @@ def _draw_overlay_on_image(img: Image.Image, detections: list[dict]):
                         width=2,
                     )
 
-        # Draw corners (crosshairs for precision) and indices
-        for i, corner in enumerate(corners):
-            cx, cy = corner
+        for i, (cx, cy) in enumerate(corners_xy):
+            v = corner_vis[i]
+            if v == KeypointVisibility.OUT_OF_FRAME:
+                continue
+            color = "orange" if v == KeypointVisibility.MARGIN_TRUNCATED else "red"
             r = 3
-            # Crosshair
-            draw.line([(cx - r, cy), (cx + r, cy)], fill="red", width=1)
-            draw.line([(cx, cy - r), (cx, cy + r)], fill="red", width=1)
+            draw.line([(cx - r, cy), (cx + r, cy)], fill=color, width=1)
+            draw.line([(cx, cy - r), (cx, cy + r)], fill=color, width=1)
 
-            # Index (yellow)
             if font:
                 draw.text((cx + 5, cy + 5), str(i), fill="yellow", font=font)
             else:
@@ -332,8 +353,6 @@ def _draw_overlay_on_image(img: Image.Image, detections: list[dict]):
 
 def visualize_recipe(recipe_path: Path, output_dir: Path):
     """Load recipe and visualize it in 2D."""
-    import json
-
     with open(recipe_path) as f:
         data = json.load(f)
 

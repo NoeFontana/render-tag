@@ -18,6 +18,7 @@ camera:
   max_elevation: 0.9
   tone_mapping: filmic
   iso: 100
+  eval_margin_px: 5
 
 scenario:
   subject:
