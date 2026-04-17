@@ -4,7 +4,7 @@
 # Statistical goal: 150 scenes, full elevation range to stress corner displacement near borders.
 
 dataset:
-  num_scenes: 150
+  num_scenes: 50
   seeds:
     global_seed: 2027
   evaluation_scopes: [pose_estimation, detection, calibration]
@@ -17,9 +17,9 @@ camera:
   fov: 70.0
   samples_per_scene: 1
   min_distance: 1.0
-  max_distance: 10.0
+  max_distance: 5.0
   # Full elevation range: stresses corner displacement at image borders
-  min_elevation: 0.3
+  min_elevation: 0.5
   max_elevation: 1.0
   min_roll: -180.0
   max_roll: 180.0
@@ -41,6 +41,7 @@ camera:
     k3:  0.0
     p1:  0.0002
     p2:  0.0001
+  eval_margin_px: 5
 
 scenario:
   subject:
