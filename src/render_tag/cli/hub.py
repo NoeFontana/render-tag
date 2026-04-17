@@ -79,7 +79,11 @@ def render_generator(data_dir: Path) -> Generator[dict[str, Any], None, None]:
         console.print(f"[dim]Found rich_truth.json in {data_dir}[/dim]")
         try:
             with open(rich_truth_path) as f:
-                records = json.load(f)
+                data = json.load(f)
+
+            # Handle both flat list (v1) and nested dict (v2)
+            records = data.get("records", []) if isinstance(data, dict) else data
+
             for record in records:
                 image_id = record.get("image_id")
                 if image_id:
@@ -104,35 +108,44 @@ def render_generator(data_dir: Path) -> Generator[dict[str, Any], None, None]:
                 console.print(f"[red]Error processing {meta_path.name}:[/red] {e}")
 
     # 3. Yield image-centric records
+    from PIL import Image as PILImage
+
     for image_id, tags in grouped_data.items():
-        image_path = images_dir / f"{image_id}.png"
-        if not image_path.exists():
+        try:
+            image_path = images_dir / f"{image_id}.png"
+            if not image_path.exists():
+                continue
+
+            # Load image to ensure it works and match schema Image()
+            img = PILImage.open(image_path).convert("RGB")
+
+            parts = image_id.split("_")
+            scene_id = int(parts[1]) if len(parts) > 1 else 0
+            camera_idx = int(parts[3]) if len(parts) > 3 else 0
+
+            # Aggregate per-tag fields into sequences
+            yield {
+                "image": img,
+                "image_id": image_id,
+                "scene_id": int(scene_id),
+                "camera_idx": int(camera_idx),
+                "tag_id": [int(t.get("tag_id", 0)) for t in tags],
+                "tag_family": [str(t.get("tag_family", "unknown")) for t in tags],
+                "corners": [t.get("corners", []) for t in tags],
+                "distance": [float(t.get("distance", 0.0)) for t in tags],
+                "angle_of_incidence": [float(t.get("angle_of_incidence", 0.0)) for t in tags],
+                "pixel_area": [float(t.get("pixel_area", 0.0)) for t in tags],
+                "occlusion_ratio": [float(t.get("occlusion_ratio", 0.0)) for t in tags],
+                "ppm": [float(t.get("ppm", 0.0)) for t in tags],
+                "position": [t.get("position", [0.0, 0.0, 0.0]) for t in tags],
+                "rotation_quaternion": [
+                    t.get("rotation_quaternion", [1.0, 0.0, 0.0, 0.0]) for t in tags
+                ],
+                "metadata": [json.dumps(t.get("metadata", {})) for t in tags],
+            }
+        except Exception as e:
+            logger.error(f"Error yielding record for {image_id}: {e}")
             continue
-
-        parts = image_id.split("_")
-        scene_id = int(parts[1]) if len(parts) > 1 else 0
-        camera_idx = int(parts[3]) if len(parts) > 3 else 0
-
-        # Aggregate per-tag fields into sequences
-        yield {
-            "image": str(image_path),
-            "image_id": image_id,
-            "scene_id": scene_id,
-            "camera_idx": camera_idx,
-            "tag_id": [t.get("tag_id", 0) for t in tags],
-            "tag_family": [t.get("tag_family", "unknown") for t in tags],
-            "corners": [t.get("corners", []) for t in tags],
-            "distance": [t.get("distance", 0.0) for t in tags],
-            "angle_of_incidence": [t.get("angle_of_incidence", 0.0) for t in tags],
-            "pixel_area": [t.get("pixel_area", 0.0) for t in tags],
-            "occlusion_ratio": [t.get("occlusion_ratio", 0.0) for t in tags],
-            "ppm": [t.get("ppm", 0.0) for t in tags],
-            "position": [t.get("position", [0.0, 0.0, 0.0]) for t in tags],
-            "rotation_quaternion": [
-                t.get("rotation_quaternion", [1.0, 0.0, 0.0, 0.0]) for t in tags
-            ],
-            "metadata": [json.dumps(t.get("metadata", {})) for t in tags],
-        }
 
 
 @app.command(name="push-dataset")
@@ -155,9 +168,17 @@ def push_dataset(
     _ensure_hub()
     console.print(f"[bold blue]🚀 Preparing upload for config:[/bold blue] {config_name}")
 
-    ds = Dataset.from_generator(
-        render_generator, gen_kwargs={"data_dir": data_dir}, features=get_dataset_features()
-    )
+    # Collect records into a list for better reliability/debugging than from_generator
+    console.print("[dim]Collecting records...[/dim]")
+    records = list(render_generator(data_dir))
+
+    if not records:
+        console.print("[red]Error: No records found to upload![/red]")
+        raise typer.Exit(code=1)
+
+    console.print(f"[green]Collected {len(records)} image records.[/green]")
+
+    ds = Dataset.from_list(records, features=get_dataset_features())
 
     console.print(
         f"[bold green]📊 Created dataset with {len(ds)} images (deduplicated)[/bold green]"

@@ -111,7 +111,7 @@ class TestHubManager(unittest.TestCase):
         from render_tag.cli.hub import push_dataset
 
         mock_ds = MagicMock()
-        mock_dataset_class.from_generator.return_value = mock_ds
+        mock_dataset_class.from_list.return_value = mock_ds
 
         # We need to use a Typer test runner for proper CLI testing,
         # but here we test the function directly for logic verification
