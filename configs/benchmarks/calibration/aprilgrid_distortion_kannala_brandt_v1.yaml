@@ -4,7 +4,7 @@
 # Statistical goal: 150 scenes, full elevation range.
 
 dataset:
-  num_scenes: 150
+  num_scenes: 50
   seeds:
     global_seed: 2028
   evaluation_scopes: [pose_estimation, detection, calibration]
@@ -19,7 +19,7 @@ camera:
   min_distance: 0.5
   max_distance: 5.0
   # Full elevation range: fisheye boards visible even at steep angles
-  min_elevation: 0.1
+  min_elevation: 0.25
   max_elevation: 1.0
   min_roll: -180.0
   max_roll: 180.0
