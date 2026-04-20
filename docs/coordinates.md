@@ -146,7 +146,7 @@ This makes `rich_truth.json` self-describing — downstream calibration scripts 
 ---
 
 ### Physical Size vs. Annotated Corners
--   **`size_meters`**: Defines the **outer edge** of the entire physical asset (including white margin).
+-   **`scenario.subject.size_mm`**: Defines the **outer edge** of the entire physical asset (including white margin).
 -   **Annotated Corners**: Represent the **outer edge of the black border** only. 
 
 The relationship is determined by `margin_bits`. For a tag with $N$ bits and a margin of $M$ bits, the annotated corners are located at a scale of $N / (N + 2M)$ relative to the physical center.

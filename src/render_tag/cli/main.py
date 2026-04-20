@@ -10,7 +10,7 @@ from rich.panel import Panel
 
 from render_tag.core.logging import setup_logging
 
-from . import audit, experiment, generate, hub, job, viz
+from . import audit, config, experiment, generate, hub, job, viz
 from .tools import console
 
 app = typer.Typer(
@@ -21,6 +21,7 @@ app = typer.Typer(
 
 # Register sub-apps
 app.add_typer(audit.app, name="audit")
+app.add_typer(config.app, name="config")
 app.add_typer(experiment.app, name="experiment")
 app.add_typer(viz.app, name="viz")
 app.add_typer(job.app, name="job")

@@ -96,28 +96,24 @@ class JobSpec(BaseModel):
     def from_json(cls, json_str: str) -> "JobSpec":
         """Deserialize and migrate JobSpec from JSON."""
         data = json.loads(json_str)
-        from render_tag.core.schema_adapter import SchemaMigrator
-
-        migrator = SchemaMigrator()
-        data = migrator.migrate(data)
-        return cls.model_validate(data)
+        return cls._migrate_and_validate(data)
 
     @classmethod
     def from_file(cls, path: Path | str) -> "JobSpec":
-        """Load, migrate, and potentially upgrade JobSpec from a file."""
+        """Load and migrate JobSpec from a file (in-memory only)."""
         path = Path(path)
         with open(path) as f:
             data = json.load(f)
+        return cls._migrate_and_validate(data)
 
-        from render_tag.core.schema_adapter import SchemaMigrator
+    @classmethod
+    def _migrate_and_validate(cls, data: dict) -> "JobSpec":
+        """Apply the ACL to both the outer envelope and the nested scene_config."""
+        from render_tag.core.schema_adapter import SchemaMigrator, adapt_config
 
-        migrator = SchemaMigrator()
-        original_version = migrator.get_version(data)
-        data = migrator.migrate(data)
-
-        if original_version != migrator.target_version:
-            migrator.upgrade_file_on_disk(path, data)
-
+        data = SchemaMigrator().migrate(data)
+        if isinstance(data.get("scene_config"), dict):
+            data["scene_config"] = adapt_config(data["scene_config"])
         return cls.model_validate(data)
 
 

@@ -38,7 +38,9 @@ def test_cli_resume_from_valid_job_spec(tmp_path):
     config_data = {
         "dataset": {"num_scenes": 20},
         "camera": {"resolution": [640, 480]},
-        "tag": {"family": "tag36h11"},
+        "scenario": {
+            "subject": {"type": "TAGS", "tag_families": ["tag36h11"]},
+        },
     }
     config = GenConfig.model_validate(config_data)
 

@@ -6,6 +6,7 @@ the current v2-compliant internal schema before Pydantic validation.
 """
 
 import json
+import warnings
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -16,6 +17,21 @@ from render_tag.core.constants import CURRENT_SCHEMA_VERSION
 from render_tag.core.logging import get_logger
 
 logger = get_logger(__name__)
+
+# Version in which deprecated fields surfaced by the ACL will be removed outright.
+# Surface this in warning messages so callers know their timeline.
+_REMOVAL_VERSION = "0.3"
+
+
+def _warn_legacy(field: str, replacement: str) -> None:
+    """Emit a DeprecationWarning for a legacy field rewritten by the ACL."""
+    warnings.warn(
+        f"Legacy config field {field!r} is deprecated and will be removed in schema "
+        f"v{_REMOVAL_VERSION}. Use {replacement!r} instead. "
+        f"Run `render-tag config migrate <path> --write` to upgrade your config.",
+        DeprecationWarning,
+        stacklevel=3,
+    )
 
 
 def adapt_config(data: dict[str, Any]) -> dict[str, Any]:
@@ -113,38 +129,59 @@ class SchemaMigrator:
         upgraded = data.copy()
         upgraded["version"] = "0.2"
 
-        if "scenario" in upgraded and isinstance(upgraded["scenario"], dict):
-            scenario = upgraded["scenario"]
-            if "subject" not in scenario:
-                # Staff Engineer: Synchronize tag size from 'tag' section if missing in 'scenario'
-                # This prevents defaulting to 0.1m when 0.16m was intended.
-                base_tag_size = 0.1
-                if "tag" in upgraded and isinstance(upgraded["tag"], dict):
-                    base_tag_size = upgraded["tag"].get("size_meters", base_tag_size)
+        # Synthesize scenario.subject from legacy fields when missing. tag.size_meters
+        # and tag.family must be honored even when scenario has no tag_families /
+        # tags_per_scene — otherwise a config with only tag: {size_meters: 0.16}
+        # silently defaults to 0.1 m via Pydantic's default_factory.
+        scenario = upgraded.setdefault("scenario", {})
+        if not isinstance(scenario, dict):
+            return upgraded
+        raw_tag = upgraded.get("tag")
+        tag_section: dict[str, Any] = raw_tag if isinstance(raw_tag, dict) else {}
 
-                # Check for legacy fields in scenario to trigger TAGS migration
-                if "tag_families" in scenario or "tags_per_scene" in scenario:
-                    tag_families = scenario.pop("tag_families", ["tag36h11"])
-                    tags_per_scene = scenario.pop("tags_per_scene", 10)
+        if "subject" in scenario:
+            return upgraded
 
-                    # Handle legacy [min, max] tuple often used in early locus-tag configs
-                    if isinstance(tags_per_scene, (list, tuple)) and len(tags_per_scene) > 0:
-                        tags_per_scene = tags_per_scene[-1]
+        # Legacy BOARD subject: leave alone, ScenarioConfig handles defaults.
+        if scenario.get("layout") == "board" or "board" in scenario:
+            return upgraded
 
-                    # Override base size if specific tag_size was provided in scenario
-                    actual_tag_size = scenario.pop("tag_size", base_tag_size)
+        has_scenario_tag_fields = "tag_families" in scenario or "tags_per_scene" in scenario
+        has_tag_section_fields = "family" in tag_section or "size_meters" in tag_section
+        if not (has_scenario_tag_fields or has_tag_section_fields):
+            return upgraded
 
-                    scenario["subject"] = {
-                        "type": "TAGS",
-                        "tag_families": tag_families,
-                        "size_meters": actual_tag_size,
-                        "tags_per_scene": tags_per_scene,
-                    }
+        tag_families = scenario.pop("tag_families", None)
+        if tag_families is not None:
+            _warn_legacy("scenario.tag_families", "scenario.subject.tag_families")
+        else:
+            family = tag_section.get("family", "tag36h11")
+            if "family" in tag_section:
+                _warn_legacy("tag.family", "scenario.subject.tag_families")
+            tag_families = [family] if not isinstance(family, list) else family
 
-                # Detect legacy Board config
-                elif scenario.get("layout") == "board" or "board" in scenario:
-                    # Let ScenarioConfig handle defaults
-                    pass
+        tags_per_scene = scenario.pop("tags_per_scene", None)
+        if tags_per_scene is not None:
+            _warn_legacy("scenario.tags_per_scene", "scenario.subject.tags_per_scene")
+            if isinstance(tags_per_scene, (list, tuple)) and len(tags_per_scene) > 0:
+                tags_per_scene = tags_per_scene[-1]
+        else:
+            tags_per_scene = 10
+
+        size_meters = scenario.pop("tag_size", None)
+        if size_meters is not None:
+            _warn_legacy("scenario.tag_size", "scenario.subject.size_mm")
+        else:
+            if "size_meters" in tag_section:
+                _warn_legacy("tag.size_meters", "scenario.subject.size_mm")
+            size_meters = tag_section.get("size_meters", 0.1)
+
+        scenario["subject"] = {
+            "type": "TAGS",
+            "tag_families": tag_families,
+            "size_mm": float(size_meters) * 1000.0,
+            "tags_per_scene": tags_per_scene,
+        }
 
         return upgraded
 
@@ -213,16 +250,18 @@ def _map_legacy_fields(data: dict[str, Any]) -> dict[str, Any]:
     # Map 'intent' -> 'evaluation_scopes' (DatasetConfig level)
     dataset = data.get("dataset", {})
     if isinstance(dataset, dict):
-        if "intent" in dataset and "evaluation_scopes" not in dataset:
-            intent_val = dataset["intent"]
-            if intent_val == "calibration":
-                dataset["evaluation_scopes"] = ["CALIBRATION"]
-            elif "pose" in str(intent_val):
-                dataset["evaluation_scopes"] = [
-                    "DETECTION",
-                    "POSE_ACCURACY",
-                    "CORNER_PRECISION",
-                ]
+        if "intent" in dataset:
+            _warn_legacy("dataset.intent", "dataset.evaluation_scopes")
+            intent_val = dataset.pop("intent")
+            if "evaluation_scopes" not in dataset:
+                if intent_val == "calibration":
+                    dataset["evaluation_scopes"] = ["CALIBRATION"]
+                elif "pose" in str(intent_val):
+                    dataset["evaluation_scopes"] = [
+                        "DETECTION",
+                        "POSE_ACCURACY",
+                        "CORNER_PRECISION",
+                    ]
 
         # Map legacy top-level 'seed' in dataset section
         if "seed" in dataset:
@@ -232,6 +271,22 @@ def _map_legacy_fields(data: dict[str, Any]) -> dict[str, Any]:
                 dataset["seeds"]["global_seed"] = dataset.pop("seed")
 
         data["dataset"] = dataset
+
+    # Strip deprecated TagConfig fields that are now sourced from scenario.subject.
+    # Warn unconditionally when they are present so callers know their configs
+    # still carry dead fields, even on v0.2 YAMLs that escaped earlier migration.
+    tag = data.get("tag", {})
+    if isinstance(tag, dict):
+        if "family" in tag:
+            _warn_legacy("tag.family", "scenario.subject.tag_families")
+            tag.pop("family")
+        if "size_meters" in tag:
+            _warn_legacy("tag.size_meters", "scenario.subject.size_mm")
+            tag.pop("size_meters")
+        if "size_mm" in tag:
+            _warn_legacy("tag.size_mm", "scenario.subject.size_mm")
+            tag.pop("size_mm")
+        data["tag"] = tag
 
     # Map legacy sensor dynamics (CameraConfig level)
     camera = data.get("camera", {})
@@ -257,10 +312,14 @@ def _map_legacy_fields(data: dict[str, Any]) -> dict[str, Any]:
     scenario = data.get("scenario", {})
     if isinstance(scenario, dict) and "subject" not in scenario:
         if "tag_families" in scenario or "tags_per_scene" in scenario:
+            if "tag_families" in scenario:
+                _warn_legacy("scenario.tag_families", "scenario.subject.tag_families")
+            if "tags_per_scene" in scenario:
+                _warn_legacy("scenario.tags_per_scene", "scenario.subject.tags_per_scene")
             scenario["subject"] = {
                 "type": "TAGS",
                 "tag_families": scenario.pop("tag_families", ["tag36h11"]),
-                "size_meters": scenario.pop("tag_size", 0.1),
+                "size_mm": float(scenario.pop("tag_size", 0.1)) * 1000.0,
                 "tags_per_scene": scenario.pop("tags_per_scene", 10),
             }
         elif ("layout" in scenario and scenario["layout"] == "board") or "board" in scenario:

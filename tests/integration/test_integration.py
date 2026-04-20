@@ -55,9 +55,11 @@ camera:
   resolution: [128, 128]
   fov: 60.0
   samples_per_scene: 1
-tag:
-  family: tag36h11
-  size_meters: 0.05
+scenario:
+  subject:
+    type: TAGS
+    tag_families: [tag36h11]
+    size_mm: 50.0
 scene:
   background_hdri: "assets/hdri/dummy.exr"
   texture_dir: null

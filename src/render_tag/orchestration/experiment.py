@@ -157,6 +157,8 @@ def expand_campaign(campaign: Campaign) -> list[ExperimentVariant]:
     """Expand a Campaign into a list of concrete Variants."""
     import yaml
 
+    from render_tag.core.schema_adapter import adapt_config
+
     variants = []
 
     base_output_dir = Path(campaign.output_dir)
@@ -210,7 +212,7 @@ def expand_campaign(campaign: Campaign) -> list[ExperimentVariant]:
             config_data["dataset"]["metadata"].update(campaign.metadata)
 
         try:
-            config = GenConfig.model_validate(config_data)
+            config = GenConfig.model_validate(adapt_config(config_data))
         except Exception as e:
             raise ValueError(f"Invalid config for sub-experiment '{sub_exp.name}': {e}") from e
 

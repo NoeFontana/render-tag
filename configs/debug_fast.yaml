@@ -2,18 +2,22 @@ dataset:
   output_dir: output/debug
   num_scenes: 1
 camera:
-  resolution: [640, 480]
+  resolution:
+  - 640
+  - 480
   fov: 90.0
   samples_per_scene: 1
   min_distance: 1.0
   max_distance: 2.0
-tag:
-  family: tag36h11
-  size_mm: 100.0
+tag: {}
 scenario:
   sampling_mode: random
-  tag_families: [tag36h11]
-  tags_per_scene: 2
+  subject:
+    type: TAGS
+    tag_families:
+    - tag36h11
+    size_mm: 100.0
+    tags_per_scene: 2
 scene:
   lighting:
     intensity_min: 500

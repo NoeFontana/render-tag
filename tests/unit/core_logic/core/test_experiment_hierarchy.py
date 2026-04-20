@@ -18,13 +18,13 @@ experiments:
     overrides:
       dataset:
         seed: 42
-        intent: calibration_cv
+        evaluation_scopes: [calibration]
 
   - name: 02_aprilgrid
     config: {tmp_path}/configs/presets/calibration/02_aprilgrid.yaml
     overrides:
       dataset:
-        intent: calibration_tag
+        evaluation_scopes: [detection, pose_estimation]
     """)
     return p
 
@@ -58,7 +58,7 @@ def test_load_campaign_config(campaign_yaml):
     assert Path(config.output_dir) == Path("output/locus_bench_v1/01_calibration")
     assert len(config.experiments) == 2
     assert config.experiments[0].name == "01_checkerboard"
-    assert config.experiments[0].overrides["dataset"]["intent"] == "calibration_cv"
+    assert config.experiments[0].overrides["dataset"]["evaluation_scopes"] == ["calibration"]
 
 
 def test_expand_campaign(campaign_yaml, preset_configs):
@@ -78,12 +78,15 @@ def test_expand_campaign(campaign_yaml, preset_configs):
     # Output dir should be <campaign_output>/<sub_exp_name>
     expected_out = Path("output/locus_bench_v1/01_calibration/01_checkerboard")
     assert v1.config.dataset.output_dir == expected_out
-    # Check intent override
-    assert v1.config.dataset.intent == "calibration_cv"
+    # Check evaluation_scopes override
+    assert [s.value for s in v1.config.dataset.evaluation_scopes] == ["calibration"]
 
     # Check variant 2
     v2 = variants[1]
     assert v2.experiment_name == "02_aprilgrid"
     expected_out_2 = Path("output/locus_bench_v1/01_calibration/02_aprilgrid")
     assert v2.config.dataset.output_dir == expected_out_2
-    assert v2.config.dataset.intent == "calibration_tag"
+    assert [s.value for s in v2.config.dataset.evaluation_scopes] == [
+        "detection",
+        "pose_estimation",
+    ]

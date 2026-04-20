@@ -29,17 +29,9 @@ def test_dot_notation_overrides():
 
 def test_dot_notation_list_index():
     resolver = ConfigResolver()
-    # Test indexing if we had a list of cameras
-    # (we don't yet in GenConfig, but requirement mentioned it)
-    # Actually, GenConfig has:
-    # scenario: ScenarioConfig
-    #   tag_families: list[TagFamily]
-
-    from render_tag.core.config import TagFamily
-
-    overrides = {"scenario.tag_families.0": "tag16h5"}
+    overrides = {"scenario.subject.root.tag_families.0": "tag16h5"}
     spec = resolver.resolve(output_dir=Path("/tmp/out"), overrides=overrides)
-    assert spec.scene_config.scenario.tag_families[0] == TagFamily.TAG16H5
+    assert spec.scene_config.scenario.subject.root.tag_families[0] == "tag16h5"
 
 
 def test_invalid_override_path():

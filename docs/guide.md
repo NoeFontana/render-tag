@@ -50,19 +50,48 @@ camera:
   max_distance: 5.0
 ```
 
-### Tag Section
+### Subject Section
 
-Specifies the marker family and material properties.
+The subject (tags or a calibration board) lives under `scenario.subject`:
+
+```yaml
+scenario:
+  subject:
+    type: TAGS
+    tag_families: [tag36h11]
+    size_mm: 100.0
+    tags_per_scene: 3
+```
+
+### Tag Material Section
+
+Material properties that apply to rendered tag surfaces:
 
 ```yaml
 tag:
-  family: tag36h11
-  size_meters: 0.1
   material:
     randomize: true
     roughness_min: 0.1
     roughness_max: 0.5
 ```
+
+### Migrating from v0.1
+
+If your config still uses `tag.family`, `tag.size_meters`, or the flat
+`scenario.tag_families` / `scenario.tags_per_scene` fields, upgrade it with the
+bundled CLI tool:
+
+```bash
+# Preview the diff
+render-tag config migrate path/to/config.yaml
+
+# Apply in place
+render-tag config migrate path/to/config.yaml --write
+```
+
+The tool is a thin wrapper around the Anti-Corruption Layer, so the in-memory
+result is identical to what `load_config` produces — only the on-disk file is
+rewritten.
 
 ### Renderer Section (CV-Safe Strategy)
 

@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Annotated, Any, Literal
 
 import yaml
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from render_tag.core.constants import CURRENT_SCHEMA_VERSION, TAG_BIT_COUNTS
 from render_tag.core.schema import (
@@ -160,15 +160,13 @@ class SensorDynamicsConfig(BaseModel):
 class DatasetConfig(BaseModel):
     """Dataset output configuration."""
 
+    model_config = ConfigDict(extra="forbid")
+
     output_dir: Path = Field(
         default=Path("output"), description="Output directory for generated data"
     )
     seeds: SeedConfig = Field(default_factory=SeedConfig, description="Random seeds")
     num_scenes: int = Field(default=1, gt=0, description="Number of scenes to generate")
-    intent: str | None = Field(
-        default=None,
-        description="[DEPRECATED] Intent/Goal of this dataset. Use evaluation_scopes instead.",
-    )
     evaluation_scopes: list[EvaluationScope] = Field(
         default_factory=lambda: [EvaluationScope.DETECTION],
         description="Explicit whitelists of valid evaluation metrics",
@@ -528,17 +526,8 @@ class MaterialConfig(BaseModel):
 class TagConfig(BaseModel):
     """AprilTag configuration."""
 
-    family: TagFamily = Field(
-        default=TagFamily.TAG36H11,
-        description="[DEPRECATED] AprilTag family. Use ScenarioConfig.subject instead.",
-    )
-    size_meters: float = Field(
-        default=0.1,
-        gt=0,
-        description=(
-            "[DEPRECATED] Tag size in meters (outer edge). Use ScenarioConfig.subject instead."
-        ),
-    )
+    model_config = ConfigDict(extra="forbid")
+
     margin_bits: int = Field(default=1, ge=0, description="Width of the white quiet zone in bits")
     texture_path: Path | None = Field(default=None, description="Path to tag texture directory")
     material: MaterialConfig = Field(default_factory=MaterialConfig)
@@ -640,17 +629,11 @@ class ScenarioConfig(BaseModel):
     Defines the subject (Tags or Board) and environmental constraints.
     """
 
+    model_config = ConfigDict(extra="forbid")
+
     subject: SubjectConfig | None = Field(
         default_factory=lambda: SubjectConfig(root=TagSubjectConfig()),
         description="The subject of the scene (TAGS or BOARD).",
-    )
-    tag_families: list[TagFamily] = Field(
-        default=[TagFamily.TAG36H11],
-        description="Tag families to use in this scenario",
-    )
-    tags_per_scene: tuple[int, int] = Field(
-        default=(1, 5),
-        description="Range of tags per scene (min, max)",
     )
 
     sampling_mode: SamplingMode = Field(
@@ -673,16 +656,6 @@ class ScenarioConfig(BaseModel):
         default=2.0,
         description="Spacing between tags in number of bits (relative to tag grid size)",
     )
-
-    @field_validator("tags_per_scene")
-    @classmethod
-    def validate_tags_per_scene(cls, v: tuple[int, int]) -> tuple[int, int]:
-        """Ensure tag count range is valid."""
-        if v[0] < 1:
-            raise ValueError("Minimum tags per scene must be >= 1")
-        if v[0] > v[1]:
-            raise ValueError("Min tags must be <= max tags")
-        return v
 
 
 class SequenceConfig(BaseModel):
@@ -776,15 +749,11 @@ def load_config(path: Path | str) -> GenConfig:
     if data is None:
         data = {}
 
-    # Anti-Corruption Layer: Translate legacy formats to modern schema
-    from render_tag.core.schema_adapter import SchemaMigrator, adapt_config
-
-    migrator = SchemaMigrator()
-    original_version = migrator.get_version(data)
+    # Anti-Corruption Layer: Translate legacy formats to modern schema.
+    # The migrated payload is kept in memory only — use `render-tag config migrate --write`
+    # to rewrite the file on disk.
+    from render_tag.core.schema_adapter import adapt_config
 
     data = adapt_config(data)
-
-    if original_version != migrator.target_version:
-        migrator.upgrade_file_on_disk(path, data)
 
     return GenConfig.model_validate(data)

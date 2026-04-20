@@ -151,18 +151,9 @@ class TestTagFamily:
 
 class TestTagConfig:
     def test_defaults(self) -> None:
+        # TagConfig no longer carries subject fields — those live in ScenarioConfig.subject.
         config = TagConfig()
-        assert config.family == TagFamily.TAG36H11
-        assert config.size_meters == 0.1
-
-    def test_invalid_size(self) -> None:
-        with pytest.raises(ValueError):
-            TagConfig(size_meters=0)
-
-    def test_aruco_family(self) -> None:
-        config = TagConfig(family=TagFamily.ARUCO_6X6_250)
-        assert config.family == TagFamily.ARUCO_6X6_250
-        assert config.family.is_aruco is True
+        assert config.margin_bits == 1
 
 
 class TestPhysicsConfig:
@@ -177,20 +168,26 @@ class TestGenConfig:
         config = GenConfig()
         assert config.dataset.seed == 42
         assert config.camera.fov == 70.0
-        assert config.tag.family == TagFamily.TAG36H11
+        # Subject defaults to TAGS(tag36h11, 100mm)
+        assert config.scenario.subject is not None
+        assert config.scenario.subject.root.tag_families == ["tag36h11"]
 
 
 class TestLoadConfig:
     def test_load_nested_config(self) -> None:
         yaml_content = """
 dataset:
-  seed: 123
+  seeds:
+    global_seed: 123
 camera:
   resolution: [1920, 1080]
   fov: 75.0
-tag:
-  family: tag36h11
-  size_meters: 0.2
+scenario:
+  subject:
+    type: TAGS
+    tag_families: [tag36h11]
+    size_mm: 200.0
+    tags_per_scene: 3
 """
         with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
             f.write(yaml_content)
@@ -200,7 +197,7 @@ tag:
         assert config.dataset.seed == 123
         assert config.camera.resolution == (1920, 1080)
         assert config.camera.fov == 75.0
-        assert config.tag.size_meters == 0.2
+        assert config.scenario.subject.root.size_mm == 200.0
 
     def test_load_flat_config_legacy(self) -> None:
         yaml_content = """
@@ -216,7 +213,9 @@ physics:
         with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
             f.write(yaml_content)
             f.flush()
-            config = load_config(Path(f.name))
+            # Flat layout with legacy tag_family triggers ACL migration + deprecation.
+            with pytest.warns(DeprecationWarning):
+                config = load_config(Path(f.name))
 
         assert config.camera.resolution == (640, 480)
         assert config.camera.samples_per_scene == 10

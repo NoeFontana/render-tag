@@ -26,7 +26,6 @@ camera:
     max: 40.0
     distribution: uniform
 tag:
-  family: tag36h11
   margin_bits: 1
   material:
     randomize: true

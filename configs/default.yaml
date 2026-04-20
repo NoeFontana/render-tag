@@ -24,8 +24,6 @@ camera:
     velocity_mean: 0.0
     shutter_time_ms: 10.0
 tag:
-  family: tag36h11
-  size_mm: 100.0
   material:
     randomize: true
     roughness_min: 0.2
@@ -34,12 +32,15 @@ tag:
     specular_max: 0.4
 scenario:
   layout: plain
-  tag_families:
-  - tag36h11
-  tags_per_scene:
-  - 2
-  - 6
   sampling_mode: random
+  subject:
+    type: TAGS
+    tag_families:
+    - tag36h11
+    size_mm: 100.0
+    tags_per_scene:
+    - 2
+    - 6
 scene:
   lighting:
     intensity_min: 100

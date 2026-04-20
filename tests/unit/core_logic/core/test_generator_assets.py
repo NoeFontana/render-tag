@@ -32,7 +32,7 @@ def basic_config():
             "dataset": {"num_scenes": 1},
             "scene": {"background_hdri": "hdri/test.exr", "texture_dir": "textures/background"},
             "tag": {"texture_path": "tags/tag36h11"},
-            "scenario": {"tag_families": ["tag36h11"]},
+            "scenario": {"subject": {"type": "TAGS", "tag_families": ["tag36h11"]}},
         }
     )
 

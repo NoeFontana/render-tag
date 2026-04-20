@@ -1,5 +1,7 @@
 import json
 
+import pytest
+
 from render_tag.core.schema.job import JobSpec
 
 
@@ -24,7 +26,8 @@ def test_job_spec_from_json_migrates_legacy(tmp_path):
     }
     json_str = json.dumps(legacy_data)
 
-    spec = JobSpec.from_json(json_str)
+    with pytest.warns(DeprecationWarning):
+        spec = JobSpec.from_json(json_str)
     assert spec.version == "0.2"
     assert spec.job_id == "job-456"
 
