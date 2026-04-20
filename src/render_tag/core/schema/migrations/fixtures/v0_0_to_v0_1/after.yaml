@@ -1,0 +1,7 @@
+dataset:
+  num_scenes: 5
+scenario:
+  tag_families:
+    - tag36h11
+  tags_per_scene: 3
+version: '0.1'
