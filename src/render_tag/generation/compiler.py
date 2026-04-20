@@ -60,9 +60,7 @@ def derive_iso_coupled_noise(
 
     if camera_config.iso_noise == 0.0:
         span = ISO_COUPLING_GAIN_CEILING - ISO_COUPLING_GAIN_FLOOR
-        effective_iso_noise = float(
-            np.clip((iso - ISO_COUPLING_GAIN_FLOOR) / span, 0.0, 1.0)
-        )
+        effective_iso_noise = float(np.clip((iso - ISO_COUPLING_GAIN_FLOOR) / span, 0.0, 1.0))
     else:
         effective_iso_noise = camera_config.iso_noise
 
