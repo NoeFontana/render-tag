@@ -3,6 +3,7 @@ Experiment commands.
 """
 
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import typer
@@ -64,6 +65,12 @@ def run(
         "--skip-render",
         help="Skip the long rendering cycle (Shadow Render only)",
     ),
+    workers: int = typer.Option(
+        1,
+        "--workers",
+        "-w",
+        help="Parallel workers per variant (1-10; capped by the 10-port budget per variant)",
+    ),
 ) -> None:
     """
     Run a controlled experiment (Parameter Sweep).
@@ -74,6 +81,13 @@ def run(
     # Check dependencies
     if not check_blenderproc_installed():
         console.print("[bold red]Error:[/bold red] blenderproc not installed.")
+        raise typer.Exit(code=1) from None
+
+    if not 1 <= workers <= 10:
+        console.print(
+            "[bold red]Error:[/bold red] --workers must be between 1 and 10 "
+            "(per-variant port budget is 10)."
+        )
         raise typer.Exit(code=1) from None
 
     # Load Experiment
@@ -177,7 +191,7 @@ def run(
             # Use Orchestrator to execute recipes
             # We use a unique base port to avoid collisions if running multiple experiments
             with UnifiedWorkerOrchestrator(
-                num_workers=1,
+                num_workers=workers,
                 base_port=21000 + (i * 10),
                 ephemeral=True,
                 max_renders_per_worker=len(recipes),
@@ -186,20 +200,23 @@ def run(
             ) as orchestrator:
                 orchestrator.start(shard_id=f"exp_{variant.variant_id}")
 
-                for recipe in recipes:
-                    # execute_recipe expects a dict
-                    recipe_dict = recipe.model_dump(mode="json")
-                    resp = orchestrator.execute_recipe(
-                        recipe_dict,
-                        variant_dir,
-                        renderer_mode,
-                        sid=f"exp_{variant.variant_id}",
+                sid = f"exp_{variant.variant_id}"
+
+                def _render(recipe, out=variant_dir, rm=renderer_mode, s=sid):
+                    return orchestrator.execute_recipe(
+                        recipe.model_dump(mode="json"), out, rm, sid=s
                     )
 
-                    if resp.status != ResponseStatus.SUCCESS:
-                        console.print(f"[bold red]Variant {variant.variant_id} Failed![/bold red]")
-                        console.print(f"[red]Render error: {resp.message}[/red]")
-                        raise typer.Exit(code=1) from None
+                with ThreadPoolExecutor(max_workers=workers) as pool:
+                    futures = [pool.submit(_render, r) for r in recipes]
+                    for fut in as_completed(futures):
+                        resp = fut.result()
+                        if resp.status != ResponseStatus.SUCCESS:
+                            console.print(
+                                f"[bold red]Variant {variant.variant_id} Failed![/bold red]"
+                            )
+                            console.print(f"[red]Render error: {resp.message}[/red]")
+                            raise typer.Exit(code=1) from None
 
             # 6. Generate Unified Manifest
             generate_dataset_info(
