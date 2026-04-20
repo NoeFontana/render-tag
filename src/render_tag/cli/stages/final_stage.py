@@ -18,12 +18,7 @@ from render_tag.core.schema.job import (
     calculate_job_id,
     get_env_fingerprint,
 )
-from render_tag.data_io.writers import (
-    merge_coco_shards,
-    merge_csv_shards,
-    merge_provenance_shards,
-    merge_rich_truth_shards,
-)
+from render_tag.data_io.writers import CANONICAL_OUTPUT_FILES, merge_all_shards
 
 
 class FinalizationStage(PipelineStage):
@@ -33,8 +28,8 @@ class FinalizationStage(PipelineStage):
         if not ctx.gen_config:
             return
 
-        # 1. Merge Shards
-        self._merge_shards(ctx.output_dir)
+        console.print("[dim]Merging dataset shards...[/dim]")
+        merge_all_shards(ctx.output_dir, cleanup=True)
 
         console.print("\n[bold blue]Generating dataset metadata...[/bold blue]")
 
@@ -43,22 +38,15 @@ class FinalizationStage(PipelineStage):
         else:
             ctx.final_job_id = self._create_virtual_job_id(ctx)
 
-        # 2. Unified Metadata
         generate_dataset_info(
             dataset_dir=ctx.output_dir,
             config=ctx.gen_config,
             cli_args=sys.argv,
         )
 
-        # 3. Checksums
         manifest = ChecksumManifest(job_id=ctx.final_job_id, output_dir=ctx.output_dir)
         manifest.add_directory(ctx.output_dir / "images", pattern="*.png")
-        for filename in [
-            "ground_truth.csv",
-            "coco_labels.json",
-            "rich_truth.json",
-            "provenance.json",
-        ]:
+        for filename in CANONICAL_OUTPUT_FILES:
             path = ctx.output_dir / filename
             if path.exists():
                 manifest.add_file(path)
@@ -66,22 +54,9 @@ class FinalizationStage(PipelineStage):
         path = manifest.save()
         console.print(f"[dim]Checksums saved to:[/dim] {path}")
 
-        # 4. Quality Gate Audit
         self._run_quality_gate(ctx.output_dir)
 
         console.print("[bold green]✓ Generation session complete[/bold green]")
-
-    def _merge_shards(self, output_dir: Path) -> None:
-        """Merge shard-specific CSV and JSON files into unified outputs."""
-        console.print("[dim]Merging dataset shards...[/dim]")
-        # CSV Shards
-        merge_csv_shards(output_dir, final_filename="ground_truth.csv", cleanup=True)
-        # COCO Shards
-        merge_coco_shards(output_dir, final_filename="coco_labels.json", cleanup=True)
-        # RichTruth Shards
-        merge_rich_truth_shards(output_dir, final_filename="rich_truth.json", cleanup=True)
-        # Provenance Shards
-        merge_provenance_shards(output_dir, final_filename="provenance.json", cleanup=True)
 
     def _run_quality_gate(self, output_dir: Path) -> None:
         """Run geometric integrity checks and quarantine the dataset if they fail."""

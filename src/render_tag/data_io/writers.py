@@ -681,3 +681,19 @@ def merge_provenance_shards(
         for shard_path in shard_files:
             shard_path.unlink()
         logger.info("Cleaned up provenance shard files.")
+
+
+CANONICAL_OUTPUT_FILES: tuple[str, ...] = (
+    "ground_truth.csv",
+    "coco_labels.json",
+    "rich_truth.json",
+    "provenance.json",
+)
+
+
+def merge_all_shards(output_dir: Path, cleanup: bool = True) -> None:
+    """Merge every per-worker shard file in ``output_dir`` into its canonical name."""
+    merge_csv_shards(output_dir, final_filename="ground_truth.csv", cleanup=cleanup)
+    merge_coco_shards(output_dir, final_filename="coco_labels.json", cleanup=cleanup)
+    merge_rich_truth_shards(output_dir, final_filename="rich_truth.json", cleanup=cleanup)
+    merge_provenance_shards(output_dir, final_filename="provenance.json", cleanup=cleanup)
