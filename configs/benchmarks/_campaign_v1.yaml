@@ -1,11 +1,14 @@
 # Benchmark × Resolution Campaign (v1)
 #
 # Replaces the implicit glob in `scripts/generate_benchmarks.sh`. Every
-# locus_v1 and calibration YAML is listed explicitly and crossed against
-# the standard resolution matrix below (14 benchmarks × 4 resolutions =
-# 56 variants). Add a new benchmark → add it here by hand. This file is
-# parametrized by `tests/integration/test_experiment_configs.py` so
-# typos break CI immediately.
+# locus_v1 and calibration YAML is listed explicitly. Only the locus tag
+# baseline (`locus_v1_tag36h11`) sweeps the full resolution matrix — the
+# remaining benchmarks isolate their own axis (sensor / lighting /
+# board topology) and are pinned to 1920x1080 to avoid redundant runs.
+# Total: 1 × 4 + 13 × 1 = 17 variants. Add a new benchmark → add it here
+# by hand. This file is parametrized by
+# `tests/integration/test_experiment_configs.py` so typos break CI
+# immediately.
 #
 # Run:
 #     uv run render-tag experiment run --config configs/benchmarks/_campaign_v1.yaml
@@ -17,12 +20,12 @@ metadata:
 
 matrices:
   # ------------------------------------------------------------------
-  # Locus V1 benchmarks
+  # Locus V1 — tag baseline sweeps resolution; variants pin to 1080p.
   # ------------------------------------------------------------------
   - base:
       name: locus_v1_tag36h11
       config: configs/benchmarks/single_tag/locus_v1_tag36h11.yaml
-    axes: &resolution_axes
+    axes:
       - parameter: camera.resolution
         values:
           - [640, 480]
@@ -33,67 +36,70 @@ matrices:
   - base:
       name: locus_v1_tag16h5
       config: configs/benchmarks/single_tag/locus_v1_tag16h5.yaml
-    axes: *resolution_axes
+    axes: &single_resolution
+      - parameter: camera.resolution
+        values:
+          - [1920, 1080]
 
   - base:
       name: locus_v1_high_iso
       config: configs/benchmarks/sensor/locus_v1_high_iso.yaml
-    axes: *resolution_axes
+    axes: *single_resolution
 
   - base:
       name: locus_v1_low_dr_outdoor
       config: configs/benchmarks/sensor/locus_v1_low_dr_outdoor.yaml
-    axes: *resolution_axes
+    axes: *single_resolution
 
   - base:
       name: locus_v1_raw_pipeline
       config: configs/benchmarks/sensor/locus_v1_raw_pipeline.yaml
-    axes: *resolution_axes
+    axes: *single_resolution
 
   - base:
       name: locus_v1_low_key
       config: configs/benchmarks/lighting/locus_v1_low_key.yaml
-    axes: *resolution_axes
+    axes: *single_resolution
 
   - base:
       name: locus_v1_hard_shadows
       config: configs/benchmarks/lighting/locus_v1_hard_shadows.yaml
-    axes: *resolution_axes
+    axes: *single_resolution
 
   # ------------------------------------------------------------------
-  # Calibration benchmarks
+  # Calibration benchmarks — board topology is the axis, not resolution.
   # ------------------------------------------------------------------
   - base:
       name: calibration_aprilgrid_golden_v1
       config: configs/benchmarks/calibration/aprilgrid_golden_v1.yaml
-    axes: *resolution_axes
+    axes: *single_resolution
 
   - base:
       name: calibration_aprilgrid_kalibr
       config: configs/benchmarks/calibration/aprilgrid_kalibr.yaml
-    axes: *resolution_axes
+    axes: *single_resolution
 
   - base:
       name: calibration_aprilgrid_distortion_brown_conrady_v1
       config: configs/benchmarks/calibration/aprilgrid_distortion_brown_conrady_v1.yaml
-    axes: *resolution_axes
+    axes: *single_resolution
 
   - base:
       name: calibration_aprilgrid_distortion_kannala_brandt_v1
       config: configs/benchmarks/calibration/aprilgrid_distortion_kannala_brandt_v1.yaml
-    axes: *resolution_axes
+    axes: *single_resolution
 
   - base:
       name: calibration_charuco_golden_v1
       config: configs/benchmarks/calibration/charuco_golden_v1.yaml
-    axes: *resolution_axes
+    axes: *single_resolution
 
   - base:
       name: calibration_charuco_baseline
       config: configs/benchmarks/calibration/charuco_baseline.yaml
-    axes: *resolution_axes
+    axes: *single_resolution
 
   - base:
       name: calibration_charuco_opencv
       config: configs/benchmarks/calibration/charuco_opencv.yaml
-    axes: *resolution_axes
+    axes: *single_resolution
