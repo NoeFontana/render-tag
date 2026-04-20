@@ -1,3 +1,7 @@
+# v0.8.1 (2026-04-20)
+
+- Add --workers to experiment run
+
 # v0.8.0 (2026-04-20)
 
 **Breaking change.** Completes the v0.2 subject migration started in v0.7.
