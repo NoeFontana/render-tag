@@ -284,7 +284,7 @@ class SceneCompiler:
         if not validate:
             return self._build_recipe(scene_id, scene_seed)
 
-        from ..core.validator import RecipeValidator
+        from ..core.validator import CACHE_PENDING_WARNING_PREFIX, RecipeValidator
 
         scene_logger = logger.bind(scene_id=scene_id, seed=scene_seed)
 
@@ -299,7 +299,7 @@ class SceneCompiler:
             # PNGs that prep_stage._pregenerate_tags writes immediately after
             # compilation. They are not a reason to re-sample.
             relevant_warnings = [
-                w for w in validator.warnings if "Cache asset not yet present" not in w
+                w for w in validator.warnings if CACHE_PENDING_WARNING_PREFIX not in w
             ]
 
             if not validator.errors and not relevant_warnings:
@@ -312,10 +312,12 @@ class SceneCompiler:
                 attempt=attempt,
             )
 
+        errors_preview = "; ".join(validator.errors[:3]) or "(no errors)"
+        warnings_preview = "; ".join(relevant_warnings[:3]) or "(no warnings)"
         raise RuntimeError(
             f"Could not generate a valid scene for ID {scene_id} after "
-            f"{MAX_VALIDATION_RETRIES} attempts "
-            f"(errors={len(validator.errors)}, warnings={len(validator.warnings)})."
+            f"{MAX_VALIDATION_RETRIES} attempts. "
+            f"Last errors: {errors_preview}. Last warnings: {warnings_preview}."
         )
 
     def save_recipe_json(
@@ -338,21 +340,17 @@ class SceneCompiler:
             renderer=self.config.renderer,
         )
 
-        # 1. World
         world_seed = derive_seed(seed, "world", 0)
         recipe.world = self._build_world_recipe(scene_id, world_seed)
 
-        # 2. Objects (Agnostic Subject Generation)
         from render_tag.generation.context import GenerationContext
 
         ctx = GenerationContext(
             gen_config=self.config, output_dir=self.output_dir or Path("output")
         )
-
         objects = self.strategy.sample_pose(seed, ctx)
         recipe.objects = objects
 
-        # 3. Cameras
         recipe.cameras = self._sample_camera_recipes(scene_id, seed, objects)
 
         return recipe
