@@ -93,3 +93,34 @@ def test_unknown_preset_raises():
 def test_presets_must_be_list():
     with pytest.raises(ValueError, match="must be a list"):
         expand({"presets": "scene.bright"}, registry=_reg())
+
+
+def test_sensor_hdr_sweep_applies_realistic_sensor_profile():
+    """sensor.hdr_sweep enables ISO coupling and supplies a parametric noise floor."""
+    import render_tag.core.presets  # noqa: F401  (ensures auto-registration)
+    from render_tag.core.presets.base import default_registry
+
+    out = expand({"presets": ["sensor.hdr_sweep"]}, registry=default_registry)
+    camera = out["camera"]
+    assert camera["iso"] == 800
+    assert camera["iso_coupling"] is True
+    assert camera["sensor_noise"]["model"] == "gaussian"
+    assert camera["sensor_noise"]["stddev"] > 0.0
+
+
+def test_sensor_hdr_sweep_lets_user_iso_override_preset():
+    """A benchmark composing sensor.hdr_sweep can still crank ISO past the preset default."""
+    import render_tag.core.presets  # noqa: F401
+    from render_tag.core.presets.base import default_registry
+
+    out = expand(
+        {
+            "presets": ["sensor.hdr_sweep"],
+            "camera": {"iso": 3200},
+        },
+        registry=default_registry,
+    )
+    assert out["camera"]["iso"] == 3200
+    # Preset's other keys persist.
+    assert out["camera"]["iso_coupling"] is True
+    assert out["camera"]["sensor_noise"]["stddev"] > 0.0

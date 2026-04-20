@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 import cv2
 import numpy as np
 
-from ..core.config import GenConfig
+from ..core.config import CameraConfig, GenConfig
 from ..core.geometry.projection_math import has_active_distortion
 from ..core.geometry.visibility import is_facing_camera
 from ..core.logging import get_logger
@@ -23,6 +23,7 @@ from ..core.schema import (
     LightRecipe,
     SceneRecipe,
     SensorDynamicsRecipe,
+    SensorNoiseConfig,
     WorldRecipe,
 )
 from ..core.seeding import derive_seed
@@ -36,6 +37,45 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 MAX_VALIDATION_RETRIES = 50
+
+ISO_COUPLING_BASE_SIGMA = 0.002
+ISO_COUPLING_ALPHA = 0.8
+ISO_COUPLING_GAIN_FLOOR = 800.0
+ISO_COUPLING_GAIN_CEILING = 6400.0
+
+
+def derive_iso_coupled_noise(
+    camera_config: CameraConfig,
+) -> tuple[float, SensorNoiseConfig | None]:
+    """Derive effective (iso_noise, sensor_noise) from ``camera.iso``.
+
+    Returns the user-configured values unchanged when ``iso_coupling`` is False.
+    When coupling is enabled, fills only fields the user left at their schema
+    defaults so explicit overrides always win.
+    """
+    if not camera_config.iso_coupling:
+        return camera_config.iso_noise, camera_config.sensor_noise
+
+    iso = camera_config.iso
+
+    if camera_config.iso_noise == 0.0:
+        span = ISO_COUPLING_GAIN_CEILING - ISO_COUPLING_GAIN_FLOOR
+        effective_iso_noise = float(
+            np.clip((iso - ISO_COUPLING_GAIN_FLOOR) / span, 0.0, 1.0)
+        )
+    else:
+        effective_iso_noise = camera_config.iso_noise
+
+    if camera_config.sensor_noise is None:
+        stddev = ISO_COUPLING_BASE_SIGMA * (iso / 100.0) ** ISO_COUPLING_ALPHA
+        effective_sensor_noise: SensorNoiseConfig | None = SensorNoiseConfig(
+            model="gaussian",
+            stddev=stddev,
+        )
+    else:
+        effective_sensor_noise = camera_config.sensor_noise
+
+    return effective_iso_noise, effective_sensor_noise
 
 
 def compute_overscan_intrinsics(
@@ -562,6 +602,11 @@ class SceneCompiler:
 
         camera_recipes = []
 
+        effective_iso_noise, effective_sensor_noise = derive_iso_coupled_noise(camera_config)
+        base_noise_dict = (
+            effective_sensor_noise.model_dump() if effective_sensor_noise is not None else None
+        )
+
         for cam_idx in range(camera_config.samples_per_scene):
             # Select target tag for this specific camera sample to maximize diversity
             target_tag = None
@@ -613,9 +658,11 @@ class SceneCompiler:
                 )
                 velocity = (direction * magnitude).tolist()
 
-            if camera_config.sensor_noise:
-                noise_recipe = camera_config.sensor_noise.model_dump()
-                noise_recipe["seed"] = derive_seed(camera_seed, "noise", cam_idx)
+            if base_noise_dict is not None:
+                noise_recipe = {
+                    **base_noise_dict,
+                    "seed": derive_seed(camera_seed, "noise", cam_idx),
+                }
             else:
                 noise_recipe = None
 
@@ -665,7 +712,7 @@ class SceneCompiler:
                     focus_distance=camera_config.focus_distance,
                     min_tag_pixels=camera_config.min_tag_pixels,
                     max_tag_pixels=camera_config.max_tag_pixels,
-                    iso_noise=camera_config.iso_noise,
+                    iso_noise=effective_iso_noise,
                     sensor_noise=noise_recipe,
                 )
             )

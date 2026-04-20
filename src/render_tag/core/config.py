@@ -367,6 +367,16 @@ class CameraConfig(BaseModel):
     # ISO / Gain simulation: Higher gain = more 'salt and pepper' noise
     iso: int = Field(default=100, ge=100, le=6400, description="Camera ISO setting")
 
+    # Opt-in coupling from `iso` to effective noise at recipe-compile time.
+    # Off by default so existing fixtures stay bit-reproducible.
+    iso_coupling: bool = Field(
+        default=False,
+        description=(
+            "Derive effective iso_noise and synthesize a Gaussian sensor_noise "
+            "from `iso` when True. Only fills fields the user left at defaults."
+        ),
+    )
+
     # Backwards compatibility properties
     @property
     def velocity_mean(self) -> float:
