@@ -9,7 +9,7 @@ import logging
 
 import numpy as np
 
-from render_tag.generation.math import Matrix3x3, Matrix4x4, Vector3
+from render_tag.core.geometry.math import Matrix3x3, Matrix4x4, Vector3
 
 logger = logging.getLogger(__name__)
 

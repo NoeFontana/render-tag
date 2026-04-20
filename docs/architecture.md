@@ -39,6 +39,82 @@ The `UnifiedWorkerOrchestrator` manages the lifecycle of `PersistentWorkerProces
 ### 5. Data I/O (`src/render_tag/data_io/`)
 Handles asset loading, caching, and writing final annotations (COCO, CSV).
 
+### 6. Audit (`src/render_tag/audit/`)
+Post-render verification: dataset integrity, telemetry analysis, and dashboard reports.
+
+### 7. Viz (`src/render_tag/viz/`)
+Visualization tooling (FiftyOne integration). Independent of `audit` and `backend`.
+
+## Package Dependency Graph
+
+The dependency rules below are enforced as `import-linter` contracts in
+`[tool.importlinter]` of `pyproject.toml` and verified in CI by the
+`Architecture (Import Linter)` job. The `render-tag lint-arch` CLI runs the
+same check locally.
+
+```mermaid
+graph TD
+    cli["cli"]
+    orch["orchestration"]
+    audit["audit"]
+    viz["viz"]
+    backend["backend"]
+    gen["generation"]
+    data_io["data_io"]
+    core["core<br/>(incl. core.geometry)"]
+
+    cli --> orch
+    cli --> audit
+    cli --> viz
+    cli --> gen
+    cli --> data_io
+    cli --> core
+
+    orch --> audit
+    orch --> core
+
+    audit --> gen
+    audit --> data_io
+    audit --> core
+
+    viz --> data_io
+    viz --> core
+
+    backend --> gen
+    backend --> data_io
+    backend --> core
+
+    gen --> data_io
+    gen --> core
+
+    data_io --> core
+```
+
+Layers, top to bottom:
+
+| Layer | Package(s) | May import from |
+|---|---|---|
+| 6 | `cli` | everything below |
+| 5 | `orchestration` | `audit`, `core` (never `backend` — spawned as a subprocess via ZMQ) |
+| 4 | `audit`, `viz`, `backend` (siblings) | `generation`, `data_io`, `core` (never each other) |
+| 3 | `generation` | `data_io`, `core` |
+| 2 | `data_io` | `core` |
+| 1 | `core` | (foundation; no internal deps) |
+
+Additional contracts:
+
+- **Host isolation** — only `render_tag.backend` may import `bpy`,
+  `blenderproc`, `mathutils`, or `render_tag.backend` itself. Every other
+  package must remain importable in a plain Python environment without a
+  Blender interpreter.
+- **Determinism** — `render_tag.generation` must not import the `random`
+  module. The procedural generator uses seeded `numpy` RNGs only; Python's
+  global `random` state would break bit-reproducibility of `SceneRecipe`s.
+
+When a proposed import would violate any contract, fix the code first. If
+the violation reflects a deliberate architectural decision, change the
+contract in `pyproject.toml` and add a one-line justification next to it.
+
 ## The "Hot Loop" (Persistent Workers)
 
 To avoid the significant overhead of starting Blender for every scene, `render-tag` uses a persistent worker architecture.

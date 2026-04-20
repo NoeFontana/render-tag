@@ -9,11 +9,11 @@ import numpy as np
 from pydantic import BaseModel
 from rich.table import Table
 
-from render_tag.core.schema import SceneRecipe
-from render_tag.generation.projection_math import (
+from render_tag.core.geometry.projection_math import (
     calculate_incidence_angle,
     get_world_matrix,
 )
+from render_tag.core.schema import SceneRecipe
 
 
 class RecipeAuditReport(BaseModel):

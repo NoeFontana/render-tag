@@ -1,8 +1,8 @@
 import numpy as np
 
 from render_tag.core.config import GenConfig
+from render_tag.core.geometry.projection_math import calculate_incidence_angle, get_world_matrix
 from render_tag.generation.compiler import SceneCompiler
-from render_tag.generation.projection_math import calculate_incidence_angle, get_world_matrix
 
 
 def test_flying_tag_orientation():

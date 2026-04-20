@@ -10,7 +10,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from render_tag.generation.math import (
+from render_tag.core.geometry.math import (
     look_at_rotation,
     make_transformation_matrix,
     rotation_matrix_from_vectors,

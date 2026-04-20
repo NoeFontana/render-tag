@@ -5,8 +5,8 @@ Unit tests for winding order validation.
 import pytest
 from pydantic import ValidationError
 
+from render_tag.core.geometry.projection_math import validate_winding_order
 from render_tag.core.schema import DetectionRecord
-from render_tag.generation.projection_math import validate_winding_order
 
 
 def test_detection_record_valid_winding():

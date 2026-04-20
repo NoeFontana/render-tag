@@ -83,14 +83,14 @@ class RecipeValidator:
             import numpy as np
 
             from render_tag.core.config import get_min_pixel_area
-            from render_tag.generation.projection_math import (
+            from render_tag.core.geometry.projection_math import (
                 calculate_incidence_angle,
                 calculate_pixel_area,
                 get_world_matrix,
                 get_world_normal,
                 project_points,
             )
-            from render_tag.generation.visibility import is_facing_camera
+            from render_tag.core.geometry.visibility import is_facing_camera
         except ImportError:
             # Skip if numpy or projection_math are not available (unlikely in host)
             return

@@ -10,6 +10,22 @@ import cv2
 import numpy as np
 import pytest
 
+from render_tag.core.geometry.math import (
+    compute_polygon_area,
+    look_at_rotation,
+    make_transformation_matrix,
+    rotation_matrix_from_vectors,
+)
+from render_tag.core.geometry.projection_math import (
+    calculate_angle_of_incidence,
+    get_opencv_camera_matrix,
+    get_world_normal,
+    project_points,
+)
+from render_tag.core.geometry.visibility import (
+    is_facing_camera,
+    validate_visibility_metrics,
+)
 from render_tag.generation.board import (
     BoardLayout,
     BoardPosition,
@@ -27,22 +43,6 @@ from render_tag.generation.board import (
     validate_no_overlaps,
 )
 from render_tag.generation.camera import sample_camera_pose, validate_camera_pose
-from render_tag.generation.math import (
-    compute_polygon_area,
-    look_at_rotation,
-    make_transformation_matrix,
-    rotation_matrix_from_vectors,
-)
-from render_tag.generation.projection_math import (
-    calculate_angle_of_incidence,
-    get_opencv_camera_matrix,
-    get_world_normal,
-    project_points,
-)
-from render_tag.generation.visibility import (
-    is_facing_camera,
-    validate_visibility_metrics,
-)
 
 # ============================================================================
 
@@ -1059,7 +1059,7 @@ def test_project_points_basic():
     cam_pos = np.array([0, 0, 1])
     np.eye(3)  # This is a bit simplified, but let's test a point on axis
     # In my look_at_rotation, forward (0,0,-1) with up (0,0,1) handled:
-    from render_tag.generation.math import look_at_rotation, make_transformation_matrix
+    from render_tag.core.geometry.math import look_at_rotation, make_transformation_matrix
 
     R = look_at_rotation(np.array([0, 0, -1]))
     cam2world = make_transformation_matrix(cam_pos, R)

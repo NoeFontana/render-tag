@@ -1,5 +1,5 @@
+from render_tag.core.geometry.projection_math import validate_winding_order
 from render_tag.data_io.annotations import verify_corner_order
-from render_tag.generation.projection_math import validate_winding_order
 
 
 def test_winding_order_consistency():

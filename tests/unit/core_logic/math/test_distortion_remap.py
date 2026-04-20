@@ -16,7 +16,7 @@ import numpy as np
 import pytest
 
 from render_tag.backend.distortion import compute_distortion_maps
-from render_tag.generation.projection_math import (
+from render_tag.core.geometry.projection_math import (
     project_points,
 )
 

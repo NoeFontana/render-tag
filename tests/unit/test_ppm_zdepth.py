@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 
 from render_tag.backend.projection import compute_geometric_metadata
-from render_tag.generation.projection_math import calculate_ppm
+from render_tag.core.geometry.projection_math import calculate_ppm
 
 
 def test_ppm_zdepth_consistency():

@@ -12,9 +12,9 @@ from render_tag.core.config import TagFamily
 try:
     from render_tag.data_io.visualization import (
         visualize_dataset,
-        visualize_fiftyone,
         visualize_recipe,
     )
+    from render_tag.viz.fiftyone_tool import visualize_fiftyone
 except ImportError:
     visualize_dataset = None
     visualize_fiftyone = None

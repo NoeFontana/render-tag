@@ -21,14 +21,14 @@ try:
 except ImportError:
     pl = None
 
+from render_tag.core.geometry.projection_math import (
+    apply_distortion_by_model,
+    quaternion_wxyz_to_matrix,
+)
 from render_tag.core.logging import get_logger
 from render_tag.core.schema.base import KeypointVisibility
 from render_tag.core.schema.hot_loop import Telemetry
 from render_tag.data_io.readers import unwrap_rich_truth
-from render_tag.generation.projection_math import (
-    apply_distortion_by_model,
-    quaternion_wxyz_to_matrix,
-)
 
 logger = get_logger(__name__)
 
