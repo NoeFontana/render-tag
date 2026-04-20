@@ -1,0 +1,99 @@
+# Benchmark × Resolution Campaign (v1)
+#
+# Replaces the implicit glob in `scripts/generate_benchmarks.sh`. Every
+# locus_v1 and calibration YAML is listed explicitly and crossed against
+# the standard resolution matrix below (14 benchmarks × 4 resolutions =
+# 56 variants). Add a new benchmark → add it here by hand. This file is
+# parametrized by `tests/integration/test_experiment_configs.py` so
+# typos break CI immediately.
+#
+# Run:
+#     uv run render-tag experiment run --config configs/benchmarks/_campaign_v1.yaml
+
+output_dir: benchmarks_v1
+
+metadata:
+  campaign: benchmarks_v1
+
+matrices:
+  # ------------------------------------------------------------------
+  # Locus V1 benchmarks
+  # ------------------------------------------------------------------
+  - base:
+      name: locus_v1_tag36h11
+      config: configs/benchmarks/single_tag/locus_v1_tag36h11.yaml
+    axes: &resolution_axes
+      - parameter: camera.resolution
+        values:
+          - [640, 480]
+          - [1280, 720]
+          - [1920, 1080]
+          - [3840, 2160]
+
+  - base:
+      name: locus_v1_tag16h5
+      config: configs/benchmarks/single_tag/locus_v1_tag16h5.yaml
+    axes: *resolution_axes
+
+  - base:
+      name: locus_v1_high_iso
+      config: configs/benchmarks/sensor/locus_v1_high_iso.yaml
+    axes: *resolution_axes
+
+  - base:
+      name: locus_v1_low_dr_outdoor
+      config: configs/benchmarks/sensor/locus_v1_low_dr_outdoor.yaml
+    axes: *resolution_axes
+
+  - base:
+      name: locus_v1_raw_pipeline
+      config: configs/benchmarks/sensor/locus_v1_raw_pipeline.yaml
+    axes: *resolution_axes
+
+  - base:
+      name: locus_v1_low_key
+      config: configs/benchmarks/lighting/locus_v1_low_key.yaml
+    axes: *resolution_axes
+
+  - base:
+      name: locus_v1_hard_shadows
+      config: configs/benchmarks/lighting/locus_v1_hard_shadows.yaml
+    axes: *resolution_axes
+
+  # ------------------------------------------------------------------
+  # Calibration benchmarks
+  # ------------------------------------------------------------------
+  - base:
+      name: calibration_aprilgrid_golden_v1
+      config: configs/benchmarks/calibration/aprilgrid_golden_v1.yaml
+    axes: *resolution_axes
+
+  - base:
+      name: calibration_aprilgrid_kalibr
+      config: configs/benchmarks/calibration/aprilgrid_kalibr.yaml
+    axes: *resolution_axes
+
+  - base:
+      name: calibration_aprilgrid_distortion_brown_conrady_v1
+      config: configs/benchmarks/calibration/aprilgrid_distortion_brown_conrady_v1.yaml
+    axes: *resolution_axes
+
+  - base:
+      name: calibration_aprilgrid_distortion_kannala_brandt_v1
+      config: configs/benchmarks/calibration/aprilgrid_distortion_kannala_brandt_v1.yaml
+    axes: *resolution_axes
+
+  - base:
+      name: calibration_charuco_golden_v1
+      config: configs/benchmarks/calibration/charuco_golden_v1.yaml
+    axes: *resolution_axes
+
+  - base:
+      name: calibration_charuco_baseline
+      config: configs/benchmarks/calibration/charuco_baseline.yaml
+    axes: *resolution_axes
+
+  - base:
+      name: calibration_charuco_opencv
+      config: configs/benchmarks/calibration/charuco_opencv.yaml
+    axes: *resolution_axes

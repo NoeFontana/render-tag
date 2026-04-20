@@ -5,17 +5,28 @@ import pytest
 
 
 def get_experiment_configs():
-    """Discover all experiment configs in the repository."""
-    # Find repo root (assuming running from root or tests/)
+    """Discover all experiment and benchmark-campaign configs in the repository."""
     root = Path(__file__).resolve().parents[2]
-    config_dir = root / "configs" / "experiments"
-    if not config_dir.exists():
-        return []
-    return list(config_dir.glob("*.yaml"))
+    paths: list[Path] = []
+    exp_dir = root / "configs" / "experiments"
+    if exp_dir.exists():
+        paths.extend(sorted(exp_dir.glob("*.yaml")))
+    # Benchmark campaigns (e.g. `_campaign_v1.yaml`) live under configs/benchmarks.
+    bench_dir = root / "configs" / "benchmarks"
+    if bench_dir.exists():
+        paths.extend(sorted(bench_dir.glob("_campaign*.yaml")))
+    return paths
+
+
+_EXPERIMENT_CONFIGS = get_experiment_configs()
 
 
 @pytest.mark.integration
-@pytest.mark.parametrize("config_path", get_experiment_configs())
+@pytest.mark.parametrize(
+    "config_path",
+    _EXPERIMENT_CONFIGS,
+    ids=[p.name for p in _EXPERIMENT_CONFIGS],
+)
 def test_experiment_config_validity(config_path):
     """
     Test that each experiment config in configs/experiments produces valid

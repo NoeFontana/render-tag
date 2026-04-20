@@ -3,6 +3,11 @@
 # Coefficients model a typical fisheye lens; wide FOV stresses radial warp at image corners.
 # Statistical goal: 150 scenes, full elevation range.
 
+presets:
+  - calibration.aprilgrid_6x6
+  - calibration.reference_grade_rendering
+  - lighting.factory
+
 dataset:
   num_scenes: 50
   seeds:
@@ -44,24 +49,12 @@ camera:
 
 scenario:
   subject:
-    type: BOARD
-    rows: 6
-    cols: 6
     marker_size_mm: 100.0
-    dictionary: tag36h11
-    spacing_ratio: 0.3
   sampling_mode: random
 
 scene:
-  lighting_preset: factory
   texture_dir: assets/textures/background
   texture_scale_min: 1.0
   texture_scale_max: 10.0
-
-renderer:
-  mode: cycles
-  noise_threshold: 0.01
-  max_samples: 512
-  enable_denoising: true
 
 version: '0.2'

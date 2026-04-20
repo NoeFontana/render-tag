@@ -1,3 +1,5 @@
+presets: [lighting.warehouse]
+
 dataset:
   num_scenes: 50
   seeds:
@@ -31,7 +33,6 @@ scenario:
   sampling_mode: random
 
 scene:
-  lighting_preset: warehouse
   texture_dir: assets/textures/background
   texture_scale_min: 1.0
   texture_scale_max: 5.0

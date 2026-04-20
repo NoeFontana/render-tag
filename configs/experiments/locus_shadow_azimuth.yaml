@@ -8,10 +8,6 @@ description: >
   the locus_v1_hard_shadows benchmark. Not wired into CI — run locally,
   inspect, pick knee, commit the benchmark.
 
-  Note: the Experiment pipeline does not run the preset-expand pass, so
-  sensor/shadow defaults that would normally come from
-  ``sensor.hdr_sweep`` / ``shadow.directional_hard`` are inlined here.
-
 lock_layout: true
 lock_lighting: true
 lock_camera: false
@@ -25,57 +21,26 @@ sweeps:
     values: [0.2, 0.6]
 
 base_config:
+  presets:
+    - locus.v1_baseline
+    - subject.tag36h11_standard
+    - sensor.hdr_sweep
   dataset:
     num_scenes: 15
     seeds:
       global_seed: 42
-    evaluation_scopes:
-      - detection
-      - pose_estimation
   camera:
-    resolution: [1920, 1080]
-    fov: 70.0
-    samples_per_scene: 1
-    min_distance: 0.5
-    max_distance: 8.0
-    min_elevation: 0.5
-    max_elevation: 1.0
-    min_roll: -180.0
-    max_roll: 180.0
     iso: 3200
-    iso_coupling: true
-    sensor_noise:
-      model: gaussian
-      mean: 0.0
-      stddev: 0.008
     tone_mapping: filmic
-    min_tag_pixels: 36
-    ppm_constraint:
-      min: 5.0
-      max: 40.0
-      distribution: uniform
-  tag:
-    margin_bits: 1
-    material:
-      randomize: true
-      roughness_min: 0.4
-      roughness_max: 0.8
-      specular_min: 0.1
-      specular_max: 0.3
-  scenario:
-    sampling_mode: random
-    use_board: false
-    subject:
-      type: TAGS
-      tag_families:
-        - tag36h11
-      size_mm: 160.0
-      tags_per_scene: 1
   scene:
-    texture_dir: assets/textures/background
-    texture_scale_min: 0.1
-    texture_scale_max: 20.0
+    # Ambient lighting intentionally held at the pre-preset-refactor Pydantic
+    # defaults (intensity 50-500, radius 0). A unified ambient level would be
+    # a separate decision — see locus.v1_baseline for the benchmark values.
     lighting:
+      intensity_min: 50.0
+      intensity_max: 500.0
+      radius_min: 0.0
+      radius_max: 0.0
       directional:
         - azimuth: 0.0
           elevation: 0.3

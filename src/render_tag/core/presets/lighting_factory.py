@@ -1,15 +1,9 @@
-"""Preset: ``lighting.factory``.
-
-Mirrors ``LightingPreset.FACTORY`` via ``get_lighting_preset`` so the
-legacy ``scene.lighting_preset: factory`` path produces a bit-identical
-resolved config when rewritten by the ACL.
-"""
+"""Preset: ``lighting.factory`` — bright diffuse factory-floor lighting."""
 
 from __future__ import annotations
 
 from typing import Any
 
-from render_tag.core.config import LightingPreset, get_lighting_preset
 from render_tag.core.presets.base import register_preset
 
 
@@ -18,5 +12,14 @@ from render_tag.core.presets.base import register_preset
     description="Factory floor: bright diffuse light, soft shadows.",
 )
 def lighting_factory() -> dict[str, Any]:
-    lighting = get_lighting_preset(LightingPreset.FACTORY)
-    return {"scene": {"lighting": lighting.model_dump()}}
+    return {
+        "scene": {
+            "lighting": {
+                "intensity_min": 200.0,
+                "intensity_max": 400.0,
+                "radius_min": 0.1,
+                "radius_max": 0.5,
+                "directional": [],
+            }
+        }
+    }

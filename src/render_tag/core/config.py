@@ -25,14 +25,6 @@ from render_tag.core.schema.subject import (
 )
 
 
-class LightingPreset(str, Enum):
-    """Preset lighting configurations for different environments."""
-
-    FACTORY = "factory"
-    WAREHOUSE = "warehouse"
-    OUTDOOR_INDUSTRIAL = "outdoor_industrial"
-
-
 class LayoutMode(str, Enum):
     """Layout mode for tag placement in scenes."""
 
@@ -612,45 +604,11 @@ class LightingConfig(BaseModel):
         return self
 
 
-def get_lighting_preset(preset: LightingPreset) -> LightingConfig:
-    """Get a LightingConfig for a specific preset."""
-    if preset == LightingPreset.FACTORY:
-        return LightingConfig(
-            intensity_min=200.0,
-            intensity_max=400.0,
-            radius_min=0.1,
-            radius_max=0.5,
-        )
-    elif preset == LightingPreset.WAREHOUSE:
-        return LightingConfig(
-            intensity_min=50.0,
-            intensity_max=200.0,
-            radius_min=0.05,
-            radius_max=0.2,
-        )
-    elif preset == LightingPreset.OUTDOOR_INDUSTRIAL:
-        return LightingConfig(
-            intensity_min=800.0,
-            intensity_max=1200.0,
-            radius_min=0.0,
-            radius_max=0.02,
-        )
-    # Default
-    return LightingConfig()
-
-
 class SceneConfig(BaseModel):
     """Scene configuration."""
 
     lighting: LightingConfig = Field(
         default_factory=LightingConfig, description="Lighting parameters"
-    )
-    lighting_preset: LightingPreset | None = Field(
-        default=None,
-        description=(
-            "Deprecated (since 0.9): use top-level `presets: [lighting.X]` instead. "
-            "Rewritten by the ACL; removed in 1.0."
-        ),
     )
     background_hdri: Path | None = Field(default=None, description="Path to HDRI background image")
     texture_dir: Path | None = Field(
