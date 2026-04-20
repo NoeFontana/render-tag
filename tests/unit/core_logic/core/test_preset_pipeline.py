@@ -124,3 +124,45 @@ def test_sensor_hdr_sweep_lets_user_iso_override_preset():
     # Preset's other keys persist.
     assert out["camera"]["iso_coupling"] is True
     assert out["camera"]["sensor_noise"]["stddev"] > 0.0
+
+
+def test_sensor_industrial_dr_sets_low_dr_and_linear_tonemap():
+    """sensor.industrial_dr models a low-DR industrial sensor for outdoor stress."""
+    import render_tag.core.presets  # noqa: F401
+    from render_tag.core.presets.base import default_registry
+
+    out = expand({"presets": ["sensor.industrial_dr"]}, registry=default_registry)
+    camera = out["camera"]
+    assert camera["dynamic_range_db"] == 60.0
+    assert camera["tone_mapping"] == "linear"
+    assert camera["iso_coupling"] is True
+
+
+def test_sensor_raw_pipeline_stacks_poisson_and_gaussian():
+    """sensor.raw_pipeline expresses shot + read noise as a stacked pipeline."""
+    import render_tag.core.presets  # noqa: F401
+    from render_tag.core.presets.base import default_registry
+
+    out = expand({"presets": ["sensor.raw_pipeline"]}, registry=default_registry)
+    camera = out["camera"]
+    assert camera["tone_mapping"] == "linear"
+    assert camera["iso_coupling"] is False
+    models = camera["sensor_noise"]["models"]
+    assert [m["model"] for m in models] == ["poisson", "gaussian"]
+
+
+def test_sensor_industrial_dr_composes_with_hdr_sweep():
+    """Stacking sensor.hdr_sweep then sensor.industrial_dr yields a composite profile."""
+    import render_tag.core.presets  # noqa: F401
+    from render_tag.core.presets.base import default_registry
+
+    out = expand(
+        {"presets": ["sensor.hdr_sweep", "sensor.industrial_dr"]},
+        registry=default_registry,
+    )
+    camera = out["camera"]
+    # industrial_dr overrides iso to 400; keeps hdr_sweep's sensor_noise profile.
+    assert camera["iso"] == 400
+    assert camera["dynamic_range_db"] == 60.0
+    assert camera["tone_mapping"] == "linear"
+    assert camera["sensor_noise"]["model"] == "gaussian"

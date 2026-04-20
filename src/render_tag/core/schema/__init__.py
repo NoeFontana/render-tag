@@ -69,6 +69,9 @@ from .recipe import (
     SensorDynamicsRecipe as SensorDynamicsRecipe,
 )
 from .recipe import (
+    SensorNoiseComponent as SensorNoiseComponent,
+)
+from .recipe import (
     SensorNoiseConfig as SensorNoiseConfig,
 )
 from .recipe import (

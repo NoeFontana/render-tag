@@ -13,15 +13,51 @@ from .board import BoardConfig
 from .renderer import RendererConfig
 
 
-class SensorNoiseConfig(BaseModel):
-    """Configuration for parametric sensor noise."""
+class SensorNoiseComponent(BaseModel):
+    """Single noise layer in a stacked sensor-noise pipeline."""
 
     model: str = Field(default="gaussian")
     mean: float = Field(default=0.0)
     stddev: float = Field(default=0.0, ge=0.0)
     salt_vs_pepper: float = Field(default=0.5, ge=0.0, le=1.0)
     amount: float = Field(default=0.0, ge=0.0, le=1.0)
+    scale: float = Field(
+        default=1000.0,
+        gt=0.0,
+        description="Poisson scale factor (photon count per unit intensity).",
+    )
+    seed: int | None = Field(
+        default=None,
+        description="Per-component seed. If None, derived from the parent config's seed.",
+    )
+
+
+class SensorNoiseConfig(BaseModel):
+    """Configuration for parametric sensor noise.
+
+    Backward-compatible: flat fields describe a single-model pipeline (legacy
+    shape). ``models`` opts into a stacked pipeline where each component is
+    applied in list order — real sensors stack shot + read + quantization
+    noise, and this field lets the schema express that honestly.
+
+    If both are present, ``models`` wins and the flat fields are ignored.
+    """
+
+    model: str = Field(default="gaussian")
+    mean: float = Field(default=0.0)
+    stddev: float = Field(default=0.0, ge=0.0)
+    salt_vs_pepper: float = Field(default=0.5, ge=0.0, le=1.0)
+    amount: float = Field(default=0.0, ge=0.0, le=1.0)
+    scale: float = Field(
+        default=1000.0,
+        gt=0.0,
+        description="Poisson scale factor (photon count per unit intensity).",
+    )
     seed: int | None = Field(default=None, description="Deterministic noise seed")
+    models: list[SensorNoiseComponent] | None = Field(
+        default=None,
+        description="Stacked noise layers applied in order. Overrides flat fields when set.",
+    )
 
 
 class SensorDynamicsRecipe(BaseModel):
@@ -121,6 +157,14 @@ class CameraRecipe(BaseModel):
     )
     iso_noise: float | None = None
     sensor_noise: SensorNoiseConfig | None = None
+    tone_mapping: Literal["linear", "srgb", "filmic"] = Field(
+        default="filmic",
+        description="Post-render tone-mapping operator applied before sensor noise.",
+    )
+    dynamic_range_db: float | None = Field(
+        default=None,
+        description="Sensor dynamic range in dB. None disables DR clipping.",
+    )
 
 
 class ObjectRecipe(BaseModel):

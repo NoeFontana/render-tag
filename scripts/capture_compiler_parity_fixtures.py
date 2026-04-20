@@ -27,7 +27,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 # Blender mocks must be injected before any render_tag import that transitively
 # pulls bpy / blenderproc. The test conftest does this; reuse its helper.
-from tests.conftest import _inject_blender_mocks  # noqa: E402
+from tests._plugins.blender_mocks.plugin import _inject_blender_mocks  # noqa: E402
 
 _inject_blender_mocks()
 

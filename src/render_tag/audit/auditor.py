@@ -519,11 +519,22 @@ class AuditDiff:
     def calculate(self) -> dict[str, Any]:
         ga, gb = self.report_a.geometric, self.report_b.geometric
         ia, ib = self.report_a.integrity, self.report_b.integrity
+        ea, eb = self.report_a.environmental, self.report_b.environmental
         return {
             "tag_count": gb.tag_count - ga.tag_count,
             "image_count": gb.image_count - ga.image_count,
             "distance_mean_diff": gb.distance.mean - ga.distance.mean,
+            "distance_std_diff": gb.distance.std - ga.distance.std,
             "incidence_angle_max_diff": gb.incidence_angle.max - ga.incidence_angle.max,
+            "incidence_angle_mean_diff": gb.incidence_angle.mean - ga.incidence_angle.mean,
             "impossible_poses_diff": ib.impossible_poses - ia.impossible_poses,
+            "corrupted_frames_diff": ib.corrupted_frames - ia.corrupted_frames,
+            "orphaned_tags_diff": ib.orphaned_tags - ia.orphaned_tags,
+            "chirality_failures_diff": ib.chirality_failures - ia.chirality_failures,
+            "orientation_failures_diff": ib.orientation_failures - ia.orientation_failures,
+            "margin_violations_diff": ib.margin_violations - ia.margin_violations,
+            "lighting_intensity_mean_diff": (
+                eb.lighting_intensity.mean - ea.lighting_intensity.mean
+            ),
             "score_diff": self.report_b.score - self.report_a.score,
         }
