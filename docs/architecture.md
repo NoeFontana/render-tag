@@ -20,7 +20,7 @@ graph TD
 ## Components
 
 ### 1. Core (`src/render_tag/core/`)
-The foundation of the system. Contains the single source of truth **Schemas** (Pydantic models), configuration logic, and fundamental utilities.
+The foundation of the system. Contains the single source of truth **Schemas** (Pydantic models), configuration logic, and fundamental utilities. Schema evolution (versioned migrations and deprecated-field sunsets) is documented in [engineering/schema_migrations.md](engineering/schema_migrations.md).
 
 ### 2. Generation (`src/render_tag/generation/`)
 Pure Python procedural logic. Samples parameters and builds `SceneRecipe` objects. It has **no** dependency on Blender.

@@ -1,0 +1,10 @@
+version: '0.2'
+dataset:
+  num_scenes: 2
+scenario:
+  subject:
+    type: TAGS
+    tag_families:
+      - tag16h5
+    size_mm: 80.0
+    tags_per_scene: 4

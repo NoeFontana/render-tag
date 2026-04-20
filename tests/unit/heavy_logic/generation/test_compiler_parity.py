@@ -21,6 +21,7 @@ from render_tag.generation.compiler import SceneCompiler
 from tests.fixtures.compiler_parity import (
     SCENE_IDS,
     SEEDS,
+    diff_recipes,
     fixture_path,
     make_parity_config,
     normalize_recipe_paths,
@@ -39,8 +40,11 @@ def test_compile_scene_validate_matches_fixture(seed: int, scene_id: int, tmp_pa
     recipe = compiler.compile_scene(scene_id, validate=True)
     actual = normalize_recipe_paths(recipe.model_dump(mode="json"), tmp_path)
 
-    assert actual == expected, (
+    mismatches = diff_recipes(actual, expected)
+    assert not mismatches, (
         f"Parity drift for seed={seed}, scene_id={scene_id}. "
         f"SceneCompiler.compile_scene(validate=True) no longer matches the pinned "
-        f"fixture at {fx.relative_to(REPO_ROOT)}."
+        f"fixture at {fx.relative_to(REPO_ROOT)}.\n"
+        + "\n".join(f"  - {m}" for m in mismatches[:20])
+        + (f"\n  ... ({len(mismatches) - 20} more)" if len(mismatches) > 20 else "")
     )
