@@ -1,6 +1,9 @@
 import subprocess
 
+import pytest
 
+
+@pytest.mark.integration
 def test_import_linter_contracts_pass():
     """Architectural boundaries (layers, host isolation, determinism, sibling
     independence) are encoded in pyproject.toml's [tool.importlinter] table.

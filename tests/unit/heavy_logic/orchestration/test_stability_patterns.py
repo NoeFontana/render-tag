@@ -8,6 +8,8 @@ import pytest
 
 from render_tag.orchestration import PersistentWorkerProcess
 
+pytestmark = pytest.mark.integration
+
 
 def test_process_group_cleanup(tmp_path):
     """Verify that stopping a worker kills its children as well."""

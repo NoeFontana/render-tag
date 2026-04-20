@@ -84,6 +84,8 @@ jobs:
             run: uv run render-tag validate-config
           - name: "Automated Tests (Pytest)"
             run: uv run pytest
+          - name: "Fast Tests (Pytest -m 'not integration')"
+            run: timeout --signal=TERM 90s uv run pytest -m "not integration" --durations=20
             
     steps:
       - name: Checkout Code
