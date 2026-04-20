@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 import cv2
 import numpy as np
 
-from ..core.config import CameraConfig, GenConfig
+from ..core.config import CameraConfig, DirectionalLightConfig, GenConfig
 from ..core.geometry.projection_math import has_active_distortion
 from ..core.geometry.visibility import is_facing_camera
 from ..core.logging import get_logger
@@ -42,6 +42,26 @@ ISO_COUPLING_BASE_SIGMA = 0.002
 ISO_COUPLING_ALPHA = 0.8
 ISO_COUPLING_GAIN_FLOOR = 800.0
 ISO_COUPLING_GAIN_CEILING = 6400.0
+
+SUN_DISTANCE = 10.0
+
+
+def _build_sun_light_recipe(cfg: DirectionalLightConfig) -> LightRecipe:
+    """Encode azimuth/elevation as Blender location + XYZ-Euler pointing at the origin.
+
+    Rotation derivation verified by ``test_sun_rotation_points_light_at_origin``.
+    """
+    x = SUN_DISTANCE * math.cos(cfg.elevation) * math.cos(cfg.azimuth)
+    y = SUN_DISTANCE * math.cos(cfg.elevation) * math.sin(cfg.azimuth)
+    z = SUN_DISTANCE * math.sin(cfg.elevation)
+    return LightRecipe(
+        type="SUN",
+        location=[x, y, z],
+        intensity=cfg.intensity,
+        radius=0.0,
+        color=list(cfg.color),
+        rotation_euler=[math.pi / 2 - cfg.elevation, 0.0, math.pi / 2 + cfg.azimuth],
+    )
 
 
 def derive_iso_coupled_noise(
@@ -454,6 +474,9 @@ class SceneCompiler:
                     color=[1.0, 1.0, 1.0],
                 )
             )
+
+        for cfg in lighting_config.directional:
+            lights.append(_build_sun_light_recipe(cfg))
 
         return WorldRecipe(
             background_hdri=background_hdri,

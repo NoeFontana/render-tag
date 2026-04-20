@@ -202,6 +202,15 @@ class LightRecipe(BaseModel):
     intensity: float
     radius: float = 0.0
     color: list[float] = Field(default_factory=lambda: [1.0, 1.0, 1.0])
+    rotation_euler: list[float] | None = Field(
+        default=None,
+        min_length=3,
+        max_length=3,
+        description=(
+            "XYZ-Euler rotation in radians. Required for SUN lights to control "
+            "direction; ignored for POINT."
+        ),
+    )
 
 
 class WorldRecipe(BaseModel):

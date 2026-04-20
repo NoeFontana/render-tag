@@ -237,20 +237,27 @@ def _get_sweep_values(sweep: Sweep) -> list[Any]:
 
 
 def _update_nested_dict(d: dict[str, Any], path: str, value: Any):
-    """Update a nested dictionary using dot-notation path."""
-    parts = path.split(".")
-    curr = d
-    for part in parts[:-1]:
-        if part not in curr:
-            curr[part] = {}
-        curr = curr[part]
-        if not isinstance(curr, dict):
-            # If we hit a Pydantic model dump that is a list or other type,
-            # we can't recurse easily with dot notation unless we support list indexing
-            # e.g. "cameras.0.fov"
-            raise ValueError(f"Cannot traverse path '{path}' at '{part}': not a dict")
+    """Update a nested dictionary using dot-notation path.
 
-    curr[parts[-1]] = value
+    Numeric parts index into lists (e.g. ``scene.lighting.directional.0.azimuth``).
+    """
+    parts = path.split(".")
+    curr: Any = d
+    for part in parts[:-1]:
+        if isinstance(curr, list):
+            curr = curr[int(part)]
+        elif isinstance(curr, dict):
+            if part not in curr:
+                curr[part] = {}
+            curr = curr[part]
+        else:
+            raise ValueError(f"Cannot traverse path '{path}' at '{part}': not a dict or list")
+
+    last = parts[-1]
+    if isinstance(curr, list):
+        curr[int(last)] = value
+    else:
+        curr[last] = value
 
 
 def save_manifest(output_dir: Path, variant: ExperimentVariant, cli_args: list[str] | None = None):

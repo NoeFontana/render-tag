@@ -73,6 +73,10 @@ def setup_lighting(lights: list[Any]) -> list:
         if l_dict.get("radius", 0) > 0:
             light.set_radius(l_dict["radius"])
 
+        rotation = l_dict.get("rotation_euler")
+        if rotation is not None:
+            light.set_rotation_euler(rotation)
+
         created_lights.append(light)
 
     return created_lights
