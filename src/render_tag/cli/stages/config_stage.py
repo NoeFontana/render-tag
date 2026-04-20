@@ -128,6 +128,7 @@ class ConfigLoadingStage(PipelineStage):
                 seed=seed_arg,
                 shard_index=ctx.shard_index if ctx.shard_index != -1 else 0,
                 scene_limit=ctx.num_scenes if ctx.num_scenes > 0 else None,
+                cli_presets=ctx.cli_presets or None,
             )
 
             # Update context with resolved values

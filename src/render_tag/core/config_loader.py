@@ -1,13 +1,17 @@
 from pathlib import Path
 from typing import Any
 
-from render_tag.core.config import GenConfig, load_config
+import yaml
+
+from render_tag.core.config import GenConfig
+from render_tag.core.presets import append_cli_presets
 from render_tag.core.schema.job import (
     JobInfrastructure,
     JobPaths,
     JobSpec,
     get_env_fingerprint,
 )
+from render_tag.core.schema_adapter import adapt_config
 
 
 class ConfigResolver:
@@ -23,6 +27,7 @@ class ConfigResolver:
         seed: int | str = "auto",
         shard_index: int = 0,
         scene_limit: int | None = None,
+        cli_presets: list[str] | None = None,
     ) -> JobSpec:
         """
         Compiles the Final Job Spec.
@@ -33,12 +38,15 @@ class ConfigResolver:
             seed: Master seed or "auto"
             shard_index: The shard index for this job run
             scene_limit: Optional override for number of scenes (legacy CLI)
+            cli_presets: Preset names from the CLI, appended after any YAML
+                ``presets: [...]`` list so later entries win.
 
         Returns:
             Frozen JobSpec object.
         """
-        # 1. Load Base Config
-        gen_config = load_config(self.config_path) if self.config_path else GenConfig()
+        # 1. Load Base Config — CLI presets, if any, are merged into the raw
+        # dict before the ACL runs so composition order is preserved.
+        gen_config = self._load_with_cli_presets(cli_presets)
 
         # 2. Apply Overrides
         if scene_limit is not None and scene_limit > 0:
@@ -120,9 +128,26 @@ class ConfigResolver:
             assets_hash=assets_hash,
             config_hash=hashlib.sha256(gen_config.model_dump_json().encode()).hexdigest(),
             shard_index=shard_index,
+            applied_presets=list(gen_config.presets),
         )
 
         return spec
+
+    def _load_with_cli_presets(self, cli_presets: list[str] | None) -> GenConfig:
+        """Load YAML + append CLI presets + run ACL + validate.
+
+        CLI presets are appended after any YAML ``presets: [...]`` list so
+        later entries compose on top.
+        """
+        if self.config_path is None and not cli_presets:
+            return GenConfig()
+        if self.config_path is None:
+            data: dict[str, Any] = {}
+        else:
+            with open(self.config_path) as f:
+                data = yaml.safe_load(f) or {}
+        append_cli_presets(data, cli_presets)
+        return GenConfig.model_validate(adapt_config(data))
 
     def _calculate_assets_hash(self, config: GenConfig) -> str:
         """Calculate a hash of all assets referenced in the configuration."""

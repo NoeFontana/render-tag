@@ -36,6 +36,7 @@ class GenerationContext:
     batch_size: int = 10
     skip_execution: bool = False
     overrides: dict[str, str] = field(default_factory=dict)
+    cli_presets: list[str] = field(default_factory=list)
 
     # Intermediate State
     gen_config: GenConfig | None = None

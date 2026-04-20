@@ -124,6 +124,66 @@ renderer:
 2.  **ChArUco (cb)**: Checkerboard pattern compatible with OpenCV calibration.
 3.  **AprilGrid**: Dense grid compatible with Kalibr.
 
+### Presets
+
+Presets are named, composable bundles of config overrides. Declare them at the
+YAML top level and/or via the `--preset` CLI flag:
+
+```yaml
+# configs/calibration.yaml
+presets:
+  - lighting.factory
+  - evaluation.calibration_full
+
+dataset:
+  num_scenes: 500
+```
+
+```bash
+uv run render-tag generate --config configs/calibration.yaml \
+  --preset shadow.harsh --output output/ds
+```
+
+**Composition order.** Presets are applied left-to-right: each preset merges
+into the one before it. CLI `--preset` flags are appended *after* the YAML
+list, so they compose last.
+
+**Precedence.** Explicit values in your YAML always win over preset-supplied
+defaults. A preset only contributes a field where you didn't.
+
+**Merge rules.** Deep-merge with three rules that matter:
+
+| target + source                       | result                    |
+|---------------------------------------|---------------------------|
+| `dict` + `dict`                       | recurse                   |
+| `list[str]` + `list[str]`             | concat, order-preserving dedupe |
+| `list[dict]` / other / scalar / `None`| source replaces           |
+
+The list-of-strings rule is how two presets can each add to
+`dataset.evaluation_scopes` without clobbering each other.
+
+**Introspection.**
+
+```bash
+# List every registered preset, grouped by category
+uv run render-tag preset list
+
+# Show a specific preset's override dict
+uv run render-tag preset show lighting.factory
+
+# Resolve a config (with optional CLI presets) and print the final YAML
+uv run render-tag preset resolve --config configs/calibration.yaml \
+  --preset shadow.harsh
+```
+
+**Provenance.** The applied preset names are stamped into
+`job_spec.json` under `applied_presets` and contribute to the deterministic
+`job_id`, so a dataset always answers "which presets produced me?".
+
+**Legacy `scene.lighting_preset`.** The old enum field still works — the ACL
+rewrites it to `presets: [lighting.X]` with a deprecation warning — but it
+will be removed in 1.0. Use the `presets: [...]` form in new configs.
+
 ## Advanced Generation
 
 ### Sharding and Parallelism

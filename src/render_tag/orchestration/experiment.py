@@ -174,34 +174,9 @@ def expand_campaign(campaign: Campaign) -> list[ExperimentVariant]:
         with open(config_path) as f:
             config_data = yaml.safe_load(f) or {}
 
-        # Apply overrides
-        # We can use the same logic as _update_nested_dict but we need to
-        # iterate over the overrides dict
-        def _apply_overrides_recursive(d, overrides_dict, prefix=""):
-            for k, v in overrides_dict.items():
-                if isinstance(v, dict) and k in d and isinstance(d[k], dict):
-                    _apply_overrides_recursive(d[k], v, prefix + k + ".")
-                else:
-                    # Flat override or leaf node
-                    d[k] = v
+        from render_tag.core.merge import deep_merge
 
-        # Simple recursive merge isn't enough because overrides might be flat dot notation
-        # or nested dict. Let's assume nested dict structure matches config structure
-        # based on how we wrote the yaml.
-
-        # Actually, let's use a merge utility.
-        # But wait, expand_experiment uses dot notation for sweeps.
-        # In the campaign yaml, overrides are nested dictionaries.
-
-        def deep_merge(target, source):
-            for key, value in source.items():
-                if isinstance(value, dict):
-                    node = target.setdefault(key, {})
-                    deep_merge(node, value)
-                else:
-                    target[key] = value
-
-        deep_merge(config_data, sub_exp.overrides)
+        config_data = deep_merge(config_data, sub_exp.overrides)
 
         # Inject campaign-level metadata
         if campaign.metadata:

@@ -4,14 +4,16 @@ Anti-Corruption Layer (ACL) for render-tag configuration.
 This module handles the translation of legacy configuration formats into
 the current v2-compliant internal schema before Pydantic validation.
 
-The ACL runs three sequential passes in a non-commutative order:
+The ACL runs four sequential passes in a non-commutative order:
 
 1. ``flat_to_nested`` — rewrites pre-versioning flat dicts into nested shape.
 2. ``migrations`` — versioned migration chain (v0.0 -> ... -> current).
 3. ``field_map`` — declarative deprecated-field rewrites (sunset on schedule).
+4. ``presets.expand`` — composes ``presets: [...]`` into overrides, with
+   explicit user values winning over preset-supplied defaults.
 
 See ``docs/engineering/schema_migrations.md`` for how to add new migrations
-or legacy entries.
+or legacy entries, and ``docs/guide.md`` (Presets) for the preset mechanism.
 """
 
 import json
@@ -20,6 +22,7 @@ from typing import Any
 
 import yaml
 
+from render_tag.core import presets as _presets
 from render_tag.core.constants import CURRENT_SCHEMA_VERSION
 from render_tag.core.logging import get_logger
 from render_tag.core.schema import migrations
@@ -31,7 +34,7 @@ logger = get_logger(__name__)
 def adapt_config(data: dict[str, Any]) -> dict[str, Any]:
     """Translate legacy config dicts into current-schema dicts.
 
-    Primary entry point for the Anti-Corruption Layer. Runs the three passes
+    Primary entry point for the Anti-Corruption Layer. Runs the four passes
     in order; each pass assumes the output shape of the previous.
     """
     if data is None:
@@ -40,6 +43,7 @@ def adapt_config(data: dict[str, Any]) -> dict[str, Any]:
     data = flat_to_nested.detect_and_convert(data)
     data = migrations.apply_chain(data)
     data = field_map.apply_all(data)
+    data = _presets.expand(data)
     return data
 
 
