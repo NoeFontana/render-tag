@@ -1,0 +1,17 @@
+# Run with `uv run pre-commit install` to enable the hooks.
+# Run manually with `uv run pre-commit run --all-files`.
+
+repos:
+  - repo: local
+    hooks:
+      # Architectural boundaries (layers / host isolation / determinism /
+      # sibling independence) are encoded in pyproject.toml's [tool.importlinter].
+      # Run as a local hook because import-linter needs the project's own
+      # dependencies to build the import graph — pre-commit's isolated env
+      # would not have render_tag installed.
+      - id: lint-imports
+        name: import-linter (architectural contracts)
+        entry: uv run lint-imports
+        language: system
+        pass_filenames: false
+        files: \.py$

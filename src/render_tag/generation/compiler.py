@@ -14,6 +14,8 @@ import cv2
 import numpy as np
 
 from ..core.config import GenConfig
+from ..core.geometry.projection_math import has_active_distortion
+from ..core.geometry.visibility import is_facing_camera
 from ..core.logging import get_logger
 from ..core.schema import (
     CameraIntrinsics,
@@ -25,8 +27,6 @@ from ..core.schema import (
 )
 from ..core.seeding import derive_seed
 from ..data_io.assets import AssetProvider
-from ..core.geometry.projection_math import has_active_distortion
-from ..core.geometry.visibility import is_facing_camera
 from .camera import sample_camera_pose
 from .strategy.factory import get_subject_strategy
 
