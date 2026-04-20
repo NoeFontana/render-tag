@@ -5,6 +5,7 @@ Shifts all "decision-making" (random sampling, asset selection, pose calculation
 from the Blender runtime to the pure-Python preparation phase.
 """
 
+import json
 import math
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -13,6 +14,7 @@ import cv2
 import numpy as np
 
 from ..core.config import GenConfig
+from ..core.logging import get_logger
 from ..core.schema import (
     CameraIntrinsics,
     CameraRecipe,
@@ -30,6 +32,10 @@ from .visibility import is_facing_camera
 
 if TYPE_CHECKING:
     from .strategy.base import SubjectStrategy
+
+logger = get_logger(__name__)
+
+MAX_VALIDATION_RETRIES = 50
 
 
 def compute_overscan_intrinsics(
@@ -180,6 +186,8 @@ class SceneCompiler:
         self.config = config
         self.global_seed = global_seed
         self.output_dir = output_dir
+        if self.output_dir is not None:
+            self.output_dir.mkdir(parents=True, exist_ok=True)
         self.asset_provider = asset_provider or AssetProvider()
 
         # Initialize Subject Strategy
@@ -217,6 +225,9 @@ class SceneCompiler:
         shard_index: int,
         total_shards: int,
         exclude_ids: set[int] | None = None,
+        *,
+        total_scenes: int | None = None,
+        validate: bool = False,
     ) -> list[SceneRecipe]:
         """Compile a specific shard of scenes.
 
@@ -224,12 +235,19 @@ class SceneCompiler:
             shard_index: The zero-based index of the current shard.
             total_shards: The total number of shards the job is split into.
             exclude_ids: Optional set of scene IDs to skip.
+            total_scenes: Total scenes across all shards. Defaults to
+                ``config.dataset.num_scenes``; callers that shard a job spec
+                with a different scope can override it.
+            validate: If True, each scene is built under the retry-on-invalid
+                loop (see ``compile_scene``). Defaults to False to preserve
+                existing direct-compile behavior.
 
         Returns:
             A list of compiled SceneRecipe objects for this shard.
         """
         exclude_ids = exclude_ids or set()
-        total_scenes = self.config.dataset.num_scenes
+        if total_scenes is None:
+            total_scenes = self.config.dataset.num_scenes
 
         if total_shards > total_scenes:
             total_shards = total_scenes
@@ -244,24 +262,73 @@ class SceneCompiler:
         for i in range(start_idx, end_idx):
             if i in exclude_ids:
                 continue
-            recipes.append(self.compile_scene(i))
+            recipes.append(self.compile_scene(i, validate=validate))
         return recipes
 
-    def compile_scene(self, scene_id: int) -> SceneRecipe:
+    def compile_scene(self, scene_id: int, *, validate: bool = False) -> SceneRecipe:
         """Compile a single scene recipe with full determinism.
 
         Args:
             scene_id: The unique identifier for the scene.
+            validate: When True, run ``RecipeValidator`` on each attempt and
+                re-sample (with a new ``derive_seed(..., "attempt", n)`` seed)
+                until the recipe is free of errors and non-cache warnings.
+                Raises ``RuntimeError`` if 50 attempts all fail. Defaults to
+                False, which returns the first build deterministically.
 
         Returns:
             A fully resolved SceneRecipe with all randomness removed.
         """
-        # Derive Scene Seed
         scene_seed = derive_seed(self.global_seed, "scene", scene_id)
 
-        # We might need to retry if validation fails (handled by Generator/caller)
-        # but the Compiler itself should be deterministic for a given seed.
-        return self._build_recipe(scene_id, scene_seed)
+        if not validate:
+            return self._build_recipe(scene_id, scene_seed)
+
+        from ..core.validator import RecipeValidator
+
+        scene_logger = logger.bind(scene_id=scene_id, seed=scene_seed)
+
+        for attempt in range(MAX_VALIDATION_RETRIES):
+            attempt_seed = derive_seed(scene_seed, "attempt", attempt)
+            recipe = self._build_recipe(scene_id, attempt_seed)
+
+            validator = RecipeValidator(recipe)
+            validator.validate()
+
+            # Cache-pending warnings are expected: the TagStrategy references
+            # PNGs that prep_stage._pregenerate_tags writes immediately after
+            # compilation. They are not a reason to re-sample.
+            relevant_warnings = [
+                w for w in validator.warnings if "Cache asset not yet present" not in w
+            ]
+
+            if not validator.errors and not relevant_warnings:
+                return recipe
+
+            scene_logger.debug(
+                f"Scene {scene_id} attempt {attempt} failed validation "
+                f"(Errors: {len(validator.errors)}, "
+                f"Warnings: {len(validator.warnings)}). Re-sampling...",
+                attempt=attempt,
+            )
+
+        raise RuntimeError(
+            f"Could not generate a valid scene for ID {scene_id} after "
+            f"{MAX_VALIDATION_RETRIES} attempts "
+            f"(errors={len(validator.errors)}, warnings={len(validator.warnings)})."
+        )
+
+    def save_recipe_json(
+        self, recipes: list[SceneRecipe], filename: str = "scene_recipes.json"
+    ) -> Path:
+        """Serialize a list of recipes to ``{output_dir}/{filename}``."""
+        if self.output_dir is None:
+            raise ValueError("SceneCompiler.save_recipe_json requires output_dir to be set.")
+        path = self.output_dir / filename
+        data = [r.model_dump(mode="json") for r in recipes]
+        with open(path, "w") as f:
+            json.dump(data, f, indent=2)
+        return path
 
     def _build_recipe(self, scene_id: int, seed: int) -> SceneRecipe:
         """Internal build logic that resolves all ranges into absolute values."""

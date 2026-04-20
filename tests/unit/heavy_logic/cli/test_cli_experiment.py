@@ -16,7 +16,7 @@ runner = CliRunner()
 @patch("render_tag.cli.experiment.expand_experiment")
 @patch("render_tag.cli.experiment.check_blenderproc_installed")
 @patch("render_tag.cli.experiment.UnifiedWorkerOrchestrator")
-@patch("render_tag.cli.experiment.Generator")
+@patch("render_tag.cli.experiment.SceneCompiler")
 @patch("render_tag.cli.experiment.generate_dataset_info")
 @patch("render_tag.cli.experiment.serialize_config_to_json")
 @patch("render_tag.cli.experiment.ensure_tag_asset")
@@ -59,10 +59,10 @@ def test_experiment_run_success(
     mock_resp.status = ResponseStatus.SUCCESS
     orchestrator_instance.execute_recipe.return_value = mock_resp
 
-    # Setup generator mock
+    # Setup compiler mock
     mock_gen_instance = mock_generator.return_value
     mock_recipe = MagicMock()
-    mock_gen_instance.generate_all.return_value = [mock_recipe]
+    mock_gen_instance.compile_shards.return_value = [mock_recipe]
 
     config_file = tmp_path / "exp.yaml"
     config_file.write_text("dummy")

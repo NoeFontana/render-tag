@@ -105,13 +105,13 @@ def mock_executor_factory():
 
 @pytest.fixture
 def mock_generator():
-    """Mocks the Generator to return dummy recipes and pass validation."""
-    with patch("render_tag.cli.stages.prep_stage.Generator") as mock_gen_cls:
+    """Mocks the SceneCompiler to return dummy recipes and pass validation."""
+    with patch("render_tag.cli.stages.prep_stage.SceneCompiler") as mock_gen_cls:
         mock_gen = mock_gen_cls.return_value
         from render_tag.core.schema import SceneRecipe
 
         recipe = SceneRecipe(scene_id=0, random_seed=42, world={}, objects=[], cameras=[])
-        mock_gen.generate_shards.return_value = [recipe]
+        mock_gen.compile_shards.return_value = [recipe]
 
         with patch(
             "render_tag.cli.stages.prep_stage.validate_recipe_file", return_value=(True, [], [])
@@ -200,7 +200,7 @@ def test_generate_scenes_override_logic(
         ],
     )
 
-    # Verify Generator was initialized with overridden num_scenes
+    # Verify SceneCompiler was initialized with overridden num_scenes
     assert mock_gen_cls.called
     config_arg = mock_gen_cls.call_args[0][0]
     assert config_arg.dataset.num_scenes == 3

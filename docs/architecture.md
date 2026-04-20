@@ -8,7 +8,7 @@ The system is divided into **Host** code (Python >=3.11) and **Backend** code (B
 
 ```mermaid
 graph TD
-    A["CLI / Python API"] --> B["Generator"]
+    A["CLI / Python API"] --> B["SceneCompiler"]
     B -- "SceneRecipe" --> C["Unified Orchestrator"]
     C -- "ZMQ REQ" --> D["ZMQ Server (Blender)"]
     D --> E["Worker Server"]

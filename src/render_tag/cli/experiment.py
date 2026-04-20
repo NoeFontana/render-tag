@@ -10,7 +10,7 @@ import typer
 from render_tag.audit.reporting import generate_dataset_info
 from render_tag.core.manifest import ChecksumManifest
 from render_tag.core.validator import validate_recipe_file
-from render_tag.generation.scene import Generator
+from render_tag.generation.compiler import SceneCompiler
 from render_tag.generation.tags import ensure_tag_asset
 from render_tag.orchestration import ResponseStatus, UnifiedWorkerOrchestrator
 from render_tag.orchestration.experiment import (
@@ -121,10 +121,10 @@ def run(
         variant_dir.mkdir(parents=True, exist_ok=True)
 
         # 1. Generate Recipes
-        generator = Generator(variant.config, variant_dir)
-        recipes = generator.generate_all()
+        compiler = SceneCompiler(variant.config, output_dir=variant_dir)
+        recipes = compiler.compile_shards(shard_index=0, total_shards=1, validate=True)
         recipe_path = variant_dir / "scene_recipes.json"
-        generator.save_recipe_json(recipes, "scene_recipes.json")
+        compiler.save_recipe_json(recipes, "scene_recipes.json")
 
         # 2. Save Checksum Manifest (Pre-execution)
         manifest = ChecksumManifest(
