@@ -1,4 +1,5 @@
 import warnings
+from typing import Any
 
 import pytest
 
@@ -250,20 +251,22 @@ def test_order_dependence_field_map_before_migrator_breaks():
     before the migrator could consume it, producing a config with no subject
     at all. This test protects the ordering invariant.
     """
+    import copy
+
     from render_tag.core.schema_adapter import SchemaMigrator, _map_legacy_fields
 
-    config = {"version": "0.1", "tag": {"size_meters": 0.16}}
+    config: dict[str, Any] = {"version": "0.1", "tag": {"size_meters": 0.16}}
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", DeprecationWarning)
-        after_field_map_first = _map_legacy_fields(dict(config, tag=dict(config["tag"])))
+        after_field_map_first = _map_legacy_fields(copy.deepcopy(config))
         after_field_map_first = SchemaMigrator().migrate(after_field_map_first)
 
     assert "subject" not in after_field_map_first.get("scenario", {})
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", DeprecationWarning)
-        right_order = SchemaMigrator().migrate(dict(config, tag=dict(config["tag"])))
+        right_order = SchemaMigrator().migrate(copy.deepcopy(config))
         right_order = _map_legacy_fields(right_order)
 
     assert right_order["scenario"]["subject"]["size_mm"] == 160.0
