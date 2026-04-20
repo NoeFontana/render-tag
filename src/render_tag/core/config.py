@@ -543,6 +543,36 @@ class TagConfig(BaseModel):
     material: MaterialConfig = Field(default_factory=MaterialConfig)
 
 
+class DirectionalLightConfig(BaseModel):
+    """Single directional (SUN) light overlay on top of the sampled hemisphere.
+
+    Azimuth is measured CCW from the +X axis around +Z; elevation is the angle
+    above the XY horizon. A SUN at (azimuth=0, elevation=0) sits on the +X
+    horizon and illuminates the scene toward the origin. The compiler emits one
+    additional ``LightRecipe(type='SUN', ...)`` when this is set; the default
+    ``None`` leaves hemispheric POINT sampling byte-identical to pre-Phase-3.
+    """
+
+    azimuth: float = Field(..., description="Azimuth angle in radians, CCW from +X around +Z")
+    elevation: float = Field(
+        ...,
+        ge=0.0,
+        le=math.pi / 2,
+        description="Elevation in radians above the XY horizon (0=horizon, pi/2=zenith)",
+    )
+    intensity: float = Field(
+        default=5.0,
+        gt=0.0,
+        description="SUN radiance in W/m^2 (Blender SUN units)",
+    )
+    color: list[float] = Field(
+        default_factory=lambda: [1.0, 1.0, 1.0],
+        min_length=3,
+        max_length=3,
+        description="Linear RGB color multiplier",
+    )
+
+
 class LightingConfig(BaseModel):
     """Lighting configuration."""
 
@@ -554,6 +584,23 @@ class LightingConfig(BaseModel):
         default=0.0, ge=0.0, description="Minimum light radius (shadow softness)"
     )
     radius_max: float = Field(default=0.0, ge=0.0, description="Maximum light radius")
+
+    directional: list[DirectionalLightConfig] = Field(
+        default_factory=list,
+        description=(
+            "Optional SUN overlays. One LightRecipe(type='SUN', ...) is emitted per "
+            "entry. Presets may supply a single dict, normalized to a one-element list."
+        ),
+    )
+
+    @field_validator("directional", mode="before")
+    @classmethod
+    def _wrap_singleton(cls, v: Any) -> Any:
+        if v is None:
+            return []
+        if isinstance(v, (dict, DirectionalLightConfig)):
+            return [v]
+        return v
 
     @model_validator(mode="after")
     def validate_ranges(self) -> "LightingConfig":

@@ -1360,6 +1360,7 @@
           1.6566257028673603
         ],
         "radius": 0.0,
+        "rotation_euler": null,
         "type": "POINT"
       },
       {
@@ -1375,6 +1376,7 @@
           2.091029279539766
         ],
         "radius": 0.0,
+        "rotation_euler": null,
         "type": "POINT"
       },
       {
@@ -1390,6 +1392,7 @@
           2.9420435204536473
         ],
         "radius": 0.0,
+        "rotation_euler": null,
         "type": "POINT"
       }
     ],

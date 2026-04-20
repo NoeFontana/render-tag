@@ -172,6 +172,9 @@ class MockLight:
     def set_radius(self, radius: float):
         pass
 
+    def set_rotation_euler(self, rotation: list):
+        pass
+
 
 class MockUtilityModule:
     def reset_keyframes(self):

@@ -34,11 +34,14 @@ from render_tag.core.presets.pipeline import (
 from . import (  # noqa: F401  (auto-registration on import)
     evaluation_calibration_full,
     lighting_factory,
+    lighting_low_key,
+    lighting_mixed_temperature,
     lighting_outdoor_industrial,
     lighting_warehouse,
     sensor_hdr_sweep,
     sensor_industrial_dr,
     sensor_raw_pipeline,
+    shadow_directional_hard,
     shadow_harsh,
 )
 
