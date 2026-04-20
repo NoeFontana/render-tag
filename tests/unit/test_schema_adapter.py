@@ -102,9 +102,11 @@ def test_adapt_config_legacy_tag_layout():
 def test_adapt_config_legacy_board_layout():
     """Verify legacy BOARD layout migration."""
     config = {"scenario": {"layout": "board", "grid_size": [5, 4], "marker_size": 0.05}}
-    adapted = adapt_config(config)
+    with pytest.warns(DeprecationWarning, match="scenario.layout"):
+        adapted = adapt_config(config)
     subject = adapted["scenario"]["subject"]
     assert subject["type"] == "BOARD"
     assert subject["rows"] == 4
     assert subject["cols"] == 5
     assert subject["marker_size"] == 0.05
+    assert "layout" not in adapted["scenario"]

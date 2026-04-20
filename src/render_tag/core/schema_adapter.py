@@ -335,4 +335,13 @@ def _map_legacy_fields(data: dict[str, Any]) -> dict[str, Any]:
                 scenario["subject"]["square_size"] = scenario.pop("square_size")
         data["scenario"] = scenario
 
+    # Strip `scenario.layout` — it was an informal tag ("plain" / "board") used
+    # to discriminate the subject before the polymorphic SubjectConfig existed.
+    # Now redundant with `scenario.subject.type`; ScenarioConfig forbids extras.
+    scenario = data.get("scenario", {})
+    if isinstance(scenario, dict) and "layout" in scenario:
+        _warn_legacy("scenario.layout", "scenario.subject.type")
+        scenario.pop("layout")
+        data["scenario"] = scenario
+
     return data
