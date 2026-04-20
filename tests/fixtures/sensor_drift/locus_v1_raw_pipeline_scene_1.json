@@ -227,8 +227,8 @@
         "type": "POINT"
       }
     ],
-    "texture_path": "/home/dev/src/render-tag/assets/textures/background/adversarial/tiles.png",
-    "texture_rotation": 1.1375712181794153,
-    "texture_scale": 9.69948282446514
+    "texture_path": null,
+    "texture_rotation": 0.0,
+    "texture_scale": 1.0
   }
 }

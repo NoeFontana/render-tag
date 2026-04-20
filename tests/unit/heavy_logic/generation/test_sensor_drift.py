@@ -40,6 +40,10 @@ def benchmark_compiler(request: pytest.FixtureRequest) -> Iterator[tuple[str, Sc
     with tempfile.TemporaryDirectory() as tmp:
         output_dir = Path(tmp)
         cfg = load_config(config_path)
+        # Drift gate is about compiler/schema semantics, not asset availability.
+        # Texture picks depend on a filesystem listing that CI doesn't share with
+        # developer machines; pinning to None makes fixtures portable.
+        cfg.scene.texture_dir = None
         yield (
             name,
             SceneCompiler(cfg, global_seed=CANONICAL_SEED, output_dir=output_dir),

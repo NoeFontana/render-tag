@@ -45,6 +45,9 @@ def main() -> None:
         output_dir = Path(tmp)
         for name, config_path in BENCHMARK_CONFIGS:
             cfg = load_config(config_path)
+            # Match the drift test: pin texture_dir to None so fixtures don't
+            # depend on which PNGs happen to live on the capturing machine.
+            cfg.scene.texture_dir = None
             compiler = SceneCompiler(cfg, global_seed=CANONICAL_SEED, output_dir=output_dir)
             for scene_id in CANONICAL_SCENE_IDS:
                 recipe = compiler.compile_scene(scene_id, validate=True)
