@@ -1,3 +1,7 @@
+# v0.8.2 (2026-04-20)
+
+- Pin non-baseline campaign variants to 1080p
+
 # v0.8.1 (2026-04-20)
 
 - Add --workers to experiment run
