@@ -1,0 +1,238 @@
+{
+  "cameras": [
+    {
+      "dynamic_range_db": 120.0,
+      "focus_distance": null,
+      "fstop": null,
+      "intrinsics": {
+        "distortion_coeffs": [],
+        "distortion_model": "none",
+        "eval_margin_px": 0,
+        "fov": 70.0,
+        "fov_spherical": null,
+        "k_matrix": [
+          [
+            1371.0220864724301,
+            0.0,
+            960.0
+          ],
+          [
+            0.0,
+            1371.0220864724301,
+            540.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "k_matrix_overscan": null,
+        "resolution": [
+          1920,
+          1080
+        ],
+        "resolution_overscan": null,
+        "resolution_spherical": null
+      },
+      "iso_noise": 0.42857142857142855,
+      "max_tag_pixels": null,
+      "min_tag_pixels": 36,
+      "sensor_dynamics": {
+        "rolling_shutter_duration_ms": 0.0,
+        "shutter_time_ms": 10.0,
+        "velocity": null
+      },
+      "sensor_noise": {
+        "amount": 0.0,
+        "mean": 0.0,
+        "model": "gaussian",
+        "models": null,
+        "salt_vs_pepper": 0.5,
+        "scale": 1000.0,
+        "seed": 563697580,
+        "stddev": 0.008
+      },
+      "tone_mapping": "filmic",
+      "transform_matrix": [
+        [
+          0.9696457797313366,
+          -0.06373398592358766,
+          -0.23606151928575847,
+          -0.03986759628560216
+        ],
+        [
+          -0.1518908983452549,
+          0.5995629436693986,
+          -0.7857820509392902,
+          -0.601614171775771
+        ],
+        [
+          0.19161476156361232,
+          0.7977858457109762,
+          0.5716830656352717,
+          0.32142864377293384
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ]
+    }
+  ],
+  "objects": [
+    {
+      "board": null,
+      "calibration_points_3d": null,
+      "forward_axis": null,
+      "keypoints_3d": [
+        [
+          -0.8,
+          0.8,
+          0.0
+        ],
+        [
+          0.8,
+          0.8,
+          0.0
+        ],
+        [
+          0.8,
+          -0.8,
+          0.0
+        ],
+        [
+          -0.8,
+          -0.8,
+          0.0
+        ]
+      ],
+      "location": [
+        -0.12329705884372305,
+        -0.08940745295838409,
+        0.001
+      ],
+      "material": {
+        "roughness": 0.7775129367964427,
+        "specular": 0.18182323698332717
+      },
+      "name": "Tag_0",
+      "properties": {
+        "margin_bits": 1,
+        "tag_family": "tag36h11",
+        "tag_id": 204,
+        "tag_size": 0.16,
+        "texture_base_path": null
+      },
+      "rotation_euler": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation_quaternion": null,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "texture_path": "__OUTPUT_DIR__/cache/tags/tag36h11_204_m1.png",
+      "type": "TAG"
+    }
+  ],
+  "random_seed": 2115084936,
+  "renderer": {
+    "denoiser_type": "INTEL",
+    "denoising": true,
+    "diffuse_bounces": 2,
+    "enable_caustics": false,
+    "enable_denoising": true,
+    "glossy_bounces": 4,
+    "max_samples": 128,
+    "mode": "cycles",
+    "noise_threshold": 0.05,
+    "samples": 128,
+    "total_bounces": 4,
+    "transmission_bounces": 0,
+    "transparent_bounces": 4
+  },
+  "scene_id": 0,
+  "world": {
+    "background_hdri": null,
+    "hdri_rotation": 0.0,
+    "lights": [
+      {
+        "color": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "intensity": 355.08478046918486,
+        "location": [
+          -1.4185650399698622,
+          1.0604321320376664,
+          2.966686911030126
+        ],
+        "radius": 0.009393686103048927,
+        "rotation_euler": null,
+        "type": "POINT"
+      },
+      {
+        "color": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "intensity": 338.2456485336673,
+        "location": [
+          -1.37301495359534,
+          -0.1166782710630362,
+          2.731762814562748
+        ],
+        "radius": 0.008533602333549495,
+        "rotation_euler": null,
+        "type": "POINT"
+      },
+      {
+        "color": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "intensity": 271.91473537044885,
+        "location": [
+          3.1716694905765483,
+          2.949898383219555,
+          1.6125940152648266
+        ],
+        "radius": 0.004887377764775181,
+        "rotation_euler": null,
+        "type": "POINT"
+      },
+      {
+        "color": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "intensity": 5.0,
+        "location": [
+          6.755250201547019,
+          6.755247993966088,
+          2.9552020666133956
+        ],
+        "radius": 0.0,
+        "rotation_euler": [
+          1.2707963267948965,
+          0.0,
+          2.3561943267948964
+        ],
+        "type": "SUN"
+      }
+    ],
+    "texture_path": null,
+    "texture_rotation": 0.0,
+    "texture_scale": 1.0
+  }
+}

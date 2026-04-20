@@ -32,17 +32,22 @@ from render_tag.core.presets.pipeline import (
 
 # Side-effect imports — each module registers exactly one preset.
 from . import (  # noqa: F401  (auto-registration on import)
+    calibration_aprilgrid_6x6,
+    calibration_reference_grade,
     evaluation_calibration_full,
     lighting_factory,
     lighting_low_key,
     lighting_mixed_temperature,
     lighting_outdoor_industrial,
     lighting_warehouse,
+    locus_v1_baseline,
     sensor_hdr_sweep,
     sensor_industrial_dr,
     sensor_raw_pipeline,
     shadow_directional_hard,
     shadow_harsh,
+    subject_tag16h5_standard,
+    subject_tag36h11_standard,
 )
 
 __all__ = [

@@ -103,11 +103,50 @@ class SubExperiment(BaseModel):
     )
 
 
+class CampaignAxis(BaseModel):
+    """A single axis in a campaign matrix (Cartesian product factor)."""
+
+    parameter: str = Field(
+        description=(
+            "Dot-notation path into the config dict, e.g. 'camera.resolution'. "
+            "Numeric segments index into lists."
+        )
+    )
+    values: list[Any] = Field(min_length=1, description="Values to sweep across this axis (>= 1)")
+
+
+class CampaignMatrix(BaseModel):
+    """A benchmark-family x axes template that expands Cartesian-style.
+
+    ``base`` is a ``SubExperiment`` template (config path + any fixed
+    overrides). Each axis contributes one dotted parameter and its values;
+    the final variant count is ``prod(len(axis.values))``. Axis values are
+    written into ``overrides`` along with any per-base-experiment overrides,
+    and the variant name is ``{base.name}__{axis1_slug}_{axis2_slug}...``.
+    """
+
+    base: SubExperiment = Field(description="Template sub-experiment (config + fixed overrides)")
+    axes: list[CampaignAxis] = Field(min_length=1, description="Axes to expand (>= 1)")
+
+
 class Campaign(BaseModel):
     """A master configuration for a multi-experiment campaign."""
 
     output_dir: str = Field(description="Base output directory for the campaign")
-    experiments: list[SubExperiment] = Field(description="List of sub-experiments to run")
+    experiments: list[SubExperiment] = Field(
+        default_factory=list,
+        description="Explicitly enumerated sub-experiments",
+    )
+    matrices: list[CampaignMatrix] = Field(
+        default_factory=list,
+        description="Benchmark x axes templates; expand Cartesian-style at load time",
+    )
     metadata: dict[str, Any] = Field(
         default_factory=dict, description="Global metadata for the campaign"
     )
+
+    @model_validator(mode="after")
+    def _non_empty(self) -> "Campaign":
+        if not self.experiments and not self.matrices:
+            raise ValueError("Campaign must define at least one of `experiments:` or `matrices:`")
+        return self

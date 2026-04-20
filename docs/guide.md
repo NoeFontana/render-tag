@@ -180,10 +180,6 @@ uv run render-tag preset resolve --config configs/calibration.yaml \
 `job_spec.json` under `applied_presets` and contribute to the deterministic
 `job_id`, so a dataset always answers "which presets produced me?".
 
-**Legacy `scene.lighting_preset`.** The old enum field still works — the ACL
-rewrites it to `presets: [lighting.X]` with a deprecation warning — but it
-will be removed in 1.0. Use the `presets: [...]` form in new configs.
-
 ## Advanced Generation
 
 ### Sharding and Parallelism

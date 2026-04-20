@@ -151,33 +151,6 @@ def _apply_scenario_board_subject(data: dict[str, Any]) -> dict[str, Any]:
     return data
 
 
-def _apply_scene_lighting_preset_to_presets(data: dict[str, Any]) -> dict[str, Any]:
-    """Rewrite ``scene.lighting_preset: X`` to top-level ``presets: [lighting.X]``.
-
-    The legacy field is prepended to the preset list so any explicit modern
-    ``presets: [...]`` the user also wrote composes *after* and wins. Emits
-    a single ``DeprecationWarning`` per encounter.
-    """
-    scene = data.get("scene")
-    if not isinstance(scene, dict) or "lighting_preset" not in scene:
-        return data
-    value = scene.pop("lighting_preset")
-    if value is None:
-        return data
-    value_str = value.value if hasattr(value, "value") else str(value)
-    preset_name = f"lighting.{value_str}"
-    warn_legacy("scene.lighting_preset", f"presets: [{preset_name}]")
-    existing = data.get("presets")
-    if existing is None:
-        data["presets"] = [preset_name]
-    elif isinstance(existing, list):
-        if preset_name not in existing:
-            existing.insert(0, preset_name)
-    else:
-        raise ValueError("Top-level `presets` must be a list of preset names.")
-    return data
-
-
 def _apply_scenario_layout_strip(data: dict[str, Any]) -> dict[str, Any]:
     scenario = data.get("scenario")
     if not isinstance(scenario, dict) or "layout" not in scenario:
@@ -246,13 +219,6 @@ LEGACY_FIELDS: list[LegacyEntry] = [
         since="0.7",
         removed_in="1.0",
         apply=_apply_scenario_layout_strip,
-    ),
-    LegacyEntry(
-        path="scene.lighting_preset",
-        replacement="presets: [lighting.X]",
-        since="0.9",
-        removed_in="1.0",
-        apply=_apply_scene_lighting_preset_to_presets,
     ),
 ]
 

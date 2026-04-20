@@ -1,54 +1,12 @@
+presets:
+  - locus.v1_baseline
+  - subject.tag36h11_standard
 dataset:
   num_scenes: 50
   seeds:
     global_seed: 42
-  evaluation_scopes:
-  - detection
-  - pose_estimation
 camera:
-  resolution:
-  - 1920
-  - 1080
-  fov: 70.0
-  samples_per_scene: 1
-  min_distance: 0.5
-  max_distance: 8.0
-  min_elevation: 0.5
-  max_elevation: 1.0
-  min_roll: -180.0
-  max_roll: 180.0
   tone_mapping: filmic
   iso: 100
   sensor_noise_sigma: 0.002
-  min_tag_pixels: 36
-  ppm_constraint:
-    min: 5.0
-    max: 40.0
-    distribution: uniform
-tag:
-  margin_bits: 1
-  material:
-    randomize: true
-    roughness_min: 0.4
-    roughness_max: 0.8
-    specular_min: 0.1
-    specular_max: 0.3
-scenario:
-  sampling_mode: random
-  use_board: false
-  subject:
-    type: TAGS
-    tag_families:
-    - tag36h11
-    size_mm: 160.0
-    tags_per_scene: 1
-scene:
-  lighting:
-    intensity_min: 100
-    intensity_max: 1000
-    radius_min: 0.2
-    radius_max: 0.2
-  texture_dir: assets/textures/background
-  texture_scale_min: 0.1
-  texture_scale_max: 20.0
 version: '0.2'

@@ -1,3 +1,7 @@
+presets:
+  - calibration.reference_grade_rendering
+  - lighting.factory
+
 dataset:
   num_scenes: 150  # Stable statistical baseline
   seeds:
@@ -40,15 +44,8 @@ scenario:
   sampling_mode: random
 
 scene:
-  lighting_preset: factory
   texture_dir: assets/textures/background
   texture_scale_min: 1.0
   texture_scale_max: 10.0
-
-renderer:
-  mode: cycles
-  noise_threshold: 0.01 # Reference-grade precision
-  max_samples: 512      # Eliminate saddle-point jitter
-  enable_denoising: true
 
 version: '0.2'

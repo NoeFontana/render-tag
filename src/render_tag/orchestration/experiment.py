@@ -5,6 +5,8 @@ Handles the expansion of high-level Experiment descriptions into concrete
 variants (SceneRecipes) and manages provenance (Manifests).
 """
 
+import copy
+import itertools
 from pathlib import Path
 from typing import Any
 
@@ -14,8 +16,10 @@ from render_tag.core.config import GenConfig
 
 from .experiment_schema import (
     Campaign,
+    CampaignMatrix,
     Experiment,
     ExperimentVariant,
+    SubExperiment,
     Sweep,
     SweepType,
 )
@@ -25,20 +29,30 @@ def load_experiment_config(path: Path) -> Experiment | Campaign:
     """Load and validate an experiment configuration file."""
     import yaml
 
+    from render_tag.core.schema_adapter import adapt_config
+
     with open(path) as f:
         data = yaml.safe_load(f)
     if data is None:
         data = {}
 
-    # Check if this is a Campaign (has 'experiments' key)
-    if "experiments" in data:
+    # Check if this is a Campaign (has 'experiments' or 'matrices' key)
+    if "experiments" in data or "matrices" in data:
         return Campaign(**data)
 
     # Check if this is an experiment or regular config
     if "base_config" not in data:
-        raise ValueError("Experiment config must contain 'base_config' or 'experiments'")
+        raise ValueError(
+            "Experiment config must contain 'base_config', 'experiments', or 'matrices'"
+        )
 
-    # Validation happens here via Pydantic
+    # Run the ACL on base_config so legacy-field rewrites, migrations, and
+    # `presets: [...]` expansion apply to experiments the same way they do
+    # to standalone configs. Without this, a ``presets:`` list inside
+    # base_config would slip through unexpanded and the experiment would
+    # silently run with bare schema defaults for preset-supplied fields.
+    data["base_config"] = adapt_config(data["base_config"])
+
     return Experiment(**data)
 
 
@@ -154,29 +168,42 @@ def expand_experiment(experiment: Experiment) -> list[ExperimentVariant]:
 
 
 def expand_campaign(campaign: Campaign) -> list[ExperimentVariant]:
-    """Expand a Campaign into a list of concrete Variants."""
+    """Expand a Campaign into a list of concrete Variants.
+
+    Processes explicitly-enumerated ``experiments`` first, then expands each
+    ``matrices`` entry Cartesian-style into additional SubExperiments before
+    running them through the same loader path.
+    """
     import yaml
 
+    from render_tag.core.merge import deep_merge
     from render_tag.core.schema_adapter import adapt_config
 
     variants = []
 
     base_output_dir = Path(campaign.output_dir)
 
-    for sub_exp in campaign.experiments:
-        # Load the preset config
+    all_sub_exps: list[SubExperiment] = list(campaign.experiments)
+    for matrix in campaign.matrices:
+        all_sub_exps.extend(_expand_matrix(matrix))
+
+    # Matrix expansion produces many variants pointing at the same source YAML
+    # (e.g. one YAML x N resolutions). Parse each YAML once; `deep_merge`
+    # deep-copies the cached target on every call so the source stays pristine.
+    raw_cache: dict[Path, dict[str, Any]] = {}
+
+    for sub_exp in all_sub_exps:
         config_path = Path(sub_exp.config_path)
-        if not config_path.exists():
-            raise FileNotFoundError(
-                f"Config for sub-experiment '{sub_exp.name}' not found at {config_path}"
-            )
+        if config_path not in raw_cache:
+            try:
+                with open(config_path) as f:
+                    raw_cache[config_path] = yaml.safe_load(f) or {}
+            except FileNotFoundError as e:
+                raise FileNotFoundError(
+                    f"Config for sub-experiment '{sub_exp.name}' not found at {config_path}"
+                ) from e
 
-        with open(config_path) as f:
-            config_data = yaml.safe_load(f) or {}
-
-        from render_tag.core.merge import deep_merge
-
-        config_data = deep_merge(config_data, sub_exp.overrides)
+        config_data = deep_merge(raw_cache[config_path], sub_exp.overrides)
 
         # Inject campaign-level metadata
         if campaign.metadata:
@@ -234,6 +261,56 @@ def _get_sweep_values(sweep: Sweep) -> list[Any]:
             assert sweep.max is not None
             return list(np.linspace(sweep.min, sweep.max, sweep.steps))
     return []
+
+
+def _expand_matrix(matrix: CampaignMatrix) -> list[SubExperiment]:
+    """Cartesian-expand a ``CampaignMatrix`` into concrete SubExperiments.
+
+    The base SubExperiment's fixed ``overrides`` apply to every variant; each
+    axis contributes one dotted ``parameter`` which is written into a fresh
+    per-variant ``overrides`` dict (as a nested tree). Variant names suffix
+    the base name with ``__{axis_slug}`` joined for multi-axis matrices.
+    """
+    axes = matrix.axes
+    combos = list(itertools.product(*(axis.values for axis in axes)))
+
+    sub_exps: list[SubExperiment] = []
+    for combo in combos:
+        slug_parts = [
+            f"{_param_slug(axis.parameter)}-{_value_slug(value)}"
+            for axis, value in zip(axes, combo, strict=True)
+        ]
+        variant_name = f"{matrix.base.name}__{'__'.join(slug_parts)}"
+
+        overrides: dict[str, Any] = copy.deepcopy(matrix.base.overrides)
+        for axis, value in zip(axes, combo, strict=True):
+            _update_nested_dict(overrides, axis.parameter, value)
+
+        sub_exps.append(
+            SubExperiment.model_validate(
+                {
+                    "name": variant_name,
+                    "config": matrix.base.config_path,
+                    "overrides": overrides,
+                }
+            )
+        )
+
+    return sub_exps
+
+
+def _param_slug(parameter: str) -> str:
+    """Slugify a dotted config path for use in a variant name."""
+    return parameter.replace(".", "_")
+
+
+def _value_slug(value: Any) -> str:
+    """Slugify a scalar or short list for use in a variant name."""
+    if isinstance(value, list):
+        return "x".join(_value_slug(v) for v in value)
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    return str(value).replace(".", "p").replace("/", "_").replace(" ", "_")
 
 
 def _update_nested_dict(d: dict[str, Any], path: str, value: Any):
