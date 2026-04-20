@@ -1,6 +1,7 @@
 {
   "cameras": [
     {
+      "dynamic_range_db": 120.0,
       "focus_distance": null,
       "fstop": null,
       "intrinsics": {
@@ -43,6 +44,7 @@
         "velocity": null
       },
       "sensor_noise": null,
+      "tone_mapping": "filmic",
       "transform_matrix": [
         [
           -0.3271781417652767,
@@ -71,6 +73,7 @@
       ]
     },
     {
+      "dynamic_range_db": 120.0,
       "focus_distance": null,
       "fstop": null,
       "intrinsics": {
@@ -113,6 +116,7 @@
         "velocity": null
       },
       "sensor_noise": null,
+      "tone_mapping": "filmic",
       "transform_matrix": [
         [
           0.7400364885247952,
@@ -141,6 +145,7 @@
       ]
     },
     {
+      "dynamic_range_db": 120.0,
       "focus_distance": null,
       "fstop": null,
       "intrinsics": {
@@ -183,6 +188,7 @@
         "velocity": null
       },
       "sensor_noise": null,
+      "tone_mapping": "filmic",
       "transform_matrix": [
         [
           -0.3408295362164676,
@@ -211,6 +217,7 @@
       ]
     },
     {
+      "dynamic_range_db": 120.0,
       "focus_distance": null,
       "fstop": null,
       "intrinsics": {
@@ -253,6 +260,7 @@
         "velocity": null
       },
       "sensor_noise": null,
+      "tone_mapping": "filmic",
       "transform_matrix": [
         [
           -0.25404532624111575,
@@ -281,6 +289,7 @@
       ]
     },
     {
+      "dynamic_range_db": 120.0,
       "focus_distance": null,
       "fstop": null,
       "intrinsics": {
@@ -323,6 +332,7 @@
         "velocity": null
       },
       "sensor_noise": null,
+      "tone_mapping": "filmic",
       "transform_matrix": [
         [
           0.2520561251798051,
@@ -351,6 +361,7 @@
       ]
     },
     {
+      "dynamic_range_db": 120.0,
       "focus_distance": null,
       "fstop": null,
       "intrinsics": {
@@ -393,6 +404,7 @@
         "velocity": null
       },
       "sensor_noise": null,
+      "tone_mapping": "filmic",
       "transform_matrix": [
         [
           -0.9858095247527373,
@@ -421,6 +433,7 @@
       ]
     },
     {
+      "dynamic_range_db": 120.0,
       "focus_distance": null,
       "fstop": null,
       "intrinsics": {
@@ -463,6 +476,7 @@
         "velocity": null
       },
       "sensor_noise": null,
+      "tone_mapping": "filmic",
       "transform_matrix": [
         [
           -0.2129460690464148,
@@ -491,6 +505,7 @@
       ]
     },
     {
+      "dynamic_range_db": 120.0,
       "focus_distance": null,
       "fstop": null,
       "intrinsics": {
@@ -533,6 +548,7 @@
         "velocity": null
       },
       "sensor_noise": null,
+      "tone_mapping": "filmic",
       "transform_matrix": [
         [
           -0.7415840453477898,
@@ -561,6 +577,7 @@
       ]
     },
     {
+      "dynamic_range_db": 120.0,
       "focus_distance": null,
       "fstop": null,
       "intrinsics": {
@@ -603,6 +620,7 @@
         "velocity": null
       },
       "sensor_noise": null,
+      "tone_mapping": "filmic",
       "transform_matrix": [
         [
           0.9995069434802464,
@@ -631,6 +649,7 @@
       ]
     },
     {
+      "dynamic_range_db": 120.0,
       "focus_distance": null,
       "fstop": null,
       "intrinsics": {
@@ -673,6 +692,7 @@
         "velocity": null
       },
       "sensor_noise": null,
+      "tone_mapping": "filmic",
       "transform_matrix": [
         [
           -0.3277108689130271,

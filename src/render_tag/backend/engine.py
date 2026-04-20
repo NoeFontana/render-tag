@@ -25,6 +25,7 @@ from render_tag.backend.distortion import (
     compute_spherical_distortion_maps,
     remap_image,
 )
+from render_tag.backend.dynamic_range import apply_sensor_dr
 from render_tag.backend.projection import generate_board_records, generate_subject_records
 from render_tag.backend.scene import (
     setup_background,
@@ -32,6 +33,7 @@ from render_tag.backend.scene import (
     setup_lighting,
 )
 from render_tag.backend.sensors import apply_parametric_noise
+from render_tag.backend.tonemap import apply_tone_mapping
 from render_tag.core.logging import get_logger
 from render_tag.core.schema import (
     CameraRecipe,
@@ -297,6 +299,9 @@ class RenderFacade:
             img = remap_image(img, *warp_maps)
             if segmap is not None:
                 segmap = remap_image(segmap, *warp_maps, nearest_neighbor=True)
+
+        img = apply_sensor_dr(img, camera_recipe.dynamic_range_db)
+        img = apply_tone_mapping(img, camera_recipe.tone_mapping)
 
         if camera_recipe.sensor_noise:
             img = apply_parametric_noise(img, camera_recipe.sensor_noise)

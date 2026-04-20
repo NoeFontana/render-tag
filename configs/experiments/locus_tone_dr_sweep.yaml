@@ -1,0 +1,73 @@
+name: locus_tone_dr_sweep
+description: >
+  Characterize detection rate and reprojection error across the sensor
+  dynamic-range and tone-mapping axes to locate the knees for each. The
+  chosen knee values feed into
+  configs/benchmarks/sensor/locus_v1_low_dr_outdoor.yaml and
+  configs/benchmarks/sensor/locus_v1_raw_pipeline.yaml as stress setpoints.
+  Not wired into CI — run locally, inspect, commit the resulting benchmark.
+
+lock_layout: true
+lock_lighting: true
+lock_camera: false
+
+sweeps:
+  - parameter: camera.dynamic_range_db
+    type: categorical
+    values: [40.0, 60.0, 80.0, 100.0, 120.0]
+  - parameter: camera.tone_mapping
+    type: categorical
+    values: [linear, srgb, filmic]
+
+base_config:
+  dataset:
+    num_scenes: 20
+    seeds:
+      global_seed: 42
+    evaluation_scopes:
+      - detection
+      - pose_estimation
+  camera:
+    resolution: [1920, 1080]
+    fov: 70.0
+    samples_per_scene: 1
+    min_distance: 0.5
+    max_distance: 8.0
+    min_elevation: 0.5
+    max_elevation: 1.0
+    min_roll: -180.0
+    max_roll: 180.0
+    iso: 800
+    iso_coupling: true
+    min_tag_pixels: 36
+    ppm_constraint:
+      min: 5.0
+      max: 40.0
+      distribution: uniform
+  tag:
+    margin_bits: 1
+    material:
+      randomize: true
+      roughness_min: 0.4
+      roughness_max: 0.8
+      specular_min: 0.1
+      specular_max: 0.3
+  scenario:
+    sampling_mode: random
+    use_board: false
+    subject:
+      type: TAGS
+      tag_families:
+        - tag36h11
+      size_mm: 160.0
+      tags_per_scene: 1
+  scene:
+    lighting:
+      intensity_min: 100
+      intensity_max: 1000
+      radius_min: 0.2
+      radius_max: 0.2
+    texture_dir: assets/textures/background
+    texture_scale_min: 0.1
+    texture_scale_max: 20.0
+  version: '0.2'

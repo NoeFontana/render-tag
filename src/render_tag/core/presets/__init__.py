@@ -37,6 +37,8 @@ from . import (  # noqa: F401  (auto-registration on import)
     lighting_outdoor_industrial,
     lighting_warehouse,
     sensor_hdr_sweep,
+    sensor_industrial_dr,
+    sensor_raw_pipeline,
     shadow_harsh,
 )
 

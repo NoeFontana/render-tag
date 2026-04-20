@@ -80,6 +80,8 @@ def test_default_registry_has_builtins():
         "lighting.outdoor_industrial",
         "lighting.warehouse",
         "sensor.hdr_sweep",
+        "sensor.industrial_dr",
+        "sensor.raw_pipeline",
         "shadow.harsh",
     ):
         assert expected in names, f"missing {expected}"

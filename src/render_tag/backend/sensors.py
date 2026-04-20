@@ -10,7 +10,7 @@ from typing import Protocol, runtime_checkable
 import numpy as np
 
 from render_tag.core.logging import get_logger
-from render_tag.core.schema import SensorNoiseConfig
+from render_tag.core.schema import SensorNoiseComponent, SensorNoiseConfig
 
 logger = get_logger(__name__)
 
@@ -19,7 +19,9 @@ logger = get_logger(__name__)
 class NoiseStrategy(Protocol):
     """Protocol for noise application strategies."""
 
-    def apply(self, image: np.ndarray, config: SensorNoiseConfig) -> np.ndarray:
+    def apply(
+        self, image: np.ndarray, config: SensorNoiseConfig | SensorNoiseComponent
+    ) -> np.ndarray:
         """
         Apply a specific noise model to the input image.
 
@@ -36,7 +38,9 @@ class NoiseStrategy(Protocol):
 class GaussianNoiseStrategy:
     """Applies additive Gaussian noise."""
 
-    def apply(self, image: np.ndarray, config: SensorNoiseConfig) -> np.ndarray:
+    def apply(
+        self, image: np.ndarray, config: SensorNoiseConfig | SensorNoiseComponent
+    ) -> np.ndarray:
         mean = config.mean
         stddev = config.stddev
         seed = config.seed
@@ -52,12 +56,10 @@ class GaussianNoiseStrategy:
 class PoissonNoiseStrategy:
     """Applies shot noise using a Poisson distribution."""
 
-    def apply(self, image: np.ndarray, config: SensorNoiseConfig) -> np.ndarray:
-        # Note: Poisson model currently uses 'amount' as scale or defaults to 1000.0
-        # for historical compatibility if we don't have a dedicated scale field.
-        scale = getattr(config, "amount", 1000.0)
-        if scale == 0:
-            scale = 1000.0
+    def apply(
+        self, image: np.ndarray, config: SensorNoiseConfig | SensorNoiseComponent
+    ) -> np.ndarray:
+        scale = float(getattr(config, "scale", 1000.0))
         seed = config.seed
         rng = np.random.default_rng(seed)
         return rng.poisson(image * scale) / scale
@@ -66,7 +68,9 @@ class PoissonNoiseStrategy:
 class SaltAndPepperNoiseStrategy:
     """Applies impulsive salt and pepper noise."""
 
-    def apply(self, image: np.ndarray, config: SensorNoiseConfig) -> np.ndarray:
+    def apply(
+        self, image: np.ndarray, config: SensorNoiseConfig | SensorNoiseComponent
+    ) -> np.ndarray:
         amount = config.amount
         salt_vs_pepper = config.salt_vs_pepper
         seed = config.seed
@@ -101,22 +105,47 @@ class NoiseEngine:
         }
 
     def apply_noise(self, image: np.ndarray, config: SensorNoiseConfig) -> np.ndarray:
-        """Dispatcher that selects and runs the appropriate strategy."""
-        model_type = config.model
-        strategy = self._strategies.get(model_type)
+        """Dispatcher that selects and runs the appropriate strategy.
 
+        If ``config.models`` is populated, each component is applied in order
+        (stacked pipeline). Otherwise the flat fields are treated as a single-
+        component legacy config.
+        """
         # 1. Convert to float for processing
         img_float = image.astype(np.float32) / 255.0
 
-        if not strategy:
-            logger.warning(f"Unknown noise model '{model_type}'. Skipping noise.")
-            result = img_float
-        else:
-            result = strategy.apply(img_float, config)
+        components = self._resolve_components(config)
+        result = img_float
+        for comp in components:
+            strategy = self._strategies.get(comp.model)
+            if not strategy:
+                logger.warning(f"Unknown noise model '{comp.model}'. Skipping component.")
+                continue
+            result = strategy.apply(result, comp)
 
         # 2. Finalize: Clip and convert back to uint8
         result = np.clip(result, 0, 1)
         return np.round(np.asarray(result) * 255).astype(np.uint8)
+
+    @staticmethod
+    def _resolve_components(
+        config: SensorNoiseConfig,
+    ) -> list[SensorNoiseConfig | SensorNoiseComponent]:
+        """Return the list of noise components to apply.
+
+        When ``config.models`` is set, each component inherits the parent's
+        seed if it doesn't declare its own — that keeps stacked pipelines
+        deterministic by default while allowing per-layer seed overrides.
+        """
+        if not config.models:
+            return [config]
+
+        resolved: list[SensorNoiseConfig | SensorNoiseComponent] = []
+        for idx, comp in enumerate(config.models):
+            if comp.seed is None and config.seed is not None:
+                comp = comp.model_copy(update={"seed": config.seed + idx})
+            resolved.append(comp)
+        return resolved
 
 
 # Global engine instance for easy access

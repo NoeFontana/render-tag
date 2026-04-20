@@ -712,6 +712,8 @@ class SceneCompiler:
                     max_tag_pixels=camera_config.max_tag_pixels,
                     iso_noise=effective_iso_noise,
                     sensor_noise=noise_recipe,
+                    tone_mapping=camera_config.tone_mapping,
+                    dynamic_range_db=camera_config.dynamic_range_db,
                 )
             )
         return camera_recipes
