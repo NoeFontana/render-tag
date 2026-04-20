@@ -137,17 +137,65 @@ filterwarnings = [
 
 [tool.importlinter]
 root_package = "render_tag"
+include_external_packages = true
 
-["importlinter:contract:1"]
-name = "Backend must not import host logic"
+# 1. Layered architecture. Higher layers may import from lower layers; siblings
+#    grouped with `|` may not import each other. The sibling group reflects that
+#    audit, viz, and backend are independent consumers of generation/data_io/core.
+[[tool.importlinter.contracts]]
+name = "Layered architecture"
 type = "layers"
 containers = ["render_tag"]
 layers = [
     "cli",
     "orchestration",
+    "audit | viz | backend",
     "generation",
+    "data_io",
     "core",
-    "backend",
+]
+
+# 2. Host isolation. Only render_tag.backend may touch Blender / BlenderProc.
+#    Everything else runs in the host process and must remain importable
+#    without a Blender interpreter.
+[[tool.importlinter.contracts]]
+name = "Host isolation: only backend touches Blender"
+type = "forbidden"
+source_modules = [
+    "render_tag.cli",
+    "render_tag.orchestration",
+    "render_tag.audit",
+    "render_tag.viz",
+    "render_tag.generation",
+    "render_tag.data_io",
+    "render_tag.core",
+]
+forbidden_modules = [
+    "bpy",
+    "blenderproc",
+    "mathutils",
+    "render_tag.backend",
+]
+
+# 3. Determinism. The procedural generator must use seeded numpy RNGs only;
+#    Python's `random` module pulls from a hidden global state and breaks
+#    bit-reproducibility of recipes.
+[[tool.importlinter.contracts]]
+name = "Determinism: generation must not import random"
+type = "forbidden"
+source_modules = ["render_tag.generation"]
+forbidden_modules = ["random"]
+
+# 4. Sibling independence. Redundant with the layers contract above, but kept
+#    explicit so future contributors see the intent: these three packages are
+#    parallel consumers of generation, never each other.
+[[tool.importlinter.contracts]]
+name = "Sibling independence: audit, viz, backend"
+type = "independence"
+modules = [
+    "render_tag.audit",
+    "render_tag.viz",
+    "render_tag.backend",
 ]
 
 [tool.hatch.version]
