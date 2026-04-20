@@ -11,7 +11,10 @@ def test_generator_distance_sweep(tmp_path):
             "dataset": {"num_scenes": 10},
             "camera": {"min_distance": 0.5, "max_distance": 10.0},
             "physics": {"scatter_radius": 1e-6},
-            "scenario": {"sampling_mode": "distance", "tags_per_scene": [1, 1]},
+            "scenario": {
+                "sampling_mode": "distance",
+                "subject": {"type": "TAGS", "tags_per_scene": 1},
+            },
         }
     )
 
@@ -39,7 +42,10 @@ def test_generator_angle_sweep(tmp_path):
             "dataset": {"num_scenes": 10},
             "camera": {"min_elevation": 0.3, "max_elevation": 0.9},
             "physics": {"scatter_radius": 1e-6},
-            "scenario": {"sampling_mode": "angle", "tags_per_scene": [1, 1]},
+            "scenario": {
+                "sampling_mode": "angle",
+                "subject": {"type": "TAGS", "tags_per_scene": 1},
+            },
         }
     )
 

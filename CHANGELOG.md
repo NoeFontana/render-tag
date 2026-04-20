@@ -1,3 +1,45 @@
+# v0.8.0 (2026-04-20)
+
+**Breaking change.** Completes the v0.2 subject migration started in v0.7.
+
+Removed deprecated Pydantic fields that were dual-sourced with `scenario.subject`:
+
+- `TagConfig.family` → `scenario.subject.tag_families`
+- `TagConfig.size_meters` → `scenario.subject.size_mm`
+- `DatasetConfig.intent` → `dataset.evaluation_scopes`
+- `ScenarioConfig.tag_families` → `scenario.subject.tag_families`
+- `ScenarioConfig.tags_per_scene` → `scenario.subject.tags_per_scene`
+
+The wire format (schema version `0.2`) is unchanged. Legacy YAML/JSON still loads
+through the Anti-Corruption Layer, but the in-memory schema no longer exposes
+these fields. Imperative constructors (`TagConfig(family=...)`) now raise
+`ValidationError`.
+
+### Migrating
+
+Run `render-tag config migrate path/to/config.yaml` to preview a diff, then
+`--write` to rewrite in place. `load_config` no longer auto-rewrites files on
+disk — in-memory migration still happens silently via the ACL.
+
+Example:
+```yaml
+# Before
+tag:
+  family: tag36h11
+  size_meters: 0.1
+scenario:
+  tag_families: [tag36h11]
+  tags_per_scene: 3
+
+# After
+scenario:
+  subject:
+    type: TAGS
+    tag_families: [tag36h11]
+    size_mm: 100.0
+    tags_per_scene: 3
+```
+
 # v0.7.0 (2026-03-29)
 
 - Spacing and corners (#60)

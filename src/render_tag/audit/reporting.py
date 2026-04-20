@@ -72,10 +72,19 @@ def generate_dataset_info(
         fx=k[0][0], fy=k[1][1], cx=k[0][2], cy=k[1][2], width=width, height=height
     )
 
-    tag_spec = TagSpecificationMetadata(
-        tag_family=config.tag.family.value,
-        tag_size_m=config.tag.size_meters,
-    )
+    from render_tag.core.schema.subject import BoardSubjectConfig, TagSubjectConfig
+
+    subject = config.scenario.subject.root if config.scenario.subject else None
+    if isinstance(subject, TagSubjectConfig):
+        tag_family = subject.tag_families[0] if subject.tag_families else "tag36h11"
+        tag_size_m = subject.size_mm / 1000.0
+    elif isinstance(subject, BoardSubjectConfig):
+        tag_family = subject.dictionary
+        tag_size_m = subject.marker_size_mm / 1000.0
+    else:
+        tag_family = "tag36h11"
+        tag_size_m = 0.1
+    tag_spec = TagSpecificationMetadata(tag_family=tag_family, tag_size_m=tag_size_m)
 
     exp_meta = None
     if experiment_info:

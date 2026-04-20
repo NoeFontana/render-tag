@@ -12,10 +12,7 @@ from render_tag.generation.projection_math import calculate_ppm
 def test_ppm_sampling_enforcement(tmp_path):
     # Setup config with PPM constraint
     config = GenConfig()
-    config.tag.family = "tag36h11"
-    config.tag.size_meters = 0.16
 
-    # Ensure polymorphic subject is also updated (Staff Engineer sync pattern)
     from render_tag.core.schema.subject import TagSubjectConfig
 
     config.scenario.subject.root = TagSubjectConfig(
@@ -72,8 +69,6 @@ def test_ppm_sampling_enforcement(tmp_path):
 def test_ppm_takes_precedence(tmp_path):
     # Setup config with PPM constraint AND conflicting distance constraints
     config = GenConfig()
-    config.tag.family = "tag36h11"
-    config.tag.size_meters = 0.16
 
     from render_tag.core.schema.subject import TagSubjectConfig
 

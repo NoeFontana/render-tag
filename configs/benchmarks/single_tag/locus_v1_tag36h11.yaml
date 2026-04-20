@@ -26,7 +26,6 @@ camera:
     max: 40.0
     distribution: uniform
 tag:
-  family: tag36h11
   margin_bits: 1
   material:
     randomize: true
@@ -35,7 +34,6 @@ tag:
     specular_min: 0.1
     specular_max: 0.3
 scenario:
-  layout: plain
   sampling_mode: random
   use_board: false
   subject:

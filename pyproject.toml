@@ -131,6 +131,9 @@ markers = [
     "timeout: marks tests with a timeout duration",
 ]
 testpaths = ["tests"]
+filterwarnings = [
+    "error::DeprecationWarning:render_tag.*",
+]
 
 [tool.importlinter]
 root_package = "render_tag"
@@ -152,5 +155,5 @@ path = "pyproject.toml"
 pattern = '(?m)^version = "(?P<version>[^"]+)"'
 
 [tool.render_tag]
-version = "0.7.0"
+version = "0.8.0"
 

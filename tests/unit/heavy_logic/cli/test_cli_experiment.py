@@ -46,7 +46,6 @@ def test_experiment_run_success(
     v1.variant_id = "v1"
     v1.config = MagicMock()
     v1.config.scenario = None
-    v1.config.tag.family = MagicMock(value="tag36h11")
     v1.config.dataset.output_dir = tmp_path
     v1.config.seed = 42
     mock_expand.return_value = [v1]

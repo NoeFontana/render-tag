@@ -27,7 +27,9 @@ def test_expand_experiment_no_sweeps():
 def test_expand_experiment_with_sweeps():
     base = GenConfig()
     s1 = Sweep(parameter="camera.fov", type=SweepType.CATEGORICAL, values=[40, 50])
-    s2 = Sweep(parameter="tag.size_meters", type=SweepType.CATEGORICAL, values=[0.1, 0.2])
+    s2 = Sweep(
+        parameter="scenario.subject.root.size_mm", type=SweepType.CATEGORICAL, values=[100.0, 200.0]
+    )
     exp = Experiment(name="test_cross", base_config=base, sweeps=[s1, s2])
 
     variants = expand_experiment(exp)

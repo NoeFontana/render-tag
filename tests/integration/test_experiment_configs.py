@@ -70,13 +70,12 @@ camera:
   max_elevation: 0.9
   azimuth: 180.0 # Looking opposite of center
 
-tag:
-  family: tag36h11
-  size_meters: 0.1
-
 scenario:
-  layout: plain
-  tags_per_scene: [1, 1]
+  subject:
+    type: TAGS
+    tag_families: [tag36h11]
+    size_mm: 100.0
+    tags_per_scene: 1
 """
     )
 
