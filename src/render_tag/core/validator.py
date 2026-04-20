@@ -13,6 +13,12 @@ from pathlib import Path
 
 from render_tag.core.schema import SceneRecipe
 
+# Prefix used for warnings emitted when a texture path under the per-dataset
+# ``cache/`` tree does not yet exist on disk. The recipe compiler filters these
+# during its retry loop because cache assets are populated immediately AFTER
+# recipe generation (see ``SceneCompiler.compile_scene``).
+CACHE_PENDING_WARNING_PREFIX = "Cache asset not yet present"
+
 
 class AssetValidator:
     """Validator for the local asset cache."""
@@ -191,7 +197,7 @@ class RecipeValidator:
                         # because they are often populated immediately AFTER recipe generation
                         if "cache" in str(path):
                             self.warnings.append(
-                                f"Object '{obj.name}': Cache asset not yet present: {path}"
+                                f"Object '{obj.name}': {CACHE_PENDING_WARNING_PREFIX}: {path}"
                             )
                         else:
                             self.errors.append(

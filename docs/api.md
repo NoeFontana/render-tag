@@ -17,7 +17,7 @@ This section provides comprehensive technical documentation for the `render-tag`
 
     Procedural mathematics and scene construction logic.
 
-    ::: render_tag.generation.scene
+    ::: render_tag.generation.compiler
 
 === "Orchestration"
 

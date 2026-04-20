@@ -104,19 +104,19 @@ def mock_executor_factory():
 
 
 @pytest.fixture
-def mock_generator():
-    """Mocks the Generator to return dummy recipes and pass validation."""
-    with patch("render_tag.cli.stages.prep_stage.Generator") as mock_gen_cls:
-        mock_gen = mock_gen_cls.return_value
+def mock_compiler():
+    """Mocks the SceneCompiler to return dummy recipes and pass validation."""
+    with patch("render_tag.cli.stages.prep_stage.SceneCompiler") as mock_compiler_cls:
+        mock_instance = mock_compiler_cls.return_value
         from render_tag.core.schema import SceneRecipe
 
         recipe = SceneRecipe(scene_id=0, random_seed=42, world={}, objects=[], cameras=[])
-        mock_gen.generate_shards.return_value = [recipe]
+        mock_instance.compile_shards.return_value = [recipe]
 
         with patch(
             "render_tag.cli.stages.prep_stage.validate_recipe_file", return_value=(True, [], [])
         ):
-            yield mock_gen_cls, mock_gen
+            yield mock_compiler_cls, mock_instance
 
 
 @pytest.fixture
@@ -130,7 +130,7 @@ def mock_hydrated_assets():
 
 @patch("render_tag.cli.tools.check_blenderproc_installed", return_value=True)
 def test_generate_handoff_to_executor(
-    mock_check, mock_executor_factory, mock_generator, mock_hydrated_assets, tmp_path: Path
+    mock_check, mock_executor_factory, mock_compiler, mock_hydrated_assets, tmp_path: Path
 ) -> None:
     """
     Staff Engineer approach: Verify CLI correctly HANDS OFF to the orchestration layer.
@@ -180,10 +180,10 @@ def test_generate_handoff_to_executor(
 
 @patch("render_tag.cli.tools.check_blenderproc_installed", return_value=True)
 def test_generate_scenes_override_logic(
-    mock_check, mock_executor_factory, mock_generator, mock_hydrated_assets, tmp_path: Path
+    mock_check, mock_executor_factory, mock_compiler, mock_hydrated_assets, tmp_path: Path
 ) -> None:
     """Verify that CLI overrides are correctly processed before generation."""
-    mock_gen_cls, _ = mock_generator
+    mock_compiler_cls, _ = mock_compiler
     config_path = tmp_path / "config.yaml"
     config_path.write_text("dataset:\n  num_scenes: 10\n")
 
@@ -200,9 +200,9 @@ def test_generate_scenes_override_logic(
         ],
     )
 
-    # Verify Generator was initialized with overridden num_scenes
-    assert mock_gen_cls.called
-    config_arg = mock_gen_cls.call_args[0][0]
+    # Verify SceneCompiler was initialized with overridden num_scenes
+    assert mock_compiler_cls.called
+    config_arg = mock_compiler_cls.call_args[0][0]
     assert config_arg.dataset.num_scenes == 3
 
 

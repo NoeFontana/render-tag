@@ -494,11 +494,13 @@ def _signal_handler(sig, frame):
 
 def _prepare_batches(job_spec: JobSpec, workers: int, batch_size: int, resume: bool):
     """Calculate shards and generate recipe batch files."""
-    from render_tag.generation.scene import Generator
+    from render_tag.generation.compiler import SceneCompiler
     from render_tag.orchestration.validator import ShardValidator
 
     output_dir = job_spec.paths.output_dir
-    gen = Generator(job_spec.scene_config, output_dir, global_seed=job_spec.global_seed)
+    compiler = SceneCompiler(
+        job_spec.scene_config, global_seed=job_spec.global_seed, output_dir=output_dir
+    )
 
     # Calculate shard plan
     actual_batch_size = (
@@ -524,14 +526,15 @@ def _prepare_batches(job_spec: JobSpec, workers: int, batch_size: int, resume: b
     batches = []
     for shard_idx in missing_shard_indices:
         # Generate recipes for this shard
-        recipes = gen.generate_shards(
-            total_scenes=job_spec.shard_size,
+        recipes = compiler.compile_shards(
             shard_index=shard_idx,
             total_shards=total_shards,
             exclude_ids=get_completed_scene_ids(output_dir) if resume else set(),
+            total_scenes=job_spec.shard_size,
+            validate=True,
         )
         if recipes:
-            batch_path = gen.save_recipe_json(recipes, f"recipes_shard_{shard_idx}.json")
+            batch_path = compiler.save_recipe_json(recipes, f"recipes_shard_{shard_idx}.json")
             batches.append(batch_path)
             total_scenes_to_process += len(recipes)
 

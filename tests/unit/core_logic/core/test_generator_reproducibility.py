@@ -2,24 +2,24 @@ import json
 from pathlib import Path
 
 from render_tag.core.config import GenConfig
-from render_tag.generation.scene import Generator
+from render_tag.generation.compiler import SceneCompiler
 
 
-def test_generator_reproducibility(tmp_path):
-    """Verify that Generator produces identical scene_recipes.json for same seed."""
+def test_compiler_reproducibility(tmp_path):
+    """SceneCompiler produces identical scene_recipes.json for the same seed."""
     config = GenConfig(version="0.1")
     config.dataset.num_scenes = 5
     seed = 98765
 
     out1 = tmp_path / "run1"
-    gen1 = Generator(config, out1, global_seed=seed)
-    recipes1 = gen1.generate_all()
-    path1 = gen1.save_recipe_json(recipes1)
+    c1 = SceneCompiler(config, global_seed=seed, output_dir=out1)
+    recipes1 = c1.compile_shards(shard_index=0, total_shards=1, validate=True)
+    path1 = c1.save_recipe_json(recipes1)
 
     out2 = tmp_path / "run2"
-    gen2 = Generator(config, out2, global_seed=seed)
-    recipes2 = gen2.generate_all()
-    path2 = gen2.save_recipe_json(recipes2)
+    c2 = SceneCompiler(config, global_seed=seed, output_dir=out2)
+    recipes2 = c2.compile_shards(shard_index=0, total_shards=1, validate=True)
+    path2 = c2.save_recipe_json(recipes2)
 
     with open(path1) as f1, open(path2) as f2:
         data1 = json.load(f1)
@@ -34,11 +34,11 @@ def test_generator_reproducibility(tmp_path):
 
     assert normalize_paths(data1) == normalize_paths(data2)
 
-    # Verify different seeds produce different recipes
+    # Different seeds must diverge.
     out3 = tmp_path / "run3"
-    gen3 = Generator(config, out3, global_seed=seed + 1)
-    recipes3 = gen3.generate_all()
-    path3 = gen3.save_recipe_json(recipes3)
+    c3 = SceneCompiler(config, global_seed=seed + 1, output_dir=out3)
+    recipes3 = c3.compile_shards(shard_index=0, total_shards=1, validate=True)
+    path3 = c3.save_recipe_json(recipes3)
 
     with open(path3) as f3:
         data3 = json.load(f3)

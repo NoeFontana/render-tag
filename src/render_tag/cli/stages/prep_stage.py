@@ -13,7 +13,7 @@ from render_tag.cli.pipeline import GenerationContext, PipelineStage
 from render_tag.cli.tools import console, get_asset_manager
 from render_tag.core.schema import SceneRecipe
 from render_tag.core.validator import AssetValidator, validate_recipe_file
-from render_tag.generation.scene import Generator
+from render_tag.generation.compiler import SceneCompiler
 from render_tag.generation.tags import ensure_tag_asset
 from render_tag.orchestration import (
     get_completed_scene_ids,
@@ -84,18 +84,24 @@ class PreparationStage(PipelineStage):
 
         # 3. Generate Recipes
         console.print(f"[bold]Running Shard {ctx.shard_index + 1}/{ctx.total_shards}[/bold]")
-        generator = Generator(
+        compiler = SceneCompiler(
             ctx.gen_config,
-            ctx.output_dir,
             global_seed=ctx.seed,
+            output_dir=ctx.output_dir,
         )
 
-        recipes = generator.generate_shards(
-            total_scenes=ctx.num_scenes,
-            shard_index=ctx.shard_index,
-            total_shards=ctx.total_shards,
-            exclude_ids=ctx.completed_ids,
-        )
+        try:
+            recipes = compiler.compile_shards(
+                shard_index=ctx.shard_index,
+                total_shards=ctx.total_shards,
+                exclude_ids=ctx.completed_ids,
+                total_scenes=ctx.num_scenes,
+                validate=True,
+            )
+        except RuntimeError as err:
+            console.print("[bold red]Pre-flight Validation Failed![/bold red]")
+            console.print(f"[red]Error:[/red] {err}")
+            raise typer.Exit(code=1) from err
 
         if not recipes:
             console.print("[yellow]Empty shard range. Exiting.[/yellow]")
@@ -103,7 +109,7 @@ class PreparationStage(PipelineStage):
 
         filename = f"recipes_shard_{ctx.shard_index}.json"
         ctx.recipes_path = ctx.output_dir / filename
-        generator.save_recipe_json(recipes, filename)
+        compiler.save_recipe_json(recipes, filename)
         console.print(f"[dim]Recipe saved to:[/dim] {ctx.recipes_path}")
 
         # 4. Pre-generate specific tags from recipes
