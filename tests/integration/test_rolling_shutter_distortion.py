@@ -17,12 +17,16 @@ def test_rolling_shutter_integration_cli_flags(tmp_path):
     """Verify that CLI handles rolling shutter flags correctly."""
     output_dir = tmp_path
     config_path = output_dir / "shutter_config.yaml"
+    # Resolution must be large enough that sampled tags meet the validator's
+    # visibility criteria (area >= 36 px for tag36h11). At 64x64 every camera
+    # sample fails visibility, and SceneCompiler.compile_scene(validate=True)
+    # exhausts its retry budget.
     config_path.write_text("""
 dataset:
   seed: 42
   num_scenes: 1
 camera:
-  resolution: [64, 64]
+  resolution: [320, 240]
   sensor_dynamics:
     rolling_shutter_duration_ms: 10.0
     shutter_time_ms: 20.0
