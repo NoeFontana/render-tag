@@ -1,3 +1,9 @@
+# v0.8.3 (2026-04-20)
+
+- Fix multi-worker experiment runs dropping annotations when all workers shared one shard id; each worker now writes its own shard file, merged into `coco_labels.json` / `rich_truth.json` / `ground_truth.csv` / `provenance.json` on completion
+- Auto-merge lingering shard files when viz opens a dataset that predates the merge fix
+- Extract `merge_all_shards` and `CANONICAL_OUTPUT_FILES` into `data_io.writers` to share between `generate` and `experiment` pipelines
+
 # v0.8.2 (2026-04-20)
 
 - Pin non-baseline campaign variants to 1080p
