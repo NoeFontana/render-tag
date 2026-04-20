@@ -589,7 +589,11 @@ class SceneConfig(BaseModel):
         default_factory=LightingConfig, description="Lighting parameters"
     )
     lighting_preset: LightingPreset | None = Field(
-        default=None, description="Lighting preset override (factory, warehouse, etc.)"
+        default=None,
+        description=(
+            "Deprecated (since 0.9): use top-level `presets: [lighting.X]` instead. "
+            "Rewritten by the ACL; removed in 1.0."
+        ),
     )
     background_hdri: Path | None = Field(default=None, description="Path to HDRI background image")
     texture_dir: Path | None = Field(
@@ -605,14 +609,9 @@ class SceneConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_scale_range(self) -> "SceneConfig":
-        """Ensure min scale <= max scale and apply lighting preset."""
+        """Ensure min scale <= max scale."""
         if self.texture_scale_min > self.texture_scale_max:
             raise ValueError("texture_scale_min must be <= texture_scale_max")
-
-        # Apply lighting preset if specified
-        if self.lighting_preset:
-            self.lighting = get_lighting_preset(self.lighting_preset)
-
         return self
 
 
@@ -706,6 +705,14 @@ class GenConfig(BaseModel):
     """
 
     version: str = Field(default=CURRENT_SCHEMA_VERSION, description="Schema version")
+    presets: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Names of presets applied by the ACL in composition order. "
+            "Informational on a validated config; set by `presets: [...]` in YAML "
+            "and/or `--preset NAME` on the CLI."
+        ),
+    )
     dataset: DatasetConfig = Field(default_factory=DatasetConfig)
     camera: CameraConfig = Field(default_factory=CameraConfig)
     tag: TagConfig = Field(default_factory=TagConfig)

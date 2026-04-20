@@ -72,6 +72,13 @@ class JobSpec(BaseModel):
     assets_hash: str = "unknown"  # Placeholder for now
     config_hash: str | None = None
     shard_index: int = 0
+    applied_presets: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Preset names resolved by the ACL in composition order. "
+            "Contributes to the job_id hash for reproducibility."
+        ),
+    )
 
     @property
     def shard_size(self) -> int:

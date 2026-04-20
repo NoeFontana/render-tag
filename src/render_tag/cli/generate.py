@@ -49,6 +49,15 @@ def run(
         "-D",
         help="Override config value (dot-notation, e.g. camera.fov=90)",
     ),
+    presets: list[str] | None = typer.Option(
+        None,
+        "--preset",
+        "-p",
+        help=(
+            "Apply a named preset (repeatable). Appended after the YAML "
+            "`presets:` list so later entries compose on top."
+        ),
+    ),
 ) -> None:
     """
     Generate synthetic fiducial marker training data.
@@ -81,6 +90,7 @@ def run(
         resume_from=resume_from,
         batch_size=batch_size,
         overrides=parsed_overrides,
+        cli_presets=list(presets or []),
     )
 
     # Build and Run Pipeline (Consolidated Stages)

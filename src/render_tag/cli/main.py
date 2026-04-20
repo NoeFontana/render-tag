@@ -10,7 +10,7 @@ from rich.panel import Panel
 
 from render_tag.core.logging import setup_logging
 
-from . import audit, config, experiment, generate, hub, job, viz
+from . import audit, config, experiment, generate, hub, job, preset, viz
 from .tools import console
 
 app = typer.Typer(
@@ -26,6 +26,7 @@ app.add_typer(experiment.app, name="experiment")
 app.add_typer(viz.app, name="viz")
 app.add_typer(job.app, name="job")
 app.add_typer(hub.app, name="hub")
+app.add_typer(preset.app, name="preset")
 
 # Register top-level commands from generate.py
 app.command(name="generate")(generate.run)
