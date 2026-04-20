@@ -33,9 +33,7 @@ def append_cli_presets(data: dict[str, Any], cli_presets: list[str] | None) -> d
     elif isinstance(existing, list):
         data["presets"] = [*existing, *cli_presets]
     else:
-        raise ValueError(
-            "Top-level `presets` must be a list, e.g. `presets: [lighting.factory]`."
-        )
+        raise ValueError("Top-level `presets` must be a list, e.g. `presets: [lighting.factory]`.")
     return data
 
 

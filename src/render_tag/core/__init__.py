@@ -10,16 +10,16 @@ from . import (
     errors as errors,
 )
 from . import (
-    merge as merge,
-)
-from . import (
-    presets as presets,
-)
-from . import (
     manifest as manifest,
 )
 from . import (
+    merge as merge,
+)
+from . import (
     metadata as metadata,
+)
+from . import (
+    presets as presets,
 )
 from . import (
     resilience as resilience,
