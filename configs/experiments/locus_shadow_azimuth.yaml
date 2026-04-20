@@ -19,7 +19,6 @@ lock_camera: false
 sweeps:
   - parameter: scene.lighting.directional.0.azimuth
     type: categorical
-    # 8 points around the tag, starting at +X and going CCW.
     values: [0.0, 0.785398, 1.570796, 2.356194, 3.141593, 3.926991, 4.712389, 5.497787]
   - parameter: scene.lighting.directional.0.elevation
     type: categorical
@@ -77,7 +76,6 @@ base_config:
     texture_scale_min: 0.1
     texture_scale_max: 20.0
     lighting:
-      # Baseline overridden by both sweep axes on every variant.
       directional:
         - azimuth: 0.0
           elevation: 0.3
