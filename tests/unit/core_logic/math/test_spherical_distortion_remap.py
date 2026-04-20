@@ -18,8 +18,8 @@ import numpy as np
 import pytest
 
 from render_tag.backend.distortion import compute_spherical_distortion_maps
+from render_tag.core.geometry.projection_math import get_opencv_camera_matrix, project_points
 from render_tag.generation.compiler import compute_spherical_overscan_params
-from render_tag.generation.projection_math import get_opencv_camera_matrix, project_points
 
 # ---------------------------------------------------------------------------
 # Shared fixtures

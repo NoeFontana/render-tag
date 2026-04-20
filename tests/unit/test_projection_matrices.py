@@ -5,8 +5,8 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 
 from render_tag.backend.projection import _get_scene_transformations
+from render_tag.core.geometry.projection_math import project_points
 from render_tag.generation.board import BoardSpec, compute_charuco_layout
-from render_tag.generation.projection_math import project_points
 
 
 @patch("render_tag.backend.projection.bridge")

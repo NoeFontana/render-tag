@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from render_tag.generation.projection_math import (
+from render_tag.core.geometry.projection_math import (
     get_opencv_camera_matrix,
 )
 
@@ -40,7 +40,7 @@ def test_project_point_at_origin():
     points_world = np.array([[0.0, 0.0, 0.0]])
 
     # Manual projection steps (matching project_points)
-    from render_tag.generation.projection_math import project_points
+    from render_tag.core.geometry.projection_math import project_points
 
     pixels = project_points(points_world, blender_cam_matrix, [640, 480], k_matrix)
 

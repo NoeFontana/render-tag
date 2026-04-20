@@ -4,7 +4,7 @@ from pathlib import Path
 
 import numpy as np
 
-from render_tag.generation.projection_math import quaternion_wxyz_to_matrix
+from render_tag.core.geometry.projection_math import quaternion_wxyz_to_matrix
 
 
 def main():

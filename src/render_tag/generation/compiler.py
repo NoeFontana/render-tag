@@ -25,10 +25,10 @@ from ..core.schema import (
 )
 from ..core.seeding import derive_seed
 from ..data_io.assets import AssetProvider
+from ..core.geometry.projection_math import has_active_distortion
+from ..core.geometry.visibility import is_facing_camera
 from .camera import sample_camera_pose
-from .projection_math import has_active_distortion
 from .strategy.factory import get_subject_strategy
-from .visibility import is_facing_camera
 
 if TYPE_CHECKING:
     from .strategy.base import SubjectStrategy
@@ -427,7 +427,7 @@ class SceneCompiler:
 
     def _calculate_ppm_distance(self, target_tag, np_rng) -> float | None:
         """Calculate override distance for a target PPM."""
-        from .projection_math import solve_distance_for_ppm
+        from ..core.geometry.projection_math import solve_distance_for_ppm
 
         camera_config = self.config.camera
         if not camera_config.ppm_constraint:
@@ -677,7 +677,7 @@ class SceneCompiler:
             return True
 
         from ..core.config import get_min_pixel_area
-        from .projection_math import (
+        from ..core.geometry.projection_math import (
             calculate_pixel_area,
             get_world_matrix,
             project_points,

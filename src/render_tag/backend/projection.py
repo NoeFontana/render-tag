@@ -20,6 +20,19 @@ if TYPE_CHECKING:
 
 from render_tag.backend.bridge import bridge
 from render_tag.core import TAG_GRID_SIZES
+from render_tag.core.geometry.projection_math import (
+    calculate_angle_of_incidence,
+    calculate_distance,
+    calculate_ppm,
+    calculate_relative_pose,
+    get_world_normal,
+    project_points,
+    sanitize_to_rigid_transform,
+)
+from render_tag.core.geometry.visibility import (
+    is_facing_camera,
+    validate_visibility_metrics,
+)
 from render_tag.core.schema import DetectionRecord
 from render_tag.core.schema.base import KEYPOINT_SENTINEL
 from render_tag.core.schema.board import BoardConfig, BoardDefinition
@@ -29,19 +42,6 @@ from render_tag.generation.board import (
     BoardType,
     compute_aprilgrid_layout,
     compute_charuco_layout,
-)
-from render_tag.generation.projection_math import (
-    calculate_angle_of_incidence,
-    calculate_distance,
-    calculate_ppm,
-    calculate_relative_pose,
-    get_world_normal,
-    project_points,
-    sanitize_to_rigid_transform,
-)
-from render_tag.generation.visibility import (
-    is_facing_camera,
-    validate_visibility_metrics,
 )
 
 

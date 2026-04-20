@@ -17,12 +17,12 @@ from rich.progress import (
     TextColumn,
 )
 
-from render_tag.data_io.annotations import compute_dense_distorted_polygon
-from render_tag.data_io.readers import unwrap_rich_truth
-from render_tag.generation.projection_math import (
+from render_tag.core.geometry.projection_math import (
     apply_distortion_by_model,
     quaternion_wxyz_to_matrix,
 )
+from render_tag.data_io.annotations import compute_dense_distorted_polygon
+from render_tag.data_io.readers import unwrap_rich_truth
 
 try:
     from fiftyone.core.session import Session

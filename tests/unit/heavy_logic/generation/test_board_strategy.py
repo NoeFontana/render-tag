@@ -49,7 +49,7 @@ def test_board_strategy_keypoints_winding_order():
 
     from render_tag.cli.pipeline import GenerationContext
     from render_tag.core.config import GenConfig
-    from render_tag.generation.projection_math import validate_winding_order
+    from render_tag.core.geometry.projection_math import validate_winding_order
 
     config = BoardSubjectConfig(
         type="BOARD",

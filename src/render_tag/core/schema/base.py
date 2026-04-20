@@ -157,7 +157,7 @@ class DetectionRecord(BaseModel):
         if np.any(np.array(v) <= -999999.0):
             return v
 
-        from render_tag.generation.projection_math import validate_winding_order
+        from render_tag.core.geometry.projection_math import validate_winding_order
 
         if not validate_winding_order(v):
             raise ValueError(

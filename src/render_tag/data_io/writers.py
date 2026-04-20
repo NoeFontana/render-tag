@@ -27,6 +27,7 @@ from render_tag.data_io.readers import unwrap_rich_truth
 
 # Import pure-Python geometry modules
 try:
+    from render_tag.core.geometry.math import compute_polygon_area
     from render_tag.data_io.annotations import (
         compute_bbox,
         compute_dense_distorted_polygon,
@@ -34,7 +35,6 @@ try:
         compute_eval_visibility_ternary,
         format_coco_keypoints,
     )
-    from render_tag.generation.math import compute_polygon_area
 
     GEOMETRY_AVAILABLE = True
 except ImportError:

@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from render_tag.generation.projection_math import calculate_ppm, solve_distance_for_ppm
+from render_tag.core.geometry.projection_math import calculate_ppm, solve_distance_for_ppm
 
 
 def test_calculate_ppm():

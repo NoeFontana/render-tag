@@ -5,7 +5,7 @@ Verifies that projected 2D corners maintain logical consistency across rotations
 
 import numpy as np
 
-from render_tag.generation.projection_math import (
+from render_tag.core.geometry.projection_math import (
     get_world_matrix,
     project_points,
     validate_winding_order,

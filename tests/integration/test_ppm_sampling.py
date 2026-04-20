@@ -5,8 +5,8 @@ Integration tests for PPM-Driven Generation.
 import numpy as np
 
 from render_tag.core.config import GenConfig, PPMConstraint
+from render_tag.core.geometry.projection_math import calculate_ppm
 from render_tag.generation.compiler import SceneCompiler
-from render_tag.generation.projection_math import calculate_ppm
 
 
 def test_ppm_sampling_enforcement(tmp_path):

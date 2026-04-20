@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from render_tag.generation.projection_math import (
+from render_tag.core.geometry.projection_math import (
     get_world_normal,
     sanitize_to_rigid_transform,
 )

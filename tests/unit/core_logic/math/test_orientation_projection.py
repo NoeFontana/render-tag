@@ -78,7 +78,7 @@ def test_generate_subject_records_preserves_order(mock_bridge):
 
 def _project_tl(tag_size_mm, position, rotation_quaternion, k_matrix):
     """Project the TL corner using the stored pose and K matrix."""
-    from render_tag.generation.projection_math import quaternion_wxyz_to_matrix
+    from render_tag.core.geometry.projection_math import quaternion_wxyz_to_matrix
 
     half = tag_size_mm / 2000.0  # mm → m, half-size
     local_tl = np.array([-half, -half, 0.0])  # Center-Origin, Y-down

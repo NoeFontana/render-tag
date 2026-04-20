@@ -10,12 +10,12 @@ from typing import Any
 
 import numpy as np
 
-from render_tag.core.schema.base import KEYPOINT_SENTINEL, KeypointVisibility, is_sentinel_keypoint
-from render_tag.generation.projection_math import (
+from render_tag.core.geometry.projection_math import (
     apply_distortion_by_model,
     quaternion_wxyz_to_matrix,
     validate_winding_order,
 )
+from render_tag.core.schema.base import KEYPOINT_SENTINEL, KeypointVisibility, is_sentinel_keypoint
 
 
 def _clip_polygon_near_plane(
@@ -280,7 +280,7 @@ def verify_corner_order(
     """Verify that corners are in the expected winding order.
 
     Delegates to the single source of truth: ``validate_winding_order`` from
-    ``render_tag.generation.projection_math``.  In a Y-down coordinate system
+    ``render_tag.core.geometry.projection_math``.  In a Y-down coordinate system
     (OpenCV/image space), Clockwise polygons have a positive signed area.
 
     Args:

@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from render_tag.generation.projection_math import (
+from render_tag.core.geometry.projection_math import (
     calculate_relative_pose,
     matrix_to_quaternion_wxyz,
 )
