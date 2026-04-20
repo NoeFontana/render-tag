@@ -23,6 +23,7 @@ from render_tag.core.geometry.projection_math import (
 )
 from render_tag.data_io.annotations import compute_dense_distorted_polygon
 from render_tag.data_io.readers import unwrap_rich_truth
+from render_tag.data_io.writers import merge_all_shards
 
 try:
     from fiftyone.core.session import Session
@@ -70,6 +71,20 @@ def create_dataset(name: str) -> fo.Dataset:
     return dataset
 
 
+def _ensure_canonical_outputs(dataset_dir: Path) -> None:
+    """Merge lingering ``*_shard_*`` files in-place when the canonical COCO is absent.
+
+    Datasets produced before experiment-runner shard merging landed only have
+    per-worker shard files; merging once here makes viz idempotent and fixes
+    the dir on first open without requiring a re-render.
+    """
+    if (dataset_dir / "coco_labels.json").exists():
+        return
+    if not any(dataset_dir.glob("coco_shard_*.json")):
+        return
+    merge_all_shards(dataset_dir, cleanup=True)
+
+
 def load_dataset_from_coco(dataset_dir: Path, name: str) -> fo.Dataset:
     """
     Load a COCO dataset into FiftyOne.
@@ -77,6 +92,7 @@ def load_dataset_from_coco(dataset_dir: Path, name: str) -> fo.Dataset:
     if fo.dataset_exists(name):
         fo.delete_dataset(name)
 
+    _ensure_canonical_outputs(dataset_dir)
     labels_path = dataset_dir / "coco_labels.json"
 
     return fo.Dataset.from_dir(

@@ -11,6 +11,7 @@ import typer
 from render_tag.audit.reporting import generate_dataset_info
 from render_tag.core.manifest import ChecksumManifest
 from render_tag.core.validator import validate_recipe_file
+from render_tag.data_io.writers import CANONICAL_OUTPUT_FILES, merge_all_shards
 from render_tag.generation.compiler import SceneCompiler
 from render_tag.generation.tags import ensure_tag_asset
 from render_tag.orchestration import ResponseStatus, UnifiedWorkerOrchestrator
@@ -200,12 +201,10 @@ def run(
             ) as orchestrator:
                 orchestrator.start(shard_id=f"exp_{variant.variant_id}")
 
-                sid = f"exp_{variant.variant_id}"
-
-                def _render(recipe, out=variant_dir, rm=renderer_mode, s=sid):
-                    return orchestrator.execute_recipe(
-                        recipe.model_dump(mode="json"), out, rm, sid=s
-                    )
+                # Let each worker keep its per-process shard_id so concurrent
+                # saves don't overwrite each other — merge combines them below.
+                def _render(recipe, out=variant_dir, rm=renderer_mode):
+                    return orchestrator.execute_recipe(recipe.model_dump(mode="json"), out, rm)
 
                 with ThreadPoolExecutor(max_workers=workers) as pool:
                     futures = [pool.submit(_render, r) for r in recipes]
@@ -218,7 +217,8 @@ def run(
                             console.print(f"[red]Render error: {resp.message}[/red]")
                             raise typer.Exit(code=1) from None
 
-            # 6. Generate Unified Manifest
+            merge_all_shards(variant_dir, cleanup=True)
+
             generate_dataset_info(
                 dataset_dir=variant_dir,
                 config=variant.config,
@@ -231,10 +231,11 @@ def run(
                 cli_args=sys.argv,
             )
 
-            # 7. Generate Checksums
             manifest.add_directory(variant_dir / "images", pattern="*.png")
-            if (variant_dir / "tags.csv").exists():
-                manifest.add_file(variant_dir / "tags.csv")
+            for filename in CANONICAL_OUTPUT_FILES:
+                p = variant_dir / filename
+                if p.exists():
+                    manifest.add_file(p)
             manifest.save()
 
             console.print(f"[green]✓ {variant.variant_id} Complete[/green]")
