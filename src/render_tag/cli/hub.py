@@ -51,7 +51,7 @@ def get_dataset_features() -> Any:
             "tag_id": Sequence(Value("int32")),
             "tag_family": Sequence(Value("string")),
             "corners": Sequence(Sequence(Sequence(Value("float32"), length=2))),
-            # `KeypointVisibility` ternary. Length mirrors `corners` (4 for TAG, variable for BOARD).
+            # `KeypointVisibility` ternary. Length mirrors `corners` (4 TAG, variable BOARD).
             "corners_visibility": Sequence(Sequence(Value("int8"))),
             # BOARD-only inner intersection points (e.g. ChArUco saddles). Empty for TAG rows.
             "keypoints": Sequence(Sequence(Sequence(Value("float32"), length=2))),
