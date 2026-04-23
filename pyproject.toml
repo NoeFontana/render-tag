@@ -203,5 +203,5 @@ path = "pyproject.toml"
 pattern = '(?m)^version = "(?P<version>[^"]+)"'
 
 [tool.render_tag]
-version = "0.8.3"
+version = "0.9.0"
 

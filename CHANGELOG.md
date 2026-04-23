@@ -1,3 +1,7 @@
+# v0.9.0 (2026-04-23)
+
+- Surface eval-margin visibility in parquet schema (#78)
+
 # v0.8.3 (2026-04-20)
 
 - Fix multi-worker experiment runs dropping annotations when all workers shared one shard id; each worker now writes its own shard file, merged into `coco_labels.json` / `rich_truth.json` / `ground_truth.csv` / `provenance.json` on completion
