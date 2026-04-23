@@ -51,6 +51,14 @@ def get_dataset_features() -> Any:
             "tag_id": Sequence(Value("int32")),
             "tag_family": Sequence(Value("string")),
             "corners": Sequence(Sequence(Sequence(Value("float32"), length=2))),
+            # `KeypointVisibility` ternary. Length mirrors `corners` (4 TAG, variable BOARD).
+            "corners_visibility": Sequence(Sequence(Value("int8"))),
+            # BOARD-only inner intersection points (e.g. ChArUco saddles). Empty for TAG rows.
+            "keypoints": Sequence(Sequence(Sequence(Value("float32"), length=2))),
+            "keypoints_visibility": Sequence(Sequence(Value("int8"))),
+            "eval_margin_px": Sequence(Value("int32")),
+            # Null for BOARD records — consumer must inspect keypoints_visibility instead.
+            "eval_complete": Sequence(Value("bool")),
             "distance": Sequence(Value("float32")),
             "angle_of_incidence": Sequence(Value("float32")),
             "pixel_area": Sequence(Value("float32")),
@@ -132,6 +140,15 @@ def render_generator(data_dir: Path) -> Generator[dict[str, Any], None, None]:
                 "tag_id": [int(t.get("tag_id", 0)) for t in tags],
                 "tag_family": [str(t.get("tag_family", "unknown")) for t in tags],
                 "corners": [t.get("corners", []) for t in tags],
+                "corners_visibility": [
+                    [int(v) for v in (t.get("corners_visibility") or [])] for t in tags
+                ],
+                "keypoints": [t.get("keypoints") or [] for t in tags],
+                "keypoints_visibility": [
+                    [int(v) for v in (t.get("keypoints_visibility") or [])] for t in tags
+                ],
+                "eval_margin_px": [int(t.get("eval_margin_px") or 0) for t in tags],
+                "eval_complete": [t.get("eval_complete") for t in tags],
                 "distance": [float(t.get("distance", 0.0)) for t in tags],
                 "angle_of_incidence": [float(t.get("angle_of_incidence", 0.0)) for t in tags],
                 "pixel_area": [float(t.get("pixel_area", 0.0)) for t in tags],
@@ -270,6 +287,11 @@ def pull_dataset(
                 "tag_id": record["tag_id"][i],
                 "tag_family": record["tag_family"][i],
                 "corners": record["corners"][i],
+                "corners_visibility": record["corners_visibility"][i],
+                "keypoints": record["keypoints"][i],
+                "keypoints_visibility": record["keypoints_visibility"][i],
+                "eval_margin_px": record["eval_margin_px"][i],
+                "eval_complete": record["eval_complete"][i],
                 "distance": record["distance"][i],
                 "angle_of_incidence": record["angle_of_incidence"][i],
                 "pixel_area": record["pixel_area"][i],
