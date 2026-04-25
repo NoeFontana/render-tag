@@ -1,15 +1,13 @@
-# Outdoor sun with a directional SUN crossing the tag — stresses corner
-# detectors whose gradient kernel can confuse shadow edges for tag edges.
-# Azimuth/elevation are placeholders from shadow.directional_hard; override
-# here after running configs/experiments/locus_shadow_azimuth.yaml to pin
-# the empirically worst-case angle. ISO 3200 + filmic inherited from
-# sensor.hdr_sweep (Phase 2 knee).
+# Outdoor sun benchmark — directional contrast across the tag plane.
+# A dominant SUN with low ambient fill produces strong shading gradients
+# and crushed-shadow regions on the tag at low DR. Real cast shadows from
+# scene occluders arrive in v2 once OccluderStrategy lands.
+# ISO 3200 + filmic inherited from sensor.hdr_sweep (Phase 2 knee).
 presets:
   - locus.v1_baseline
   - subject.tag36h11_standard
   - sensor.hdr_sweep
-  - lighting.outdoor_industrial
-  - shadow.directional_hard
+  - lighting.outdoor_sun
 dataset:
   num_scenes: 50
   seeds:
