@@ -90,23 +90,12 @@ class ShadowRenderer:
         for obj in self.recipe.objects:
             if obj.type != "OCCLUDER":
                 continue
-            x, y, _ = obj.location
-            width = obj.properties.get("width_m", 0.003)
-            length = obj.properties.get("length_m", 0.15)
-            rot_z = (obj.rotation_euler or [0.0, 0.0, 0.0])[2]
-            cos_a, sin_a = np.cos(rot_z), np.sin(rot_z)
-            w2, l2 = width / 2, length / 2
-            dx = -w2 * cos_a + l2 * sin_a
-            dy = -w2 * sin_a - l2 * cos_a
-            patch = patches.Rectangle(
-                (x + dx, y + dy),
-                width,
-                length,
-                angle=np.degrees(rot_z),
-                linewidth=1,
-                edgecolor="black",
-                facecolor="#444444",
+            patch = self._create_rect_patch(
+                obj,
+                color="#444444",
                 alpha=0.85,
+                width=obj.properties.get("width_m", 0.003),
+                height=obj.properties.get("length_m", 0.15),
             )
             self.ax.add_patch(patch)
 
@@ -139,25 +128,32 @@ class ShadowRenderer:
                 alpha=0.5,
             )
 
-    def _create_rect_patch(self, obj: ObjectRecipe, color, alpha=1.0) -> patches.Rectangle:
-        """Create a rotated rectangle patch."""
+    def _create_rect_patch(
+        self,
+        obj: ObjectRecipe,
+        color,
+        alpha: float = 1.0,
+        width: float | None = None,
+        height: float | None = None,
+    ) -> patches.Rectangle:
+        """Rotated rectangle anchored at matplotlib's lower-left corner convention.
+
+        ``width``/``height`` override the default tag_size square so
+        non-square recipes (e.g. occluder rods) can reuse this helper.
+        """
         x, y, _ = obj.location
-        width = obj.properties.get("tag_size", 0.1)
-        height = width
+        if width is None:
+            width = obj.properties.get("tag_size", 0.1) * obj.scale[0]
+        if height is None:
+            tag_size = obj.properties.get("tag_size", 0.1)
+            height = tag_size * obj.scale[1]
 
-        width *= obj.scale[0]
-        height *= obj.scale[1]
-
-        # Staff Engineer: Handle None for rotation_euler (default to zero rotation)
-        rotation = obj.rotation_euler or [0.0, 0.0, 0.0]
-        rot_z = rotation[2]
+        rot_z = (obj.rotation_euler or [0.0, 0.0, 0.0])[2]
+        cos_a, sin_a = np.cos(rot_z), np.sin(rot_z)
         w2, h2 = width / 2, height / 2
 
-        cos_a = np.cos(rot_z)
-        sin_a = np.sin(rot_z)
-
-        dx = -w2 * cos_a - (-h2) * sin_a
-        dy = -w2 * sin_a + (-h2) * cos_a
+        dx = -w2 * cos_a + h2 * sin_a
+        dy = -w2 * sin_a - h2 * cos_a
 
         return patches.Rectangle(
             (x + dx, y + dy),

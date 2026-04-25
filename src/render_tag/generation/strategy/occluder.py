@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from render_tag.core.geometry.math import sun_lateral_axis, sun_unit_vector
 from render_tag.core.schema.recipe import ObjectRecipe
 from render_tag.core.seeding import derive_seed
 
@@ -33,7 +34,6 @@ class OccluderStrategy:
         self.config = config
 
     def prepare_assets(self, context: GenerationContext) -> None:
-        """No-op for primitive shapes; future: resolve mesh assets."""
         pass
 
     def sample_pose(
@@ -59,41 +59,28 @@ class OccluderStrategy:
 
         directional = gen_config.scene.lighting.directional
         if not directional:
-            # Without a SUN there is nothing to cast a hard shadow; skip silently.
             return []
 
         sun = directional[0]
-        sun_dir = (
-            math.cos(sun.elevation) * math.cos(sun.azimuth),
-            math.cos(sun.elevation) * math.sin(sun.azimuth),
-            math.sin(sun.elevation),
-        )
-        # Lateral axis perpendicular to SUN azimuth, in the XY plane.
-        lateral = (-math.sin(sun.azimuth), math.cos(sun.azimuth), 0.0)
+        sun_dir = sun_unit_vector(sun.azimuth, sun.elevation)
+        lateral = sun_lateral_axis(sun.azimuth)
+        rot_z = sun.azimuth + math.pi / 2
 
-        layout_seed = derive_seed(seed, "occluder_layout", 0)
-        rng = np.random.default_rng(layout_seed)
-
+        rng = np.random.default_rng(derive_seed(seed, "occluder_layout", 0))
         n = int(rng.integers(self.config.count_min, self.config.count_max + 1))
+
         objects: list[ObjectRecipe] = []
         tx, ty, tz = target_position
 
         for i in range(n):
-            obj_seed = derive_seed(layout_seed, "occluder_obj", i)
-            obj_rng = np.random.default_rng(obj_seed)
-
-            d = float(obj_rng.uniform(self.config.offset_min_m, self.config.offset_max_m))
+            d = float(rng.uniform(self.config.offset_min_m, self.config.offset_max_m))
             jitter = float(
-                obj_rng.uniform(-self.config.lateral_jitter_m, self.config.lateral_jitter_m)
+                rng.uniform(-self.config.lateral_jitter_m, self.config.lateral_jitter_m)
             )
 
             x = tx + d * sun_dir[0] + jitter * lateral[0]
             y = ty + d * sun_dir[1] + jitter * lateral[1]
             z = tz + d * sun_dir[2]
-
-            # Orient the long axis perpendicular to the SUN azimuth so the rod
-            # casts a clean transverse shadow line across the tag.
-            rot_z = sun.azimuth + math.pi / 2
 
             objects.append(
                 ObjectRecipe(

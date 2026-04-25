@@ -12,11 +12,6 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-try:
-    import bpy
-except ImportError:
-    bpy = None
-
 from render_tag.backend.bridge import bridge
 from render_tag.core import TAG_GRID_SIZES
 
@@ -197,46 +192,56 @@ def create_tag_plane(
     return plane
 
 
-def create_occluder_primitive(
-    shape: str,
-    width_m: float,
-    length_m: float,
-    albedo: float,
-    roughness: float,
-) -> Any:
+def create_occluder_primitive(props: dict[str, Any]) -> Any:
     """Create a small shadow-casting primitive for an OCCLUDER recipe.
 
     Unlike ``create_tag_plane``, the occluder keeps ``visible_shadow=True``
     (the Blender default) so its umbra projects onto the tag plane.
     """
+    shape = props["shape"]
+    width_m = float(props["width_m"])
+    length_m = float(props["length_m"])
+    albedo = float(props["albedo"])
+    roughness = float(props["roughness"])
+
     obj = bridge.bproc.object.create_primitive("CUBE")
     obj.blender_obj.name = f"Occluder_{shape}"
 
-    if shape == "rod" or shape == "post":
-        sx = width_m / 2.0
-        sy = length_m / 2.0
-        sz = width_m / 2.0
+    if shape in {"rod", "post"}:
+        sx, sy, sz = width_m / 2.0, length_m / 2.0, width_m / 2.0
     elif shape == "leaf":
-        sx = length_m / 2.0
-        sy = width_m / 2.0
-        sz = width_m / 4.0
+        sx, sy, sz = length_m / 2.0, width_m / 2.0, width_m / 4.0
     else:
         sx = sy = sz = width_m / 2.0
     obj.set_scale([sx, sy, sz])
 
-    if bpy is not None:
-        mat = bpy.data.materials.new(name=f"OccluderMat_{shape}")
-        mat.use_nodes = True
-        bsdf = mat.node_tree.nodes.get("Principled BSDF")
-        if bsdf is not None:
-            bsdf.inputs["Base Color"].default_value = (albedo, albedo, albedo, 1.0)
-            bsdf.inputs["Roughness"].default_value = roughness
-        if obj.blender_obj.data.materials:
-            obj.blender_obj.data.materials[0] = mat
-        else:
-            obj.blender_obj.data.materials.append(mat)
+    mat = _get_or_create_diffuse_material(
+        f"OccluderMat_{shape}_{albedo:.3f}_{roughness:.3f}",
+        base_color=(albedo, albedo, albedo, 1.0),
+        roughness=roughness,
+    )
+    obj.blender_obj.data.materials.clear()
+    obj.blender_obj.data.materials.append(mat)
 
     return obj
+
+
+def _get_or_create_diffuse_material(
+    name: str,
+    base_color: tuple[float, float, float, float],
+    roughness: float,
+) -> Any:
+    """Return a Principled-BSDF material with the given color/roughness, cached by name."""
+    existing = bridge.bpy.data.materials.get(name)
+    if existing is not None:
+        return existing
+    mat = bridge.bpy.data.materials.new(name=name)
+    mat.use_nodes = True
+    bsdf = mat.node_tree.nodes.get("Principled BSDF")
+    if bsdf is not None:
+        bsdf.inputs["Base Color"].default_value = base_color
+        bsdf.inputs["Roughness"].default_value = roughness
+    return mat
 
 
 def apply_tag_texture(obj: Any, texture_path: Path, config: dict | None = None) -> None:

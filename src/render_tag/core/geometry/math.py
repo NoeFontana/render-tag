@@ -7,6 +7,7 @@ No Blender dependencies.
 
 from __future__ import annotations
 
+import math
 from typing import TypeAlias
 
 import numpy as np
@@ -15,6 +16,20 @@ import numpy as np
 Vector3: TypeAlias = np.ndarray  # (3,) float array
 Matrix3x3: TypeAlias = np.ndarray  # (3, 3) float array
 Matrix4x4: TypeAlias = np.ndarray  # (4, 4) float array
+
+
+def sun_unit_vector(azimuth: float, elevation: float) -> tuple[float, float, float]:
+    """Cartesian unit vector pointing from the origin toward the SUN."""
+    return (
+        math.cos(elevation) * math.cos(azimuth),
+        math.cos(elevation) * math.sin(azimuth),
+        math.sin(elevation),
+    )
+
+
+def sun_lateral_axis(azimuth: float) -> tuple[float, float, float]:
+    """XY-plane axis perpendicular to the SUN azimuth (right-handed)."""
+    return (-math.sin(azimuth), math.cos(azimuth), 0.0)
 
 
 def compute_polygon_area(points: np.ndarray) -> float:

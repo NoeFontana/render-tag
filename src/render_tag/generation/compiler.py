@@ -415,12 +415,10 @@ class SceneCompiler:
         objects = self.strategy.sample_pose(seed, ctx)
 
         if self.occluder_strategy is not None:
-            tag_objects = [o for o in objects if o.type == "TAG"]
-            if tag_objects:
-                cx = sum(o.location[0] for o in tag_objects) / len(tag_objects)
-                cy = sum(o.location[1] for o in tag_objects) / len(tag_objects)
-                cz = sum(o.location[2] for o in tag_objects) / len(tag_objects)
-                target = (cx, cy, cz)
+            anchors = [o.location for o in objects if o.type in {"TAG", "BOARD"}]
+            if anchors:
+                cx, cy, cz = np.mean(anchors, axis=0)
+                target = (float(cx), float(cy), float(cz))
             else:
                 target = (0.0, 0.0, 0.0)
             objects.extend(self.occluder_strategy.sample_pose(seed, ctx, target))

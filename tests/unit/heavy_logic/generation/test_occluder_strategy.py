@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 from render_tag.cli.pipeline import GenerationContext
-from render_tag.core.config import GenConfig
+from render_tag.core.config import DirectionalLightConfig, GenConfig
 from render_tag.core.schema.subject import OccluderConfig
 from render_tag.generation.strategy.occluder import OccluderStrategy
 
@@ -15,12 +15,6 @@ from render_tag.generation.strategy.occluder import OccluderStrategy
 def _ctx_with_sun(azimuth: float, elevation: float, intensity: float = 30.0) -> GenerationContext:
     ctx = MagicMock(spec=GenerationContext)
     ctx.gen_config = GenConfig()
-    ctx.gen_config.scene.lighting.directional = [
-        type(ctx.gen_config.scene.lighting.directional[0] if False else object)  # placeholder
-    ]
-    # Use the real DirectionalLightConfig dataclass via assignment
-    from render_tag.core.config import DirectionalLightConfig
-
     ctx.gen_config.scene.lighting.directional = [
         DirectionalLightConfig(azimuth=azimuth, elevation=elevation, intensity=intensity)
     ]
