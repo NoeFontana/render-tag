@@ -46,6 +46,7 @@ from . import (  # noqa: F401  (auto-registration on import)
     sensor_industrial_dr,
     sensor_raw_pipeline,
     shadow_harsh,
+    shadow_occluder_overlay,
     subject_tag16h5_standard,
     subject_tag36h11_standard,
 )

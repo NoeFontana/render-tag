@@ -45,6 +45,7 @@ class ShadowRenderer:
         """Draw the scene and save/show it."""
         self._draw_board()
         self._draw_tags()
+        self._draw_occluders()
         self._draw_cameras()
         self.ax.autoscale_view()
 
@@ -84,6 +85,30 @@ class ShadowRenderer:
 
         if tag_patches:
             self.ax.add_collection(PatchCollection(tag_patches, match_original=True))
+
+    def _draw_occluders(self):
+        for obj in self.recipe.objects:
+            if obj.type != "OCCLUDER":
+                continue
+            x, y, _ = obj.location
+            width = obj.properties.get("width_m", 0.003)
+            length = obj.properties.get("length_m", 0.15)
+            rot_z = (obj.rotation_euler or [0.0, 0.0, 0.0])[2]
+            cos_a, sin_a = np.cos(rot_z), np.sin(rot_z)
+            w2, l2 = width / 2, length / 2
+            dx = -w2 * cos_a + l2 * sin_a
+            dy = -w2 * sin_a - l2 * cos_a
+            patch = patches.Rectangle(
+                (x + dx, y + dy),
+                width,
+                length,
+                angle=np.degrees(rot_z),
+                linewidth=1,
+                edgecolor="black",
+                facecolor="#444444",
+                alpha=0.85,
+            )
+            self.ax.add_patch(patch)
 
     def _draw_cameras(self):
         for i, cam in enumerate(self.recipe.cameras):

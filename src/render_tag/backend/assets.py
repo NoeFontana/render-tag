@@ -197,6 +197,48 @@ def create_tag_plane(
     return plane
 
 
+def create_occluder_primitive(
+    shape: str,
+    width_m: float,
+    length_m: float,
+    albedo: float,
+    roughness: float,
+) -> Any:
+    """Create a small shadow-casting primitive for an OCCLUDER recipe.
+
+    Unlike ``create_tag_plane``, the occluder keeps ``visible_shadow=True``
+    (the Blender default) so its umbra projects onto the tag plane.
+    """
+    obj = bridge.bproc.object.create_primitive("CUBE")
+    obj.blender_obj.name = f"Occluder_{shape}"
+
+    if shape == "rod" or shape == "post":
+        sx = width_m / 2.0
+        sy = length_m / 2.0
+        sz = width_m / 2.0
+    elif shape == "leaf":
+        sx = length_m / 2.0
+        sy = width_m / 2.0
+        sz = width_m / 4.0
+    else:
+        sx = sy = sz = width_m / 2.0
+    obj.set_scale([sx, sy, sz])
+
+    if bpy is not None:
+        mat = bpy.data.materials.new(name=f"OccluderMat_{shape}")
+        mat.use_nodes = True
+        bsdf = mat.node_tree.nodes.get("Principled BSDF")
+        if bsdf is not None:
+            bsdf.inputs["Base Color"].default_value = (albedo, albedo, albedo, 1.0)
+            bsdf.inputs["Roughness"].default_value = roughness
+        if obj.blender_obj.data.materials:
+            obj.blender_obj.data.materials[0] = mat
+        else:
+            obj.blender_obj.data.materials.append(mat)
+
+    return obj
+
+
 def apply_tag_texture(obj: Any, texture_path: Path, config: dict | None = None) -> None:
     """Apply a texture to the tag plane with correct UV mapping.
 

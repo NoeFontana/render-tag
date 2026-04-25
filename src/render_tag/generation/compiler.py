@@ -29,10 +29,11 @@ from ..core.schema import (
 from ..core.seeding import derive_seed
 from ..data_io.assets import AssetProvider
 from .camera import sample_camera_pose
-from .strategy.factory import get_subject_strategy
+from .strategy.factory import get_occluder_strategy, get_subject_strategy
 
 if TYPE_CHECKING:
     from .strategy.base import SubjectStrategy
+    from .strategy.occluder import OccluderStrategy
 
 logger = get_logger(__name__)
 
@@ -250,6 +251,9 @@ class SceneCompiler:
 
         # Initialize Subject Strategy
         self.strategy: SubjectStrategy = get_subject_strategy(self.config.scenario.subject)
+        self.occluder_strategy: OccluderStrategy | None = get_occluder_strategy(
+            self.config.scenario.occluders
+        )
 
         # If it's a TagStrategy, we might need to synchronize its config with GenConfig
         # (Though ideally SubjectConfig should already be correct)
@@ -267,6 +271,8 @@ class SceneCompiler:
             gen_config=self.config, output_dir=self.output_dir or Path("output")
         )
         self.strategy.prepare_assets(ctx)
+        if self.occluder_strategy is not None:
+            self.occluder_strategy.prepare_assets(ctx)
 
         # Cache textures
         self.textures = []
@@ -407,6 +413,18 @@ class SceneCompiler:
             gen_config=self.config, output_dir=self.output_dir or Path("output")
         )
         objects = self.strategy.sample_pose(seed, ctx)
+
+        if self.occluder_strategy is not None:
+            tag_objects = [o for o in objects if o.type == "TAG"]
+            if tag_objects:
+                cx = sum(o.location[0] for o in tag_objects) / len(tag_objects)
+                cy = sum(o.location[1] for o in tag_objects) / len(tag_objects)
+                cz = sum(o.location[2] for o in tag_objects) / len(tag_objects)
+                target = (cx, cy, cz)
+            else:
+                target = (0.0, 0.0, 0.0)
+            objects.extend(self.occluder_strategy.sample_pose(seed, ctx, target))
+
         recipe.objects = objects
 
         recipe.cameras = self._sample_camera_recipes(scene_id, seed, objects)

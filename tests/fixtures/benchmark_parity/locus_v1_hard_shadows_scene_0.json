@@ -139,6 +139,39 @@
       ],
       "texture_path": "__OUTPUT_DIR__/cache/tags/tag36h11_204_m1.png",
       "type": "TAG"
+    },
+    {
+      "board": null,
+      "calibration_points_3d": null,
+      "forward_axis": null,
+      "keypoints_3d": null,
+      "location": [
+        -0.10801323677398368,
+        -0.07702962929832634,
+        0.010448430334678627
+      ],
+      "material": null,
+      "name": "Occluder_0",
+      "properties": {
+        "albedo": 0.05,
+        "length_m": 0.15,
+        "roughness": 0.9,
+        "shape": "rod",
+        "width_m": 0.003
+      },
+      "rotation_euler": [
+        0.0,
+        0.0,
+        2.3561943267948964
+      ],
+      "rotation_quaternion": null,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "texture_path": null,
+      "type": "OCCLUDER"
     }
   ],
   "random_seed": 2115084936,

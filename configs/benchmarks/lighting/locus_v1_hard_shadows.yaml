@@ -1,13 +1,14 @@
-# Outdoor sun benchmark — directional contrast across the tag plane.
-# A dominant SUN with low ambient fill produces strong shading gradients
-# and crushed-shadow regions on the tag at low DR. Real cast shadows from
-# scene occluders arrive in v2 once OccluderStrategy lands.
+# Outdoor sun benchmark with occluders - real hard shadows across the tag.
+# Rod occluders are placed along the SUN ray so their umbra edge slices the
+# tag plane in pixel space, stressing gradient-based corner detectors against
+# hard-edged shadow boundaries.
 # ISO 3200 + filmic inherited from sensor.hdr_sweep (Phase 2 knee).
 presets:
   - locus.v1_baseline
   - subject.tag36h11_standard
   - sensor.hdr_sweep
   - lighting.outdoor_sun
+  - shadow.occluder_overlay
 dataset:
   num_scenes: 50
   seeds:

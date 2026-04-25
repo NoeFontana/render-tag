@@ -139,6 +139,105 @@
       ],
       "texture_path": "__OUTPUT_DIR__/cache/tags/tag36h11_122_m1.png",
       "type": "TAG"
+    },
+    {
+      "board": null,
+      "calibration_points_3d": null,
+      "forward_axis": null,
+      "keypoints_3d": null,
+      "location": [
+        -0.20689493331685888,
+        0.134207966118146,
+        0.013825784300525515
+      ],
+      "material": null,
+      "name": "Occluder_0",
+      "properties": {
+        "albedo": 0.05,
+        "length_m": 0.15,
+        "roughness": 0.9,
+        "shape": "rod",
+        "width_m": 0.003
+      },
+      "rotation_euler": [
+        0.0,
+        0.0,
+        2.3561943267948964
+      ],
+      "rotation_quaternion": null,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "texture_path": null,
+      "type": "OCCLUDER"
+    },
+    {
+      "board": null,
+      "calibration_points_3d": null,
+      "forward_axis": null,
+      "keypoints_3d": null,
+      "location": [
+        -0.20215715048088223,
+        0.10818227027775272,
+        0.006554441372819122
+      ],
+      "material": null,
+      "name": "Occluder_1",
+      "properties": {
+        "albedo": 0.05,
+        "length_m": 0.15,
+        "roughness": 0.9,
+        "shape": "rod",
+        "width_m": 0.003
+      },
+      "rotation_euler": [
+        0.0,
+        0.0,
+        2.3561943267948964
+      ],
+      "rotation_quaternion": null,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "texture_path": null,
+      "type": "OCCLUDER"
+    },
+    {
+      "board": null,
+      "calibration_points_3d": null,
+      "forward_axis": null,
+      "keypoints_3d": null,
+      "location": [
+        -0.20856284182495916,
+        0.12219455226039344,
+        0.00915263490327442
+      ],
+      "material": null,
+      "name": "Occluder_2",
+      "properties": {
+        "albedo": 0.05,
+        "length_m": 0.15,
+        "roughness": 0.9,
+        "shape": "rod",
+        "width_m": 0.003
+      },
+      "rotation_euler": [
+        0.0,
+        0.0,
+        2.3561943267948964
+      ],
+      "rotation_quaternion": null,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "texture_path": null,
+      "type": "OCCLUDER"
     }
   ],
   "random_seed": 814046046,

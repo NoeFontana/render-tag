@@ -5,10 +5,11 @@ from typing import TYPE_CHECKING
 from render_tag.core.schema.subject import BoardSubjectConfig, TagSubjectConfig
 
 from .board import BoardStrategy
+from .occluder import OccluderStrategy
 from .tags import TagStrategy
 
 if TYPE_CHECKING:
-    from render_tag.core.schema.subject import SubjectConfig
+    from render_tag.core.schema.subject import OccluderConfig, SubjectConfig
 
     from .base import SubjectStrategy
 
@@ -34,3 +35,10 @@ def get_subject_strategy(config: SubjectConfig) -> SubjectStrategy:
         return BoardStrategy(actual_config)
 
     raise ValueError(f"Unknown subject type: {type(actual_config)}")
+
+
+def get_occluder_strategy(config: OccluderConfig | None) -> OccluderStrategy | None:
+    """Return an OccluderStrategy if occluders are configured, else None."""
+    if config is None or not config.enabled:
+        return None
+    return OccluderStrategy(config)

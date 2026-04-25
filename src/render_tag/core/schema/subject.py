@@ -121,3 +121,53 @@ class SubjectConfig(RootModel):
     """Root model for polymorphic subjects."""
 
     root: Annotated[TagSubjectConfig | BoardSubjectConfig, Field(discriminator="type")]
+
+
+class OccluderConfig(BaseModel):
+    """Configuration for shadow-casting occluders placed along the SUN ray.
+
+    Occluders are scene fixtures (rod, leaf, post) positioned between the
+    SUN and the tag so their umbra crosses the tag plane in pixel space.
+    They coexist with the tag subject — this is a sibling of ``subject``,
+    not a variant in the subject discriminated union.
+    """
+
+    enabled: bool = Field(default=True, description="If False, the strategy is skipped.")
+    count_min: PositiveInt = Field(default=1, description="Min number of occluders per scene.")
+    count_max: PositiveInt = Field(default=3, description="Max number of occluders per scene.")
+    shape: Literal["rod", "leaf", "post"] = Field(
+        default="rod",
+        description="Primitive geometry: rod (thin), leaf (flat), post (square).",
+    )
+    width_m: PositiveFloat = Field(
+        default=0.003,
+        description="Cross-section width in meters (sets umbra thickness).",
+    )
+    length_m: PositiveFloat = Field(
+        default=0.15,
+        description="Long-axis length in meters.",
+    )
+    offset_min_m: PositiveFloat = Field(
+        default=0.01,
+        description="Min distance from tag along SUN ray.",
+    )
+    offset_max_m: PositiveFloat = Field(
+        default=0.04,
+        description="Max distance from tag along SUN ray.",
+    )
+    lateral_jitter_m: float = Field(
+        default=0.02,
+        ge=0.0,
+        description="Max lateral offset (perpendicular to SUN azimuth) so the umbra "
+        "edge crosses the tag rather than landing on its center.",
+    )
+    albedo: float = Field(default=0.05, ge=0.0, le=1.0, description="Diffuse albedo (0=black).")
+    roughness: float = Field(default=0.9, ge=0.0, le=1.0)
+
+    @model_validator(mode="after")
+    def validate_ranges(self) -> OccluderConfig:
+        if self.count_max < self.count_min:
+            raise ValueError("count_max must be >= count_min")
+        if self.offset_max_m < self.offset_min_m:
+            raise ValueError("offset_max_m must be >= offset_min_m")
+        return self

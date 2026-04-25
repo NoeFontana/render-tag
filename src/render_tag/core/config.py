@@ -20,6 +20,7 @@ from render_tag.core.schema import (
 )
 from render_tag.core.schema.base import TagFamily
 from render_tag.core.schema.subject import (
+    OccluderConfig,
     SubjectConfig,
     TagSubjectConfig,
 )
@@ -648,6 +649,11 @@ class ScenarioConfig(BaseModel):
     subject: SubjectConfig | None = Field(
         default_factory=lambda: SubjectConfig(root=TagSubjectConfig()),
         description="The subject of the scene (TAGS or BOARD).",
+    )
+
+    occluders: OccluderConfig | None = Field(
+        default=None,
+        description="Optional shadow-casting occluders placed along the SUN ray.",
     )
 
     sampling_mode: SamplingMode = Field(
