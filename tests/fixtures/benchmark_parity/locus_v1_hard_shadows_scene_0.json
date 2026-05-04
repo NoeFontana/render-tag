@@ -146,23 +146,24 @@
       "forward_axis": null,
       "keypoints_3d": null,
       "location": [
-        -0.10872584960379408,
-        -0.07994207882476546,
-        0.009210212425220281
+        0.13681028162570014,
+        0.4925773391482855,
+        0.2443777354911154
       ],
       "material": null,
-      "name": "Occluder_0",
+      "name": "Occluder_edge_0",
       "properties": {
         "albedo": 0.05,
-        "length_m": 0.15,
         "roughness": 0.9,
-        "shape": "rod",
-        "width_m": 0.003
+        "shape": "plate",
+        "size_across_edge_m": 0.5,
+        "size_along_edge_m": 0.5,
+        "thickness_m": 0.005
       },
       "rotation_euler": [
         0.0,
         0.0,
-        2.3561943267948964
+        0.4105557907707782
       ],
       "rotation_quaternion": null,
       "scale": [
@@ -251,7 +252,7 @@
         ],
         "intensity": 30.0,
         "location": [
-          6.367123562105039,
+          6.367123562105038,
           6.367121481361893,
           4.349655341112302
         ],

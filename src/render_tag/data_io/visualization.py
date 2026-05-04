@@ -87,17 +87,39 @@ class ShadowRenderer:
             self.ax.add_collection(PatchCollection(tag_patches, match_original=True))
 
     def _draw_occluders(self):
+        sun_dir = self._extract_sun_direction()
+        if sun_dir is None:
+            return
+        sx, sy, sz = sun_dir
+
         for obj in self.recipe.objects:
             if obj.type != "OCCLUDER":
                 continue
+            h = obj.location[2]
+            shadow_xy = (
+                obj.location[0] - h * sx / sz,
+                obj.location[1] - h * sy / sz,
+            )
             patch = self._create_rect_patch(
                 obj,
-                color="#444444",
-                alpha=0.85,
-                width=obj.properties.get("width_m", 0.003),
-                height=obj.properties.get("length_m", 0.15),
+                color="#222222",
+                alpha=0.55,
+                width=obj.properties.get("size_along_edge_m", 0.5),
+                height=obj.properties.get("size_across_edge_m", 0.5),
+                position=shadow_xy,
             )
             self.ax.add_patch(patch)
+
+    def _extract_sun_direction(self) -> tuple[float, float, float] | None:
+        for light in self.recipe.world.lights:
+            if light.type != "SUN":
+                continue
+            lx, ly, lz = light.location
+            norm = (lx * lx + ly * ly + lz * lz) ** 0.5
+            if norm < 1e-6 or lz <= 1e-6:
+                return None
+            return (lx / norm, ly / norm, lz / norm)
+        return None
 
     def _draw_cameras(self):
         for i, cam in enumerate(self.recipe.cameras):
@@ -110,7 +132,8 @@ class ShadowRenderer:
             if cam.iso_noise and cam.iso_noise > 0:
                 info += f"\nISO: {cam.iso_noise}"
             if cam.sensor_noise:
-                info += f"\nNoise: {cam.sensor_noise.model.value}"
+                model = cam.sensor_noise.model
+                info += f"\nNoise: {getattr(model, 'value', model)}"
 
             self.ax.text(pos[0], pos[1] + 0.05, info, color="red", fontsize=8)
 
@@ -135,13 +158,17 @@ class ShadowRenderer:
         alpha: float = 1.0,
         width: float | None = None,
         height: float | None = None,
+        position: tuple[float, float] | None = None,
     ) -> patches.Rectangle:
         """Rotated rectangle anchored at matplotlib's lower-left corner convention.
 
-        ``width``/``height`` override the default tag_size square so
-        non-square recipes (e.g. occluder rods) can reuse this helper.
+        ``width``/``height`` override the default tag_size square; ``position``
+        overrides the centre XY (used to draw projected occluder shadows).
         """
-        x, y, _ = obj.location
+        if position is None:
+            x, y = obj.location[0], obj.location[1]
+        else:
+            x, y = position
         if width is None:
             width = obj.properties.get("tag_size", 0.1) * obj.scale[0]
         if height is None:

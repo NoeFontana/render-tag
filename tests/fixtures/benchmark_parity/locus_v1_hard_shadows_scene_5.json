@@ -146,23 +146,24 @@
       "forward_axis": null,
       "keypoints_3d": null,
       "location": [
-        0.007797615197152746,
-        -0.21857944200970786,
-        0.008583195801535756
+        2.0735979876358264,
+        1.9394769874027755,
+        1.337170076785861
       ],
       "material": null,
-      "name": "Occluder_0",
+      "name": "Occluder_slit_0",
       "properties": {
         "albedo": 0.05,
-        "length_m": 0.15,
         "roughness": 0.9,
-        "shape": "rod",
-        "width_m": 0.003
+        "shape": "plate",
+        "size_across_edge_m": 0.5,
+        "size_along_edge_m": 0.5,
+        "thickness_m": 0.005
       },
       "rotation_euler": [
         0.0,
         0.0,
-        2.3561943267948964
+        5.71802620218304
       ],
       "rotation_quaternion": null,
       "scale": [
@@ -179,56 +180,24 @@
       "forward_axis": null,
       "keypoints_3d": null,
       "location": [
-        0.0007914884903615362,
-        -0.20543422098583553,
-        0.010680134408631657
+        1.8068957296208124,
+        1.5125835482905836,
+        1.344670076785861
       ],
       "material": null,
-      "name": "Occluder_1",
+      "name": "Occluder_slit_1",
       "properties": {
         "albedo": 0.05,
-        "length_m": 0.15,
         "roughness": 0.9,
-        "shape": "rod",
-        "width_m": 0.003
+        "shape": "plate",
+        "size_across_edge_m": 0.5,
+        "size_along_edge_m": 0.5,
+        "thickness_m": 0.005
       },
       "rotation_euler": [
         0.0,
         0.0,
-        2.3561943267948964
-      ],
-      "rotation_quaternion": null,
-      "scale": [
-        1.0,
-        1.0,
-        1.0
-      ],
-      "texture_path": null,
-      "type": "OCCLUDER"
-    },
-    {
-      "board": null,
-      "calibration_points_3d": null,
-      "forward_axis": null,
-      "keypoints_3d": null,
-      "location": [
-        0.004773331690584302,
-        -0.2207537011061666,
-        0.006807521693945949
-      ],
-      "material": null,
-      "name": "Occluder_2",
-      "properties": {
-        "albedo": 0.05,
-        "length_m": 0.15,
-        "roughness": 0.9,
-        "shape": "rod",
-        "width_m": 0.003
-      },
-      "rotation_euler": [
-        0.0,
-        0.0,
-        2.3561943267948964
+        5.71802620218304
       ],
       "rotation_quaternion": null,
       "scale": [
@@ -317,7 +286,7 @@
         ],
         "intensity": 30.0,
         "location": [
-          6.367123562105039,
+          6.367123562105038,
           6.367121481361893,
           4.349655341112302
         ],

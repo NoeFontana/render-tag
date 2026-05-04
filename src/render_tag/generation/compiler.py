@@ -414,18 +414,43 @@ class SceneCompiler:
         )
         objects = self.strategy.sample_pose(seed, ctx)
 
+        # Cameras must be sampled before occluders so the occluder strategy can
+        # pick plate placements that avoid sitting between any camera and the tag.
+        recipe.cameras = self._sample_camera_recipes(scene_id, seed, objects)
+
         if self.occluder_strategy is not None:
-            anchors = [o.location for o in objects if o.type in {"TAG", "BOARD"}]
-            if anchors:
-                cx, cy, cz = np.mean(anchors, axis=0)
-                target = (float(cx), float(cy), float(cz))
-            else:
-                target = (0.0, 0.0, 0.0)
-            objects.extend(self.occluder_strategy.sample_pose(seed, ctx, target))
+            tag_positions: list[tuple[float, float, float]] = []
+            for o in objects:
+                if o.type not in {"TAG", "BOARD"}:
+                    continue
+                cx, cy, cz = float(o.location[0]), float(o.location[1]), float(o.location[2])
+                tag_positions.append((cx, cy, cz))
+                # The tag body is a square at z=cz; protect its extent against camera
+                # occlusion by sampling 4 corners. Use the rotated-bounding-circle
+                # radius (side/sqrt(2)) so any in-plane rotation is covered.
+                size_m = float(
+                    o.properties.get("tag_size")
+                    or o.properties.get("size_along_edge_m")
+                    or o.properties.get("square_size")
+                    or 0.0
+                )
+                if size_m > 0.0:
+                    r = size_m / math.sqrt(2.0)
+                    tag_positions.extend(
+                        [
+                            (cx + r, cy + r, cz),
+                            (cx + r, cy - r, cz),
+                            (cx - r, cy + r, cz),
+                            (cx - r, cy - r, cz),
+                        ]
+                    )
+            objects.extend(
+                self.occluder_strategy.sample_pose(
+                    seed, ctx, tag_positions, recipe.cameras
+                )
+            )
 
         recipe.objects = objects
-
-        recipe.cameras = self._sample_camera_recipes(scene_id, seed, objects)
 
         return recipe
 

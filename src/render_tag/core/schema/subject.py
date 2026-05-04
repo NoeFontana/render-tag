@@ -124,24 +124,35 @@ class SubjectConfig(RootModel):
 
 
 class OccluderConfig(BaseModel):
-    """Shadow-casting fixtures placed along the SUN ray; sibling of ``subject``."""
+    """Half-plane shadow plates that cast realistic edge/corner/slit shadows on the tag.
+
+    A plate is a horizontal rectangle floating at height ``h`` above the tag plane.
+    Its edge is anchored along the sun ray so that the projected umbra edge passes
+    through the tag centroid (modulo a small offset). Three patterns are supported:
+
+    - ``edge``: 1 plate, half-plane shadow with one straight edge across the tag.
+    - ``corner``: 2 perpendicular plates, L-shaped shadow leaving one tag quadrant lit.
+    - ``slit``: 2 parallel plates with a gap, narrow lit strip between two shadows.
+    """
 
     enabled: bool = Field(default=True)
-    count_min: PositiveInt = Field(default=1)
-    count_max: PositiveInt = Field(default=3)
-    shape: Literal["rod", "leaf", "post"] = Field(default="rod")
-    width_m: PositiveFloat = Field(default=0.003)
-    length_m: PositiveFloat = Field(default=0.15)
-    offset_min_m: PositiveFloat = Field(default=0.01)
-    offset_max_m: PositiveFloat = Field(default=0.04)
-    lateral_jitter_m: float = Field(default=0.02, ge=0.0)
+    patterns: list[Literal["edge", "corner", "slit"]] = Field(
+        default_factory=lambda: ["edge", "corner", "slit"], min_length=1,
+    )
+    plate_size_m: PositiveFloat = Field(default=0.5)
+    plate_thickness_m: PositiveFloat = Field(default=0.005)
+    height_min_m: PositiveFloat = Field(default=0.05)
+    height_max_m: PositiveFloat = Field(default=0.20)
+    edge_offset_max_m: float = Field(default=0.03, ge=0.0)
+    slit_width_min_m: PositiveFloat = Field(default=0.005)
+    slit_width_max_m: PositiveFloat = Field(default=0.030)
     albedo: float = Field(default=0.05, ge=0.0, le=1.0)
     roughness: float = Field(default=0.9, ge=0.0, le=1.0)
 
     @model_validator(mode="after")
     def validate_ranges(self) -> OccluderConfig:
-        if self.count_max < self.count_min:
-            raise ValueError("count_max must be >= count_min")
-        if self.offset_max_m < self.offset_min_m:
-            raise ValueError("offset_max_m must be >= offset_min_m")
+        if self.height_max_m < self.height_min_m:
+            raise ValueError("height_max_m must be >= height_min_m")
+        if self.slit_width_max_m < self.slit_width_min_m:
+            raise ValueError("slit_width_max_m must be >= slit_width_min_m")
         return self

@@ -193,30 +193,25 @@ def create_tag_plane(
 
 
 def create_occluder_primitive(props: dict[str, Any]) -> Any:
-    """Create a small shadow-casting primitive for an OCCLUDER recipe.
+    """Create a horizontal plate primitive for an OCCLUDER recipe.
 
     Unlike ``create_tag_plane``, the occluder keeps ``visible_shadow=True``
-    (the Blender default) so its umbra projects onto the tag plane.
+    (the Blender default) so its umbra projects onto the tag plane. The
+    plate's local +X is along the casting edge, +Y is across the plate; the
+    recipe's rotation_euler[2] orients the edge in world XY.
     """
-    shape = props["shape"]
-    width_m = float(props["width_m"])
-    length_m = float(props["length_m"])
+    along_m = float(props["size_along_edge_m"])
+    across_m = float(props["size_across_edge_m"])
+    thickness_m = float(props["thickness_m"])
     albedo = float(props["albedo"])
     roughness = float(props["roughness"])
 
     obj = bridge.bproc.object.create_primitive("CUBE")
-    obj.blender_obj.name = f"Occluder_{shape}"
-
-    if shape in {"rod", "post"}:
-        sx, sy, sz = width_m / 2.0, length_m / 2.0, width_m / 2.0
-    elif shape == "leaf":
-        sx, sy, sz = length_m / 2.0, width_m / 2.0, width_m / 4.0
-    else:
-        sx = sy = sz = width_m / 2.0
-    obj.set_scale([sx, sy, sz])
+    obj.blender_obj.name = "Occluder_plate"
+    obj.set_scale([along_m / 2.0, across_m / 2.0, thickness_m / 2.0])
 
     mat = _get_or_create_diffuse_material(
-        f"OccluderMat_{shape}_{albedo:.3f}_{roughness:.3f}",
+        f"OccluderMat_plate_{albedo:.3f}_{roughness:.3f}",
         base_color=(albedo, albedo, albedo, 1.0),
         roughness=roughness,
     )

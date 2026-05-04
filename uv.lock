@@ -529,11 +529,11 @@ wheels = [
 
 [[package]]
 name = "cachetools"
-version = "7.0.3"
+version = "6.2.6"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/48/5c/3b882b82e9af737906539a2eafb62f96a229f1fa80255bede0c7b554cbc4/cachetools-7.0.3.tar.gz", hash = "sha256:8c246313b95849964e54a909c03b327a87ab0428b068fac10da7b105ca275ef6", size = 37187, upload-time = "2026-03-05T21:00:57.918Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/39/91/d9ae9a66b01102a18cd16db0cf4cd54187ffe10f0865cc80071a4104fbb3/cachetools-6.2.6.tar.gz", hash = "sha256:16c33e1f276b9a9c0b49ab5782d901e3ad3de0dd6da9bf9bcd29ac5672f2f9e6", size = 32363, upload-time = "2026-01-27T20:32:59.956Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/05/4a/573185481c50a8841331f54ddae44e4a3469c46aa0b397731c53a004369a/cachetools-7.0.3-py3-none-any.whl", hash = "sha256:c128ffca156eef344c25fcd08a96a5952803786fa33097f5f2d49edf76f79d53", size = 13907, upload-time = "2026-03-05T21:00:56.486Z" },
+    { url = "https://files.pythonhosted.org/packages/90/45/f458fa2c388e79dd9d8b9b0c99f1d31b568f27388f2fdba7bb66bbc0c6ed/cachetools-6.2.6-py3-none-any.whl", hash = "sha256:8c9717235b3c651603fff0076db52d6acbfd1b338b8ed50256092f7ce9c85bda", size = 11668, upload-time = "2026-01-27T20:32:58.527Z" },
 ]
 
 [[package]]
@@ -1075,7 +1075,7 @@ wheels = [
 
 [[package]]
 name = "fiftyone"
-version = "1.13.3"
+version = "1.14.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiofiles" },
@@ -1127,9 +1127,9 @@ dependencies = [
     { name = "voxel51-eta" },
     { name = "xmltodict" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/9b/08/689110fc0b1b0f2f76a95f053566416297f8d6125ff60af4c3a289e7de00/fiftyone-1.13.3.tar.gz", hash = "sha256:f4ba08ae40d251eef4eb2e5e2beeccb251eb2f7c2f50cfbd60d064bcb6665ea5", size = 11638779, upload-time = "2026-03-03T16:01:28.223Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/d5/a4/7f19375533419c3972a5e87cf602baad27b1e47e4e3f9d92c0b204b7f90a/fiftyone-1.14.2.tar.gz", hash = "sha256:7188ab321b15ab0974d29bf71286cb2a906955120f895dfebfbc9560bcbc5b2a", size = 17506274, upload-time = "2026-04-23T20:35:46.346Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/97/24/9740e25590331ebe8d8d47fbb5df912a2f21d0fcceee726ae446cefa53a5/fiftyone-1.13.3-py3-none-any.whl", hash = "sha256:b1c8fd0d6ada24dbd5486326f73c2db21737b279ef612a7ebef76839f10768ea", size = 11777011, upload-time = "2026-03-03T16:01:24.283Z" },
+    { url = "https://files.pythonhosted.org/packages/d6/e2/963a8bb78329c60569738eee961e235b79e67306889c7b9d926e26e02123/fiftyone-1.14.2-py3-none-any.whl", hash = "sha256:58ece89c827abbd95c426175a123f245a37cfff2cabd5aed54b41f975487c183", size = 17721990, upload-time = "2026-04-23T20:35:42.822Z" },
 ]
 
 [[package]]
@@ -1388,6 +1388,7 @@ dependencies = [
     { name = "griffecli" },
     { name = "griffelib" },
 ]
+sdist = { url = "https://files.pythonhosted.org/packages/04/56/28a0accac339c164b52a92c6cfc45a903acc0c174caa5c1713803467b533/griffe-2.0.0.tar.gz", hash = "sha256:c68979cd8395422083a51ea7cf02f9c119d889646d99b7b656ee43725de1b80f", size = 293906, upload-time = "2026-03-23T21:06:53.402Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/8b/94/ee21d41e7eb4f823b94603b9d40f86d3c7fde80eacc2c3c71845476dddaa/griffe-2.0.0-py3-none-any.whl", hash = "sha256:5418081135a391c3e6e757a7f3f156f1a1a746cc7b4023868ff7d5e2f9a980aa", size = 5214, upload-time = "2026-02-09T19:09:44.105Z" },
 ]
@@ -1400,6 +1401,7 @@ dependencies = [
     { name = "colorama" },
     { name = "griffelib" },
 ]
+sdist = { url = "https://files.pythonhosted.org/packages/a4/f8/2e129fd4a86e52e58eefe664de05e7d502decf766e7316cc9e70fdec3e18/griffecli-2.0.0.tar.gz", hash = "sha256:312fa5ebb4ce6afc786356e2d0ce85b06c1c20d45abc42d74f0cda65e159f6ef", size = 56213, upload-time = "2026-03-23T21:06:54.8Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e6/ed/d93f7a447bbf7a935d8868e9617cbe1cadf9ee9ee6bd275d3040fbf93d60/griffecli-2.0.0-py3-none-any.whl", hash = "sha256:9f7cd9ee9b21d55e91689358978d2385ae65c22f307a63fb3269acf3f21e643d", size = 9345, upload-time = "2026-02-09T19:09:42.554Z" },
 ]
@@ -1408,6 +1410,7 @@ wheels = [
 name = "griffelib"
 version = "2.0.0"
 source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ad/06/eccbd311c9e2b3ca45dbc063b93134c57a1ccc7607c5e545264ad092c4a9/griffelib-2.0.0.tar.gz", hash = "sha256:e504d637a089f5cab9b5daf18f7645970509bf4f53eda8d79ed71cce8bd97934", size = 166312, upload-time = "2026-03-23T21:06:55.954Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/4d/51/c936033e16d12b627ea334aaaaf42229c37620d0f15593456ab69ab48161/griffelib-2.0.0-py3-none-any.whl", hash = "sha256:01284878c966508b6d6f1dbff9b6fa607bc062d8261c5c7253cb285b06422a7f", size = 142004, upload-time = "2026-02-09T19:09:40.561Z" },
 ]
@@ -4026,8 +4029,8 @@ requires-dist = [
     { name = "blenderproc", marker = "extra == 'all'", specifier = ">=2.8.0" },
     { name = "blenderproc", marker = "extra == 'backend'", specifier = ">=2.8.0" },
     { name = "datasets", specifier = ">=2.20.0" },
-    { name = "fiftyone", marker = "extra == 'all'", specifier = ">=0.24" },
-    { name = "fiftyone", marker = "extra == 'viz'", specifier = ">=0.24" },
+    { name = "fiftyone", marker = "extra == 'all'", specifier = ">=1.14.2" },
+    { name = "fiftyone", marker = "extra == 'viz'", specifier = ">=1.14.2" },
     { name = "gputil", marker = "extra == 'all'", specifier = ">=1.4.0" },
     { name = "gputil", marker = "extra == 'orchestration'", specifier = ">=1.4.0" },
     { name = "huggingface-hub", specifier = ">=0.24.0" },
