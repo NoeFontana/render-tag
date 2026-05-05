@@ -39,6 +39,9 @@ base_config:
     lighting:
       intensity_min: 50.0
       intensity_max: 500.0
+      intensity_sampling: linear
+      num_lights_min: 3
+      num_lights_max: 3
       radius_min: 0.0
       radius_max: 0.0
       directional:

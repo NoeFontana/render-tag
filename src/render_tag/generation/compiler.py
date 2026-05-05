@@ -530,7 +530,49 @@ class SceneCompiler:
                 self.asset_provider.resolve_path(str(scene_config.background_hdri)).absolute()
             )
 
-        num_lights = 3
+        # 1. Determine number of lights and total intensity
+        # We preserve the legacy path to maintain parity for existing benchmarks
+        # that rely on exactly 3 lights and linear sampling.
+        is_legacy = (
+            lighting_config.num_lights_min == 3
+            and lighting_config.num_lights_max == 3
+            and lighting_config.intensity_sampling == "linear"
+        )
+
+        if is_legacy:
+            num_lights = 3
+            # intensities will be sampled per-light in the loop below
+            intensities_array = None
+        else:
+            l_root_seed = derive_seed(seed, "lighting_root", 0)
+            l_root_rng = np.random.default_rng(l_root_seed)
+
+            num_lights = int(
+                l_root_rng.integers(
+                    lighting_config.num_lights_min, lighting_config.num_lights_max + 1
+                )
+            )
+
+            if lighting_config.intensity_sampling == "log":
+                # Avoid log(0)
+                i_min = max(1e-3, lighting_config.intensity_min)
+                i_max = max(i_min + 1e-3, lighting_config.intensity_max)
+                log_i = l_root_rng.uniform(math.log10(i_min), math.log10(i_max))
+                total_intensity = 10.0**log_i
+            else:
+                total_intensity = l_root_rng.uniform(
+                    lighting_config.intensity_min, lighting_config.intensity_max
+                )
+
+            # 2. Distribute intensity among lights
+            if num_lights > 1:
+                # Use a simple Dirichlet-like split: sample N values, normalize.
+                weights = l_root_rng.exponential(scale=1.0, size=num_lights)
+                weights /= weights.sum()
+                intensities_array = weights * total_intensity
+            else:
+                intensities_array = np.array([total_intensity])
+
         lights = []
         for l_idx in range(num_lights):
             l_seed = derive_seed(seed, "light", l_idx)
@@ -544,10 +586,14 @@ class SceneCompiler:
             y = radius * math.sin(phi) * math.sin(theta)
             z = radius * math.cos(phi)
 
-            intensity = (
-                l_rng.uniform(lighting_config.intensity_min, lighting_config.intensity_max)
-                / num_lights
-            )
+            if is_legacy:
+                intensity = (
+                    l_rng.uniform(lighting_config.intensity_min, lighting_config.intensity_max)
+                    / num_lights
+                )
+            else:
+                assert intensities_array is not None
+                intensity = float(intensities_array[l_idx])
 
             lights.append(
                 LightRecipe(

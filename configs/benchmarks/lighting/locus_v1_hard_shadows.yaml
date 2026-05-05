@@ -16,4 +16,11 @@ dataset:
 camera:
   tone_mapping: filmic
   iso: 3200
+scene:
+  lighting:
+    intensity_min: 50
+    intensity_max: 5000
+    intensity_sampling: log
+    num_lights_min: 1
+    num_lights_max: 4
 version: '0.2'
