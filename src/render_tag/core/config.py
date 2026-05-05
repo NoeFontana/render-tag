@@ -572,6 +572,13 @@ class LightingConfig(BaseModel):
     intensity_min: float = Field(default=50.0, ge=0, description="Minimum light intensity")
     intensity_max: float = Field(default=500.0, ge=0, description="Maximum light intensity")
 
+    intensity_sampling: Literal["linear", "log"] = Field(
+        default="linear", description="Sampling distribution for total intensity"
+    )
+
+    num_lights_min: int = Field(default=1, ge=1, description="Minimum number of point lights")
+    num_lights_max: int = Field(default=3, ge=1, description="Maximum number of point lights")
+
     # Range for light source radius (shadow softness)
     radius_min: float = Field(
         default=0.0, ge=0.0, description="Minimum light radius (shadow softness)"
@@ -602,6 +609,8 @@ class LightingConfig(BaseModel):
             raise ValueError("intensity_min must be <= intensity_max")
         if self.radius_min > self.radius_max:
             raise ValueError("radius_min must be <= radius_max")
+        if self.num_lights_min > self.num_lights_max:
+            raise ValueError("num_lights_min must be <= num_lights_max")
         return self
 
 

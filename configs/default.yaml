@@ -42,8 +42,11 @@ scenario:
     - 6
 scene:
   lighting:
-    intensity_min: 100
-    intensity_max: 1000
+    intensity_min: 50
+    intensity_max: 5000
+    intensity_sampling: log
+    num_lights_min: 1
+    num_lights_max: 4
     radius_min: 0.05
     radius_max: 0.3
   texture_dir: assets/textures/background

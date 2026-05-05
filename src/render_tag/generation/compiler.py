@@ -530,7 +530,35 @@ class SceneCompiler:
                 self.asset_provider.resolve_path(str(scene_config.background_hdri)).absolute()
             )
 
-        num_lights = 3
+        # 1. Determine number of lights and total intensity
+        l_root_seed = derive_seed(seed, "lighting_root", 0)
+        l_root_rng = np.random.default_rng(l_root_seed)
+
+        num_lights = int(
+            l_root_rng.integers(lighting_config.num_lights_min, lighting_config.num_lights_max + 1)
+        )
+
+        if lighting_config.intensity_sampling == "log":
+            # Avoid log(0)
+            i_min = max(1e-3, lighting_config.intensity_min)
+            i_max = max(i_min + 1e-3, lighting_config.intensity_max)
+            log_i = l_root_rng.uniform(math.log10(i_min), math.log10(i_max))
+            total_intensity = 10.0**log_i
+        else:
+            total_intensity = l_root_rng.uniform(
+                lighting_config.intensity_min, lighting_config.intensity_max
+            )
+
+        # 2. Distribute intensity among lights
+        if num_lights > 1:
+            # Use a simple Dirichlet-like split: sample N values, normalize.
+            # This allows for a mix of strong and weak lights.
+            weights = l_root_rng.exponential(scale=1.0, size=num_lights)
+            weights /= weights.sum()
+            intensities = weights * total_intensity
+        else:
+            intensities = np.array([total_intensity])
+
         lights = []
         for l_idx in range(num_lights):
             l_seed = derive_seed(seed, "light", l_idx)
@@ -544,15 +572,10 @@ class SceneCompiler:
             y = radius * math.sin(phi) * math.sin(theta)
             z = radius * math.cos(phi)
 
-            intensity = (
-                l_rng.uniform(lighting_config.intensity_min, lighting_config.intensity_max)
-                / num_lights
-            )
-
             lights.append(
                 LightRecipe(
                     location=[x, y, z],
-                    intensity=intensity,
+                    intensity=float(intensities[l_idx]),
                     radius=l_rng.uniform(lighting_config.radius_min, lighting_config.radius_max),
                     color=[1.0, 1.0, 1.0],
                 )
