@@ -36,7 +36,7 @@ if TYPE_CHECKING:
 
 MAX_PLACEMENT_ATTEMPTS = 30
 
-OccluderPattern = Literal["edge", "corner", "slit"]
+OccluderPattern = Literal["half", "corner", "bar", "slit"]
 
 
 class OccluderStrategy:
@@ -54,17 +54,17 @@ class OccluderStrategy:
         context: GenerationContext,
         tag_positions: list[tuple[float, float, float]],
         camera_recipes: list[CameraRecipe] | None = None,
+        target_radius: float = 0.1,
     ) -> list[ObjectRecipe]:
         """Return plate recipes whose shadow edges cross the tag cluster.
 
         Args:
             seed: Scene-specific random seed.
             context: Shared generation context (carries the resolved lighting).
-            tag_positions: World-space tag/board centroids. Plates are placed
-                so that no camera→tag ray, for any pairing, intersects a
-                plate body.
-            camera_recipes: List of camera recipes. Used for rigorous frustum
-                culling to ensure occluders are not visible to any camera.
+            tag_positions: World-space positions representing the 'forbidden'
+                culling zone.
+            camera_recipes: List of camera recipes for frustum culling.
+            target_radius: Approximate radius of the tag cluster (meters).
         """
         cfg = self.config
         if not cfg.enabled or not tag_positions:
@@ -89,39 +89,31 @@ class OccluderStrategy:
         cams = camera_recipes or []
         rng = np.random.default_rng(derive_seed(seed, "occluder_layout", 0))
 
-        centroid = (
-            float(np.mean([t[0] for t in tag_positions])),
-            float(np.mean([t[1] for t in tag_positions])),
-            float(np.mean([t[2] for t in tag_positions])),
-        )
+        # We assume tag_positions[0] is the centroid for shadow anchoring
+        centroid = tag_positions[0]
 
         pattern: OccluderPattern = cfg.patterns[int(rng.integers(0, len(cfg.patterns)))]
 
-        # Sample initial height and offset
+        # Sample initial height
         h_base = float(rng.uniform(cfg.height_min_m, cfg.height_max_m))
-        edge_offset = float(rng.uniform(-cfg.edge_offset_max_m, cfg.edge_offset_max_m))
 
-        # We need a fallback camera position list for legacy _crossing_angles
         cam_positions = []
         for c in cams:
             mat = np.array(c.transform_matrix)
             cam_positions.append((float(mat[0, 3]), float(mat[1, 3]), float(mat[2, 3])))
 
-        # Sliding Loop: If the occluder is visible, slide it up along the sun ray.
-        # Directional light shadows are invariant to translation along the ray.
-        # Cap at 50 iterations (2.5m shift) to avoid infinite loops.
+        # Sliding Loop: Guaranteed camera clearance via sun-ray sliding.
         h_shift = 0.0
         for _ in range(50):
             h = h_base + h_shift
-            # Recalculate angles for the new height
             angles = _crossing_angles(cam_positions, tag_positions, sun_dir, h, centroid)
 
             plates = self._build_plates(
                 pattern=pattern,
                 target=centroid,
+                radius=target_radius,
                 sun_dir=sun_dir,
                 h=h,
-                edge_offset=edge_offset,
                 angles=angles,
                 rng=rng,
             )
@@ -129,12 +121,10 @@ class OccluderStrategy:
             if not plates:
                 # Arc-fitting failed for this height/pattern, retry with new random
                 h_base = float(rng.uniform(cfg.height_min_m, cfg.height_max_m))
-                edge_offset = float(rng.uniform(-cfg.edge_offset_max_m, cfg.edge_offset_max_m))
                 h_shift = 0.0
                 continue
 
-            # Robust Frustum Culling:
-            # Check if ANY plate is visible to ANY camera.
+            # Robust Frustum Culling
             is_visible = False
             for plate in plates:
                 for cam in cams:
@@ -145,14 +135,10 @@ class OccluderStrategy:
                     break
 
             if not is_visible:
-                # Success! Guaranteed not visible and shadow edge passes through centroid.
                 return plates
 
-            # Plate is visible. Slide it UP along the sun ray.
-            # Increment by 5cm per step.
             h_shift += 0.05
         
-        # If we reach here, we failed to find a non-visible placement.
         return []
 
     def _build_plates(
@@ -160,26 +146,127 @@ class OccluderStrategy:
         *,
         pattern: OccluderPattern,
         target: tuple[float, float, float],
+        radius: float,
         sun_dir: tuple[float, float, float],
         h: float,
-        edge_offset: float,
         angles: list[float],
         rng: np.random.Generator,
     ) -> list[ObjectRecipe]:
         cfg = self.config
 
-        if pattern == "edge":
-            return self._build_edge_plates(target, sun_dir, h, edge_offset, angles, rng)
+        if pattern == "half":
+            return self._build_half_plates(target, radius, sun_dir, h, angles, rng)
 
         if pattern == "corner":
-            corner = self._build_corner_plates(target, sun_dir, h, edge_offset, angles, rng)
-            if corner is not None:
-                return corner
-            return self._build_edge_plates(target, sun_dir, h, edge_offset, angles, rng)
+            return self._build_corner_plates(target, radius, sun_dir, h, angles, rng)
 
-        slit_w = float(rng.uniform(cfg.slit_width_min_m, cfg.slit_width_max_m))
-        edge_theta = float(rng.uniform(0.0, 2.0 * math.pi))
-        e_perp = sun_lateral_axis(edge_theta)
+        if pattern == "bar":
+            return self._build_bar_plates(target, radius, sun_dir, h, angles, rng)
+
+        if pattern == "slit":
+            return self._build_slit_plates(target, radius, sun_dir, h, angles, rng)
+
+        return []
+
+    def _build_half_plates(
+        self, target, radius, sun_dir, h, angles, rng
+    ) -> list[ObjectRecipe]:
+        # Edge shift relative to radius
+        offset = float(rng.uniform(-self.config.edge_offset_max_r, self.config.edge_offset_max_r)) * radius
+        
+        options: list[tuple[float, float]] = []
+        theta_neg = _sample_theta_in_arc(angles, math.pi, rng)
+        if theta_neg is not None:
+            options.append((theta_neg, -1.0))
+        theta_pos = _sample_theta_in_arc([a - math.pi for a in angles], math.pi, rng)
+        if theta_pos is not None:
+            options.append((theta_pos, 1.0))
+
+        if not options:
+            return []
+        
+        edge_theta, extend_sign = options[int(rng.integers(0, len(options)))]
+        return [
+            self._make_plate(
+                name="Occluder_half",
+                target=target,
+                sun_dir=sun_dir,
+                height=h,
+                edge_theta=edge_theta,
+                edge_offset=offset,
+                extend_sign=extend_sign,
+                size_along=self.config.plate_size_m,
+                size_across=self.config.plate_size_m,
+                anchor_mode="edge",
+            )
+        ]
+
+    def _build_corner_plates(
+        self, target, radius, sun_dir, h, angles, rng
+    ) -> list[ObjectRecipe]:
+        # Quadrant shadow: anchor plate CORNER near centroid
+        # Sample two perpendicular edges θA, θB
+        theta_a = _sample_theta_in_arc([a - math.pi / 2.0 for a in angles], math.pi / 2.0, rng)
+        if theta_a is None:
+            return []
+            
+        offset_a = float(rng.uniform(-self.config.edge_offset_max_r, self.config.edge_offset_max_r)) * radius
+        offset_b = float(rng.uniform(-self.config.edge_offset_max_r, self.config.edge_offset_max_r)) * radius
+
+        return [
+            self._make_plate(
+                name="Occluder_corner",
+                target=target,
+                sun_dir=sun_dir,
+                height=h,
+                edge_theta=theta_a,
+                edge_offset=offset_a,
+                along_offset=offset_b,
+                extend_sign=1.0,
+                size_along=self.config.plate_size_m,
+                size_across=self.config.plate_size_m,
+                anchor_mode="corner",
+            )
+        ]
+
+    def _build_bar_plates(
+        self, target, radius, sun_dir, h, angles, rng
+    ) -> list[ObjectRecipe]:
+        # Narrow shadow strip: anchor plate CENTER near centroid
+        width = float(rng.uniform(self.config.bar_width_min_r, self.config.bar_width_max_r)) * radius
+        offset = float(rng.uniform(-self.config.edge_offset_max_r, self.config.edge_offset_max_r)) * radius
+        
+        theta = _sample_theta_in_arc(angles, math.pi, rng)
+        if theta is None:
+            return []
+
+        return [
+            self._make_plate(
+                name="Occluder_bar",
+                target=target,
+                sun_dir=sun_dir,
+                height=h,
+                edge_theta=theta,
+                edge_offset=offset,
+                extend_sign=1.0,
+                size_along=self.config.plate_size_m,
+                size_across=width,
+                anchor_mode="center",
+            )
+        ]
+
+    def _build_slit_plates(
+        self, target, radius, sun_dir, h, angles, rng
+    ) -> list[ObjectRecipe]:
+        # Two half-planes with a lit gap
+        slit_w = float(rng.uniform(self.config.slit_width_min_r, self.config.slit_width_max_r)) * radius
+        offset = float(rng.uniform(-self.config.edge_offset_max_r, self.config.edge_offset_max_r)) * radius
+        
+        theta = _sample_theta_in_arc(angles, math.pi, rng)
+        if theta is None:
+            return []
+
+        e_perp = sun_lateral_axis(theta)
         return [
             self._make_plate(
                 name="Occluder_slit_0",
@@ -190,9 +277,12 @@ class OccluderStrategy:
                 ),
                 sun_dir=sun_dir,
                 height=h,
-                edge_theta=edge_theta,
-                edge_offset=edge_offset,
+                edge_theta=theta,
+                edge_offset=offset,
                 extend_sign=1.0,
+                size_along=self.config.plate_size_m,
+                size_across=self.config.plate_size_m,
+                anchor_mode="edge",
             ),
             self._make_plate(
                 name="Occluder_slit_1",
@@ -202,87 +292,13 @@ class OccluderStrategy:
                     target[2],
                 ),
                 sun_dir=sun_dir,
-                height=h + 1.5 * cfg.plate_thickness_m,
-                edge_theta=edge_theta,
-                edge_offset=edge_offset,
+                height=h + 1.1 * self.config.plate_thickness_m,
+                edge_theta=theta,
+                edge_offset=offset,
                 extend_sign=-1.0,
-            ),
-        ]
-
-    def _build_edge_plates(
-        self,
-        target: tuple[float, float, float],
-        sun_dir: tuple[float, float, float],
-        h: float,
-        edge_offset: float,
-        angles: list[float],
-        rng: np.random.Generator,
-    ) -> list[ObjectRecipe]:
-        # extend_sign=-1 needs (a - θ) ∈ [0, π] mod 2π for all crossings a.
-        # extend_sign=+1 needs (a - θ) ∈ [π, 2π] — the same constraint after
-        # shifting a by -π. Together the two ranges tile the circle.
-        options: list[tuple[float, float]] = []
-        theta_neg = _sample_theta_in_arc(angles, math.pi, rng)
-        if theta_neg is not None:
-            options.append((theta_neg, -1.0))
-        theta_pos = _sample_theta_in_arc(
-            [a - math.pi for a in angles], math.pi, rng
-        )
-        if theta_pos is not None:
-            options.append((theta_pos, 1.0))
-
-        if not options:
-            return []
-        edge_theta, extend_sign = options[int(rng.integers(0, len(options)))]
-        return [
-            self._make_plate(
-                name="Occluder_edge_0",
-                target=target,
-                sun_dir=sun_dir,
-                height=h,
-                edge_theta=edge_theta,
-                edge_offset=edge_offset,
-                extend_sign=extend_sign,
-            )
-        ]
-
-    def _build_corner_plates(
-        self,
-        target: tuple[float, float, float],
-        sun_dir: tuple[float, float, float],
-        h: float,
-        edge_offset: float,
-        angles: list[float],
-        rng: np.random.Generator,
-    ) -> list[ObjectRecipe] | None:
-        cfg = self.config
-        # Two plates at θ_A and θ_A+π/2, both extend_sign=-1. Combined
-        # constraint: (a - θ_A) ∈ [π/2, π] mod 2π — solve by shifting a by
-        # -π/2 and fitting all in an arc of size π/2.
-        theta_a = _sample_theta_in_arc(
-            [a - math.pi / 2.0 for a in angles], math.pi / 2.0, rng
-        )
-        if theta_a is None:
-            return None
-        theta_b = (theta_a + math.pi / 2.0) % (2.0 * math.pi)
-        return [
-            self._make_plate(
-                name="Occluder_corner_0",
-                target=target,
-                sun_dir=sun_dir,
-                height=h,
-                edge_theta=theta_a,
-                edge_offset=edge_offset,
-                extend_sign=-1.0,
-            ),
-            self._make_plate(
-                name="Occluder_corner_1",
-                target=target,
-                sun_dir=sun_dir,
-                height=h + 1.5 * cfg.plate_thickness_m,
-                edge_theta=theta_b,
-                edge_offset=edge_offset,
-                extend_sign=-1.0,
+                size_along=self.config.plate_size_m,
+                size_across=self.config.plate_size_m,
+                anchor_mode="edge",
             ),
         ]
 
@@ -296,18 +312,36 @@ class OccluderStrategy:
         edge_theta: float,
         edge_offset: float,
         extend_sign: float,
+        size_along: float,
+        size_across: float,
+        anchor_mode: Literal["edge", "corner", "center"] = "edge",
+        along_offset: float = 0.0,
     ) -> ObjectRecipe:
         cfg = self.config
         sx, sy, sz = sun_dir
         tx, ty, _ = target
+        e_along = (math.cos(edge_theta), math.sin(edge_theta))
         e_perp = sun_lateral_axis(edge_theta)
 
-        edge_anchor_x = tx + (height / sz) * sx + edge_offset * e_perp[0]
-        edge_anchor_y = ty + (height / sz) * sy + edge_offset * e_perp[1]
+        # 1. Project target to plate height along SUN ray
+        # P_plate = target + (h/sz)*sun_dir
+        edge_anchor_x = tx + (height / sz) * sx
+        edge_anchor_y = ty + (height / sz) * sy
 
-        half_size = cfg.plate_size_m / 2.0
-        cx = edge_anchor_x + extend_sign * half_size * e_perp[0]
-        cy = edge_anchor_y + extend_sign * half_size * e_perp[1]
+        # 2. Apply offsets
+        cx = edge_anchor_x + edge_offset * e_perp[0] + along_offset * e_along[0]
+        cy = edge_anchor_y + edge_offset * e_perp[1] + along_offset * e_along[1]
+
+        # 3. Shift center based on anchor mode
+        if anchor_mode == "edge":
+            # edge_offset moves the edge. plate extends from edge in extend_sign*e_perp
+            cx += extend_sign * (size_across / 2.0) * e_perp[0]
+            cy += extend_sign * (size_across / 2.0) * e_perp[1]
+        elif anchor_mode == "corner":
+            # edge_offset and along_offset move the corner. plate extends in quadrant.
+            cx += extend_sign * (size_along / 2.0) * e_along[0] + extend_sign * (size_across / 2.0) * e_perp[0]
+            cy += extend_sign * (size_along / 2.0) * e_along[1] + extend_sign * (size_across / 2.0) * e_perp[1]
+        # "center" mode needs no shift
 
         return ObjectRecipe(
             type="OCCLUDER",
@@ -317,8 +351,8 @@ class OccluderStrategy:
             scale=[1.0, 1.0, 1.0],
             properties={
                 "shape": "plate",
-                "size_along_edge_m": cfg.plate_size_m,
-                "size_across_edge_m": cfg.plate_size_m,
+                "size_along_edge_m": size_along,
+                "size_across_edge_m": size_across,
                 "thickness_m": cfg.plate_thickness_m,
                 "albedo": cfg.albedo,
                 "roughness": cfg.roughness,

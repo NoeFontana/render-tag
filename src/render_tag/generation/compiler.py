@@ -419,15 +419,15 @@ class SceneCompiler:
         recipe.cameras = self._sample_camera_recipes(scene_id, seed, objects)
 
         if self.occluder_strategy is not None:
-            tag_positions: list[tuple[float, float, float]] = []
+            tag_anchors: list[tuple[float, float, float]] = []
+            max_r = 0.0
             for o in objects:
                 if o.type not in {"TAG", "BOARD"}:
                     continue
                 cx, cy, cz = float(o.location[0]), float(o.location[1]), float(o.location[2])
-                tag_positions.append((cx, cy, cz))
-                # The tag body is a square at z=cz; protect its extent against camera
-                # occlusion by sampling 4 corners. Use the rotated-bounding-circle
-                # radius (side/sqrt(2)) so any in-plane rotation is covered.
+                tag_anchors.append((cx, cy, cz))
+                
+                # Approximate radius of this object
                 size_m = float(
                     o.properties.get("tag_size")
                     or o.properties.get("size_along_edge_m")
@@ -435,20 +435,28 @@ class SceneCompiler:
                     or 0.0
                 )
                 if size_m > 0.0:
-                    r = size_m / math.sqrt(2.0)
-                    tag_positions.extend(
-                        [
-                            (cx + r, cy + r, cz),
-                            (cx + r, cy - r, cz),
-                            (cx - r, cy + r, cz),
-                            (cx - r, cy - r, cz),
-                        ]
+                    # Bounding circle radius
+                    obj_r = size_m / math.sqrt(2.0)
+                    # Cluster radius is max distance from origin to any corner
+                    dist_to_center = math.hypot(cx, cy)
+                    max_r = max(max_r, dist_to_center + obj_r)
+
+            if tag_anchors:
+                # For culling, we protect the entire cluster area
+                culling_positions = []
+                for cx, cy, cz in tag_anchors:
+                    culling_positions.append((cx, cy, cz))
+                    # Protect the 4 corners of the cluster bounding box
+                    # (simplified as centroid +/- cluster_radius)
+                    # Use a small set of points to represent the 'forbidden' zone.
+                    for dx, dy in [(max_r, max_r), (max_r, -max_r), (-max_r, max_r), (-max_r, -max_r)]:
+                        culling_positions.append((cx + dx, cy + dy, cz))
+
+                objects.extend(
+                    self.occluder_strategy.sample_pose(
+                        seed, ctx, culling_positions, recipe.cameras, target_radius=max_r
                     )
-            objects.extend(
-                self.occluder_strategy.sample_pose(
-                    seed, ctx, tag_positions, recipe.cameras
                 )
-            )
 
         recipe.objects = objects
 

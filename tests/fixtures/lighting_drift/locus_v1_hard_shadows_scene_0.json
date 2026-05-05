@@ -146,12 +146,12 @@
       "forward_axis": null,
       "keypoints_3d": null,
       "location": [
-        0.13681028162570014,
-        0.4925773391482855,
+        0.42114535475794157,
+        0.2476009276712616,
         0.2443777354911154
       ],
       "material": null,
-      "name": "Occluder_edge_0",
+      "name": "Occluder_half",
       "properties": {
         "albedo": 0.05,
         "roughness": 0.9,
@@ -163,7 +163,7 @@
       "rotation_euler": [
         0.0,
         0.0,
-        0.4105557907707782
+        1.4602934103253533
       ],
       "rotation_quaternion": null,
       "scale": [

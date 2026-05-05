@@ -14,21 +14,23 @@ from render_tag.core.presets.base import register_preset
 
 @register_preset(
     name="shadow.occluder_overlay",
-    description="Cast half-plane plate shadows (edge/corner/slit) across the tag plane.",
+    description="Cast realistic plate shadows (half/corner/bar/slit) across the tag plane.",
 )
 def shadow_occluder_overlay() -> dict[str, Any]:
     return {
         "scenario": {
             "occluders": {
                 "enabled": True,
-                "patterns": ["edge", "corner", "slit"],
+                "patterns": ["half", "corner", "bar", "slit"],
                 "plate_size_m": 0.5,
                 "plate_thickness_m": 0.005,
                 "height_min_m": 0.05,
                 "height_max_m": 0.20,
-                "edge_offset_max_m": 0.03,
-                "slit_width_min_m": 0.005,
-                "slit_width_max_m": 0.030,
+                "edge_offset_max_r": 1.2,
+                "bar_width_min_r": 0.2,
+                "bar_width_max_r": 0.8,
+                "slit_width_min_r": 0.2,
+                "slit_width_max_r": 1.0,
                 "albedo": 0.05,
                 "roughness": 0.9,
             }
