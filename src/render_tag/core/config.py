@@ -576,7 +576,7 @@ class LightingConfig(BaseModel):
         default="linear", description="Sampling distribution for total intensity"
     )
 
-    num_lights_min: int = Field(default=1, ge=1, description="Minimum number of point lights")
+    num_lights_min: int = Field(default=3, ge=1, description="Minimum number of point lights")
     num_lights_max: int = Field(default=3, ge=1, description="Maximum number of point lights")
 
     # Range for light source radius (shadow softness)
