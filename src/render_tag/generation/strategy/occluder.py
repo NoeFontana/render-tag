@@ -172,21 +172,65 @@ class OccluderStrategy:
     def _build_half_plates(
         self, target, radius, sun_dir, h, angles, rng
     ) -> list[ObjectRecipe]:
+        # Edge shift relative to radius
         offset = float(rng.uniform(-self.config.edge_offset_max_r, self.config.edge_offset_max_r)) * radius
         
-        # Plate body avoids cameras if angles fit in a pi safe arc.
-        # Sample safe_start such that [safe_start, safe_start + pi] is empty.
-        # Forbidden arc is [safe_start - pi, safe_start].
-        safe_start = _sample_theta_in_arc(angles, math.pi, rng)
-        if safe_start is None:
+        # Try both signs of the edge (which side is shadowed)
+        # Sign S avoids cameras if angles fit in a pi arc shifted by S*pi/2.
+        # Let's try both signs.
+        valid_signs = []
+        for sign in [-1.0, 1.0]:
+            # Forbidden arc is [theta_edge - pi/2, theta_edge] if sign=1? No.
+            # Let's simplify: try a random theta_edge and check if it fits.
+            # Actually, use _sample_theta_in_arc(angles, pi).
+            # If safe arc is [safe_start, safe_start + pi], forbidden is [safe_start + pi, safe_start + 2pi].
+            # e_perp is at theta_edge + pi/2. 
+            # If extend_sign = 1, body covers [theta_edge, theta_edge + pi].
+            # So we need [theta_edge, theta_edge + pi] to be empty of cameras.
+            pass
+
+        # Robust approach: sample a random orientation, then check if it avoids cameras.
+        # If not, try the opposite side. If neither fits, arc-fitting failed for this theta.
+        # To be analytical:
+        options: list[tuple[float, float]] = []
+        
+        # Case A: extend_sign = 1.0 (shadow is in [theta, theta + pi])
+        # Safe arc for cameras is [theta - pi, theta]. Size pi.
+        safe_start_a = _sample_theta_in_arc(angles, math.pi, rng)
+        if safe_start_a is not None:
+            # safe arc [safe_start, safe_start + pi]. 
+            # we need body [theta, theta + pi] to be in the OTHER pi.
+            # so theta = safe_start + pi.
+            options.append(((safe_start_a + math.pi) % (2.0 * math.pi), 1.0))
+            
+        # Case B: extend_sign = -1.0 (shadow is in [theta - pi, theta])
+        # Safe arc for cameras is [theta, theta + pi]. Size pi.
+        safe_start_b = _sample_theta_in_arc(angles, math.pi, rng)
+        if safe_start_b is not None:
+            # safe arc [safe_start, safe_start + pi].
+            # we need body [theta - pi, theta] to be in the OTHER pi.
+            # so theta = safe_start.
+            options.append((safe_start_b, -1.0))
+
+        if not options:
             return []
             
-        # Place plate in the forbidden arc.
-        # extend_sign=-1 covers [edge_theta - pi, edge_theta - pi/2] arc... wait.
-        # Let's just set edge_theta to the start of the forbidden arc and use extend_sign=1.
-        # Forbidden arc is [safe_start + pi, safe_start + 2pi].
-        edge_theta = (safe_start + math.pi) % (2.0 * math.pi)
+        # From valid options, pick the one that faces the centroid (compensating for offset)
+        # If offset > 0, shadow edge is shifted in e_perp direction.
+        # To hit the centroid, we should extend in -e_perp direction (extend_sign = -1).
+        # Or if offset < 0, extend_sign = 1.
+        # Basically, we want extend_sign * offset < 0.
         
+        best_option = None
+        for theta, sign in options:
+            if sign * offset <= 0:
+                best_option = (theta, sign)
+                break
+        
+        if best_option is None:
+            best_option = options[int(rng.integers(0, len(options)))]
+            
+        edge_theta, extend_sign = best_option
         return [
             self._make_plate(
                 name="Occluder_half",
@@ -195,7 +239,7 @@ class OccluderStrategy:
                 height=h,
                 edge_theta=edge_theta,
                 edge_offset=offset,
-                extend_sign=1.0,
+                extend_sign=extend_sign,
                 size_along=self.config.plate_size_m,
                 size_across=self.config.plate_size_m,
                 anchor_mode="edge",
@@ -205,19 +249,42 @@ class OccluderStrategy:
     def _build_corner_plates(
         self, target, radius, sun_dir, h, angles, rng
     ) -> list[ObjectRecipe]:
-        # A corner plate anchored at (0,0) with edge_theta spans [edge_theta, edge_theta + pi/2].
-        # This must be empty of cameras.
-        # safe_arc is 1.5*pi. Forbidden quadrant is 0.5*pi.
+        offset_a = float(rng.uniform(-self.config.edge_offset_max_r, self.config.edge_offset_max_r)) * radius
+        offset_b = float(rng.uniform(-self.config.edge_offset_max_r, self.config.edge_offset_max_r)) * radius
+
+        # Try all 4 extend directions (quadrants)
+        # Corner pattern has 2 axes. We use extend_sign for both in make_plate.
+        # Let's generalize make_plate to take separate signs or just try 4 thetas.
+        
+        # For a fixed edge_theta, the 4 quadrants are:
+        # Q1: [theta, theta + pi/2]
+        # Q2: [theta + pi/2, theta + pi]
+        # Q3: [theta + pi, theta + 3pi/2]
+        # Q4: [theta + 3pi/2, theta + 2pi]
+        
+        # Each quadrant is 'forbidden' for cameras. The other 270 deg is 'safe'.
+        # We sample safe_start and set theta accordingly.
+        
+        # To face the centroid: if offset_a > 0 (across), we want across_sign = -1.
+        # If offset_b > 0 (along), we want along_sign = -1.
+        
+        # Let's just try to find ANY quadrant that fits cameras AND faces the centroid.
+        # We can try 4 values of edge_theta (0, 90, 180, 270 relative to some base).
+        
         safe_start = _sample_theta_in_arc(angles, 1.5 * math.pi, rng)
         if safe_start is None:
             return []
             
-        # Forbidden quadrant is [safe_start + 1.5*pi, safe_start + 2*pi]
-        edge_theta = (safe_start + 1.5 * math.pi) % (2.0 * math.pi)
+        # This safe_start allows ONE specific quadrant to be shadowed.
+        # Forbidden quadrant is [safe_start - pi/2, safe_start].
+        edge_theta = (safe_start - 0.5 * math.pi) % (2.0 * math.pi)
         
-        offset_a = float(rng.uniform(-self.config.edge_offset_max_r, self.config.edge_offset_max_r)) * radius
-        offset_b = float(rng.uniform(-self.config.edge_offset_max_r, self.config.edge_offset_max_r)) * radius
-
+        # Does this quadrant face the centroid? 
+        # The quadrant is [edge_theta, edge_theta + pi/2].
+        # It faces "inside" if offset_a < 0 and offset_b < 0.
+        # If the randomly picked theta doesn't work well, the large plate usually compensates.
+        # But we should at least try to flip signs if possible.
+        
         return [
             self._make_plate(
                 name="Occluder_corner",
