@@ -62,7 +62,8 @@ class OccluderStrategy:
             seed: Scene-specific random seed.
             context: Shared generation context (carries the resolved lighting).
             tag_positions: World-space positions representing the 'forbidden'
-                culling zone.
+                culling zone. The first element is the centroid used for
+                shadow anchoring.
             camera_recipes: List of camera recipes for frustum culling.
             target_radius: Approximate radius of the tag cluster (meters).
         """
@@ -89,13 +90,14 @@ class OccluderStrategy:
         cams = camera_recipes or []
         rng = np.random.default_rng(derive_seed(seed, "occluder_layout", 0))
 
-        # We assume tag_positions[0] is the centroid for shadow anchoring
+        # First element is the centroid for shadow anchoring
         centroid = tag_positions[0]
+        target_z = centroid[2]
 
         pattern: OccluderPattern = cfg.patterns[int(rng.integers(0, len(cfg.patterns)))]
 
-        # Sample initial height
-        h_base = float(rng.uniform(cfg.height_min_m, cfg.height_max_m))
+        # Sample initial relative height (meters above the tag)
+        h_rel_base = float(rng.uniform(cfg.height_min_m, cfg.height_max_m))
 
         cam_positions = []
         for c in cams:
@@ -105,22 +107,24 @@ class OccluderStrategy:
         # Sliding Loop: Guaranteed camera clearance via sun-ray sliding.
         h_shift = 0.0
         for _ in range(50):
-            h = h_base + h_shift
-            angles = _crossing_angles(cam_positions, tag_positions, sun_dir, h, centroid)
+            h_rel = h_rel_base + h_shift
+            h_abs = target_z + h_rel
+            
+            angles = _crossing_angles(cam_positions, tag_positions, sun_dir, h_abs, centroid)
 
             plates = self._build_plates(
                 pattern=pattern,
                 target=centroid,
                 radius=target_radius,
                 sun_dir=sun_dir,
-                h=h,
+                h=h_abs,
                 angles=angles,
                 rng=rng,
             )
 
             if not plates:
                 # Arc-fitting failed for this height/pattern, retry with new random
-                h_base = float(rng.uniform(cfg.height_min_m, cfg.height_max_m))
+                h_rel_base = float(rng.uniform(cfg.height_min_m, cfg.height_max_m))
                 h_shift = 0.0
                 continue
 
@@ -319,14 +323,15 @@ class OccluderStrategy:
     ) -> ObjectRecipe:
         cfg = self.config
         sx, sy, sz = sun_dir
-        tx, ty, _ = target
+        tx, ty, tz = target
         e_along = (math.cos(edge_theta), math.sin(edge_theta))
         e_perp = sun_lateral_axis(edge_theta)
 
         # 1. Project target to plate height along SUN ray
-        # P_plate = target + (h/sz)*sun_dir
-        edge_anchor_x = tx + (height / sz) * sx
-        edge_anchor_y = ty + (height / sz) * sy
+        # The projection is relative to the receiver height (tz)
+        h_rel = height - tz
+        edge_anchor_x = tx + (h_rel / sz) * sx
+        edge_anchor_y = ty + (h_rel / sz) * sy
 
         # 2. Apply offsets
         cx = edge_anchor_x + edge_offset * e_perp[0] + along_offset * e_along[0]
@@ -387,13 +392,13 @@ def _crossing_angles(
     """Polar angles of (cam, tag) ray crossings at z=h, around the SUN edge anchor.
 
     A crossing at world XY ``(gx, gy)`` is mapped to ``a = atan2(gy - ay,
-    gx - ax)`` where ``(ax, ay)`` is the SUN-projected edge anchor at θ=0.
-    The constraint "plate at angle θ with extend_sign=-1 does not contain
-    the crossing in its e_perp direction" becomes ``sin(a - θ) ≥ 0``.
+    gx - ax)`` where ``(ax, ay)`` is the SUN-projected edge anchor.
+    The anchor projection is relative to the target's height.
     """
     sx, sy, sz = sun_dir
-    ax = target[0] + (h / sz) * sx
-    ay = target[1] + (h / sz) * sy
+    h_rel = h - target[2]
+    ax = target[0] + (h_rel / sz) * sx
+    ay = target[1] + (h_rel / sz) * sy
     out: list[float] = []
     for cam in cams:
         for tag in tags:

@@ -146,9 +146,9 @@
       "forward_axis": null,
       "keypoints_3d": null,
       "location": [
-        0.42114535475794157,
-        0.2476009276712616,
-        0.2443777354911154
+        0.4211407557406223,
+        0.24755952013444005,
+        0.2453777354911154
       ],
       "material": null,
       "name": "Occluder_half",
@@ -163,7 +163,7 @@
       "rotation_euler": [
         0.0,
         0.0,
-        1.4602934103253533
+        1.4600716410345627
       ],
       "rotation_quaternion": null,
       "scale": [

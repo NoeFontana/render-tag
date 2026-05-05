@@ -442,15 +442,23 @@ class SceneCompiler:
                     max_r = max(max_r, dist_to_center + obj_r)
 
             if tag_anchors:
-                # For culling, we protect the entire cluster area
+                # 1. Calculate the true cluster centroid
+                anchors_np = np.array(tag_anchors)
+                cluster_centroid = np.mean(anchors_np, axis=0)
+                cx_c, cy_c, cz_c = float(cluster_centroid[0]), float(cluster_centroid[1]), float(cluster_centroid[2])
+
+                # 2. For culling, we protect the entire cluster area
                 culling_positions = []
+                # First element MUST be the centroid for shadow anchoring
+                culling_positions.append((cx_c, cy_c, cz_c))
+                
                 for cx, cy, cz in tag_anchors:
                     culling_positions.append((cx, cy, cz))
                     # Protect the 4 corners of the cluster bounding box
                     # (simplified as centroid +/- cluster_radius)
                     # Use a small set of points to represent the 'forbidden' zone.
                     for dx, dy in [(max_r, max_r), (max_r, -max_r), (-max_r, max_r), (-max_r, -max_r)]:
-                        culling_positions.append((cx + dx, cy + dy, cz))
+                        culling_positions.append((cx_c + dx, cy_c + dy, cz))
 
                 objects.extend(
                     self.occluder_strategy.sample_pose(
