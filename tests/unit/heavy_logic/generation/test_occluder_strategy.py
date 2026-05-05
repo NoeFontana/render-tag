@@ -11,9 +11,9 @@ import numpy as np
 from render_tag.cli.pipeline import GenerationContext
 from render_tag.core.config import DirectionalLightConfig, GenConfig
 from render_tag.core.geometry.math import sun_unit_vector
+from render_tag.core.schema.recipe import CameraIntrinsics, CameraRecipe
 from render_tag.core.schema.subject import OccluderConfig
 from render_tag.generation.strategy.occluder import OccluderStrategy
-from render_tag.core.schema.recipe import CameraRecipe, CameraIntrinsics, ObjectRecipe
 
 
 def _ctx_with_sun(azimuth: float, elevation: float, intensity: float = 30.0) -> GenerationContext:
@@ -34,7 +34,7 @@ def _shadow_xy(plate_loc: list[float], sun_dir: tuple[float, float, float]) -> t
 
 
 def _mock_cam(
-    location: tuple[float, float, float], 
+    location: tuple[float, float, float],
     res: tuple[int, int] = (640, 480),
     fov: float = 90.0
 ) -> CameraRecipe:
@@ -45,22 +45,22 @@ def _mock_cam(
     up = np.array([0, 0, 1])
     if abs(np.dot(forward, up)) > 0.99:
         up = np.array([0, 1, 0])
-    
+
     right = np.cross(up, forward)
     right /= np.linalg.norm(right)
     actual_up = np.cross(forward, right)
-    
+
     # transform_matrix is Camera-to-World (X=right, Y=up, Z=-forward)
     mat = np.eye(4)
     mat[:3, 0] = right
     mat[:3, 1] = actual_up
     mat[:3, 2] = -forward
     mat[:3, 3] = loc
-    
+
     # K matrix from FOV
     f = (res[0] / 2.0) / math.tan(math.radians(fov) / 2.0)
-    k = [[f, 0, res[0]/2.0], [0, f, res[1]/2.0], [0, 0, 1]]
-    
+    k = [[f, 0, res[0] / 2.0], [0, f, res[1] / 2.0], [0, 0, 1]]
+
     return CameraRecipe(
         transform_matrix=mat.tolist(),
         intrinsics=CameraIntrinsics(
@@ -127,6 +127,8 @@ def test_slit_pattern_emits_two_parallel_plates():
     ctx = _ctx_with_sun(azimuth=0.785398, elevation=0.45)
     out = strategy.sample_pose(seed=42, context=ctx, tag_positions=[(0.0, 0.0, 0.0)])
     assert len(out) == 2
+    assert out[0].rotation_euler is not None
+    assert out[1].rotation_euler is not None
     assert math.isclose(out[0].rotation_euler[2], out[1].rotation_euler[2], abs_tol=1e-9)
 
 
@@ -142,13 +144,14 @@ def test_shadow_edge_passes_through_target_for_half_pattern():
     mat = np.array(cam.transform_matrix)
     mat[:3, 2] = -np.array([1.0, 1.0, 1.0]) / math.sqrt(3.0)
     cam.transform_matrix = mat.tolist()
-    
+
     out = strategy.sample_pose(
         seed=42, context=ctx, tag_positions=[target], camera_recipes=[cam]
     )
     assert len(out) == 1
 
     plate = out[0]
+    assert plate.rotation_euler is not None
     theta = plate.rotation_euler[2]
     e_perp = (-math.sin(theta), math.cos(theta))
 
@@ -162,23 +165,22 @@ def test_shadow_edge_passes_through_target_for_half_pattern():
 def test_sliding_loop_clears_camera_view():
     """If a camera is looking at the initial plate, it must slide up until clear."""
     cfg = OccluderConfig(
-        patterns=["half"], 
-        height_min_m=0.1, 
-        height_max_m=0.1, 
+        patterns=["half"],
+        height_min_m=0.1,
+        height_max_m=0.1,
         edge_offset_max_r=0.0
     )
     strategy = OccluderStrategy(cfg)
-    ctx = _ctx_with_sun(azimuth=0.0, elevation=math.pi/4)
-    sun_dir = sun_unit_vector(0.0, math.pi/4)
+    ctx = _ctx_with_sun(azimuth=0.0, elevation=math.pi / 4)
     cams = [_mock_cam((0.5, 0.0, 0.5), fov=60.0)]
-    
+
     out = strategy.sample_pose(
         seed=42, context=ctx, tag_positions=[(0.0, 0.0, 0.0)], camera_recipes=cams
     )
-    
+
     assert out
     plate = out[0]
-    assert plate.location[2] > 0.11 
+    assert plate.location[2] > 0.11
 
 
 def test_plate_does_not_block_camera_ray_for_half_pattern():
@@ -195,15 +197,23 @@ def test_plate_does_not_block_camera_ray_for_half_pattern():
     for plate in out:
         h = plate.location[2]
         for cam_recipe in cams:
-            cam_loc = cam_recipe.transform_matrix[0][3], cam_recipe.transform_matrix[1][3], cam_recipe.transform_matrix[2][3]
+            cam_loc = (
+                cam_recipe.transform_matrix[0][3],
+                cam_recipe.transform_matrix[1][3],
+                cam_recipe.transform_matrix[2][3],
+            )
             t = (cam_loc[2] - h) / cam_loc[2]
             rx = cam_loc[0] + t * (target[0] - cam_loc[0])
             ry = cam_loc[1] + t * (target[1] - cam_loc[1])
+            assert plate.rotation_euler is not None
             theta = plate.rotation_euler[2]
             dx, dy = rx - plate.location[0], ry - plate.location[1]
             la = dx * math.cos(theta) + dy * math.sin(theta)
             lc = -dx * math.sin(theta) + dy * math.cos(theta)
-            inside = abs(la) <= float(plate.properties["size_along_edge_m"]) / 2 and abs(lc) <= float(plate.properties["size_across_edge_m"]) / 2
+            inside = (
+                abs(la) <= float(plate.properties["size_along_edge_m"]) / 2
+                and abs(lc) <= float(plate.properties["size_across_edge_m"]) / 2
+            )
             assert not inside, f"camera ray hits plate at h={h}"
 
 
@@ -220,15 +230,23 @@ def test_plate_does_not_block_camera_ray_for_corner_pattern():
     for plate in out:
         h = plate.location[2]
         for cam_recipe in cams:
-            cam_loc = cam_recipe.transform_matrix[0][3], cam_recipe.transform_matrix[1][3], cam_recipe.transform_matrix[2][3]
+            cam_loc = (
+                cam_recipe.transform_matrix[0][3],
+                cam_recipe.transform_matrix[1][3],
+                cam_recipe.transform_matrix[2][3],
+            )
             t = (cam_loc[2] - h) / cam_loc[2]
             rx = cam_loc[0] + t * (target[0] - cam_loc[0])
             ry = cam_loc[1] + t * (target[1] - cam_loc[1])
+            assert plate.rotation_euler is not None
             theta = plate.rotation_euler[2]
             dx, dy = rx - plate.location[0], ry - plate.location[1]
             la = dx * math.cos(theta) + dy * math.sin(theta)
             lc = -dx * math.sin(theta) + dy * math.cos(theta)
-            inside = abs(la) <= float(plate.properties["size_along_edge_m"]) / 2 and abs(lc) <= float(plate.properties["size_across_edge_m"]) / 2
+            inside = (
+                abs(la) <= float(plate.properties["size_along_edge_m"]) / 2
+                and abs(lc) <= float(plate.properties["size_across_edge_m"]) / 2
+            )
             assert not inside
 
 
@@ -244,16 +262,24 @@ def test_plate_does_not_block_camera_ray_for_multiple_tags():
     for plate in out:
         h = plate.location[2]
         for cam_recipe in cams:
-            cam_loc = cam_recipe.transform_matrix[0][3], cam_recipe.transform_matrix[1][3], cam_recipe.transform_matrix[2][3]
+            cam_loc = (
+                cam_recipe.transform_matrix[0][3],
+                cam_recipe.transform_matrix[1][3],
+                cam_recipe.transform_matrix[2][3],
+            )
             for tag in tags:
                 t = (cam_loc[2] - h) / cam_loc[2]
                 rx = cam_loc[0] + t * (tag[0] - cam_loc[0])
                 ry = cam_loc[1] + t * (tag[1] - cam_loc[1])
+                assert plate.rotation_euler is not None
                 theta = plate.rotation_euler[2]
                 dx, dy = rx - plate.location[0], ry - plate.location[1]
                 la = dx * math.cos(theta) + dy * math.sin(theta)
                 lc = -dx * math.sin(theta) + dy * math.cos(theta)
-                inside = abs(la) <= float(plate.properties["size_along_edge_m"]) / 2 and abs(lc) <= float(plate.properties["size_across_edge_m"]) / 2
+                inside = (
+                    abs(la) <= float(plate.properties["size_along_edge_m"]) / 2
+                    and abs(lc) <= float(plate.properties["size_across_edge_m"]) / 2
+                )
                 assert not inside
 
 

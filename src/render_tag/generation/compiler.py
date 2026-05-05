@@ -445,14 +445,25 @@ class SceneCompiler:
                 # 1. Calculate the true cluster centroid
                 anchors_np = np.array(tag_anchors)
                 cluster_centroid = np.mean(anchors_np, axis=0)
-                cx_c, cy_c, cz_c = float(cluster_centroid[0]), float(cluster_centroid[1]), float(cluster_centroid[2])
+                cx_c, cy_c, cz_c = (
+                    float(cluster_centroid[0]),
+                    float(cluster_centroid[1]),
+                    float(cluster_centroid[2]),
+                )
 
                 # 2. Calculate cluster radius relative to centroid
                 max_r = 0.0
-                for cx, cy, cz in tag_anchors:
+                for cx, cy, _cz in tag_anchors:
                     # Approximate radius of this object
                     size_m = float(
-                        next((o.properties.get(k) for k in ["tag_size", "size_along_edge_m", "square_size"] if o.properties.get(k)), 0.0)
+                        next(
+                            (
+                                o.properties.get(k)
+                                for k in ["tag_size", "size_along_edge_m", "square_size"]
+                                if o.properties.get(k)
+                            ),
+                            0.0,
+                        )
                     )
                     obj_r = size_m / math.sqrt(2.0)
                     dist_to_centroid = math.hypot(cx - cx_c, cy - cy_c)
@@ -462,12 +473,17 @@ class SceneCompiler:
                 culling_positions = []
                 # First element MUST be the centroid for shadow anchoring
                 culling_positions.append((cx_c, cy_c, cz_c))
-                
+
                 for cx, cy, cz in tag_anchors:
                     culling_positions.append((cx, cy, cz))
                     # Protect the 4 corners of the cluster bounding box
                     # (simplified as centroid +/- cluster_radius)
-                    for dx, dy in [(max_r, max_r), (max_r, -max_r), (-max_r, max_r), (-max_r, -max_r)]:
+                    for dx, dy in [
+                        (max_r, max_r),
+                        (max_r, -max_r),
+                        (-max_r, max_r),
+                        (-max_r, -max_r),
+                    ]:
                         culling_positions.append((cx_c + dx, cy_c + dy, cz))
 
                 objects.extend(
