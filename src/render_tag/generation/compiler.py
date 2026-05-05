@@ -541,7 +541,8 @@ class SceneCompiler:
 
         if is_legacy:
             num_lights = 3
-            intensities = None  # Sampled per-light in legacy mode
+            # intensities will be sampled per-light in the loop below
+            intensities_array = None
         else:
             l_root_seed = derive_seed(seed, "lighting_root", 0)
             l_root_rng = np.random.default_rng(l_root_seed)
@@ -568,9 +569,9 @@ class SceneCompiler:
                 # Use a simple Dirichlet-like split: sample N values, normalize.
                 weights = l_root_rng.exponential(scale=1.0, size=num_lights)
                 weights /= weights.sum()
-                intensities = weights * total_intensity
+                intensities_array = weights * total_intensity
             else:
-                intensities = np.array([total_intensity])
+                intensities_array = np.array([total_intensity])
 
         lights = []
         for l_idx in range(num_lights):
@@ -591,8 +592,8 @@ class SceneCompiler:
                     / num_lights
                 )
             else:
-                # intensities is not None here
-                intensity = float(intensities[l_idx])
+                assert intensities_array is not None
+                intensity = float(intensities_array[l_idx])
 
             lights.append(
                 LightRecipe(
