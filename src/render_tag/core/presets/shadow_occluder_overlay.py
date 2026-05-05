@@ -26,7 +26,7 @@ def shadow_occluder_overlay() -> dict[str, Any]:
                 "plate_thickness_m": 0.005,
                 "height_min_m": 0.05,
                 "height_max_m": 0.20,
-                "edge_offset_max_r": 1.2,
+                "edge_offset_max_r": 0.8,
                 "bar_width_min_r": 0.2,
                 "bar_width_max_r": 0.8,
                 "slit_width_min_r": 0.2,

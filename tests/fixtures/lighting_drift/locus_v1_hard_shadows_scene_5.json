@@ -146,9 +146,9 @@
       "forward_axis": null,
       "keypoints_3d": null,
       "location": [
-        1.8039419489956372,
-        1.6375849101654871,
-        1.2314695440765613
+        1.8449222653081716,
+        1.7714891952662881,
+        1.238170076785861
       ],
       "material": null,
       "name": "Occluder_slit_0",
@@ -163,7 +163,7 @@
       "rotation_euler": [
         0.0,
         0.0,
-        2.882766961872564
+        6.033069053296726
       ],
       "rotation_quaternion": null,
       "scale": [
@@ -180,9 +180,9 @@
       "forward_axis": null,
       "keypoints_3d": null,
       "location": [
-        1.9703460934156616,
-        2.2437263357082053,
-        1.2369695440765613
+        1.719266553190854,
+        1.256156038169585,
+        1.243670076785861
       ],
       "material": null,
       "name": "Occluder_slit_1",
@@ -197,7 +197,7 @@
       "rotation_euler": [
         0.0,
         0.0,
-        2.882766961872564
+        6.033069053296726
       ],
       "rotation_quaternion": null,
       "scale": [

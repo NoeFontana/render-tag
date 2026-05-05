@@ -4,18 +4,13 @@ Given camera and tag positions, derive plate orientation θ such that no
 plate body sits between any camera and any tag — making the placement safe
 "by construction" rather than via rejection sampling.
 
-The shadow edge of each plate is anchored so that, under parallel-SUN
-projection, it passes through the tag-cluster centroid. Three patterns:
+The shadow edge/corner of each plate is anchored so that, under parallel-SUN
+projection, it passes through the tag-cluster centroid. Four patterns:
 
-- ``edge``: 1 plate, half-plane shadow.
-- ``corner``: 2 perpendicular plates, L-shaped shadow.
-- ``slit``: 2 parallel plates, narrow lit strip.
-
-The analytical step solves: place θ so that all camera→tag ray crossings
-at plate height fall on one side of the plate's e_perp axis. Reduces to a
-1D arc-fitting problem — feasible iff the camera crossings span < π
-(``edge``) or < π/2 (``corner``) angularly from the shadow anchor. ``slit``
-is sampled uniformly and gated by the rejection check.
+- ``half``: 1 large plate, single straight shadow edge (half-plane).
+- ``corner``: 1 large plate anchored at its corner, quadrant shadow.
+- ``bar``: 1 narrow plate centered on anchor, shadow strip.
+- ``slit``: 2 large plates with a gap, narrow lit strip.
 """
 
 from __future__ import annotations
@@ -30,11 +25,10 @@ from render_tag.core.schema.recipe import ObjectRecipe
 from render_tag.core.seeding import derive_seed
 
 if TYPE_CHECKING:
+    from render_tag.core.schema.recipe import CameraRecipe
     from render_tag.core.schema.subject import OccluderConfig
     from render_tag.generation.context import GenerationContext
 
-
-MAX_PLACEMENT_ATTEMPTS = 30
 
 OccluderPattern = Literal["half", "corner", "bar", "slit"]
 
@@ -94,54 +88,57 @@ class OccluderStrategy:
         centroid = tag_positions[0]
         target_z = centroid[2]
 
-        pattern: OccluderPattern = cfg.patterns[int(rng.integers(0, len(cfg.patterns)))]
-
-        # Sample initial relative height (meters above the tag)
-        h_rel_base = float(rng.uniform(cfg.height_min_m, cfg.height_max_m))
-
         cam_positions = []
         for c in cams:
             mat = np.array(c.transform_matrix)
             cam_positions.append((float(mat[0, 3]), float(mat[1, 3]), float(mat[2, 3])))
 
-        # Sliding Loop: Guaranteed camera clearance via sun-ray sliding.
-        h_shift = 0.0
-        for _ in range(50):
-            h_rel = h_rel_base + h_shift
-            h_abs = target_z + h_rel
+        # Try patterns in order of preference, falling back to 'half' if others fail.
+        # This ensures we almost always get a shadow even in tight camera setups.
+        requested_pattern: OccluderPattern = cfg.patterns[int(rng.integers(0, len(cfg.patterns)))]
+        patterns_to_try: list[OccluderPattern] = [requested_pattern]
+        if requested_pattern != "half":
+            patterns_to_try.append("half")
+
+        for pattern in patterns_to_try:
+            # Sample initial relative height (meters above the tag)
+            h_rel_base = float(rng.uniform(cfg.height_min_m, cfg.height_max_m))
+            h_shift = 0.0
             
-            angles = _crossing_angles(cam_positions, tag_positions, sun_dir, h_abs, centroid)
+            # Sliding Loop: Guaranteed camera clearance via sun-ray sliding.
+            for _ in range(50):
+                h_abs = target_z + h_rel_base + h_shift
+                angles = _crossing_angles(cam_positions, tag_positions, sun_dir, h_abs, centroid)
 
-            plates = self._build_plates(
-                pattern=pattern,
-                target=centroid,
-                radius=target_radius,
-                sun_dir=sun_dir,
-                h=h_abs,
-                angles=angles,
-                rng=rng,
-            )
+                plates = self._build_plates(
+                    pattern=pattern,
+                    target=centroid,
+                    radius=target_radius,
+                    sun_dir=sun_dir,
+                    h=h_abs,
+                    angles=angles,
+                    rng=rng,
+                )
 
-            if not plates:
-                # Arc-fitting failed for this height/pattern, retry with new random
-                h_rel_base = float(rng.uniform(cfg.height_min_m, cfg.height_max_m))
-                h_shift = 0.0
-                continue
+                if not plates:
+                    # Arc-fitting failed for this height, slide UP and try again.
+                    h_shift += 0.05
+                    continue
 
-            # Robust Frustum Culling
-            is_visible = False
-            for plate in plates:
-                for cam in cams:
-                    if _is_plate_visible_to_camera(plate, cam):
-                        is_visible = True
+                # Robust Frustum Culling
+                is_visible = False
+                for plate in plates:
+                    for cam in cams:
+                        if _is_plate_visible_to_camera(plate, cam):
+                            is_visible = True
+                            break
+                    if is_visible:
                         break
-                if is_visible:
-                    break
 
-            if not is_visible:
-                return plates
+                if not is_visible:
+                    return plates
 
-            h_shift += 0.05
+                h_shift += 0.05
         
         return []
 
@@ -175,21 +172,21 @@ class OccluderStrategy:
     def _build_half_plates(
         self, target, radius, sun_dir, h, angles, rng
     ) -> list[ObjectRecipe]:
-        # Edge shift relative to radius
         offset = float(rng.uniform(-self.config.edge_offset_max_r, self.config.edge_offset_max_r)) * radius
         
-        options: list[tuple[float, float]] = []
-        theta_neg = _sample_theta_in_arc(angles, math.pi, rng)
-        if theta_neg is not None:
-            options.append((theta_neg, -1.0))
-        theta_pos = _sample_theta_in_arc([a - math.pi for a in angles], math.pi, rng)
-        if theta_pos is not None:
-            options.append((theta_pos, 1.0))
-
-        if not options:
+        # Plate body avoids cameras if angles fit in a pi safe arc.
+        # Sample safe_start such that [safe_start, safe_start + pi] is empty.
+        # Forbidden arc is [safe_start - pi, safe_start].
+        safe_start = _sample_theta_in_arc(angles, math.pi, rng)
+        if safe_start is None:
             return []
+            
+        # Place plate in the forbidden arc.
+        # extend_sign=-1 covers [edge_theta - pi, edge_theta - pi/2] arc... wait.
+        # Let's just set edge_theta to the start of the forbidden arc and use extend_sign=1.
+        # Forbidden arc is [safe_start + pi, safe_start + 2pi].
+        edge_theta = (safe_start + math.pi) % (2.0 * math.pi)
         
-        edge_theta, extend_sign = options[int(rng.integers(0, len(options)))]
         return [
             self._make_plate(
                 name="Occluder_half",
@@ -198,7 +195,7 @@ class OccluderStrategy:
                 height=h,
                 edge_theta=edge_theta,
                 edge_offset=offset,
-                extend_sign=extend_sign,
+                extend_sign=1.0,
                 size_along=self.config.plate_size_m,
                 size_across=self.config.plate_size_m,
                 anchor_mode="edge",
@@ -208,12 +205,16 @@ class OccluderStrategy:
     def _build_corner_plates(
         self, target, radius, sun_dir, h, angles, rng
     ) -> list[ObjectRecipe]:
-        # Quadrant shadow: anchor plate CORNER near centroid
-        # Sample two perpendicular edges θA, θB
-        theta_a = _sample_theta_in_arc([a - math.pi / 2.0 for a in angles], math.pi / 2.0, rng)
-        if theta_a is None:
+        # A corner plate anchored at (0,0) with edge_theta spans [edge_theta, edge_theta + pi/2].
+        # This must be empty of cameras.
+        # safe_arc is 1.5*pi. Forbidden quadrant is 0.5*pi.
+        safe_start = _sample_theta_in_arc(angles, 1.5 * math.pi, rng)
+        if safe_start is None:
             return []
             
+        # Forbidden quadrant is [safe_start + 1.5*pi, safe_start + 2*pi]
+        edge_theta = (safe_start + 1.5 * math.pi) % (2.0 * math.pi)
+        
         offset_a = float(rng.uniform(-self.config.edge_offset_max_r, self.config.edge_offset_max_r)) * radius
         offset_b = float(rng.uniform(-self.config.edge_offset_max_r, self.config.edge_offset_max_r)) * radius
 
@@ -223,10 +224,10 @@ class OccluderStrategy:
                 target=target,
                 sun_dir=sun_dir,
                 height=h,
-                edge_theta=theta_a,
+                edge_theta=edge_theta,
                 edge_offset=offset_a,
                 along_offset=offset_b,
-                extend_sign=1.0,
+                extend_sign=1.0, 
                 size_along=self.config.plate_size_m,
                 size_across=self.config.plate_size_m,
                 anchor_mode="corner",
@@ -236,13 +237,14 @@ class OccluderStrategy:
     def _build_bar_plates(
         self, target, radius, sun_dir, h, angles, rng
     ) -> list[ObjectRecipe]:
-        # Narrow shadow strip: anchor plate CENTER near centroid
         width = float(rng.uniform(self.config.bar_width_min_r, self.config.bar_width_max_r)) * radius
         offset = float(rng.uniform(-self.config.edge_offset_max_r, self.config.edge_offset_max_r)) * radius
         
-        theta = _sample_theta_in_arc(angles, math.pi, rng)
-        if theta is None:
+        # Bar is like a narrow half-plane. Use half-plane arc-fitting.
+        safe_start = _sample_theta_in_arc(angles, math.pi, rng)
+        if safe_start is None:
             return []
+        edge_theta = (safe_start + math.pi) % (2.0 * math.pi)
 
         return [
             self._make_plate(
@@ -250,7 +252,7 @@ class OccluderStrategy:
                 target=target,
                 sun_dir=sun_dir,
                 height=h,
-                edge_theta=theta,
+                edge_theta=edge_theta,
                 edge_offset=offset,
                 extend_sign=1.0,
                 size_along=self.config.plate_size_m,
@@ -262,15 +264,16 @@ class OccluderStrategy:
     def _build_slit_plates(
         self, target, radius, sun_dir, h, angles, rng
     ) -> list[ObjectRecipe]:
-        # Two half-planes with a lit gap
         slit_w = float(rng.uniform(self.config.slit_width_min_r, self.config.slit_width_max_r)) * radius
         offset = float(rng.uniform(-self.config.edge_offset_max_r, self.config.edge_offset_max_r)) * radius
         
-        theta = _sample_theta_in_arc(angles, math.pi, rng)
-        if theta is None:
+        # Slit uses two half-planes. Use half-plane arc-fitting.
+        safe_start = _sample_theta_in_arc(angles, math.pi, rng)
+        if safe_start is None:
             return []
+        edge_theta = (safe_start + math.pi) % (2.0 * math.pi)
 
-        e_perp = sun_lateral_axis(theta)
+        e_perp = sun_lateral_axis(edge_theta)
         return [
             self._make_plate(
                 name="Occluder_slit_0",
@@ -281,7 +284,7 @@ class OccluderStrategy:
                 ),
                 sun_dir=sun_dir,
                 height=h,
-                edge_theta=theta,
+                edge_theta=edge_theta,
                 edge_offset=offset,
                 extend_sign=1.0,
                 size_along=self.config.plate_size_m,
@@ -297,7 +300,7 @@ class OccluderStrategy:
                 ),
                 sun_dir=sun_dir,
                 height=h + 1.1 * self.config.plate_thickness_m,
-                edge_theta=theta,
+                edge_theta=edge_theta,
                 edge_offset=offset,
                 extend_sign=-1.0,
                 size_along=self.config.plate_size_m,

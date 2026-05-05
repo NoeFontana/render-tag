@@ -139,6 +139,74 @@
       ],
       "texture_path": "__OUTPUT_DIR__/cache/tags/tag36h11_122_m1.png",
       "type": "TAG"
+    },
+    {
+      "board": null,
+      "calibration_points_3d": null,
+      "forward_axis": null,
+      "keypoints_3d": null,
+      "location": [
+        0.47864984364592816,
+        0.5145285160135646,
+        0.37024081259493236
+      ],
+      "material": null,
+      "name": "Occluder_slit_0",
+      "properties": {
+        "albedo": 0.05,
+        "roughness": 0.9,
+        "shape": "plate",
+        "size_across_edge_m": 0.5,
+        "size_along_edge_m": 0.5,
+        "thickness_m": 0.005
+      },
+      "rotation_euler": [
+        0.0,
+        0.0,
+        4.001646995827402
+      ],
+      "rotation_quaternion": null,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "texture_path": null,
+      "type": "OCCLUDER"
+    },
+    {
+      "board": null,
+      "calibration_points_3d": null,
+      "forward_axis": null,
+      "keypoints_3d": null,
+      "location": [
+        0.07256570778068977,
+        0.879075218187553,
+        0.37574081259493236
+      ],
+      "material": null,
+      "name": "Occluder_slit_1",
+      "properties": {
+        "albedo": 0.05,
+        "roughness": 0.9,
+        "shape": "plate",
+        "size_across_edge_m": 0.5,
+        "size_along_edge_m": 0.5,
+        "thickness_m": 0.005
+      },
+      "rotation_euler": [
+        0.0,
+        0.0,
+        4.001646995827402
+      ],
+      "rotation_quaternion": null,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "texture_path": null,
+      "type": "OCCLUDER"
     }
   ],
   "random_seed": 814046046,
