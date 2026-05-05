@@ -104,7 +104,7 @@ class OccluderStrategy:
             # Sample initial relative height (meters above the tag)
             h_rel_base = float(rng.uniform(cfg.height_min_m, cfg.height_max_m))
             h_shift = 0.0
-            
+
             # Sliding Loop: Guaranteed camera clearance via sun-ray sliding.
             for _ in range(50):
                 h_abs = target_z + h_rel_base + h_shift
@@ -139,7 +139,7 @@ class OccluderStrategy:
                     return plates
 
                 h_shift += 0.05
-        
+
         return []
 
     def _build_plates(
@@ -167,9 +167,7 @@ class OccluderStrategy:
 
         return []
 
-    def _build_half_plates(
-        self, target, radius, sun_dir, h, angles, rng
-    ) -> list[ObjectRecipe]:
+    def _build_half_plates(self, target, radius, sun_dir, h, angles, rng) -> list[ObjectRecipe]:
         # Edge shift relative to radius
         offset = (
             float(rng.uniform(-self.config.edge_offset_max_r, self.config.edge_offset_max_r))
@@ -236,9 +234,7 @@ class OccluderStrategy:
             )
         ]
 
-    def _build_corner_plates(
-        self, target, radius, sun_dir, h, angles, rng
-    ) -> list[ObjectRecipe]:
+    def _build_corner_plates(self, target, radius, sun_dir, h, angles, rng) -> list[ObjectRecipe]:
         offset_a = (
             float(rng.uniform(-self.config.edge_offset_max_r, self.config.edge_offset_max_r))
             * radius
@@ -276,12 +272,9 @@ class OccluderStrategy:
             )
         ]
 
-    def _build_bar_plates(
-        self, target, radius, sun_dir, h, angles, rng
-    ) -> list[ObjectRecipe]:
+    def _build_bar_plates(self, target, radius, sun_dir, h, angles, rng) -> list[ObjectRecipe]:
         width = (
-            float(rng.uniform(self.config.bar_width_min_r, self.config.bar_width_max_r))
-            * radius
+            float(rng.uniform(self.config.bar_width_min_r, self.config.bar_width_max_r)) * radius
         )
         offset = (
             float(rng.uniform(-self.config.edge_offset_max_r, self.config.edge_offset_max_r))
@@ -309,12 +302,9 @@ class OccluderStrategy:
             )
         ]
 
-    def _build_slit_plates(
-        self, target, radius, sun_dir, h, angles, rng
-    ) -> list[ObjectRecipe]:
+    def _build_slit_plates(self, target, radius, sun_dir, h, angles, rng) -> list[ObjectRecipe]:
         slit_w = (
-            float(rng.uniform(self.config.slit_width_min_r, self.config.slit_width_max_r))
-            * radius
+            float(rng.uniform(self.config.slit_width_min_r, self.config.slit_width_max_r)) * radius
         )
         offset = (
             float(rng.uniform(-self.config.edge_offset_max_r, self.config.edge_offset_max_r))

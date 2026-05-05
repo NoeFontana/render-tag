@@ -34,9 +34,7 @@ def _shadow_xy(plate_loc: list[float], sun_dir: tuple[float, float, float]) -> t
 
 
 def _mock_cam(
-    location: tuple[float, float, float],
-    res: tuple[int, int] = (640, 480),
-    fov: float = 90.0
+    location: tuple[float, float, float], res: tuple[int, int] = (640, 480), fov: float = 90.0
 ) -> CameraRecipe:
     """Create a CameraRecipe pointing at the origin from a given location."""
     # Build a simple look-at matrix
@@ -63,11 +61,7 @@ def _mock_cam(
 
     return CameraRecipe(
         transform_matrix=mat.tolist(),
-        intrinsics=CameraIntrinsics(
-            resolution=list(res),
-            k_matrix=k,
-            fov=fov
-        )
+        intrinsics=CameraIntrinsics(resolution=list(res), k_matrix=k, fov=fov),
     )
 
 
@@ -145,9 +139,7 @@ def test_shadow_edge_passes_through_target_for_half_pattern():
     mat[:3, 2] = -np.array([1.0, 1.0, 1.0]) / math.sqrt(3.0)
     cam.transform_matrix = mat.tolist()
 
-    out = strategy.sample_pose(
-        seed=42, context=ctx, tag_positions=[target], camera_recipes=[cam]
-    )
+    out = strategy.sample_pose(seed=42, context=ctx, tag_positions=[target], camera_recipes=[cam])
     assert len(out) == 1
 
     plate = out[0]
@@ -165,10 +157,7 @@ def test_shadow_edge_passes_through_target_for_half_pattern():
 def test_sliding_loop_clears_camera_view():
     """If a camera is looking at the initial plate, it must slide up until clear."""
     cfg = OccluderConfig(
-        patterns=["half"],
-        height_min_m=0.1,
-        height_max_m=0.1,
-        edge_offset_max_r=0.0
+        patterns=["half"], height_min_m=0.1, height_max_m=0.1, edge_offset_max_r=0.0
     )
     strategy = OccluderStrategy(cfg)
     ctx = _ctx_with_sun(azimuth=0.0, elevation=math.pi / 4)
@@ -190,9 +179,7 @@ def test_plate_does_not_block_camera_ray_for_half_pattern():
     ctx = _ctx_with_sun(azimuth=0.785398, elevation=0.45)
     target = (0.0, 0.0, 0.0)
     cams = [_mock_cam((0.4, 0.4, 1.0)), _mock_cam((-0.3, 0.2, 1.2))]
-    out = strategy.sample_pose(
-        seed=42, context=ctx, tag_positions=[target], camera_recipes=cams
-    )
+    out = strategy.sample_pose(seed=42, context=ctx, tag_positions=[target], camera_recipes=cams)
     assert out
     for plate in out:
         h = plate.location[2]
@@ -223,9 +210,7 @@ def test_plate_does_not_block_camera_ray_for_corner_pattern():
     ctx = _ctx_with_sun(azimuth=0.785398, elevation=0.45)
     target = (0.0, 0.0, 0.0)
     cams = [_mock_cam((0.5, -0.2, 1.0))]
-    out = strategy.sample_pose(
-        seed=42, context=ctx, tag_positions=[target], camera_recipes=cams
-    )
+    out = strategy.sample_pose(seed=42, context=ctx, tag_positions=[target], camera_recipes=cams)
     assert len(out) == 1
     for plate in out:
         h = plate.location[2]

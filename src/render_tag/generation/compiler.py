@@ -426,7 +426,7 @@ class SceneCompiler:
                     continue
                 cx, cy, cz = float(o.location[0]), float(o.location[1]), float(o.location[2])
                 tag_anchors.append((cx, cy, cz))
-                
+
                 # Approximate radius of this object
                 size_m = float(
                     o.properties.get("tag_size")
