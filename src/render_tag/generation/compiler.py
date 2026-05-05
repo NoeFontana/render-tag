@@ -29,10 +29,11 @@ from ..core.schema import (
 from ..core.seeding import derive_seed
 from ..data_io.assets import AssetProvider
 from .camera import sample_camera_pose
-from .strategy.factory import get_subject_strategy
+from .strategy.factory import get_occluder_strategy, get_subject_strategy
 
 if TYPE_CHECKING:
     from .strategy.base import SubjectStrategy
+    from .strategy.occluder import OccluderStrategy
 
 logger = get_logger(__name__)
 
@@ -250,6 +251,9 @@ class SceneCompiler:
 
         # Initialize Subject Strategy
         self.strategy: SubjectStrategy = get_subject_strategy(self.config.scenario.subject)
+        self.occluder_strategy: OccluderStrategy | None = get_occluder_strategy(
+            self.config.scenario.occluders
+        )
 
         # If it's a TagStrategy, we might need to synchronize its config with GenConfig
         # (Though ideally SubjectConfig should already be correct)
@@ -267,6 +271,8 @@ class SceneCompiler:
             gen_config=self.config, output_dir=self.output_dir or Path("output")
         )
         self.strategy.prepare_assets(ctx)
+        if self.occluder_strategy is not None:
+            self.occluder_strategy.prepare_assets(ctx)
 
         # Cache textures
         self.textures = []
@@ -407,9 +413,86 @@ class SceneCompiler:
             gen_config=self.config, output_dir=self.output_dir or Path("output")
         )
         objects = self.strategy.sample_pose(seed, ctx)
-        recipe.objects = objects
 
+        # Cameras must be sampled before occluders so the occluder strategy can
+        # pick plate placements that avoid sitting between any camera and the tag.
         recipe.cameras = self._sample_camera_recipes(scene_id, seed, objects)
+
+        if self.occluder_strategy is not None:
+            tag_anchors: list[tuple[float, float, float]] = []
+            max_r = 0.0
+            for o in objects:
+                if o.type not in {"TAG", "BOARD"}:
+                    continue
+                cx, cy, cz = float(o.location[0]), float(o.location[1]), float(o.location[2])
+                tag_anchors.append((cx, cy, cz))
+
+                # Approximate radius of this object
+                size_m = float(
+                    o.properties.get("tag_size")
+                    or o.properties.get("size_along_edge_m")
+                    or o.properties.get("square_size")
+                    or 0.0
+                )
+                if size_m > 0.0:
+                    # Bounding circle radius
+                    obj_r = size_m / math.sqrt(2.0)
+                    # Cluster radius is max distance from origin to any corner
+                    dist_to_center = math.hypot(cx, cy)
+                    max_r = max(max_r, dist_to_center + obj_r)
+
+            if tag_anchors:
+                # 1. Calculate the true cluster centroid
+                anchors_np = np.array(tag_anchors)
+                cluster_centroid = np.mean(anchors_np, axis=0)
+                cx_c, cy_c, cz_c = (
+                    float(cluster_centroid[0]),
+                    float(cluster_centroid[1]),
+                    float(cluster_centroid[2]),
+                )
+
+                # 2. Calculate cluster radius relative to centroid
+                max_r = 0.0
+                for cx, cy, _cz in tag_anchors:
+                    # Approximate radius of this object
+                    size_m = float(
+                        next(
+                            (
+                                o.properties.get(k)
+                                for k in ["tag_size", "size_along_edge_m", "square_size"]
+                                if o.properties.get(k)
+                            ),
+                            0.0,
+                        )
+                    )
+                    obj_r = size_m / math.sqrt(2.0)
+                    dist_to_centroid = math.hypot(cx - cx_c, cy - cy_c)
+                    max_r = max(max_r, dist_to_centroid + obj_r)
+
+                # 3. For culling, we protect the entire cluster area
+                culling_positions = []
+                # First element MUST be the centroid for shadow anchoring
+                culling_positions.append((cx_c, cy_c, cz_c))
+
+                for cx, cy, cz in tag_anchors:
+                    culling_positions.append((cx, cy, cz))
+                    # Protect the 4 corners of the cluster bounding box
+                    # (simplified as centroid +/- cluster_radius)
+                    for dx, dy in [
+                        (max_r, max_r),
+                        (max_r, -max_r),
+                        (-max_r, max_r),
+                        (-max_r, -max_r),
+                    ]:
+                        culling_positions.append((cx_c + dx, cy_c + dy, cz))
+
+                objects.extend(
+                    self.occluder_strategy.sample_pose(
+                        seed, ctx, culling_positions, recipe.cameras, target_radius=max_r
+                    )
+                )
+
+        recipe.objects = objects
 
         return recipe
 

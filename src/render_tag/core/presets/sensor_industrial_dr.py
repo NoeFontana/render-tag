@@ -1,12 +1,9 @@
 """Preset: ``sensor.industrial_dr``.
 
-Low-dynamic-range industrial-camera profile. Compose with an outdoor lighting
-preset (``lighting.outdoor_industrial``) and a harsh-shadow preset
-(``shadow.harsh``) to reproduce the canonical deployment failure mode: tag in
-hard shade, crushed into the noise floor, unrecoverable.
-
-Composes cleanly with ``sensor.hdr_sweep`` — users can override ``iso`` on top
-when the characterization sweep picks a harsher stress value.
+Low-dynamic-range industrial-camera profile with a baked-in Gaussian read-noise
+floor. Compose with an outdoor lighting preset (``lighting.outdoor_sun``) to
+reproduce the canonical deployment failure mode: tag in hard shade, crushed
+into the noise floor, unrecoverable.
 """
 
 from __future__ import annotations
@@ -18,7 +15,7 @@ from render_tag.core.presets.base import register_preset
 
 @register_preset(
     name="sensor.industrial_dr",
-    description="Low-DR industrial sensor: 60 dB dynamic range, linear tone mapping.",
+    description="Low-DR industrial sensor: 60 dB DR, linear tone mapping, Gaussian read noise.",
 )
 def sensor_industrial_dr() -> dict[str, Any]:
     return {
@@ -27,5 +24,10 @@ def sensor_industrial_dr() -> dict[str, Any]:
             "tone_mapping": "linear",
             "iso": 400,
             "iso_coupling": True,
+            "sensor_noise": {
+                "model": "gaussian",
+                "mean": 0.0,
+                "stddev": 0.008,
+            },
         }
     }

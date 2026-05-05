@@ -51,7 +51,7 @@
         "salt_vs_pepper": 0.5,
         "scale": 1000.0,
         "seed": 334337867,
-        "stddev": 0.006062866266041593
+        "stddev": 0.008
       },
       "tone_mapping": "linear",
       "transform_matrix": [

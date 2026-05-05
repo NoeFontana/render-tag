@@ -121,3 +121,60 @@ class SubjectConfig(RootModel):
     """Root model for polymorphic subjects."""
 
     root: Annotated[TagSubjectConfig | BoardSubjectConfig, Field(discriminator="type")]
+
+
+class OccluderConfig(BaseModel):
+    """Half-plane shadow plates that cast realistic edge/corner/slit shadows on the tag.
+
+    A plate is a horizontal rectangle floating at height ``h`` above the tag plane.
+    Its edge/corner is anchored along the sun ray so that the projected umbra
+    intersects the tag cluster. Four patterns are supported:
+
+    - ``half``: 1 large plate, single straight shadow edge (half-plane).
+    - ``corner``: 1 large plate anchored at its corner, quadrant shadow.
+    - ``bar``: 1 narrow plate centered on anchor, shadow strip.
+    - ``slit``: 2 large plates with a gap, narrow lit strip between two shadows.
+    """
+
+    enabled: bool = Field(default=True)
+    patterns: list[Literal["half", "corner", "bar", "slit"]] = Field(
+        default_factory=lambda: ["half", "corner", "bar", "slit"],
+        min_length=1,
+    )
+    plate_size_m: PositiveFloat = Field(
+        default=0.5, description="Size of 'large' plates used in half/corner/slit."
+    )
+    plate_thickness_m: PositiveFloat = Field(default=0.005)
+    height_min_m: PositiveFloat = Field(default=0.05)
+    height_max_m: PositiveFloat = Field(default=0.20)
+
+    # Offsets and widths are relative to the tag cluster radius R
+    # (e.g. edge_offset_max_r=1.0 means the shadow edge can be anywhere on the tag)
+    edge_offset_max_r: float = Field(
+        default=1.0, ge=0.0, description="Max edge shift relative to tag radius."
+    )
+    bar_width_min_r: PositiveFloat = Field(
+        default=0.1, description="Min bar width relative to tag radius."
+    )
+    bar_width_max_r: PositiveFloat = Field(
+        default=0.5, description="Max bar width relative to tag radius."
+    )
+    slit_width_min_r: PositiveFloat = Field(
+        default=0.1, description="Min slit width relative to tag radius."
+    )
+    slit_width_max_r: PositiveFloat = Field(
+        default=0.5, description="Max slit width relative to tag radius."
+    )
+
+    albedo: float = Field(default=0.05, ge=0.0, le=1.0)
+    roughness: float = Field(default=0.9, ge=0.0, le=1.0)
+
+    @model_validator(mode="after")
+    def validate_ranges(self) -> OccluderConfig:
+        if self.height_max_m < self.height_min_m:
+            raise ValueError("height_max_m must be >= height_min_m")
+        if self.bar_width_max_r < self.bar_width_min_r:
+            raise ValueError("bar_width_max_r must be >= bar_width_min_r")
+        if self.slit_width_max_r < self.slit_width_min_r:
+            raise ValueError("slit_width_max_r must be >= slit_width_min_r")
+        return self

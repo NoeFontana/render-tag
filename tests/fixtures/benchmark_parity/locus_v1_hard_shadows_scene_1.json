@@ -139,6 +139,74 @@
       ],
       "texture_path": "__OUTPUT_DIR__/cache/tags/tag36h11_122_m1.png",
       "type": "TAG"
+    },
+    {
+      "board": null,
+      "calibration_points_3d": null,
+      "forward_axis": null,
+      "keypoints_3d": null,
+      "location": [
+        0.47864984364592816,
+        0.5145285160135646,
+        0.37024081259493236
+      ],
+      "material": null,
+      "name": "Occluder_slit_0",
+      "properties": {
+        "albedo": 0.05,
+        "roughness": 0.9,
+        "shape": "plate",
+        "size_across_edge_m": 0.5,
+        "size_along_edge_m": 0.5,
+        "thickness_m": 0.005
+      },
+      "rotation_euler": [
+        0.0,
+        0.0,
+        4.001646995827402
+      ],
+      "rotation_quaternion": null,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "texture_path": null,
+      "type": "OCCLUDER"
+    },
+    {
+      "board": null,
+      "calibration_points_3d": null,
+      "forward_axis": null,
+      "keypoints_3d": null,
+      "location": [
+        0.07256570778068977,
+        0.879075218187553,
+        0.37574081259493236
+      ],
+      "material": null,
+      "name": "Occluder_slit_1",
+      "properties": {
+        "albedo": 0.05,
+        "roughness": 0.9,
+        "shape": "plate",
+        "size_across_edge_m": 0.5,
+        "size_along_edge_m": 0.5,
+        "thickness_m": 0.005
+      },
+      "rotation_euler": [
+        0.0,
+        0.0,
+        4.001646995827402
+      ],
+      "rotation_quaternion": null,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "texture_path": null,
+      "type": "OCCLUDER"
     }
   ],
   "random_seed": 814046046,
@@ -168,13 +236,13 @@
           1.0,
           1.0
         ],
-        "intensity": 297.5165280695665,
+        "intensity": 28.235364692754114,
         "location": [
           -1.544590965439198,
           -0.416675337946744,
           2.5795180341664854
         ],
-        "radius": 0.014863387208650006,
+        "radius": 0.0,
         "rotation_euler": null,
         "type": "POINT"
       },
@@ -184,13 +252,13 @@
           1.0,
           1.0
         ],
-        "intensity": 327.6102839069913,
+        "intensity": 39.52052313178841,
         "location": [
           1.8910896732440503,
           -1.445150938368925,
           3.3587883711578184
         ],
-        "radius": 0.006042073540294908,
+        "radius": 0.0,
         "rotation_euler": null,
         "type": "POINT"
       },
@@ -200,13 +268,13 @@
           1.0,
           1.0
         ],
-        "intensity": 388.82628800429507,
+        "intensity": 62.47652466827733,
         "location": [
           0.8610941972578027,
           1.8694381555228714,
           3.0278328152183063
         ],
-        "radius": 0.017868417112217788,
+        "radius": 0.0,
         "rotation_euler": null,
         "type": "POINT"
       },
@@ -216,15 +284,15 @@
           1.0,
           1.0
         ],
-        "intensity": 5.0,
+        "intensity": 30.0,
         "location": [
-          6.755250201547019,
-          6.755247993966088,
-          2.9552020666133956
+          6.367123562105038,
+          6.367121481361893,
+          4.349655341112302
         ],
         "radius": 0.0,
         "rotation_euler": [
-          1.2707963267948965,
+          1.1207963267948966,
           0.0,
           2.3561943267948964
         ],

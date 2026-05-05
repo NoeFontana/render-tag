@@ -13,10 +13,21 @@ from render_tag.core.schema_adapter import adapt_config
 
 def test_modern_presets_list_applies_lighting_preset():
     cfg = GenConfig.model_validate(adapt_config({"presets": ["lighting.outdoor_industrial"]}))
-    assert cfg.scene.lighting.intensity_min == 800.0
-    assert cfg.scene.lighting.intensity_max == 1200.0
+    assert cfg.scene.lighting.intensity_min == 150.0
+    assert cfg.scene.lighting.intensity_max == 400.0
     assert cfg.scene.lighting.radius_max <= 0.05
+    assert len(cfg.scene.lighting.directional) == 1
+    assert cfg.scene.lighting.directional[0].intensity == 35.0
     assert cfg.presets == ["lighting.outdoor_industrial"]
+
+
+def test_outdoor_sun_preset_values():
+    cfg = GenConfig.model_validate(adapt_config({"presets": ["lighting.outdoor_sun"]}))
+    assert cfg.scene.lighting.intensity_min == 50.0
+    assert cfg.scene.lighting.intensity_max == 200.0
+    assert cfg.scene.lighting.radius_max == 0.0
+    assert len(cfg.scene.lighting.directional) == 1
+    assert cfg.scene.lighting.directional[0].intensity == 30.0
 
 
 def test_factory_preset_values():

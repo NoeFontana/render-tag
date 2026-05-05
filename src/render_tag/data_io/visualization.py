@@ -45,6 +45,7 @@ class ShadowRenderer:
         """Draw the scene and save/show it."""
         self._draw_board()
         self._draw_tags()
+        self._draw_occluders()
         self._draw_cameras()
         self.ax.autoscale_view()
 
@@ -85,6 +86,41 @@ class ShadowRenderer:
         if tag_patches:
             self.ax.add_collection(PatchCollection(tag_patches, match_original=True))
 
+    def _draw_occluders(self):
+        sun_dir = self._extract_sun_direction()
+        if sun_dir is None:
+            return
+        sx, sy, sz = sun_dir
+
+        for obj in self.recipe.objects:
+            if obj.type != "OCCLUDER":
+                continue
+            h = obj.location[2]
+            shadow_xy = (
+                obj.location[0] - h * sx / sz,
+                obj.location[1] - h * sy / sz,
+            )
+            patch = self._create_rect_patch(
+                obj,
+                color="#222222",
+                alpha=0.55,
+                width=obj.properties.get("size_along_edge_m", 0.5),
+                height=obj.properties.get("size_across_edge_m", 0.5),
+                position=shadow_xy,
+            )
+            self.ax.add_patch(patch)
+
+    def _extract_sun_direction(self) -> tuple[float, float, float] | None:
+        for light in self.recipe.world.lights:
+            if light.type != "SUN":
+                continue
+            lx, ly, lz = light.location
+            norm = (lx * lx + ly * ly + lz * lz) ** 0.5
+            if norm < 1e-6 or lz <= 1e-6:
+                return None
+            return (lx / norm, ly / norm, lz / norm)
+        return None
+
     def _draw_cameras(self):
         for i, cam in enumerate(self.recipe.cameras):
             matrix = np.array(cam.transform_matrix)
@@ -96,7 +132,8 @@ class ShadowRenderer:
             if cam.iso_noise and cam.iso_noise > 0:
                 info += f"\nISO: {cam.iso_noise}"
             if cam.sensor_noise:
-                info += f"\nNoise: {cam.sensor_noise.model.value}"
+                model = cam.sensor_noise.model
+                info += f"\nNoise: {getattr(model, 'value', model)}"
 
             self.ax.text(pos[0], pos[1] + 0.05, info, color="red", fontsize=8)
 
@@ -114,25 +151,36 @@ class ShadowRenderer:
                 alpha=0.5,
             )
 
-    def _create_rect_patch(self, obj: ObjectRecipe, color, alpha=1.0) -> patches.Rectangle:
-        """Create a rotated rectangle patch."""
-        x, y, _ = obj.location
-        width = obj.properties.get("tag_size", 0.1)
-        height = width
+    def _create_rect_patch(
+        self,
+        obj: ObjectRecipe,
+        color,
+        alpha: float = 1.0,
+        width: float | None = None,
+        height: float | None = None,
+        position: tuple[float, float] | None = None,
+    ) -> patches.Rectangle:
+        """Rotated rectangle anchored at matplotlib's lower-left corner convention.
 
-        width *= obj.scale[0]
-        height *= obj.scale[1]
+        ``width``/``height`` override the default tag_size square; ``position``
+        overrides the centre XY (used to draw projected occluder shadows).
+        """
+        if position is None:
+            x, y = obj.location[0], obj.location[1]
+        else:
+            x, y = position
+        if width is None:
+            width = obj.properties.get("tag_size", 0.1) * obj.scale[0]
+        if height is None:
+            tag_size = obj.properties.get("tag_size", 0.1)
+            height = tag_size * obj.scale[1]
 
-        # Staff Engineer: Handle None for rotation_euler (default to zero rotation)
-        rotation = obj.rotation_euler or [0.0, 0.0, 0.0]
-        rot_z = rotation[2]
+        rot_z = (obj.rotation_euler or [0.0, 0.0, 0.0])[2]
+        cos_a, sin_a = np.cos(rot_z), np.sin(rot_z)
         w2, h2 = width / 2, height / 2
 
-        cos_a = np.cos(rot_z)
-        sin_a = np.sin(rot_z)
-
-        dx = -w2 * cos_a - (-h2) * sin_a
-        dy = -w2 * sin_a + (-h2) * cos_a
+        dx = -w2 * cos_a + h2 * sin_a
+        dy = -w2 * sin_a - h2 * cos_a
 
         return patches.Rectangle(
             (x + dx, y + dy),

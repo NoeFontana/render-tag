@@ -1,15 +1,12 @@
-# Low-DR industrial sensor under outdoor, harsh-shadow illumination.
+# Low-DR industrial sensor under outdoor sun illumination.
 # Stresses shadow-crush + hot-spot saturation — the dominant failure mode when
-# a 60 dB sensor hits high-contrast outdoor scenes. ISO inherited from
-# sensor.industrial_dr (400). Override `camera.iso` here after running
-# configs/experiments/locus_tone_dr_sweep.yaml if the knee shifts.
+# a 60 dB sensor hits a high-contrast outdoor scene with dim ambient and a
+# dominant SUN. ISO 400 + Gaussian read noise inherited from sensor.industrial_dr.
 presets:
   - locus.v1_baseline
   - subject.tag36h11_standard
-  - sensor.hdr_sweep
   - sensor.industrial_dr
-  - lighting.outdoor_industrial
-  - shadow.harsh
+  - lighting.outdoor_sun
 dataset:
   num_scenes: 50
   seeds:
