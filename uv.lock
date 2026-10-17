@@ -6,10 +6,10 @@ resolution-markers = [
     "python_full_version >= '3.14' and sys_platform == 'emscripten'",
     "python_full_version >= '3.14' and sys_platform != 'emscripten' and sys_platform != 'win32'",
     "python_full_version == '3.13.*' and sys_platform == 'win32'",
-    "python_full_version < '3.13' and sys_platform == 'win32'",
     "python_full_version == '3.13.*' and sys_platform == 'emscripten'",
-    "python_full_version < '3.13' and sys_platform == 'emscripten'",
     "python_full_version == '3.13.*' and sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version < '3.13' and sys_platform == 'win32'",
+    "python_full_version < '3.13' and sys_platform == 'emscripten'",
     "python_full_version < '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 
@@ -1050,11 +1050,11 @@ wheels = [
 
 [[package]]
 name = "fake-bpy-module-4-2"
-version = "20260128"
+version = "20260730"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/1b/9c/64fabe1a6c19a17f2870ac51ea55e0e8a0f080f483d929abe3012c238791/fake_bpy_module_4_2-20260128.tar.gz", hash = "sha256:0e2e09fda48ffbad5712ec313c581f1f2b96a9ce1b52bd4a6021c07b213a1753", size = 844236, upload-time = "2026-01-28T15:38:24.354Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f0/d2/c25f6be4c6f85c420687eb2346066cd355232b2110ee023fd50b019c7f26/fake_bpy_module_4_2-20260730.tar.gz", hash = "sha256:1e007a3480b341c7de17761c43b358e679b1ba9078f601e906c8dc3871e84e9b", size = 803572, upload-time = "2026-07-30T04:10:26.661Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/2b/26/1ced42e2a26acf0505257817535a9e139a147d7cb8c8104729109ccb8fb5/fake_bpy_module_4_2-20260128-py3-none-any.whl", hash = "sha256:d5dd5bbf6b692a4b90c52d4816f61c6668c8b75c45bbb626b444cf4031853971", size = 962735, upload-time = "2026-01-28T15:38:19.748Z" },
+    { url = "https://files.pythonhosted.org/packages/bb/1e/3d22aa9e51558bfebb8840294c2adfb1ad457fa923cd0fbc03a30fa22ad0/fake_bpy_module_4_2-20260730-py3-none-any.whl", hash = "sha256:e21183e63b7ebcd91132f62264472b28220e37a670dc213545bd4989640f2c60", size = 926511, upload-time = "2026-07-30T04:10:25.054Z" },
 ]
 
 [[package]]
